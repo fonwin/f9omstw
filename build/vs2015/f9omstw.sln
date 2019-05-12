@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_base libs", "_base libs", "{760A724D-FB5D-4111-AAF5-D4BC3312679D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libfon9", "..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj", "{6B9031A7-02E1-4171-8CA5-9F780BE21806}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libf9tws", "..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj", "{0E13A033-3AA4-4F1E-8F1D-5BF74123CCCD}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libf9omstw", "libf9omstw\libf9omstw.vcxproj", "{72E0B1CA-86CB-4145-9302-C0C0B0C00532}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "f9omstw", "f9omstw\f9omstw.vcxproj", "{B63443CE-0BE2-4650-9F0E-0F54959B628D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OmsReqOrd_UT", "OmsReqOrd_UT\OmsReqOrd_UT.vcxproj", "{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_UnitTests", "_UnitTests", "{CDE1A54E-32B0-4BB8-BE6F-7922D0C28FFB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OmsRequestPolicy_UT", "OmsRequestPolicy_UT\OmsRequestPolicy_UT.vcxproj", "{BA6132E8-5AF6-4286-82FC-7A9E13CC51F4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6B9031A7-02E1-4171-8CA5-9F780BE21806}.Debug|x64.ActiveCfg = Debug|x64
+		{6B9031A7-02E1-4171-8CA5-9F780BE21806}.Debug|x64.Build.0 = Debug|x64
+		{6B9031A7-02E1-4171-8CA5-9F780BE21806}.Release|x64.ActiveCfg = Release|x64
+		{6B9031A7-02E1-4171-8CA5-9F780BE21806}.Release|x64.Build.0 = Release|x64
+		{0E13A033-3AA4-4F1E-8F1D-5BF74123CCCD}.Debug|x64.ActiveCfg = Debug|x64
+		{0E13A033-3AA4-4F1E-8F1D-5BF74123CCCD}.Debug|x64.Build.0 = Debug|x64
+		{0E13A033-3AA4-4F1E-8F1D-5BF74123CCCD}.Release|x64.ActiveCfg = Release|x64
+		{0E13A033-3AA4-4F1E-8F1D-5BF74123CCCD}.Release|x64.Build.0 = Release|x64
+		{72E0B1CA-86CB-4145-9302-C0C0B0C00532}.Debug|x64.ActiveCfg = Debug|x64
+		{72E0B1CA-86CB-4145-9302-C0C0B0C00532}.Debug|x64.Build.0 = Debug|x64
+		{72E0B1CA-86CB-4145-9302-C0C0B0C00532}.Release|x64.ActiveCfg = Release|x64
+		{72E0B1CA-86CB-4145-9302-C0C0B0C00532}.Release|x64.Build.0 = Release|x64
+		{B63443CE-0BE2-4650-9F0E-0F54959B628D}.Debug|x64.ActiveCfg = Debug|x64
+		{B63443CE-0BE2-4650-9F0E-0F54959B628D}.Debug|x64.Build.0 = Debug|x64
+		{B63443CE-0BE2-4650-9F0E-0F54959B628D}.Release|x64.ActiveCfg = Release|x64
+		{B63443CE-0BE2-4650-9F0E-0F54959B628D}.Release|x64.Build.0 = Release|x64
+		{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B}.Debug|x64.ActiveCfg = Debug|x64
+		{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B}.Debug|x64.Build.0 = Debug|x64
+		{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B}.Release|x64.ActiveCfg = Release|x64
+		{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B}.Release|x64.Build.0 = Release|x64
+		{BA6132E8-5AF6-4286-82FC-7A9E13CC51F4}.Debug|x64.ActiveCfg = Debug|x64
+		{BA6132E8-5AF6-4286-82FC-7A9E13CC51F4}.Debug|x64.Build.0 = Debug|x64
+		{BA6132E8-5AF6-4286-82FC-7A9E13CC51F4}.Release|x64.ActiveCfg = Release|x64
+		{BA6132E8-5AF6-4286-82FC-7A9E13CC51F4}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6B9031A7-02E1-4171-8CA5-9F780BE21806} = {760A724D-FB5D-4111-AAF5-D4BC3312679D}
+		{0E13A033-3AA4-4F1E-8F1D-5BF74123CCCD} = {760A724D-FB5D-4111-AAF5-D4BC3312679D}
+		{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B} = {CDE1A54E-32B0-4BB8-BE6F-7922D0C28FFB}
+		{BA6132E8-5AF6-4286-82FC-7A9E13CC51F4} = {CDE1A54E-32B0-4BB8-BE6F-7922D0C28FFB}
+	EndGlobalSection
+EndGlobal

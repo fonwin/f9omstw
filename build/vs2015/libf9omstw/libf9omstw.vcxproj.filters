@@ -1,0 +1,197 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files\_core">
+      <UniqueIdentifier>{9ec6b638-b46a-4322-9db3-ea730f7589d1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_sc_tables %28trees%29">
+      <UniqueIdentifier>{6898ab1c-c4b1-4b3d-bf19-a98cc70e30d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_req_ord">
+      <UniqueIdentifier>{ea691485-f57d-419c-9b48-a243d729ff11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_core">
+      <UniqueIdentifier>{0ca1713a-d75b-46e0-a2f2-2e18f854dc73}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_sc_tables %28trees%29">
+      <UniqueIdentifier>{f3b0f439-10c4-4cac-89e8-6928e72cf4af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_req_ord">
+      <UniqueIdentifier>{f3685643-ae1e-4f22-87f3-3b8c1cf04246}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_policy">
+      <UniqueIdentifier>{b2913726-1dca-48f9-98bb-fa95335f0276}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_policy">
+      <UniqueIdentifier>{26e995f4-0e8f-426a-a2c1-89e149ec7990}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsBrk.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsBrkTree.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCore.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsIvacTree.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsIvBase.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsIvSymb.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsOrder.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsOrderTws.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequest.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestTws.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTree.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTreeSvctSet.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestMgr.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestPolicy.hpp">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.hpp">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsBase.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsBrk.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsBrkTree.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsIvSymb.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsOrderTws.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequest.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestTws.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsSubac.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestMgr.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestPolicy.cpp">
+      <Filter>Source Files\_policy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsPoIvList.cpp">
+      <Filter>Source Files\_policy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsPoIvListAgent.cpp">
+      <Filter>Source Files\_policy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp">
+      <Filter>Source Files\_policy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\README.md" />
+  </ItemGroup>
+</Project>

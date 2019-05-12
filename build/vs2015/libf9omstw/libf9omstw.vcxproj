@@ -1,0 +1,145 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{72E0B1CA-86CB-4145-9302-C0C0B0C00532}</ProjectGuid>
+    <RootNamespace>libf9omstw</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
+    <IntDir>$(OutDir)$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
+    <IntDir>$(OutDir)$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsBase.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsBrk.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsBrkTree.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsCore.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsIvacTree.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsIvBase.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsIvSymb.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsOrder.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsOrderTws.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequest.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestMgr.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestPolicy.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestTws.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTree.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTreeSvctSet.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsBrk.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsBrkTree.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsIvSymb.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsOrderTws.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsPoIvList.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsPoIvListAgent.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequest.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestMgr.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestPolicy.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestTws.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsSubac.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj">
+      <Project>{0e13a033-3aa4-4f1e-8f1d-5bf74123cccd}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
+      <Project>{6b9031a7-02e1-4171-8ca5-9f780be21806}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

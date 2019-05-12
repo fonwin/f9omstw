@@ -1,0 +1,34 @@
+cmake_minimum_required(VERSION 2.6)
+project(f9omstw)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+set(CXX_FLAGS
+ -g
+ -Wall
+ -Wextra
+ -Wconversion
+ -Wold-style-cast
+ -Woverloaded-virtual
+ -Wpointer-arith
+ -Wshadow
+ -Wwrite-strings
+ -fexec-charset=UTF-8
+ -std=c++11
+ )
+string(REPLACE ";" " " CMAKE_CXX_FLAGS "${CXX_FLAGS}")
+include_directories(.)
+include_directories(../fon9)
+
+if(${CMAKE_BUILD_TYPE} MATCHES "Release|release")
+  link_directories(~/devel/output/fon9/release/fon9)
+  link_directories(~/devel/output/fon9/release/f9tws)
+else()
+  link_directories(~/devel/output/fon9/debug/fon9)
+  link_directories(~/devel/output/fon9/debug/f9tws)
+endif()
+
+add_subdirectory(f9omstw)
+add_subdirectory(apps/f9omstw)

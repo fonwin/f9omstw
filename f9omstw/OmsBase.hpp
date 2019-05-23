@@ -11,6 +11,8 @@ namespace f9omstw {
 class OmsCore;
 class OmsTree;
 class OmsResource;
+class OmsBackend;
+class OmsRxItem;
 
 //
 //    +-----------------+
@@ -61,8 +63,6 @@ using OmsRequestRunStepSP = std::unique_ptr<OmsRequestRunStep>;
 
 class OmsRequestRunner;
 class OmsRequestRunnerInCore;
-
-class OmsRequestMgr;
 
 class OmsOrderRaw;
 class OmsOrder;

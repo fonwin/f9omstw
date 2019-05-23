@@ -1,8 +1,11 @@
 set(f9omstw_src
+ IvacNo.cpp
  OmsCore.cpp
  OmsResource.cpp
  OmsTools.cpp
- IvacNo.cpp
+ OmsRxItem.cpp
+ OmsBackend.cpp
+ OmsBackendRecorder.cpp
 
  OmsTree.cpp
  OmsIvBase.cpp
@@ -15,9 +18,9 @@ set(f9omstw_src
  OmsSymbTree.cpp
 
  OmsRequest.cpp
+ OmsRequestId.cpp
  OmsRequestFactory.cpp
  OmsRequestRunner.cpp
- OmsRequestMgr.cpp
  OmsOrder.cpp
 
  OmsRequestPolicy.cpp

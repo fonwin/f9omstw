@@ -4,7 +4,8 @@
 #define __f9omstw_OmsResource_hpp__
 #include "f9omstw/OmsSymbTree.hpp"
 #include "f9omstw/OmsBrkTree.hpp"
-#include "f9omstw/OmsRequestMgr.hpp"
+#include "f9omstw/OmsBackend.hpp"
+#include "f9omstw/OmsRequestRunner.hpp"
 #include "fon9/seed/MaTree.hpp"
 
 namespace f9omstw {
@@ -23,9 +24,24 @@ public:
    using BrkTreeSP = fon9::intrusive_ptr<OmsBrkTree>;
    BrkTreeSP   Brks_;
 
-   OmsRequestMgr  RequestMgr_;
+   OmsBackend  Backend_;
+
+   void PutRequestId(OmsRequestBase& req) {
+      this->ReqUID_Builder_.MakeReqUID(req, this->Backend_.FetchSNO(req));
+   }
+   const OmsRequestBase* GetRequest(OmsRxSNO sno) const {
+      if (auto item = this->Backend_.GetItem(sno))
+         return item->ToRequest();
+      return nullptr;
+   }
+   fon9::TimeStamp TDay() const {
+      return this->TDay_;
+   }
 
 protected:
+   fon9::TimeStamp   TDay_;
+   OmsReqUID_Builder ReqUID_Builder_;
+
    template <class... NamedArgsT>
    OmsResource(OmsCore& core, NamedArgsT&&... namedargs)
       : fon9::seed::NamedSapling(new fon9::seed::MaTree("Tables"), std::forward<NamedArgsT>(namedargs)...)
@@ -41,6 +57,12 @@ protected:
    /// 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    void Plant();
 };
+
+//--------------------------------------------------------------------------//
+
+inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
+   this->Resource_.Backend_.OnAfterOrderUpdated(*this);
+}
 
 } // namespaces
 #endif//__f9omstw_OmsResource_hpp__

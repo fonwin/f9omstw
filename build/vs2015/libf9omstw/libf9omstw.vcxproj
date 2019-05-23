@@ -91,11 +91,13 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequest.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp" />
-    <ClInclude Include="..\..\..\f9omstw\OmsRequestMgr.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsBackend.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestId.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestPolicy.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTws.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRxItem.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp" />
@@ -104,6 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsBackendRecorder.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsBrk.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsBrkTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp" />
@@ -118,11 +121,13 @@
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequest.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp" />
-    <ClCompile Include="..\..\..\f9omstw\OmsRequestMgr.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsBackend.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestId.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestPolicy.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTws.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRxItem.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSubac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp" />

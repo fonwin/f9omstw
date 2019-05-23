@@ -3,10 +3,12 @@
 
 * TODO:
   * OmsBackend
-    * OmsReporter
-      * Client: OmsReportSubscriber / OmsReportRecover
-    * OmsRecorder / OmsLoader
-    * 各類事件(開收盤、斷線...)通知, 也可使用 Request Report 機制處理.
+    * 依序紀錄 OmsRxItem;
+    * OmsSaver / OmsLoader
+    * 各類事件(開收盤、斷線...)通知.
+    * 提供 Client 訂閱及回補: OmsReportSubscriber / OmsReportRecover
+  * 可以思考每個交易日建立一個 OmsCore; Name = "omstws_yyyymmdd"; yyyymmdd=交易日(TDay);
+    * 這樣就沒有 OmsCore 每日清檔的問題!
 
 libf9omstw: 台灣環境的委託管理系統.
 * 採用 static library:
@@ -17,29 +19,29 @@ libf9omstw: 台灣環境的委託管理系統.
 * 需要使用設定檔設定欄位嗎? 或直接使用 struct 配合 fon9_MakeField()?
   * 使用「動態設定欄位」:
     * 在每次使用欄位時, 都要判斷欄位是否有設定.
-    * 可在初始化階段就先判斷必要欄位是否存在, 降低使用時的額外判斷.
+    * 雖然可在初始化階段, 就先判斷必要欄位是否存在, 降低使用時的額外判斷.
     * 每次使用時需要透過額外間接的方式取得欄位內容, 例如使用 fon9::seed::Field
-    * 雖然可增加彈性, 但程式會變得非常繁雜.
+    * 雖然可增加彈性, 但程式會變得非常繁瑣.
   * 可使用底下的程式碼達到類似「動態欄位」的效果, 但 dynamic_cast<> 需要付出一些成本, 請斟酌使用.
-```c++
-struct Req {
-   virtual ~Req() {
-   }
-};
-struct ReqEx {
-   int Ex_;
-};
-struct ReqTwsNew : public Req, public ReqEx {
-};
-
-bool CheckReqEx(const Req* req) {
-   if (const ReqEx* p = dynamic_cast<const ReqEx*>(req)) {
-      // 直接取用 p->Ex_;
-      return true;
-   }
-   return false;
-}
-```
+    ```c++
+    struct Req { // 基底類別需要有 virtual function.
+       virtual ~Req() {
+       }
+    };
+    struct ReqEx { // 要檢查的類別可以沒有 virtual function.
+       int Ex_;
+    };
+    struct ReqTwsNew : public Req, public ReqEx {
+    };
+    
+    bool CheckReqEx(const Req* req) {
+       if (const ReqEx* p = dynamic_cast<const ReqEx*>(req)) {
+          // ReqEx 存在, 可直接取用 p->Ex_;
+          return true;
+       }
+       return false;
+    }
+    ```
 
 * 一些特殊狀況的思考:
   * 回報順序問題:
@@ -53,23 +55,28 @@ bool CheckReqEx(const Req* req) {
     * 發生原因: 外部回報異常(例如: 送出昨天的回報檔), OMS 沒有清檔...
     * 如何決定哪筆委託才是正確的?
 
-### Request/Order Recorder
-* format
-  * 底下的 '|' = '\x1'; 每一行的尾端使用 '\n' 結束.
-  * 下單要求欄位列表, 首碼='R'
-    * `R|ReqName|ReqFields(TypeId Name)\n`
-  * 委託異動欄位列表, 首碼='O'
-    * `O|OrdName|OrdFields(TypeId Name)\n`
-  * 不成案的下單要求, 首碼='e'
-    * `e|ReqSNO|ReqName|ReqFields|RejectReason\n`
-    * 如果此時 ReqSNO==0, 則拋棄此下單要求, 僅記錄在 log, 回報不補送.
-    * 如果此時 ReqSNO!=0, 則將此下單要求加入 RequestMgr, 回報可回補.
-  * 新單(初成案)要求, 首碼=數字, 且 ReqFields 裡面 **不含** 有效的 IniSNO(Initiator ReqSNO).
-    * `ReqSNO|ReqName|ReqFields(不含有效的 IniSNO)\n`
-  * 一般要求(刪、改、查、成交...), 首碼=數字, 且 ReqFields 裡面 **包含** 有效的 IniSNO(Initiator ReqSNO).
-    * `ReqSNO|ReqName|ReqFields(包含有效的 IniSNO)\n`
-  * 委託異動, 首碼='o'
-    * `o|ReqSNO|OrdName|OrdFields\n`
+### Backend
+* RxSNO 每個 OMS 自行獨立編號(各編各的號, 也就是OmsA.RxSNO=1, 與OmsB.RxSNO=1, 可能是不同的 OmsRxItem).
+* log format
+  * 底下的 '|' = '\x1'; 每行的尾端使用 '\n' 結束.
+
+  * 首碼=英文字母=FactoryName, 此行表示 OmsRxItemFactory 欄位列表(包含欄位型別及名稱), 例如:
+    * 下單要求欄位列表: `ReqName|Fields(TypeId Name)\n`
+    * 委託異動欄位列表: `OrdName|Fields(TypeId Name)\n`
+    * 事件名稱欄位列表: `EvtName|Fields(TypeId Name)\n`
+
+  * 首碼=數字=RxSNO, 此行表示 OmsRxItem(OmsRequest, OmsOrderRaw, OmsEvent...)
+    * 不成案的下單要求:
+      * `RxSNO|ReqName|Fields|AbandonReason\n`
+    * 新單(初成案)要求
+      * `RxSNO|ReqName|Fields\n`
+    * 一般要求(刪、改、查、成交...)
+      * `RxSNO|ReqName|Fields(包含有效的 IniSNO)\n`
+      * IniSNO = Initiator request RxSNO.
+    * 委託異動
+      * `RxSNO|OrdName|Fields|FromSNO\n`
+      * FromSNO = From request RxSNO.
+
   * 額外資訊, 沒有首碼, 第一碼就是 '|' = '\x1'
     ```
     |exsz\n|............ (exsz-2) any bytes ............\n
@@ -117,15 +124,17 @@ bool CheckReqEx(const Req* req) {
       * 匯入時處理 IsDailyClear?
       * 先呼叫全部帳號的 OnDailyClear(); ?
 
-## Events
+## Report
 * Report Recover
-* Order Report
-* Market event
+* Report Subscribe
+* (Request/Order) Report
+* Market event Report
   * Preopen/Open/Close
   * Line broken
+  * Daily clear event
 
 ## 下單流程
-### user thread
+### user thread 收單
 當 user(session) 收到下單訊息時, 建立 req, 填入 req 內容。
 此階段仍允許修改 req 內容, 還在 user thread, 尚未進入 OmsCore.
 
@@ -138,34 +147,33 @@ bool CheckReqEx(const Req* req) {
    由 user thread 直接處理失敗, 不進入 OmsCore.
 4. req 確定後, 交給 OmsCore 執行下單步驟。
 
-### 進入 OmsCore 執行下單步驟.
+### 進入 OmsCore 執行下單步驟
 * 可將 OmsCore 視為一個 MPSC(多發行者+單一消費者) Queue.
 * 此階段在 OmsCore 保護下執行。
 * 來到此處之後, 一律透過「回報機制」告知結果。
 * 在安全的取得 OmsResource 之後(可能在 OmsCore thread, 或透過 locker), 才能進行底下步驟。
 
-#### 成交
-  * 透過 OrdKey 找回委託, 然後填入 req.IniSNO_;
-  * 檢查 MatchKey 是否重複.
-  * 直接處理成交回報作業, 然後結束異動.
+#### 成交回報
+* 透過 OrdKey(BrkId-Market-SessionId-OrdNo) 找回委託, 然後填入 req.IniSNO_;
+* 檢查 MatchKey 是否重複.
+* 直接處理成交回報作業: 建立新的 OmsOrderRaw 處理成交更新, 然後結束異動.
 
 #### 下單(交易)要求
 1. 前置作業
    * 此時仍允許修改 req 內容.
-   * 若有失敗則 req 進入 Abandon 狀態:
-     * req.ReqSNO_ = 0; 不加入 RequestMgr;
-     * 透過 ReportMgr: 「寫入 log」及「回報通知」, 但 Abandon 的 req 無法回補.
+   * 若有失敗則 req 進入 Abandon 狀態: 此時透過 OmsBackend 回報機制, 回報給 user(session)
    * 聯繫 OmsOrder.
      * 新單要求: 建立新委託
        * 檢查是否為可用帳號? 透過 OmsRequestPolicy;
        * 建立新的 OmsOrder: 設定 OmsOrder.ScResource_;
        * 分配委託書號, 此動作也可能在其他地方處理, 例如: 送出前 or 風控成功後 or...
          分配好之後, 應立即加入委託書對照表.
+       * 結束 req 的異動, 進入委託異動狀態.
      * 改單(或查單)要求: 取得舊委託;
        * 如果有提供 IniSNO: 透過 IniSNO 找回委託, 如果有提供 OrdKey(BrkId-Market-SessionId-OrdNo), 則檢查是否正確.
        * 如果沒提供 IniSNO: 透過 OrdKey 找回委託, 然後填入 req.IniSNO_;
        * 取得舊委託後, 檢查是否為可用帳號? 透過 OmsOrder.ScResource_.Ivr_ 及 OmsRequestPolicy;
-   * 結束 req 的異動, 建立新的 OmsOrderRaw, 進入委託異動狀態.
+       * 結束 req 的異動, 建立新的 OmsOrderRaw, 進入委託異動狀態.
 
 2. 風控檢查.
    - 若有失敗則 req 進入 Reject 狀態.
@@ -174,8 +182,8 @@ bool CheckReqEx(const Req* req) {
    - 若有失敗則 req 進入 Reject 狀態.
 
 #### 異動結束
-* 將 OmsRequest 及 委託異動資料(OmsOrderRaw) 丟到 OmsReportMgr.
-  * OmsReportMgr 是一個 SPSC(單一發行者(來自OmsCore)+單一消費者) Queue.
-* 透過 OmsRecorder 寫 log.
-* 回報通知.
+* 將 OmsRequest 或 委託異動資料(OmsOrderRaw) 丟到 OmsBackend.
+* 定時(例:1 ms), 或 OmsCore 有空時通知: OmsBackend 有新增的 OmsRxItem.
+  * OmsSaver 將新增的 OmsRxItem 寫入檔案.
+  * OmsReportSubscriber 處理回報通知.
 

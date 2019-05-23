@@ -2,40 +2,14 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsRequest_hpp__
 #define __f9omstw_OmsRequest_hpp__
+#include "f9omstw/OmsRxItem.hpp"
+#include "f9omstw/OmsRequestId.hpp"
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstw/IvacNo.hpp"
 #include "fon9/fmkt/Trading.hpp"
 #include "fon9/seed/Tab.hpp"
-#include "fon9/CharAry.hpp"
 
 namespace f9omstw {
-
-/// 每台主機自行依序編號.
-using OmsRequestSNO = uint64_t;
-
-/// Request 在多主機環境下的唯一編號.
-/// - API建立下單要求時: ReqUID = OmsMakeReqUID(LocalHostId, ReqSNO).
-/// - 外部單: 由外部單(回報)提供者提供編碼規則, 例如:
-///   - Market + Session + BrkId[2尾碼] + OrdNo + 外部單Seq(或AfQty).
-///   - Market + Session + BrkId[2尾碼] + OrdNo + 成交序號.
-class OmsRequestId {
-   friend class OmsRequestMgr;
-   /// 此序號由 OmsRequestMgr 填入, 不列入 seed::Field;
-   OmsRequestSNO  ReqSNO_;
-public:
-   fon9::CharAry<16> ReqUID_;
-
-   OmsRequestId() {
-      memset(this, 0, sizeof(*this));
-   }
-
-   OmsRequestSNO ReqSNO() const {
-      return this->ReqSNO_;
-   }
-
-   /// fon9_MakeField(fon9::Named{"ReqSNO"}, OmsRequestBase, ReqSNO_);
-   static fon9::seed::FieldSP MakeField_ReqSNO();
-};
 
 /// fon9::fmkt::TradingRequest::RequestFlags_;
 enum OmsRequestFlag : uint8_t {
@@ -48,36 +22,52 @@ enum OmsRequestFlag : uint8_t {
 fon9_ENABLE_ENUM_BITWISE_OP(OmsRequestFlag);
 
 /// 新、刪、改、查、成交; 都視為一種 request 共同的基底就是 OmsRequestBase;
-class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId {
+class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRxItem, public OmsRequestId {
    fon9_NON_COPY_NON_MOVE(OmsRequestBase);
    using base = fon9::fmkt::TradingRequest;
 
-   friend class OmsRequestRunnerInCore; // 取得修改 LastUpdated_ 的權限.
+   friend class OmsBackend; // 取得修改 LastUpdated_ 的權限.
    union {
       OmsOrderRaw mutable* LastUpdated_{nullptr};
       /// 當 IsEnumContains(this->RequestFlags(), OmsRequestFlag_Abandon) 則沒有 LastUpdated_;
       /// 此時 AbandonReason_ 說明中斷要求的原因.
       std::string*   AbandonReason_;
    };
+   fon9::TimeStamp   CrTime_;
+
+   void OnRxItem_AddRef() const override;
+   void OnRxItem_Release() const override;
+   inline friend void intrusive_ptr_add_ref(const OmsRequestBase* p) {
+      intrusive_ptr_add_ref(static_cast<const fon9::fmkt::TradingRequest*>(p));
+   }
+   inline friend void intrusive_ptr_release(const OmsRequestBase* p) {
+      intrusive_ptr_release(static_cast<const fon9::fmkt::TradingRequest*>(p));
+   }
+
 public:
    OmsRequestFactory* const   Creator_;
    OmsRequestBase(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
-      : base{reqKind}
+      : base(reqKind)
+      , CrTime_{fon9::UtcNow()}
       , Creator_(&creator) {
    }
    OmsRequestBase(f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
-      : base{reqKind}
+      : base(reqKind)
       , Creator_(nullptr) {
    }
    void Initialize(OmsRequestFactory& creator) {
       *const_cast<OmsRequestFactory**>(&this->Creator_) = &creator;
+      this->CrTime_ = fon9::UtcNow();
    }
    /// 解構時:
    /// if(this->RequestFlags_ & OmsRequestFlag_Abandon) 則刪除 AbandonReason_.
    /// if(this->RequestFlags_ & OmsRequestFlag_Initiator) 則刪除 Order.
    ~OmsRequestBase();
 
+   const OmsRequestBase* ToRequest() const override;
+
    static void MakeFields(fon9::seed::Fields& flds);
+   void RevPrint(fon9::RevBuffer& rbuf) const override;
 
    OmsRequestFlag RequestFlags() const {
       return static_cast<OmsRequestFlag>(this->RequestFlags_);
@@ -90,6 +80,12 @@ public:
    /// - 進入系統後的失敗會用 Reject 機制, 透過 OmsOrderRaw 處理.
    const std::string* AbandonReason() const {
       return IsEnumContains(this->RequestFlags(), OmsRequestFlag_Abandon) ? this->AbandonReason_ : nullptr;
+   }
+   void Abandon(std::string reason) {
+      assert(this->AbandonReason_ == nullptr);
+      assert((this->RequestFlags_ & (OmsRequestFlag_Abandon | OmsRequestFlag_Initiator)) == OmsRequestFlag{});
+      this->AbandonReason_ = new std::string(std::move(reason));
+      this->RequestFlags_ |= OmsRequestFlag_Abandon;
    }
 };
 
@@ -183,7 +179,7 @@ class OmsRequestUpd : public OmsTradingRequest {
    fon9_NON_COPY_NON_MOVE(OmsRequestUpd);
    using base = OmsTradingRequest;
 
-   OmsRequestSNO  IniSNO_{0};
+   OmsRxSNO IniSNO_{0};
 
 public:
    using base::base;
@@ -191,6 +187,9 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 
+   OmsRxSNO IniSNO() const {
+      return this->IniSNO_;
+   }
    // 衍生者應覆寫 PreCheck() 檢查並設定 RequestKind, 然後透過 base::PreCheck() 繼續檢查.
    // bool PreCheck(OmsRequestRunner& reqRunner) override;
 };
@@ -220,8 +219,8 @@ class OmsRequestMatch : public OmsRequestBase {
       this->Next_ = curr;
    }
 
-   OmsRequestSNO  IniSNO_;
-   uint64_t       MatchKey_{0};
+   OmsRxSNO IniSNO_;
+   uint64_t MatchKey_{0};
 
 public:
    using MatchKey = uint64_t;

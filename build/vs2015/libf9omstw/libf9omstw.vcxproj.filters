@@ -86,9 +86,6 @@
     <ClInclude Include="..\..\..\f9omstw\OmsTreeSvctSet.hpp">
       <Filter>Header Files\_sc_tables %28trees%29</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsRequestMgr.hpp">
-      <Filter>Header Files\_req_ord</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
@@ -115,6 +112,15 @@
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp">
       <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRxItem.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestId.hpp">
+      <Filter>Header Files\_req_ord</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsBackend.hpp">
+      <Filter>Header Files\_core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -166,9 +172,6 @@
     <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp">
       <Filter>Source Files\_sc_tables %28trees%29</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsRequestMgr.cpp">
-      <Filter>Source Files\_req_ord</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp">
       <Filter>Source Files\_req_ord</Filter>
     </ClCompile>
@@ -189,6 +192,18 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp">
       <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRxItem.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestId.cpp">
+      <Filter>Source Files\_req_ord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsBackend.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsBackendRecorder.cpp">
+      <Filter>Source Files\_core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

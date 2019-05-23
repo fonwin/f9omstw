@@ -8,7 +8,7 @@
 
 namespace f9omstw {
 
-using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_ReqSNO, fon9::seed::TreeFlag::Unordered>;
+using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRxItem::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
 using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
 
 using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
@@ -21,15 +21,15 @@ struct OmsThreadTaskHandler;
 using OmsThread = fon9::MessageQueue<OmsThreadTaskHandler, OmsThreadTask>;
 
 struct OmsThreadTaskHandler {
+   fon9_NON_COPY_NON_MOVE(OmsThreadTaskHandler);
    using MessageType = OmsThreadTask;
+   OmsCore* const Owner_;
    OmsThreadTaskHandler(OmsThread&);
 
    void OnMessage(OmsThreadTask& task) {
       task();
    }
-   void OnThreadEnd(const std::string& threadName) {
-      (void)threadName;
-   }
+   void OnThreadEnd(const std::string& threadName);
 };
 
 /// - 管理 OMS 所需的資源.
@@ -41,14 +41,16 @@ struct OmsThreadTaskHandler {
 ///   - 解構前: this->WaitForEndNow();
 class OmsCore : public OmsThread, protected OmsResource {
    fon9_NON_COPY_NON_MOVE(OmsCore);
+   using base = OmsThread;
 
    friend struct OmsThreadTaskHandler;
    uintptr_t   ThreadId_{};
 
 protected:
+   using StartResult = OmsBackend::StartResult;
    /// - 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    /// - 啟動 thread.
-   void Start();
+   StartResult Start(fon9::TimeStamp tday, std::string logFileName);
 
 public:
    fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
@@ -59,6 +61,10 @@ public:
    fon9_MSC_WARN_POP;
 
    bool IsThisThread() const;
+
+   fon9::TimeStamp TDay() const {
+      return this->TDay_;
+   }
 
    inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
       intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));

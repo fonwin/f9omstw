@@ -49,6 +49,13 @@ bool IncStrAlpha(char* pbeg, char* pend) {
    return false;
 }
 
+void RevPrintFields(fon9::RevBuffer& rbuf, const fon9::seed::Tab& tab, const fon9::seed::RawRd& rd, char chSplitter) {
+   for (size_t fidx = tab.Fields_.size(); fidx > 0;) {
+      tab.Fields_.Get(--fidx)->CellRevPrint(rd, nullptr, rbuf);
+      fon9::RevPrint(rbuf, chSplitter);
+   }
+   fon9::RevPrint(rbuf, tab.Name_);
+}
 void RevPrintTabFieldNames(fon9::RevBuffer& rbuf, const fon9::seed::Tab& tab, char chSplitter) {
    fon9::NumOutBuf nbuf;
    for (size_t fidx = tab.Fields_.size(); fidx > 0;) {
@@ -57,11 +64,10 @@ void RevPrintTabFieldNames(fon9::RevBuffer& rbuf, const fon9::seed::Tab& tab, ch
    }
    fon9::RevPrint(rbuf, tab.Name_);
 }
-void RevPrintLayout(fon9::RevBuffer& rbuf, fon9::StrView lnHead, const fon9::seed::Layout& layout) {
+void RevPrintLayout(fon9::RevBuffer& rbuf, const fon9::seed::Layout& layout) {
    for (size_t tidx = layout.GetTabCount(); tidx > 0;) {
       fon9::RevPrint(rbuf, '\n');
       f9omstw::RevPrintTabFieldNames(rbuf, *layout.GetTab(--tidx), *fon9_kCSTR_CELLSPL);
-      fon9::RevPrint(rbuf, lnHead);
    }
 }
 

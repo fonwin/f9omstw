@@ -3,17 +3,18 @@
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
 #include "fon9/seed/FieldMaker.hpp"
+#include "fon9/seed/RawRd.hpp"
 
 namespace f9omstw {
 
 OmsOrderFactory::~OmsOrderFactory() {
 }
-OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& owner, const OmsTradingRequest& req) {
+OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsTradingRequest& req) {
    OmsOrderRaw* raw = this->MakeOrderRawImpl();
-   if (auto last = owner.Last())
+   if (auto last = order.Last())
       raw->Initialize(last, req);
    else
-      raw->Initialize(owner);
+      raw->Initialize(order);
    return raw;
 }
 
@@ -34,7 +35,6 @@ fon9_MSC_WARN_POP;
 
 OmsOrder::OmsOrder() : Initiator_{nullptr}, Creator_{nullptr}, Head_{nullptr} {
 }
-
 void OmsOrder::Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes) {
    *const_cast<const OmsOrderFactory**>(&this->Creator_) = &creator;
    *const_cast<const OmsRequestNew**>(&this->Initiator_) = &initiator;
@@ -46,12 +46,6 @@ void OmsOrder::Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, Om
 }
 
 OmsOrder::~OmsOrder() {
-   const OmsOrderRaw* curr = this->Last_;
-   while (curr) {
-      const OmsOrderRaw* next = curr;
-      curr = curr->Prev_;
-      const_cast<OmsOrderRaw*>(next)->FreeThis();
-   }
 }
 void OmsOrder::FreeThis() {
    delete this;
@@ -64,23 +58,40 @@ OmsOrderRaw::~OmsOrderRaw() {
 void OmsOrderRaw::FreeThis() {
    delete this;
 }
-void OmsOrderRaw::Initialize(OmsOrder& owner) {
-   *const_cast<OmsOrder**>(&this->Owner_) = &owner;
-   *const_cast<const OmsRequestBase**>(&this->Request_) = owner.Initiator_;
+const OmsOrderRaw* OmsOrderRaw::ToOrderRaw() const {
+   return this;
+}
+void OmsOrderRaw::OnRxItem_AddRef() const {
+}
+void OmsOrderRaw::OnRxItem_Release() const {
+   const_cast<OmsOrderRaw*>(this)->FreeThis();
+}
+
+void OmsOrderRaw::Initialize(OmsOrder& order) {
+   *const_cast<OmsOrder**>(&this->Order_) = &order;
+   *const_cast<const OmsRequestBase**>(&this->Request_) = order.Initiator_;
+}
+OmsOrderRaw::OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req)
+   : Order_(prev->Order_)
+   , Request_(&req)
+   , Prev_{prev}
+   , UpdSeq_{prev->UpdSeq_ + 1} {
+   assert(prev->Next_ == nullptr && prev->Order_->Last_ == prev);
+   prev->Next_ = prev->Order_->Last_ = this;
 }
 void OmsOrderRaw::Initialize(const OmsOrderRaw* prev, const OmsRequestBase& req) {
-   assert(prev != nullptr && prev->Next_ == nullptr);
-   *const_cast<OmsOrder**>(&this->Owner_) = prev->Owner_;
+   assert(prev != nullptr && prev->Next_ == nullptr && prev->Order_->Last_ == prev);
+   prev->Next_ = prev->Order_->Last_ = this;
+
+   *const_cast<OmsOrder**>            (&this->Order_)   = prev->Order_;
    *const_cast<const OmsRequestBase**>(&this->Request_) = &req;
-   *const_cast<const OmsOrderRaw**>(&this->Prev_) = prev;
-   *const_cast<uint32_t*>(&this->UpdSeq_) = prev->UpdSeq_ + 1;
-   prev->Next_ = this;
+   *const_cast<const OmsOrderRaw**>   (&this->Prev_)    = prev;
+   *const_cast<uint32_t*>             (&this->UpdSeq_)  = prev->UpdSeq_ + 1;
    this->ContinuePrevUpdate();
 }
 void OmsOrderRaw::ContinuePrevUpdate() {
    assert(this->Prev_ != nullptr);
    this->OrderSt_ = this->Prev_->OrderSt_;
-   this->UpdateTime_ = fon9::UtcNow();
 }
 
 void OmsOrderRaw::MakeFields(fon9::seed::Fields& flds) {
@@ -89,6 +100,10 @@ void OmsOrderRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, OrderSt_))});
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReqSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, RequestSt_))});
    flds.Add(fon9_MakeField(Named{"UpdateTime"}, OmsOrderRaw, UpdateTime_));
+}
+void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
+   fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->Request_->RxSNO());
+   RevPrintFields(rbuf, *this->Order_->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 
 } // namespaces

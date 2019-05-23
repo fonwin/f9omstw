@@ -29,9 +29,11 @@ struct OmsOrderTwsRawDat {
    TwsOType       OType_;
    OrderErrCode   ErrCode_;
 
-   /// 全部內容清為 '\0'
+   /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
       memset(this, 0, sizeof(*this));
+      this->LastExgTime_.AssignNull();
+      this->LastMatTime_.AssignNull();
    }
    /// 除了 this->BeforeQty_ = prev.AfterQty_; 清除 this->ErrCode_; 之外,
    /// 其餘全部欄位都從 prev 複製而來.

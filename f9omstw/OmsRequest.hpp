@@ -55,16 +55,16 @@ public:
       : base(reqKind)
       , Creator_(nullptr) {
    }
-   void Initialize(OmsRequestFactory& creator) {
+   void Initialize(OmsRequestFactory& creator, fon9::TimeStamp now = fon9::UtcNow()) {
       *const_cast<OmsRequestFactory**>(&this->Creator_) = &creator;
-      this->CrTime_ = fon9::UtcNow();
+      this->CrTime_ = now;
    }
    /// 解構時:
    /// if(this->RequestFlags_ & OmsRequestFlag_Abandon) 則刪除 AbandonReason_.
    /// if(this->RequestFlags_ & OmsRequestFlag_Initiator) 則刪除 Order.
    ~OmsRequestBase();
 
-   const OmsRequestBase* ToRequest() const override;
+   const OmsRequestBase* CastToRequest() const override;
 
    static void MakeFields(fon9::seed::Fields& flds);
    void RevPrint(fon9::RevBuffer& rbuf) const override;

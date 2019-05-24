@@ -20,10 +20,16 @@ OUTPUT_DIR=${OUTPUT_DIR:-${BUILD_DIR}/${BUILD_TYPE}/f9omstw}
 
 $OUTPUT_DIR/OmsRequestPolicy_UT
 
+$OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 0
+$OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 1
+
 rm -f OmsReqOrd_UT.log
-$OUTPUT_DIR/OmsReqOrd_UT -f=0
+$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
+$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
+
 rm -f OmsReqOrd_UT.log
-$OUTPUT_DIR/OmsReqOrd_UT -f=1
+$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
+$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 
 { set +x; } 2>/dev/null
 echo '#####################################################'

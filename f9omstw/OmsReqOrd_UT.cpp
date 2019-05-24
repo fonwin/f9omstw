@@ -4,19 +4,16 @@
 //
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9omstw/OmsOrderTws.hpp"
 #include "f9omstw/OmsCore.hpp"
-#include "f9omstw/OmsTools.hpp"
-#include "f9omstw/OmsRequestRunner.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
+#include "f9omstw/OmsOrderTws.hpp"
 
 #include "fon9/ObjSupplier.hpp"
 #include "fon9/CmdArgs.hpp"
-#include "fon9/seed/RawWr.hpp"
-#include "fon9/RevPrint.hpp"
 #include "fon9/Log.hpp"
+#include "fon9/seed/RawWr.hpp"
 
 #include "fon9/TestTools.hpp"
 //--------------------------------------------------------------------------//
@@ -99,24 +96,6 @@ using OmsRequestTwsNewFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsNew>;
 using OmsRequestTwsChgFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsChg>;
 using OmsRequestTwsMatchFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsMatch>;
 //--------------------------------------------------------------------------//
-namespace f9omstw {
-
-// class OmsLoader {
-//    using FieldList = std::vector<fon9::seed::Field*>;
-//    struct FieldsRec {
-//       FieldList         DstFields_;
-//       std::string       DespLine_;
-//       fon9::seed::Tab*  Factory_;
-//    };
-//    using FieldMap = std::map<fon9::CharVector, FieldList>;
-//    FieldMap FieldMap_;
-// public:
-//    // void FeedLine(fon9::StrView ln) {
-//    // }
-// };
-
-} // namespace
-//--------------------------------------------------------------------------//
 f9omstw::OmsRequestRunner MakeOmsTradingRequest(f9omstw::OmsRequestFactoryPark& facPark, fon9::StrView reqstr) {
    f9omstw::OmsRequestRunner retval{reqstr};
    fon9::StrView tag = fon9::StrFetchNoTrim(reqstr, '|');
@@ -189,7 +168,6 @@ void TestRequestNewInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& o
 }
 void TestRequestChgInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& ordFactory, f9omstw::OmsRequestRunner&& req) {
    res.PutRequestId(*req.Request_);
-   // abandon request:
    auto* inireq = res.GetRequest(static_cast<f9omstw::OmsRequestUpd*>(req.Request_.get())->IniSNO());
    if (inireq == nullptr || inireq->LastUpdated() == nullptr) {
       req.Request_->Abandon("Order not found.");
@@ -211,24 +189,29 @@ int main(int argc, char* argv[]) {
 
    gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
    std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
-
-   f9omstw::OmsOrderFactorySP facTwsOrd{new OmsOrderTwsFactory};
-   f9omstw::OmsOrderFactoryParkSP ordFacPark{new f9omstw::OmsOrderFactoryPark(
-      facTwsOrd
-   )};
-   f9omstw::OmsRequestFactoryParkSP reqFacPark{new f9omstw::OmsRequestFactoryPark(
-      new OmsRequestTwsNewFactory(fon9::Named{"TwsNew"}),
-      new OmsRequestTwsChgFactory(fon9::Named{"TwsChg"}),
-      new OmsRequestTwsMatchFactory(fon9::Named{"TwsMat"})
-   )};
+   const auto     outfn = fon9::GetCmdArg(argc, argv, "o", "out");
+   const auto     isWait = fon9::GetCmdArg(argc, argv, "w", "wait");
+   unsigned       testTimes = fon9::StrTo(fon9::GetCmdArg(argc, argv, "c", "count"), 0u);
+   if (testTimes <= 0)
+      testTimes = kPoolObjCount * 2;
 
    // 測試用, 不啟動 OmsThread: 把 main thread 當成 OmsThread.
    struct TestCore : public f9omstw::OmsCore {
       fon9_NON_COPY_NON_MOVE(TestCore);
       using base = f9omstw::OmsCore;
-      TestCore() : base{"ut"} {
+      TestCore(const char* outfn) : base{"ut"} {
+         this->OrderFacPark_.reset(new f9omstw::OmsOrderFactoryPark(
+            new OmsOrderTwsFactory
+         ));
+         this->RequestFacPark_.reset(new f9omstw::OmsRequestFactoryPark(
+            new OmsRequestTwsNewFactory(fon9::Named{"TwsNew"}),
+            new OmsRequestTwsChgFactory(fon9::Named{"TwsChg"}),
+            new OmsRequestTwsMatchFactory(fon9::Named{"TwsMat"})
+         ));
+
          this->TDay_ = fon9::UtcNow();
-         this->Backend_.StartThread(this->Name_ + "_Backend", "OmsReqOrd_UT.log");
+         this->Backend_.OpenReload(outfn, this->GetResource());
+         this->Backend_.StartThread(this->Name_ + "_Backend");
       }
       ~TestCore() {
          this->Backend_.WaitForEndNow();
@@ -237,8 +220,9 @@ int main(int argc, char* argv[]) {
          return *static_cast<f9omstw::OmsResource*>(this);
       }
    };
-   TestCore                      testCore;
+   TestCore                      testCore(outfn.empty() ? "OmsReqOrd_UT.log" : outfn.begin());
    f9omstw::OmsThreadTaskHandler omsCoreHandler{testCore};
+   auto&                         coreResource = testCore.GetResource();
 
    // 下單欄位
    // --------
@@ -257,13 +241,12 @@ int main(int argc, char* argv[]) {
    //    - 所以券商可能要求: 送單前才編製委託書號.
    // IvacNoFlag 台灣證交所要求提供的欄位, 其實與投資人帳號關連不大, 應屬於下單來源.
 
-   const unsigned                kTestTimes = kPoolObjCount * 2;
    f9omstw::OmsRequestPolicySP   reqPolicy;
    fon9::StopWatch               stopWatch;
    stopWatch.ResetTimer();
-   for (unsigned L = 0; L < kTestTimes; ++L) {
+   for (unsigned L = 0; L < testTimes; ++L) {
       // Create Request & 填入內容;
-      auto reqNew = MakeOmsTradingRequest(*reqFacPark,
+      auto reqNew = MakeOmsTradingRequest(*coreResource.RequestFacPark_,
 "TwsNew|SesName=UT|Src=A|UsrDef=UD123|ClOrdId=C12|IvacNo=10|SubacNo=sa01|BrkId=8610|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
       // user thread 前置檢查.
       if (!reqNew.PreCheck()) {
@@ -271,20 +254,29 @@ int main(int argc, char* argv[]) {
          abort();
       }
       // 模擬已將 reqNew 丟給 OmsCore, 已進入 OmsCore 之後的步驟.
-      TestRequestNewInCore(testCore.GetResource(), *facTwsOrd, std::move(reqNew));
+      TestRequestNewInCore(coreResource, *coreResource.OrderFacPark_->GetFactory(0), std::move(reqNew));
    }
-   stopWatch.PrintResult("ReqNew ", kTestTimes);
+   stopWatch.PrintResult("ReqNew ", testTimes);
 
    stopWatch.ResetTimer();
-   for (unsigned L = 0; L < kTestTimes; ++L) {
+   for (unsigned L = 0; L < testTimes; ++L) {
       fon9::RevBufferFixedSize<1024> rbuf;
       fon9::RevPrint(rbuf, "TwsChg|IniSNO=", L, "|Market=T|SessionId=N|SesName=UT|Src=B|UsrDef=UD234|ClOrdId=C34|BrkId=8610|OrdNo=|Qty=0");
-      auto req = MakeOmsTradingRequest(*reqFacPark, ToStrView(rbuf));
+      auto req = MakeOmsTradingRequest(*coreResource.RequestFacPark_, ToStrView(rbuf));
       if (!req.PreCheck()) {
          fprintf(stderr, "PreCheck|err=%s\n", fon9::BufferTo<std::string>(req.ExLog_.MoveOut()).c_str());
          abort();
       }
-      TestRequestChgInCore(testCore.GetResource(), *facTwsOrd, std::move(req));
+      TestRequestChgInCore(coreResource, *coreResource.OrderFacPark_->GetFactory(0), std::move(req));
    }
-   stopWatch.PrintResult("ReqChg ", kTestTimes);
+   stopWatch.PrintResult("ReqChg ", testTimes);
+   std::cout << "LastSNO = " << coreResource.Backend_.LastSNO() << std::endl;
+   if (isWait.begin() && (isWait.empty() || fon9::toupper(static_cast<unsigned char>(*isWait.begin())) == 'Y')) {
+      // 要查看資源用量(時間、記憶體...), 可透過 `/usr/bin/time` 指令:
+      //    /usr/bin/time --verbose ~/devel/output/f9omstw/release/f9omstw/OmsReqOrd_UT
+      // 或在結束前先暫停, 在透過其他外部工具查看:
+      //    ~/devel/output/f9omstw/release/f9omstw/OmsReqOrd_UT -w
+      std::cout << "Press <Enter> to quit.";
+      getchar();
+   }
 }

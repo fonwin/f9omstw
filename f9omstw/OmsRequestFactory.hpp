@@ -4,6 +4,7 @@
 #define __f9omstw_OmsRequestFactory_hpp__
 #include "f9omstw/OmsBase.hpp"
 #include "fon9/seed/Tab.hpp"
+#include "fon9/TimeStamp.hpp"
 
 namespace f9omstw {
 
@@ -26,7 +27,7 @@ public:
 
    virtual ~OmsRequestFactory();
 
-   OmsRequestSP MakeRequest();
+   OmsRequestSP MakeRequest(fon9::TimeStamp now = fon9::UtcNow());
 };
 
 } // namespaces

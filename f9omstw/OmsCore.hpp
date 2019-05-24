@@ -3,18 +3,9 @@
 #ifndef __f9omstw_OmsCore_hpp__
 #define __f9omstw_OmsCore_hpp__
 #include "f9omstw/OmsResource.hpp"
-#include "f9omstw/OmsFactoryPark.hpp"
 #include "fon9/MessageQueue.hpp"
 
 namespace f9omstw {
-
-using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRxItem::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
-using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
-
-using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
-using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
-
-//--------------------------------------------------------------------------//
 
 using OmsThreadTask = std::function<void()>;
 struct OmsThreadTaskHandler;
@@ -32,6 +23,8 @@ struct OmsThreadTaskHandler {
    void OnThreadEnd(const std::string& threadName);
 };
 
+//--------------------------------------------------------------------------//
+
 /// - 管理 OMS 所需的資源.
 /// - 不同市場應建立各自的 OmsCore, 例如: 台灣證券的OmsCore, 台灣期權的OmsCore;
 /// - 由衍生者自行初始化、啟動及結束:
@@ -47,7 +40,7 @@ class OmsCore : public OmsThread, protected OmsResource {
    uintptr_t   ThreadId_{};
 
 protected:
-   using StartResult = OmsBackend::StartResult;
+   using StartResult = OmsBackend::OpenResult;
    /// - 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    /// - 啟動 thread.
    StartResult Start(fon9::TimeStamp tday, std::string logFileName);

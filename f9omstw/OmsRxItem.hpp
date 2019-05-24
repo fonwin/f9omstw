@@ -25,8 +25,8 @@ class OmsRxItem {
 public:
    virtual ~OmsRxItem();
 
-   virtual const OmsRequestBase* ToRequest() const;
-   virtual const OmsOrderRaw* ToOrderRaw() const;
+   virtual const OmsRequestBase* CastToRequest() const;
+   virtual const OmsOrderRaw* CastToOrderRaw() const;
 
    OmsRxSNO RxSNO() const {
       return this->RxSNO_;

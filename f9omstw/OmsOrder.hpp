@@ -44,7 +44,7 @@ public:
    /// 建立時須注意, 若此時 order.Last()==nullptr
    /// - 表示要建立的是 order 第一次異動.
    /// - 包含 order.Head_ 及之後的 data members、衍生類別, 都處在尚未初始化的狀態.
-   OmsOrderRaw* MakeOrderRaw(OmsOrder& order, const OmsTradingRequest& req);
+   OmsOrderRaw* MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req);
 };
 
 struct OmsScResource {
@@ -123,7 +123,7 @@ protected:
    OmsOrderRaw() : Order_{nullptr}, Request_{nullptr} {
    }
    virtual ~OmsOrderRaw();
-   const OmsOrderRaw* ToOrderRaw() const override;
+   const OmsOrderRaw* CastToOrderRaw() const override;
 
 public:
    OmsOrder* const             Order_;

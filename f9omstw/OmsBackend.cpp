@@ -11,13 +11,14 @@ OmsBackend::~OmsBackend() {
    // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    Locker items{this->Items_};
    this->SaveQuItems(items->QuItems_);
+
    fon9::RevBufferList rbuf{128};
    fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::UtcNow(), " =====\n");
    fon9::DcQueueList dcq{rbuf.MoveOut()};
    this->RecorderFd_.Append(dcq);
 
    for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {
-      if (const OmsRxItem* item = items->RxItems_[L])
+      if (const OmsRxItem* item = items->RxHistory_[L])
          item->OnRxItem_Release();
    }
 }
@@ -25,15 +26,9 @@ void OmsBackend::WaitForEndNow() {
    this->Items_.WaitForEndNow();
    fon9::JoinThread(this->Thread_);
 }
-fon9::File::Result OmsBackend::StartThread(std::string thrName, std::string logFileName) {
-   auto res = this->OpenLoad(std::move(logFileName));
-   if (res.IsError()) {
-      fon9_LOG_FATAL("OmsBackend.OpenLoad|file=", logFileName, '|', res);
-      return res;
-   }
+void OmsBackend::StartThread(std::string thrName) {
    this->Items_.OnBeforeThreadStart(1);
    this->Thread_ = std::thread(&OmsBackend::ThrRun, this, std::move(thrName));
-   return res;
 }
 void OmsBackend::ThrRun(std::string thrName) {
    fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName);
@@ -46,9 +41,9 @@ void OmsBackend::ThrRun(std::string thrName) {
          this->Items_.WaitFor(items, std::chrono::milliseconds(10));
          if (items->QuItems_.empty())
             continue;
-         auto cursz = items->RxItems_.size();
+         auto cursz = items->RxHistory_.size();
          if (cursz < this->LastSNO_ + this->kReserveExpand)
-            items->RxItems_.resize(cursz + kReserveExpand * 2);
+            items->RxHistory_.resize(cursz + kReserveExpand * 2);
          items->IsNotified_ = false;
          quItems.swap(items->QuItems_);
          items.unlock();
@@ -67,14 +62,17 @@ void OmsBackend::ThrRun(std::string thrName) {
 
 //--------------------------------------------------------------------------//
 
-void OmsBackend::ItemsImpl::Append(const OmsRxItem& item, fon9::RevBufferList&& rbuf) {
+void OmsBackend::ItemsImpl::AppendHistory(const OmsRxItem& item) {
    item.OnRxItem_AddRef();
    const auto snoCurr = item.RxSNO_;
-   if (fon9_UNLIKELY(snoCurr >= this->RxItems_.size()))
-      this->RxItems_.resize(snoCurr + kReserveExpand);
+   if (fon9_UNLIKELY(snoCurr >= this->RxHistory_.size()))
+      this->RxHistory_.resize(snoCurr + kReserveExpand);
    assert(item.RxSNO_ != 0);
-   assert(this->RxItems_[item.RxSNO_] == nullptr);
-   this->RxItems_[snoCurr] = &item;
+   assert(this->RxHistory_[item.RxSNO_] == nullptr);
+   this->RxHistory_[snoCurr] = &item;
+}
+void OmsBackend::ItemsImpl::Append(const OmsRxItem& item, fon9::RevBufferList&& rbuf) {
+   this->AppendHistory(item);
    this->QuItems_.emplace_back(&item, std::move(rbuf));
 }
 void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {

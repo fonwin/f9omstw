@@ -7,10 +7,10 @@ namespace f9omstw {
 
 OmsRxItem::~OmsRxItem() {
 }
-const OmsRequestBase* OmsRxItem::ToRequest() const {
+const OmsRequestBase* OmsRxItem::CastToRequest() const {
    return nullptr;
 }
-const OmsOrderRaw* OmsRxItem::ToOrderRaw() const {
+const OmsOrderRaw* OmsRxItem::CastToOrderRaw() const {
    return nullptr;
 }
 

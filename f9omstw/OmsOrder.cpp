@@ -9,7 +9,7 @@ namespace f9omstw {
 
 OmsOrderFactory::~OmsOrderFactory() {
 }
-OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsTradingRequest& req) {
+OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req) {
    OmsOrderRaw* raw = this->MakeOrderRawImpl();
    if (auto last = order.Last())
       raw->Initialize(last, req);
@@ -58,7 +58,7 @@ OmsOrderRaw::~OmsOrderRaw() {
 void OmsOrderRaw::FreeThis() {
    delete this;
 }
-const OmsOrderRaw* OmsOrderRaw::ToOrderRaw() const {
+const OmsOrderRaw* OmsOrderRaw::CastToOrderRaw() const {
    return this;
 }
 void OmsOrderRaw::OnRxItem_AddRef() const {
@@ -100,10 +100,6 @@ void OmsOrderRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, OrderSt_))});
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReqSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, RequestSt_))});
    flds.Add(fon9_MakeField(Named{"UpdateTime"}, OmsOrderRaw, UpdateTime_));
-}
-void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
-   fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->Request_->RxSNO());
-   RevPrintFields(rbuf, *this->Order_->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 
 } // namespaces

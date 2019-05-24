@@ -11,7 +11,7 @@
 
 namespace f9omstw {
 
-using RxItems = std::deque<const OmsRxItem*>;
+using RxHistory = std::deque<const OmsRxItem*>;
 
 /// - OmsCore 發生的「各類要求、委託異動、事件...」依序記錄(保留)在此.
 /// - Append 之後的 OmsRxItem 就不應再有變動, 因為可能已寫入記錄檔.
@@ -35,17 +35,24 @@ class OmsBackend {
 
    fon9_WARN_DISABLE_PADDING;
    struct ItemsImpl {
-      RxItems  RxItems_;
-      QuItems  QuItems_;
-      bool     IsNotified_{false};
-      ItemsImpl(RxItems&& rhs) : RxItems_{std::move(rhs)} {
+      RxHistory   RxHistory_;
+      QuItems     QuItems_;
+      bool        IsNotified_{false};
+      ItemsImpl(RxHistory&& rhs) : RxHistory_{std::move(rhs)} {
          this->QuItems_.reserve(kReserveQuItems);
       }
       ItemsImpl(size_t reserveSize) {
-         this->RxItems_.resize(reserveSize);
+         this->RxHistory_.resize(reserveSize);
          this->QuItems_.reserve(kReserveQuItems);
       }
+      void AppendHistory(const OmsRxItem& item);
       void Append(const OmsRxItem& item, fon9::RevBufferList&& rbuf);
+      const OmsRequestBase* GetRequest(OmsRxSNO sno) const {
+         if (sno < this->RxHistory_.size())
+            if (const auto* item = this->RxHistory_[sno])
+               return item->CastToRequest();
+         return nullptr;
+      }
    };
    fon9_WARN_POP;
    using Items = fon9::ThreadController<ItemsImpl, fon9::WaitPolicy_CV>;
@@ -56,7 +63,7 @@ class OmsBackend {
 
    void ThrRun(std::string thrName);
    void SaveQuItems(QuItems& quItems);
-   fon9::File::Result OpenLoad(std::string logFileName);
+   struct Loader;
 
 public:
    using Locker = Items::Locker;
@@ -80,18 +87,23 @@ public:
    }
    ~OmsBackend();
 
-   using StartResult = fon9::File::Result;
-   StartResult StartThread(std::string thrName, std::string logFileName);
+   using OpenResult = fon9::File::Result;
+   OpenResult OpenReload(std::string logFileName, OmsResource& resource);
+   void StartThread(std::string thrName);
    void WaitForEndNow();
 
    const OmsRxItem* GetItem(OmsRxSNO sno) const {
       Items::ConstLocker items{this->Items_};
-      return(sno > this->LastSNO_ ? nullptr : items->RxItems_[sno]);
+      return(sno > this->LastSNO_ ? nullptr : items->RxHistory_[sno]);
    }
    /// 只會在 OmsCore 保護下執行.
    OmsRxSNO FetchSNO(OmsRxItem& item) {
       assert(item.RxSNO_ == 0);
       return item.RxSNO_ = ++this->LastSNO_;
+   }
+   /// 僅提供參考使用, 例如: unit test 檢查是否符合預期.
+   OmsRxSNO LastSNO() {
+      return this->LastSNO_;
    }
 
    /// - item.RxSNO_ 必定為 this->LastSNO_ (例: Abandon request), 或為 0 (返回前由 this 編製新的序號).

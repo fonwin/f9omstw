@@ -6,9 +6,16 @@
 #include "f9omstw/OmsBrkTree.hpp"
 #include "f9omstw/OmsBackend.hpp"
 #include "f9omstw/OmsRequestRunner.hpp"
+#include "f9omstw/OmsFactoryPark.hpp"
 #include "fon9/seed/MaTree.hpp"
 
 namespace f9omstw {
+
+using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRxItem::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
+using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
+
+using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
+using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
 
 /// OMS 所需的資源, 集中在此處理.
 /// - 這裡的資源都 **不是** thread safe!
@@ -24,14 +31,18 @@ public:
    using BrkTreeSP = fon9::intrusive_ptr<OmsBrkTree>;
    BrkTreeSP   Brks_;
 
-   OmsBackend  Backend_;
+   OmsOrderFactoryParkSP   OrderFacPark_;
+   OmsRequestFactoryParkSP RequestFacPark_;
+   /// Backend_ 死亡時需要用到 Factories 做最後的存檔,
+   /// 所以必須放在 Factories 之後建構, 然後比 Factories 早死.
+   OmsBackend              Backend_;
 
    void PutRequestId(OmsRequestBase& req) {
       this->ReqUID_Builder_.MakeReqUID(req, this->Backend_.FetchSNO(req));
    }
    const OmsRequestBase* GetRequest(OmsRxSNO sno) const {
       if (auto item = this->Backend_.GetItem(sno))
-         return item->ToRequest();
+         return item->CastToRequest();
       return nullptr;
    }
    fon9::TimeStamp TDay() const {

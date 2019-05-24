@@ -2,8 +2,6 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsRequestPolicy.hpp"
-#include "f9omstw/OmsRequestFactory.hpp"
-#include "f9omstw/OmsTools.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -16,7 +14,7 @@ OmsRequestBase::~OmsRequestBase() {
       this->LastUpdated()->Order_->FreeThis();
    }
 }
-const OmsRequestBase* OmsRequestBase::ToRequest() const {
+const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
 }
 void OmsRequestBase::OnRxItem_AddRef() const {
@@ -32,11 +30,6 @@ void OmsRequestBase::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"SessionId"}, OmsRequestBase, SessionId_));
    flds.Add(fon9_MakeField(fon9::Named{"ReqUID"},    OmsRequestBase, ReqUID_));
    flds.Add(fon9_MakeField(fon9::Named{"CrTime"},    OmsRequestBase, CrTime_));
-}
-void OmsRequestBase::RevPrint(fon9::RevBuffer& rbuf) const {
-   if (auto* abres = this->AbandonReason())
-      fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL "E:", *abres);
-   RevPrintFields(rbuf, *this->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 
 void OmsTradingRequest::MakeFields(fon9::seed::Fields& flds) {

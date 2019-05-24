@@ -19,9 +19,10 @@ bool OmsCore::IsThisThread() const {
 //--------------------------------------------------------------------------//
 OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileName) {
    this->TDay_ = tday;
-   auto res = this->Backend_.StartThread(this->Name_ + "_Backend", std::move(logFileName));
+   auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
    if (res.IsError())
       return res;
+   this->Backend_.StartThread(this->Name_ + "_Backend");
    this->Plant();
    this->StartThread(1, &this->Name_);
    return res;

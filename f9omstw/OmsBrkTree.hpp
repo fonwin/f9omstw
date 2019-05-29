@@ -40,6 +40,11 @@ public:
    typedef OmsBrkSP (*FnBrkMaker)(const fon9::StrView& brkid);
    void Initialize(FnBrkMaker fnBrkMaker, fon9::StrView start, size_t count, FnIncStr fnIncStr);
 
+   /// 設定 f9fmkt_TradingSessionId_Normal, FixedPrice, OddLot 共用同一個 OrdNoMap.
+   void InitializeTwsOrdNoMap(f9fmkt_TradingMarket mkt);
+   /// 若上市上櫃共用委託書號表, 則可在上市初始化之後, 呼叫: InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC, f9fmkt_TradingMarket_TwSEC);
+   void InitializeTwsOrdNoMapRef(f9fmkt_TradingMarket mkt, f9fmkt_TradingMarket mktRefSource);
+
    static int TwsBrkIndex1(fon9::StrView brkid) {
       return brkid.size() == 4 ? fon9::Alpha2Seq(*(brkid.end() - 1)) : -1;
    }

@@ -6,7 +6,7 @@
 
 namespace f9omstw {
 
-enum OmsIvKind {
+enum class OmsIvKind {
    Subac,
    Ivac,
    Brk,

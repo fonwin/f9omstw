@@ -1,7 +1,7 @@
 ﻿// \file f9omstw/OmsRequest.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsOrder.hpp"
-#include "f9omstw/OmsRequestPolicy.hpp"
+#include "f9omstw/OmsRequestRunner.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -24,7 +24,7 @@ void OmsRequestBase::OnRxItem_Release() const {
    intrusive_ptr_release(this);
 }
 
-void OmsRequestBase::MakeFields(fon9::seed::Fields& flds) {
+void OmsRequestBase::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"Kind"},      OmsRequestBase, RequestKind_));
    flds.Add(fon9_MakeField(fon9::Named{"Market"},    OmsRequestBase, Market_));
    flds.Add(fon9_MakeField(fon9::Named{"SessionId"}, OmsRequestBase, SessionId_));
@@ -32,8 +32,8 @@ void OmsRequestBase::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"CrTime"},    OmsRequestBase, CrTime_));
 }
 
-void OmsTradingRequest::MakeFields(fon9::seed::Fields& flds) {
-   base::MakeFields(flds);
+void OmsTradingRequest::MakeFieldsImpl(fon9::seed::Fields& flds) {
+   base::MakeFields<OmsTradingRequest>(flds);
    flds.Add(fon9_MakeField(fon9::Named{"SesName"}, OmsTradingRequest, SesName_));
    flds.Add(fon9_MakeField(fon9::Named{"UserId"},  OmsTradingRequest, UserId_));
    flds.Add(fon9_MakeField(fon9::Named{"FromIp"},  OmsTradingRequest, FromIp_));
@@ -41,26 +41,37 @@ void OmsTradingRequest::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"UsrDef"},  OmsTradingRequest, UsrDef_));
    flds.Add(fon9_MakeField(fon9::Named{"ClOrdId"}, OmsTradingRequest, ClOrdId_));
 }
-bool OmsTradingRequest::PreCheck(OmsRequestRunner& reqRunner) {
-   return this->Policy_ ? this->Policy_->PreCheck(reqRunner) : true;
+bool OmsTradingRequest::PreCheckInUser(OmsRequestRunner& reqRunner) {
+   return this->Policy_ ? this->Policy_->PreCheckInUser(reqRunner) : true;
 }
 //--------------------------------------------------------------------------//
-void OmsRequestNew::MakeFields(fon9::seed::Fields& flds) {
-   base::MakeFields(flds);
+bool OmsRequestNew::PreCheckInUser(OmsRequestRunner& reqRunner) {
+   if (*this->OrdNo_.begin() != '\0') {
+      const OmsRequestPolicy* pol = this->Policy();
+      if (pol == nullptr || !pol->IsAllowAnyOrdNo()) {
+         reqRunner.RequestAbandon(nullptr, "OrdNo must empty.");
+         return false;
+      }
+   }
+   return base::PreCheckInUser(reqRunner);
+}
+void OmsRequestNew::MakeFieldsImpl(fon9::seed::Fields& flds) {
+   base::MakeFields<OmsRequestNew>(flds);
    flds.Add(fon9_MakeField(fon9::Named{"IvacNo"},  OmsRequestNew, IvacNo_));
    flds.Add(fon9_MakeField(fon9::Named{"SubacNo"}, OmsRequestNew, SubacNo_));
    flds.Add(fon9_MakeField(fon9::Named{"SalesNo"}, OmsRequestNew, SalesNo_));
+   flds.Add(fon9_MakeField(fon9::Named{"OrdNo"},   OmsRequestNew, OrdNo_));
 }
 //--------------------------------------------------------------------------//
-void OmsRequestUpd::MakeFields(fon9::seed::Fields& flds) {
+void OmsRequestUpd::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"IniSNO"}, OmsRequestUpd, IniSNO_));
-   base::MakeFields(flds);
+   base::MakeFields<OmsRequestUpd>(flds);
 }
 //--------------------------------------------------------------------------//
-void OmsRequestMatch::MakeFields(fon9::seed::Fields& flds) {
+void OmsRequestMatch::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"IniSNO"},   OmsRequestMatch, IniSNO_));
    flds.Add(fon9_MakeField(fon9::Named{"MatchKey"}, OmsRequestMatch, MatchKey_));
-   base::MakeFields(flds);
+   base::MakeFields<OmsRequestMatch>(flds);
 }
 void OmsRequestMatch::NoReadyLineReject(fon9::StrView) {
 }

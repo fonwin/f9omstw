@@ -16,6 +16,9 @@ struct UtwsOmsCore : public OmsCore {
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
       this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
+      // 建立委託書號表的關聯.
+      this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
+      this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
    }
    ~UtwsOmsCore() {
       this->WaitForEndNow();

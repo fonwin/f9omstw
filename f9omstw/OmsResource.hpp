@@ -5,6 +5,7 @@
 #include "f9omstw/OmsSymbTree.hpp"
 #include "f9omstw/OmsBrkTree.hpp"
 #include "f9omstw/OmsBackend.hpp"
+#include "f9omstw/OmsOrdTeam.hpp"
 #include "f9omstw/OmsRequestRunner.hpp"
 #include "f9omstw/OmsFactoryPark.hpp"
 #include "fon9/seed/MaTree.hpp"
@@ -36,6 +37,7 @@ public:
    /// Backend_ 死亡時需要用到 Factories 做最後的存檔,
    /// 所以必須放在 Factories 之後建構, 然後比 Factories 早死.
    OmsBackend              Backend_;
+   OmsOrdTeamGroupMgr      OrdTeamGroupMgr_;
 
    void PutRequestId(OmsRequestBase& req) {
       this->ReqUID_Builder_.MakeReqUID(req, this->Backend_.FetchSNO(req));

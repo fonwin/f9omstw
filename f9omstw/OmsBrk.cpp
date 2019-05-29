@@ -25,6 +25,26 @@ OmsIvacSP OmsBrk::RemoveIvac(IvacNo ivacNo) {
    return nullptr;
 }
 //--------------------------------------------------------------------------//
+fon9_MSC_WARN_DISABLE(4583); // 'f9omstw::OmsMarketRec::SessionAry_': destructor is not implicitly called
+OmsMarketRec::~OmsMarketRec() {
+   fon9::destroy_at(&this->SessionAry_);
+}
+void OmsMarketRec::InitializeSessionAry() {
+   unsigned idx = 0;
+   for (auto& v : this->SessionAry_)
+      fon9::InplaceNew(&v, *this, IndexTo_f9fmkt_TradingSessionId(idx++));
+}
+
+OmsBrk::~OmsBrk() {
+   fon9::destroy_at(&this->MarketAry_);
+}
+void OmsBrk::InitializeMarketAry() {
+   unsigned idx = 0;
+   for (auto& v : this->MarketAry_)
+      fon9::InplaceNew(&v, *this, IndexTo_f9fmkt_TradingMarket(idx++));
+}
+fon9_MSC_WARN_POP;
+//--------------------------------------------------------------------------//
 void OmsBrk::OnParentSeedClear() {
    this->ClearOrdNoMap();
 

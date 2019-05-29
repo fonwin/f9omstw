@@ -2,6 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
+#include "f9omstw/OmsBrk.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/seed/RawRd.hpp"
 
@@ -22,9 +23,9 @@ OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsRequestBase
 
 fon9_MSC_WARN_DISABLE(4355); /* 'this': used in base member initializer list */
 OmsOrder::OmsOrder(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes)
-   : Initiator_{&initiator}
+   : ScResource_(std::move(scRes))
+   , Initiator_{&initiator}
    , Creator_(&creator)
-   , ScResource_(std::move(scRes))
    , Head_{creator.MakeOrderRaw(*this, initiator)} {
    this->Last_ = const_cast<OmsOrderRaw*>(this->Head_);
 
@@ -35,12 +36,13 @@ fon9_MSC_WARN_POP;
 
 OmsOrder::OmsOrder() : Initiator_{nullptr}, Creator_{nullptr}, Head_{nullptr} {
 }
-void OmsOrder::Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes) {
+void OmsOrder::Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource* scRes) {
    *const_cast<const OmsOrderFactory**>(&this->Creator_) = &creator;
    *const_cast<const OmsRequestNew**>(&this->Initiator_) = &initiator;
-   *const_cast<OmsScResource*>(&this->ScResource_) = std::move(scRes);
    *const_cast<const OmsOrderRaw**>(&this->Head_) = creator.MakeOrderRaw(*this, initiator);
    this->Last_ = const_cast<OmsOrderRaw*>(this->Head_);
+   if (scRes)
+      this->ScResource_ = std::move(*scRes);
    assert(initiator.LastUpdated() == nullptr && initiator.AbandonReason() == nullptr);
    initiator.SetInitiatorFlag();
 }
@@ -49,6 +51,11 @@ OmsOrder::~OmsOrder() {
 }
 void OmsOrder::FreeThis() {
    delete this;
+}
+OmsBrk* OmsOrder::GetBrk(OmsResource& res) const {
+   if (auto* ivr = this->ScResource_.Ivr_.get())
+      return f9omstw::GetBrk(ivr);
+   return this->Initiator_->GetBrk(res);
 }
 
 //--------------------------------------------------------------------------//
@@ -75,7 +82,8 @@ OmsOrderRaw::OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req)
    : Order_(prev->Order_)
    , Request_(&req)
    , Prev_{prev}
-   , UpdSeq_{prev->UpdSeq_ + 1} {
+   , UpdSeq_{prev->UpdSeq_ + 1}
+   , OrdNo_{""} {
    assert(prev->Next_ == nullptr && prev->Order_->Last_ == prev);
    prev->Next_ = prev->Order_->Last_ = this;
 }
@@ -92,13 +100,18 @@ void OmsOrderRaw::Initialize(const OmsOrderRaw* prev, const OmsRequestBase& req)
 void OmsOrderRaw::ContinuePrevUpdate() {
    assert(this->Prev_ != nullptr);
    this->OrderSt_ = this->Prev_->OrderSt_;
+   this->ErrCode_ = OmsErrCode_NoError;
+   this->OrdNo_   = this->Prev_->OrdNo_;
 }
 
-void OmsOrderRaw::MakeFields(fon9::seed::Fields& flds) {
+void OmsOrderRaw::MakeFieldsImpl(fon9::seed::Fields& flds) {
    using namespace fon9;
    using namespace fon9::seed;
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, OrderSt_))});
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReqSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, RequestSt_))});
+   flds.Add(fon9_MakeField(Named{"ErrCode"},    OmsOrderRaw, ErrCode_));
+   flds.Add(fon9_MakeField(Named{"OrdNo"},      OmsOrderRaw, OrdNo_));
+   flds.Add(fon9_MakeField(Named{"Message"},    OmsOrderRaw, Message_));
    flds.Add(fon9_MakeField(Named{"UpdateTime"}, OmsOrderRaw, UpdateTime_));
 }
 

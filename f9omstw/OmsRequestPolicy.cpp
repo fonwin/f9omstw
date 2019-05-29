@@ -12,13 +12,17 @@ OmsRequestPolicy::OmsRequestPolicy() {
 }
 OmsRequestPolicy::~OmsRequestPolicy() {
 }
-bool OmsRequestPolicy::PreCheck(OmsRequestRunner& reqRunner) const {
+bool OmsRequestPolicy::PreCheckInUser(OmsRequestRunner& reqRunner) const {
    (void)reqRunner;
    // reqRunner.Request_->RequestKind() 是否允許此類下單要求?
    // 但此時還在 user thread, 無法取得 OmsIvBase* ivr;
    return true;
 }
 
+void OmsRequestPolicy::SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg& tg) {
+   this->OrdTeamGroupId_ = tg.TeamGroupId_;
+   this->IsAllowAnyOrdNo_ = tg.IsAllowAnyOrdNo_;
+}
 void OmsRequestPolicy::AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvRight rights) {
    if (ivr == nullptr) {
       if ((subWilds.empty() || subWilds == "*")) {

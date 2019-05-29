@@ -3,26 +3,10 @@
 #ifndef __f9omstw_OmsOrder_hpp__
 #define __f9omstw_OmsOrder_hpp__
 #include "f9omstw/OmsRequest.hpp"
+#include "f9omstw/OmsErrCode.h"
 #include "fon9/fmkt/Symb.hpp"
 
 namespace f9omstw {
-
-/// 下單失敗的原因: 錯誤代碼.
-/// 0:沒有錯誤, 1..9999: OMS內部錯誤.
-enum class OrderErrCode : uint16_t {
-   NoError = 0,
-
-   /// 刪改查要求, 但找不到對應的委託書.
-   /// 通常是提供的委託Key不正確.
-   OrderNotFound = 1,
-   /// 無可用的下單連線.
-   NoReadyLine = 2,
-
-   /// 來自風控管制的錯誤碼.
-   FromSc = 10000,
-   /// 來自交易所的錯誤碼 = OrderErr::FromExg + 交易所錯誤代號.
-   FromExg = 20000,
-};
 
 /// Name_   = 委託名稱, 例如: TwsOrd;
 /// Fields_ = 委託書會隨著操作、成交而變動的欄位(例如: 剩餘量...),
@@ -39,7 +23,8 @@ public:
    virtual ~OmsOrderFactory();
 
    /// 新單要求, 建立一個新的委託與其對應, 然後返回 OmsOrderRaw 開始首次更新.
-   OmsOrderRaw* MakeOrder(OmsRequestNew& initiator, f9omstw::OmsScResource&& scRes);
+   /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 Order 的初始化.
+   OmsOrderRaw* MakeOrder(OmsRequestNew& initiator, f9omstw::OmsScResource* scRes);
 
    /// 建立時須注意, 若此時 order.Last()==nullptr
    /// - 表示要建立的是 order 第一次異動.
@@ -47,11 +32,14 @@ public:
    OmsOrderRaw* MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req);
 };
 
+fon9_WARN_DISABLE_PADDING;
 struct OmsScResource {
    fon9::fmkt::SymbSP   Symb_;
    OmsIvBaseSP          Ivr_;
    OmsIvSymbSP          IvSymb_;
+   OmsOrdTeamGroupId    OrdTeamGroupId_{0};
 };
+fon9_WARN_POP;
 
 /// - 運作中的 OmsOrder 擁有權屬於 OmsOrder::Initiator_;
 ///   所以當 OmsOrder::Initiator_ 死亡時, 會呼叫 OmsOrder::FreeThis();
@@ -61,6 +49,7 @@ class OmsOrder {
    OmsRequestMatch*  MatchHead_{nullptr};
    OmsRequestMatch*  MatchLast_{nullptr};
    OmsOrderRaw*      Last_{nullptr};
+   OmsScResource     ScResource_;
 
 protected:
    virtual ~OmsOrder();
@@ -68,7 +57,6 @@ protected:
 public:
    const OmsRequestNew* const Initiator_;
    OmsOrderFactory* const     Creator_;
-   const OmsScResource        ScResource_;
 
    /// 在建構時透過 creator 建立 Head_;
    /// 而建立 OmsOrderRaw 會參考到 this->Initiator_;
@@ -77,9 +65,10 @@ public:
 
    OmsOrder(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes);
 
-   /// 實際使用前需配合 Initialize(OmsRequestNew& initiator, OmsScResource&& scRes) 初始化;
+   /// 實際使用前需配合 Initialize(OmsRequestNew& initiator, OmsScResource* scRes) 初始化;
    OmsOrder();
-   virtual void Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes);
+   /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 this->ScResource_ 的初始化.
+   virtual void Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource* scRes);
 
    /// 必須透過 FreeThis() 來刪除, 預設 delete this;
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;
@@ -88,6 +77,12 @@ public:
    const OmsOrderRaw* Last() const {
       return this->Last_;
    }
+
+   const OmsScResource& ScResource() const {
+      return this->ScResource_;
+   }
+
+   OmsBrk* GetBrk(OmsResource& res) const;
 };
 
 /// 每次委託異動增加一個 OmsOrderRaw;
@@ -116,11 +111,20 @@ class OmsOrderRaw : public OmsRxItem {
    // 呼叫一次: OnRxItem_AddRef(); 及 OnRxItem_Release();
    void OnRxItem_AddRef() const override;
    void OnRxItem_Release() const override;
+
+   static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
+   template <class Derived>
+   static void MakeFields(fon9::seed::Fields& flds) {
+      static_assert(fon9_OffsetOf(Derived, OrderSt_) == fon9_OffsetOf(OmsOrderRaw, OrderSt_),
+                    "'OmsOrderRaw' must be the first base class in derived.");
+      MakeFieldsImpl(flds);
+   }
+
    /// 若 OmsOrderFactory::MakeOrderRaw() 使用 ObjectPool 機制, 則可能先建立 OmsOrderRaw,
    /// 然後在 OmsOrderFactory::MakeOrderRaw() 返回前, 再透過 OmsOrderRaw::Initialize() 初始化.
    /// 在此預設建構裡面, 應先將一些欄位初始化, 讓 OmsOrderRaw::Initialize(order) 可以快一些.
-   OmsOrderRaw() : Order_{nullptr}, Request_{nullptr} {
+   OmsOrderRaw() : Order_{nullptr}, Request_{nullptr}, OrdNo_{""} {
    }
    virtual ~OmsOrderRaw();
    const OmsOrderRaw* CastToOrderRaw() const override;
@@ -131,15 +135,21 @@ public:
    const OmsOrderRaw* const    Prev_{nullptr};
    const uint32_t              UpdSeq_{0};
 
-   f9fmkt_OrderSt             OrderSt_;
-   f9fmkt_TradingRequestSt    RequestSt_;
-   char                       padding___[2];
+   f9fmkt_OrderSt              OrderSt_;
+   f9fmkt_TradingRequestSt     RequestSt_;
+   OmsErrCode                  ErrCode_{OmsErrCode_NoError};
+   OmsOrdNo                    OrdNo_;
+   char                        padding___[3];
    /// 異動時的本機時間.
-   fon9::TimeStamp            UpdateTime_;
+   fon9::TimeStamp             UpdateTime_;
+   /// 若訊息長度沒有超過 fon9::CharVector::kMaxBinsSize (在x64系統, 大約23 bytes),
+   /// 則可以不用分配記憶體, 一般而言常用的訊息不會超過(例如: "Sending by BBBB-SS", "Queuing"),
+   /// 通常在有錯誤時才會使用較長的訊息.
+   fon9::CharVector            Message_;
 
    /// 請注意: 此時的 order 還在建構階段.
    /// 此處返回後才會設定 order.Head_;
-   OmsOrderRaw(OmsOrder& order) : Order_(&order), Request_(order.Initiator_) {
+   OmsOrderRaw(OmsOrder& order) : Order_(&order), Request_(order.Initiator_), OrdNo_{""} {
    }
    /// 使用此方式建構, 在使用前必須自行呼叫 ContinuePrevUpdate();
    OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req);
@@ -147,8 +157,6 @@ public:
    /// 必須透過 FreeThis() 來刪除, 預設 delete this; 不處理 this->Next_; this->Prev_;
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;
    virtual void FreeThis();
-
-   static void MakeFields(fon9::seed::Fields& flds);
 
    void RevPrint(fon9::RevBuffer& rbuf) const override;
 
@@ -158,16 +166,16 @@ public:
 
    /// 延續 this->Prev_ 之後的異動.
    /// - 從 this->Prev_ 複製必要的內容: this->OrderSt_ = this->Prev_->OrderSt_;
-   /// - 設定(清除)部分欄位.
+   /// - 設定(清除)部分欄位, 例如: this->ErrCode_ = OmsErrCode_NoError;
    /// - 不設定 this->UpdateTime_ = fon9::UtcNow(); 等到結束異動 ~OmsRequestRunnerInCore() 時設定.
    virtual void ContinuePrevUpdate();
 };
 
 //--------------------------------------------------------------------------//
 
-inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestNew& initiator, f9omstw::OmsScResource&& scRes) {
+inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestNew& initiator, f9omstw::OmsScResource* scRes) {
    OmsOrder* ord = this->MakeOrderImpl();
-   ord->Initialize(initiator, *this, std::move(scRes));
+   ord->Initialize(initiator, *this, scRes);
    return const_cast<OmsOrderRaw*>(ord->Last());
 }
 

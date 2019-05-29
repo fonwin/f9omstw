@@ -44,6 +44,15 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRxItem, publ
       intrusive_ptr_release(static_cast<const fon9::fmkt::TradingRequest*>(p));
    }
 
+   static void MakeFieldsImpl(fon9::seed::Fields& flds);
+protected:
+   template <class Derived>
+   static void MakeFields(fon9::seed::Fields& flds) {
+      static_assert(fon9_OffsetOf(Derived, RequestKind_) == fon9_OffsetOf(OmsRequestBase, RequestKind_),
+                    "'OmsRequestBase' must be the first base class in derived.");
+      MakeFieldsImpl(flds);
+   }
+
 public:
    OmsRequestFactory* const   Creator_;
    OmsRequestBase(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
@@ -66,11 +75,13 @@ public:
 
    const OmsRequestBase* CastToRequest() const override;
 
-   static void MakeFields(fon9::seed::Fields& flds);
    void RevPrint(fon9::RevBuffer& rbuf) const override;
 
    OmsRequestFlag RequestFlags() const {
       return static_cast<OmsRequestFlag>(this->RequestFlags_);
+   }
+   bool IsInitiator() const {
+      return (this->RequestFlags_ & OmsRequestFlag_Initiator) == OmsRequestFlag_Initiator;
    }
    const OmsOrderRaw* LastUpdated() const {
       return IsEnumContains(this->RequestFlags(), OmsRequestFlag_Abandon) ? nullptr : this->LastUpdated_;
@@ -119,6 +130,16 @@ class OmsTradingRequest : public OmsRequestBase,
    using base = OmsRequestBase;
 
    OmsRequestPolicySP   Policy_;
+
+   static void MakeFieldsImpl(fon9::seed::Fields& flds);
+protected:
+   template <class Derived>
+   static void MakeFields(fon9::seed::Fields& flds) {
+      static_assert(fon9_OffsetOf(Derived, SesName_) == fon9_OffsetOf(OmsTradingRequest, SesName_),
+                    "'OmsTradingRequest' must be the first base class in derived.");
+      MakeFieldsImpl(flds);
+   }
+
 public:
    OmsTradingRequest(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
       : base{creator, reqKind} {
@@ -127,7 +148,7 @@ public:
       : base{reqKind} {
    }
 
-   void SetPolicy(OmsRequestPolicySP&& policy) {
+   void SetPolicy(OmsRequestPolicySP policy) {
       assert(this->Policy_.get() == nullptr);
       this->Policy_ = std::move(policy);
    }
@@ -137,26 +158,25 @@ public:
 
    /// 請參閱「下單流程」文件.
    /// 在建立好 req 之後, 預先檢查程序, 此時還在 user thread, 尚未進入 OmsCore.
-   /// return this->Policy_ ? this->Policy_->PreCheck(reqRunner) : true;
-   virtual bool PreCheck(OmsRequestRunner& reqRunner);
-
-   static void MakeFields(fon9::seed::Fields& flds);
+   /// return this->Policy_ ? this->Policy_->PreCheckInUser(reqRunner) : true;
+   virtual bool PreCheckInUser(OmsRequestRunner& reqRunner);
 };
 
-struct OmsRequestIvacNo {
+struct OmsRequestNewDat {
    // BrkId: Tws=CharAry<4>; Twf=CharAry<7>;
    // BrkId 放在 OmsRequestNewTws; OmsRequestNewTwf; 裡面.
 
    IvacNo            IvacNo_;
-   fon9::CharAry<12> SubacNo_;
-   fon9::CharAry<8>  SalesNo_;
+   fon9::CharAry<10> SubacNo_;
+   fon9::CharAry<5>  SalesNo_;
+   OmsOrdNo          OrdNo_;
 
-   OmsRequestIvacNo() {
+   OmsRequestNewDat() {
       memset(this, 0, sizeof(*this));
    }
 };
 
-class OmsRequestNew : public OmsTradingRequest, public OmsRequestIvacNo {
+class OmsRequestNew : public OmsTradingRequest, public OmsRequestNewDat {
    fon9_NON_COPY_NON_MOVE(OmsRequestNew);
    using base = OmsTradingRequest;
 
@@ -164,6 +184,15 @@ class OmsRequestNew : public OmsTradingRequest, public OmsRequestIvacNo {
    void SetInitiatorFlag() {
       this->RequestFlags_ |= OmsRequestFlag_Initiator;
    }
+   static void MakeFieldsImpl(fon9::seed::Fields& flds);
+protected:
+   template <class Derived>
+   static void MakeFields(fon9::seed::Fields& flds) {
+      static_assert(fon9_OffsetOf(Derived, IvacNo_) == fon9_OffsetOf(OmsRequestNew, IvacNo_),
+                    "'OmsTradingRequest' must be the first base class in derived.");
+      MakeFieldsImpl(flds);
+   }
+
 public:
    OmsRequestNew(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_New)
       : base{creator, reqKind} {
@@ -172,7 +201,10 @@ public:
       : base{reqKind} {
    }
 
-   static void MakeFields(fon9::seed::Fields& flds);
+   /// 檢查: 若 OrdNo_.begin() != '\0'; 則必須有 IsAllowAnyOrdNo_ 權限.
+   bool PreCheckInUser(OmsRequestRunner& reqRunner) override;
+
+   virtual OmsBrk* GetBrk(OmsResource& res) const = 0;
 };
 
 class OmsRequestUpd : public OmsTradingRequest {
@@ -181,17 +213,24 @@ class OmsRequestUpd : public OmsTradingRequest {
 
    OmsRxSNO IniSNO_{0};
 
+   static void MakeFieldsImpl(fon9::seed::Fields& flds);
+protected:
+   template <class Derived>
+   static void MakeFields(fon9::seed::Fields& flds) {
+      static_assert(fon9_OffsetOf(Derived, IniSNO_) == fon9_OffsetOf(OmsRequestUpd, IniSNO_),
+                    "'OmsRequestUpd' must be the first base class in derived.");
+      MakeFieldsImpl(flds);
+   }
+
 public:
    using base::base;
    OmsRequestUpd() = default;
 
-   static void MakeFields(fon9::seed::Fields& flds);
-
    OmsRxSNO IniSNO() const {
       return this->IniSNO_;
    }
-   // 衍生者應覆寫 PreCheck() 檢查並設定 RequestKind, 然後透過 base::PreCheck() 繼續檢查.
-   // bool PreCheck(OmsRequestRunner& reqRunner) override;
+   // 衍生者應覆寫 PreCheckInUser() 檢查並設定 RequestKind, 然後透過 base::PreCheckInUser() 繼續檢查.
+   // bool PreCheckInUser(OmsRequestRunner& reqRunner) override;
 };
 
 /// 成交回報.
@@ -222,6 +261,15 @@ class OmsRequestMatch : public OmsRequestBase {
    OmsRxSNO IniSNO_;
    uint64_t MatchKey_{0};
 
+   static void MakeFieldsImpl(fon9::seed::Fields& flds);
+protected:
+   template <class Derived>
+   static void MakeFields(fon9::seed::Fields& flds) {
+      static_assert(fon9_OffsetOf(Derived, IniSNO_) == fon9_OffsetOf(OmsRequestMatch, IniSNO_),
+                    "'OmsRequestMatch' must be the first base class in derived.");
+      MakeFieldsImpl(flds);
+   }
+
 public:
    using MatchKey = uint64_t;
 
@@ -231,8 +279,6 @@ public:
    OmsRequestMatch()
       : base{f9fmkt_RequestKind_Match} {
    }
-
-   static void MakeFields(fon9::seed::Fields& flds);
 
    /// 將 curr 依照 MatchKey_ 的順序(小到大), 加入到「成交串列」.
    /// \retval nullptr  成功將 curr 加入成交串列.

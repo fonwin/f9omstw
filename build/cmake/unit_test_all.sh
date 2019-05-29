@@ -19,6 +19,7 @@ set -e
 OUTPUT_DIR=${OUTPUT_DIR:-${BUILD_DIR}/${BUILD_TYPE}/f9omstw}
 
 $OUTPUT_DIR/OmsRequestPolicy_UT
+$OUTPUT_DIR/OmsOrdNoMap_UT
 
 $OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 0
 $OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 1

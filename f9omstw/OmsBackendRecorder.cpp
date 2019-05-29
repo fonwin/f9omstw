@@ -99,15 +99,21 @@ struct OmsBackend::Loader {
          ord = ordfac->MakeOrderRaw(*lastupd->Order_, *reqFrom);
       }
       else if (const auto* reqNew = dynamic_cast<const OmsRequestNew*>(reqFrom)) {
-         ord = ordfac->MakeOrder(*const_cast<OmsRequestNew*>(reqNew), OmsScResource{}); // 何時重新取得 OmsScResource?
-         // 如果 (ord->OrderSt_) 不是失敗單, 是否可用 fetch 的方式取得 OmsScResource;
+         ord = ordfac->MakeOrder(*const_cast<OmsRequestNew*>(reqNew), nullptr);
       }
       else
-         return "MakeOrder:ReqFrom is not RequestNew.";;
+         return "MakeOrder:ReqFrom is not RequestNew.";
       ord->RxSNO_ = this->LastSNO_;
       reqFrom->LastUpdated_ = ord;
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ord}, ln);
       this->Items_.AppendHistory(*ord);
+      if ((*ord->OrdNo_.begin() != '\0') && (ord->Prev_ == nullptr || ord->Prev_->OrdNo_ != ord->OrdNo_)) {
+         if (OmsBrk* brk = ord->Order_->GetBrk(this->Resource_))
+            if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*ord->Order_->Initiator_))
+               if (!ordNoMap->EmplaceOrder(*ord)) {
+                  return "MakeOrder:OrdNo exists.";
+               }
+      }
       return nullptr;
    }
 

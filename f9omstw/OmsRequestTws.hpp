@@ -34,17 +34,8 @@ using OmsTwsQty = uint32_t;
 using OmsTwsAmt = fon9::Decimal<uint64_t, 2>;
 using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
 
-/// 需要再配合 fon9::fmkt::TradingRequest 裡面的 Market_; Session_; 才能組成完整的 Key;
-struct TwsOrdKey {
-   f9tws::BrkId   BrkId_;
-   f9tws::OrdNo   OrdNo_;
-
-   TwsOrdKey() {
-      memset(this, 0, sizeof(*this));
-   }
-};
-
 struct OmsRequestTwsNewDat {
+   f9tws::BrkId      BrkId_;
    OmsTwsSymbol      Symbol_;
    f9fmkt_Side       Side_;
    TwsOType          OType_;
@@ -63,7 +54,7 @@ struct OmsRequestTwsNewDat {
    }
 };
 
-class OmsRequestTwsNew : public OmsRequestNew, public TwsOrdKey, public OmsRequestTwsNewDat {
+class OmsRequestTwsNew : public OmsRequestNew, public OmsRequestTwsNewDat {
    fon9_NON_COPY_NON_MOVE(OmsRequestTwsNew);
    using base = OmsRequestNew;
 public:
@@ -71,6 +62,18 @@ public:
    OmsRequestTwsNew() = default;
 
    static void MakeFields(fon9::seed::Fields& flds);
+
+   OmsBrk* GetBrk(OmsResource& res) const override;
+};
+
+/// 需要再配合 fon9::fmkt::TradingRequest 裡面的 Market_; Session_; 才能組成完整的 Key;
+struct TwsOrdKey {
+   f9tws::BrkId   BrkId_;
+   f9tws::OrdNo   OrdNo_;
+
+   TwsOrdKey() {
+      memset(this, 0, sizeof(*this));
+   }
 };
 
 class OmsRequestTwsChg : public OmsRequestUpd, public TwsOrdKey {
@@ -87,8 +90,8 @@ public:
    /// 數量(股數): =0刪單, >0期望改後數量(含成交), <0想要減少的數量.
    QtyType  Qty_{0};
 
-   /// 檢查並設定 RequestKind, 然後返回 base::PreCheck();
-   bool PreCheck(OmsRequestRunner& reqRunner) override;
+   /// 檢查並設定 RequestKind, 然後返回 base::PreCheckInUser();
+   bool PreCheckInUser(OmsRequestRunner& reqRunner) override;
 };
 
 class OmsRequestTwsMatch : public OmsRequestMatch {
@@ -97,6 +100,10 @@ class OmsRequestTwsMatch : public OmsRequestMatch {
 public:
    using base::base;
    OmsRequestTwsMatch() = default;
+
+   static void MakeFields(fon9::seed::Fields& flds) {
+      base::MakeFields<OmsRequestTwsMatch>(flds);
+   }
 
    /// 取得方式: static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastMatTime_;
    fon9::DayTime Time() const;

@@ -248,6 +248,26 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
 };
 using UtCoreSP = fon9::intrusive_ptr<OmsRequestPolicy_UT>;
 //--------------------------------------------------------------------------//
+void TestTeamList(const fon9::StrView cfg, const fon9::StrView expected) {
+   std::cout << "[TEST ] TeamConfig=" << cfg.begin() << "|expected=" << expected.begin();
+   f9omstw::OmsOrdTeamList list;
+   f9omstw::ConfigToTeamList(list, cfg);
+   std::string res;
+   while(!list.empty())  {
+      if (!res.empty())
+         res.push_back(',');
+      const auto& team = list.back();
+      res.append(team.begin(), team.Length_);
+      list.pop_back();
+   }
+   if (expected == fon9::StrView(&res)) {
+      std::cout << "\r[OK   ] " << std::endl;
+      return;
+   }
+   std::cout << "|result=" << res << "\r[ERROR] " << std::endl;
+   abort();
+}
+//--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
    (void)argc; (void)argv;
    #if defined(_MSC_VER) && defined(_DEBUG)
@@ -255,6 +275,44 @@ int main(int argc, char* argv[]) {
       //_CrtSetBreakAlloc(176);
    #endif
    fon9::AutoPrintTestInfo utinfo{"OmsRequestPolicy"};
+
+   //----- 測試 ConfigToTeamList()
+   TestTeamList("A",          "A");
+   TestTeamList("A,B,C",      "A,B,C");
+   TestTeamList("8-C,1,2,3",  "8,9,A,B,C,1,2,3");
+   TestTeamList("0,1,2,8-C4", "0,1,2,8,9,A,B,C0,C1,C2,C3,C4");
+   TestTeamList("8-,X",       "8,X");
+   TestTeamList("-8,X",       "8,X");
+
+   TestTeamList("C1-8",       "8,9,A,B,C0,C1");
+   TestTeamList("8-8",        "8");
+   TestTeamList("8-80",       "80");
+   TestTeamList("8-81",       "80,81");
+   TestTeamList("8-C0",       "8,9,A,B,C0");
+   TestTeamList("8-C1",       "8,9,A,B,C0,C1");
+   TestTeamList("8-C3",       "8,9,A,B,C0,C1,C2,C3");
+   TestTeamList("8-C00",      "8,9,A,B,C00");
+   TestTeamList("8-C01",      "8,9,A,B,C00,C01");
+   TestTeamList("8-C03",      "8,9,A,B,C00,C01,C02,C03");
+
+   TestTeamList("83-8",       "80,81,82,83"); // = "8-83"
+   TestTeamList("8x-8x",      "8x");
+   TestTeamList("8x-8y",      "8x,8y");
+   TestTeamList("8x-8z",      "8x,8y,8z");
+   TestTeamList("8x-8z3",     "8x,8y,8z0,8z1,8z2,8z3");
+   TestTeamList("8x-C",       "8x,8y,8z,9,A,B,C");
+   TestTeamList("8x-C3",      "8x,8y,8z,9,A,B,C0,C1,C2,C3");
+   TestTeamList("8x-C03",     "8x,8y,8z,9,A,B,C00,C01,C02,C03");
+   TestTeamList("8x-C23",     "8x,8y,8z,9,A,B,C0,C1,C20,C21,C22,C23");
+
+   TestTeamList("8xy-C23",    "8xy,8xz,8y,8z,9,A,B,C0,C1,C20,C21,C22,C23");
+   TestTeamList("8xy-C2",     "8xy,8xz,8y,8z,9,A,B,C0,C1,C2");
+   TestTeamList("8xy-C",      "8xy,8xz,8y,8z,9,A,B,C");
+   TestTeamList("8zz-C",      "8zz,9,A,B,C");
+   TestTeamList("zyz-zz",     "zyz,zz");
+   TestTeamList("yzz-zz",     "yzz,z");
+   TestTeamList("Az-B",       "Az,B");
+   TestTeamList("Azz-B",      "Azz,B");
 
    //----- 測試 OmsIvKey 的正規化.
    struct IvKeyTestCase {

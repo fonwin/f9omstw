@@ -7,8 +7,7 @@
     * OmsSaver / OmsLoader
     * 各類事件(開收盤、斷線...)通知.
     * 提供 Client 訂閱及回補: OmsReportSubscriber / OmsReportRecover
-  * 可以思考每個交易日建立一個 OmsCore; Name = "omstws_yyyymmdd"; yyyymmdd=交易日(TDay);
-    * 這樣就沒有 OmsCore 每日清檔的問題!
+  * OmsOrdNo 長度不一定是 5 (例如: 在台灣交易「國外證券、期貨」時), 應思考處理機制.
 
 libf9omstw: 台灣環境的委託管理系統.
 * 採用 static library:
@@ -115,12 +114,18 @@ libf9omstw: 台灣環境的委託管理系統.
 * 所有工作集中到單一 thread
 
 ## 每日清檔作業
-* 方法:
+* 可以思考每個交易日建立一個 OmsCore; Name = "omstws_yyyymmdd"; yyyymmdd=交易日(TDay);
+  * 這樣就沒有 OmsCore 每日清檔的問題!
+  * 只要有個「DoneForDay 事件」, 然後多一個 OmsMgr, 透過他取得「現在的 OmsCore」
+  * 帳號資料、商品資料: 每個 OmsCore 一個?
+    * 如果有註冊「依照帳號回報」, 則收到「DoneForDay 事件」時, 需重新註冊到新的 OmsCore 帳號.
+
+* 如果每個交易日一個 OmsCore, 就不用考慮底下的問題:
   * 每日結束然後重啟?
   * 設計 DailyClear 程序?
     * 清除 OrdNoMap
     * 帳號資料:
-      * 移除後重新匯入? 如果有註冊「帳號回報」, 是否可以不要重新註冊?
+      * 移除後重新匯入? 如果有註冊「依照帳號回報」, 是否可以不要重新註冊?
       * 匯入時處理 IsDailyClear?
       * 先呼叫全部帳號的 OnDailyClear(); ?
 
@@ -134,6 +139,17 @@ libf9omstw: 台灣環境的委託管理系統.
   * Daily clear event
 
 ## 下單流程
+### 可用櫃號
+* 使用者權限:
+  * 新單任意委託書號權限, 完全信任對方提供的委託書號(或櫃號), 除非委託書號重複。
+    * OmsRequestNew::PreCheckInUser() 會先檢查: 若有自訂櫃號, 則必須有 IsAllowAnyOrdNo 權限.
+  * 可用櫃號列表, 依序使用, 不讓使用者填選。
+  * 不提供可用櫃號, 由系統決定委託櫃號。
+* 若使用者沒提供可用櫃號, 則可能由下列設定提供「可用櫃號列表」
+  * 來源別。
+  * 線路群組。
+  * 特定下單步驟。
+
 ### user thread 收單
 當 user(session) 收到下單訊息時, 建立 req, 填入 req 內容。
 此階段仍允許修改 req 內容, 還在 user thread, 尚未進入 OmsCore.
@@ -153,11 +169,6 @@ libf9omstw: 台灣環境的委託管理系統.
 * 來到此處之後, 一律透過「回報機制」告知結果。
 * 在安全的取得 OmsResource 之後(可能在 OmsCore thread, 或透過 locker), 才能進行底下步驟。
 
-#### 成交回報
-* 透過 OrdKey(BrkId-Market-SessionId-OrdNo) 找回委託, 然後填入 req.IniSNO_;
-* 檢查 MatchKey 是否重複.
-* 直接處理成交回報作業: 建立新的 OmsOrderRaw 處理成交更新, 然後結束異動.
-
 #### 下單(交易)要求
 1. 前置作業
    * 此時仍允許修改 req 內容.
@@ -176,14 +187,19 @@ libf9omstw: 台灣環境的委託管理系統.
        * 結束 req 的異動, 建立新的 OmsOrderRaw, 進入委託異動狀態.
 
 2. 風控檢查.
-   - 若有失敗則 req 進入 Reject 狀態.
+   * 若有失敗則 req 進入 Reject 狀態.
 
 3. 排隊、送出、或 NoReadyLine.
-   - 若有失敗則 req 進入 Reject 狀態.
+   * 若有失敗則 req 進入 Reject 狀態.
+
+#### 成交回報
+* 透過 OrdKey(BrkId-Market-SessionId-OrdNo) 找回委託, 然後填入 req.IniSNO_;
+* 檢查 MatchKey 是否重複.
+* 直接處理成交回報作業: 建立新的 OmsOrderRaw 處理成交更新, 然後結束異動.
 
 #### 異動結束
 * 將 OmsRequest 或 委託異動資料(OmsOrderRaw) 丟到 OmsBackend.
-* 定時(例:1 ms), 或 OmsCore 有空時通知: OmsBackend 有新增的 OmsRxItem.
-  * OmsSaver 將新增的 OmsRxItem 寫入檔案.
+* 定時(例:1 ms), 或有空時通知, 或資料累積太多: 通知有新增的 OmsRxItem.
+  * OmsBackend 將新增的 OmsRxItem 寫入檔案.
   * OmsReportSubscriber 處理回報通知.
 

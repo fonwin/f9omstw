@@ -33,6 +33,40 @@ void OmsBrkTree::Initialize(FnBrkMaker fnBrkMaker, fon9::StrView start, size_t c
       fnIncStr(const_cast<char*>(start.begin()), const_cast<char*>(start.end()));
    }
 }
+
+static void RefSameOrdNoMap(OmsMarketRec& mktRec, OmsMarketRec& mktSrc, f9fmkt_TradingSessionId sesid) {
+   assert(mktSrc.GetSession(sesid).GetOrdNoMap() != nullptr);
+   mktRec.GetSession(sesid).InitializeOrdNoMapRef(mktSrc.GetSession(sesid).GetOrdNoMap());
+}
+void OmsBrkTree::InitializeTwsOrdNoMapRef(f9fmkt_TradingMarket mkt, f9fmkt_TradingMarket mktRefSource) {
+   assert(mktRefSource != f9fmkt_TradingMarket_Unknown);
+   for (OmsBrkSP& pbrk : this->BrkRecs_) {
+      OmsBrk& brk = *pbrk;
+      auto&   mktRec = brk.GetMarket(mkt);
+      auto&   mktSrc = brk.GetMarket(mktRefSource);
+      RefSameOrdNoMap(mktRec, mktSrc, f9fmkt_TradingSessionId_Normal);
+      RefSameOrdNoMap(mktRec, mktSrc, f9fmkt_TradingSessionId_FixedPrice);
+      RefSameOrdNoMap(mktRec, mktSrc, f9fmkt_TradingSessionId_OddLot);
+   }
+}
+void OmsBrkTree::InitializeTwsOrdNoMap(f9fmkt_TradingMarket mkt) {
+   for (OmsBrkSP& pbrk : this->BrkRecs_) {
+      OmsBrk& brk = *pbrk;
+      auto&   mktRec = brk.GetMarket(mkt);
+      auto    ordNoMap = mktRec.GetSession(f9fmkt_TradingSessionId_Normal).InitializeOrdNoMap();
+      mktRec.GetSession(f9fmkt_TradingSessionId_FixedPrice).InitializeOrdNoMapRef(ordNoMap);
+      mktRec.GetSession(f9fmkt_TradingSessionId_OddLot).InitializeOrdNoMapRef(ordNoMap);
+   }
+}
+OmsOrdNoMapSP OmsSessionRec::InitializeOrdNoMap() {
+   assert(this->OrdNoMap_.get() == nullptr);
+   this->OrdNoMap_.reset(new OmsOrdNoMap{});
+   return this->OrdNoMap_;
+}
+OmsOrdNoMapSP OmsSessionRec::InitializeOrdNoMapRef(OmsOrdNoMapSP ordNoMap) {
+   assert(this->OrdNoMap_.get() == nullptr && ordNoMap.get() != nullptr);
+   return this->OrdNoMap_ = std::move(ordNoMap);
+}
 //--------------------------------------------------------------------------//
 void OmsBrkTree::BrksClear(void(OmsBrk::*fnClear)()) {
    for (const OmsBrkSP& brksp : this->BrkRecs_) {

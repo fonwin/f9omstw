@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsBase_hpp__
 #define __f9omstw_OmsBase_hpp__
-#include "fon9/sys/Config.hpp"
+#include "fon9/CharAry.hpp"
 #include "fon9/intrusive_ref_counter.hpp"
 #include <memory>
 
@@ -13,6 +13,12 @@ class OmsTree;
 class OmsResource;
 class OmsBackend;
 class OmsRxItem;
+
+class OmsOrdNoMap;
+using OmsOrdNoMapSP = fon9::intrusive_ptr<OmsOrdNoMap>;
+using OmsOrdTeamGroupId = uint32_t;
+class OmsOrdTeamGroupCfg;
+using OmsOrdNo = fon9::CharAry<5>;
 
 //
 //    +-----------------+
@@ -27,6 +33,8 @@ using OmsIvBaseSP = fon9::intrusive_ptr<OmsIvBase>;
 class OmsBrkTree;
 class OmsBrk;
 using OmsBrkSP = fon9::intrusive_ptr<OmsBrk>;
+class OmsMarketRec;
+class OmsSessionRec;
 
 class OmsIvacTree;
 class OmsIvac;

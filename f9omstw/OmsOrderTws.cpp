@@ -6,8 +6,7 @@
 namespace f9omstw {
 
 void OmsOrderTwsRaw::MakeFields(fon9::seed::Fields& flds) {
-   base::MakeFields(flds);
-   flds.Add(fon9_MakeField(fon9::Named{"OrdNo"},       OmsOrderTwsRaw, OrdNo_));
+   base::MakeFields<OmsOrderTwsRaw>(flds);
    flds.Add(fon9_MakeField(fon9::Named{"OType"},       OmsOrderTwsRaw, OType_));
 
    flds.Add(fon9_MakeField(fon9::Named{"LastExgTime"}, OmsOrderTwsRaw, LastExgTime_));
@@ -18,9 +17,6 @@ void OmsOrderTwsRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(fon9::Named{"LastMatTime"}, OmsOrderTwsRaw, LastMatTime_));
    flds.Add(fon9_MakeField(fon9::Named{"CumQty"},      OmsOrderTwsRaw, CumQty_));
    flds.Add(fon9_MakeField(fon9::Named{"CumAmt"},      OmsOrderTwsRaw, CumAmt_));
-
-   flds.Add(fon9_MakeField(fon9::Named{"ErrCode"},     OmsOrderTwsRaw, ErrCode_));
-   flds.Add(fon9_MakeField(fon9::Named{"Message"},     OmsOrderTwsRaw, Message_));
 }
 
 void OmsOrderTwsRaw::ContinuePrevUpdate() {

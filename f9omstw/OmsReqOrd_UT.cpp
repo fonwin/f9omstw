@@ -9,6 +9,7 @@
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
 #include "f9omstw/OmsOrderTws.hpp"
+#include "utws/UtwsBrk.hpp"
 
 #include "fon9/ObjSupplier.hpp"
 #include "fon9/CmdArgs.hpp"
@@ -133,10 +134,10 @@ void PrintOmsRequest(f9omstw::OmsRequestBase& req) {
    puts(fon9::BufferTo<std::string>(rbuf.MoveOut()).c_str());
 }
 //--------------------------------------------------------------------------//
-void TestRequestNewInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& ordFactory, f9omstw::OmsRequestRunner&& reqNew) {
+void TestRequestNewInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& ordFactory, f9omstw::OmsRequestRunner&& reqr) {
    // 開始新單流程:
    // 1. 設定 req 序號.
-   res.PutRequestId(*reqNew.Request_);
+   res.PutRequestId(*reqr.Request_);
 
    // 2. 取得相關資源: 商品、投資人帳號、投資人商品資料...
    //    - 檢查:
@@ -145,13 +146,19 @@ void TestRequestNewInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& o
    //        - 是否允許下單時建立帳號?
    //        - 或是 OmsResource 一律事先建好帳號資料, 若不存在該帳號, 則中斷下單?
    //    - 如果失敗 req.Abandon(), 使用回報機制通知 user(io session), 回報訂閱者需判斷 req.UserId_;
-   f9omstw::OmsScResource  scRes;
+   f9omstw::OmsRequestTwsNew* newReq = static_cast<f9omstw::OmsRequestTwsNew*>(reqr.Request_.get());
+   f9omstw::OmsScResource     scRes;
+   // scRes.Symb_;
+   // scRes.Ivr_;
+   // scRes.IvSymb_;
+   if (const auto* reqPolicy = newReq->Policy())
+      scRes.OrdTeamGroupId_ = reqPolicy->OrdTeamGroupId();
 
    static unsigned gTestCount = 0;
    // abandon request:
    if (++gTestCount % 10 == 0) {
-      reqNew.Request_->Abandon("Ivac not found.");
-      res.Backend_.Append(*reqNew.Request_, std::move(reqNew.ExLog_));
+      reqr.Request_->Abandon("Ivac not found.");
+      res.Backend_.Append(*reqr.Request_, std::move(reqr.ExLog_));
       return;
    }
 
@@ -159,24 +166,54 @@ void TestRequestNewInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& o
    //    開始 OmsRequestRunnerInCore 之後, req 就不能再變動了!
    //    接下來 req 將被凍結 , 除了 LastUpdated_ 不會再有異動.
    f9omstw::OmsRequestRunnerInCore  runner{res,
-      *ordFactory.MakeOrder(*static_cast<f9omstw::OmsRequestNew*>(reqNew.Request_.get()), std::move(scRes)),
-      std::move(reqNew.ExLog_), 256};
+      *ordFactory.MakeOrder(*newReq, &scRes),
+      std::move(reqr.ExLog_), 256};
+
+   // 分配委託書號.
+   f9omstw::OmsBrk* brk = runner.OrderRaw_.Order_->GetBrk(runner.Resource_);  assert(brk);
+   if (f9omstw::OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*newReq)) {
+      if (!ordNoMap->AllocOrdNo(runner, newReq->OrdNo_))
+         return;
+   }
+   else {
+      f9omstw::OmsOrdNoMap::Reject(runner, OmsErrCode_OrdNoMapNotFound);
+      return;
+   }
+
+   //if (fon9_UNLIKELY(!ordNoMap)) // 也許 Market 或 SessionId 有誤.
+   //   return runner.RequestReject("OrdNoMap not found.");
+   //ordNoMap->AllocOrdNo(runner, newReq->OrdNo_, &runner.OrderRaw_.OrdNo_);
+   // - user(session)收單時, 可先判斷:
+   //   *reqNew.OrdNo_.begin() != '\0' 必須有 IsAllowAnyOrdNo_ 權限.
+   //   如果沒權限, 應直接 abandon, 可避免惡意 user;
+
    // 4. 風控檢查.
    // 5. 排隊 or 送單.
    runner.OrderRaw_.OrderSt_ = f9fmkt_OrderSt_NewSending;
    runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
 }
-void TestRequestChgInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& ordFactory, f9omstw::OmsRequestRunner&& req) {
-   res.PutRequestId(*req.Request_);
-   auto* inireq = res.GetRequest(static_cast<f9omstw::OmsRequestUpd*>(req.Request_.get())->IniSNO());
+void TestRequestChgInCore(f9omstw::OmsResource& res, f9omstw::OmsOrderFactory& ordFactory, f9omstw::OmsRequestRunner&& reqr) {
+   res.PutRequestId(*reqr.Request_);
+   f9omstw::OmsRequestUpd*        updreq = static_cast<f9omstw::OmsRequestUpd*>(reqr.Request_.get());
+   const f9omstw::OmsRequestBase* inireq;
+   if (auto iniSNO = updreq->IniSNO()) {
+      if ((inireq = res.GetRequest(iniSNO)) != nullptr) {
+         // 如果有填 BrkId、Market、SessionId、OrdNo, 檢查是否正確.
+      }
+   }
+   else {
+      // 根據 BrkId、Market、SessionId、OrdNo 取得 order.
+      inireq = nullptr;
+   }
    if (inireq == nullptr || inireq->LastUpdated() == nullptr) {
-      req.Request_->Abandon("Order not found.");
-      res.Backend_.Append(*req.Request_, std::move(req.ExLog_));
+      reqr.Request_->Abandon("Order not found.");
+      res.Backend_.Append(*reqr.Request_, std::move(reqr.ExLog_));
       return;
    }
+
    f9omstw::OmsRequestRunnerInCore  runner{res,
-      *ordFactory.MakeOrderRaw(*inireq->LastUpdated()->Order_, *req.Request_),
-      std::move(req.ExLog_), 256};
+      *ordFactory.MakeOrderRaw(*inireq->LastUpdated()->Order_, *reqr.Request_),
+      std::move(reqr.ExLog_), 256};
    runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sent;
 }
 //--------------------------------------------------------------------------//
@@ -186,6 +223,7 @@ int main(int argc, char* argv[]) {
       //_CrtSetBreakAlloc(176);
    #endif
    fon9::AutoPrintTestInfo utinfo{"OmsRequest/OmsOrder"};
+   fon9::StopWatch         stopWatch;
 
    gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
    std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
@@ -209,12 +247,20 @@ int main(int argc, char* argv[]) {
             new OmsRequestTwsMatchFactory(fon9::Named{"TwsMat"})
          ));
 
+         using namespace f9omstw;
+         this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
+         this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
+         // 建立委託書號表的關聯.
+         this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
+         this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
+
          this->TDay_ = fon9::UtcNow();
          this->Backend_.OpenReload(outfn, this->GetResource());
          this->Backend_.StartThread(this->Name_ + "_Backend");
       }
       ~TestCore() {
          this->Backend_.WaitForEndNow();
+         this->Brks_->InThr_OnParentSeedClear();
       }
       f9omstw::OmsResource& GetResource() {
          return *static_cast<f9omstw::OmsResource*>(this);
@@ -241,35 +287,56 @@ int main(int argc, char* argv[]) {
    //    - 所以券商可能要求: 送單前才編製委託書號.
    // IvacNoFlag 台灣證交所要求提供的欄位, 其實與投資人帳號關連不大, 應屬於下單來源.
 
-   f9omstw::OmsRequestPolicySP   reqPolicy;
-   fon9::StopWatch               stopWatch;
+   f9omstw::OmsRequestPolicy*    reqPolicy;
+   f9omstw::OmsRequestPolicySP   reqPolicySP{reqPolicy = new f9omstw::OmsRequestPolicy{}};
+   reqPolicy->SetOrdTeamGroupCfg(coreResource.OrdTeamGroupMgr_.SetTeamGroup("admin", "*"));
+   //---------------------------------------------
    stopWatch.ResetTimer();
    for (unsigned L = 0; L < testTimes; ++L) {
       // Create Request & 填入內容;
       auto reqNew = MakeOmsTradingRequest(*coreResource.RequestFacPark_,
-"TwsNew|SesName=UT|Src=A|UsrDef=UD123|ClOrdId=C12|IvacNo=10|SubacNo=sa01|BrkId=8610|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
-      // user thread 前置檢查.
-      if (!reqNew.PreCheck()) {
-         fprintf(stderr, "PreCheck|err=%s\n", fon9::BufferTo<std::string>(reqNew.ExLog_.MoveOut()).c_str());
+                                          "TwsNew|Market=T|SessionId=N|SesName=UT|Src=A|UsrDef=UD123|ClOrdId=C12|OrdNo=A|"
+                                          "IvacNo=10|SubacNo=sa01|BrkId=8610|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
+      reqNew.Request_->SetPolicy(reqPolicySP);
+      if (!reqNew.PreCheckInUser()) { // user thread 前置檢查.
+         fprintf(stderr, "PreCheckInUser|err=%s\n", fon9::BufferTo<std::string>(reqNew.ExLog_.MoveOut()).c_str());
          abort();
       }
       // 模擬已將 reqNew 丟給 OmsCore, 已進入 OmsCore 之後的步驟.
       TestRequestNewInCore(coreResource, *coreResource.OrderFacPark_->GetFactory(0), std::move(reqNew));
    }
    stopWatch.PrintResult("ReqNew ", testTimes);
-
+   //---------------------------------------------
    stopWatch.ResetTimer();
    for (unsigned L = 0; L < testTimes; ++L) {
       fon9::RevBufferFixedSize<1024> rbuf;
-      fon9::RevPrint(rbuf, "TwsChg|IniSNO=", L, "|Market=T|SessionId=N|SesName=UT|Src=B|UsrDef=UD234|ClOrdId=C34|BrkId=8610|OrdNo=|Qty=0");
+      fon9::RevPrint(rbuf, "TwsChg|IniSNO=", L, "|Market=T|SessionId=N|SesName=UT|Src=B|UsrDef=UD234|ClOrdId=C34"
+                     "|BrkId=8610|OrdNo=|Qty=-1000");
       auto req = MakeOmsTradingRequest(*coreResource.RequestFacPark_, ToStrView(rbuf));
-      if (!req.PreCheck()) {
-         fprintf(stderr, "PreCheck|err=%s\n", fon9::BufferTo<std::string>(req.ExLog_.MoveOut()).c_str());
+      if (!req.PreCheckInUser()) {
+         fprintf(stderr, "PreCheckInUser|err=%s\n", fon9::BufferTo<std::string>(req.ExLog_.MoveOut()).c_str());
          abort();
       }
       TestRequestChgInCore(coreResource, *coreResource.OrderFacPark_->GetFactory(0), std::move(req));
    }
    stopWatch.PrintResult("ReqChg ", testTimes);
+   //---------------------------------------------
+   f9omstw::OmsOrdNo ordno{"A0000"};
+   stopWatch.ResetTimer();
+   for (unsigned L = 0; L < testTimes; ++L) {
+      fon9::RevBufferFixedSize<1024> rbuf;
+      fon9::RevPrint(rbuf, "TwsChg|Market=T|SessionId=N|SesName=UT|Src=B|UsrDef=UD234|ClOrdId=C34"
+                     "|BrkId=8610|OrdNo=", ordno, "|Qty=0");
+      auto req = MakeOmsTradingRequest(*coreResource.RequestFacPark_, ToStrView(rbuf));
+      if (!req.PreCheckInUser()) {
+         fprintf(stderr, "PreCheckInUser|err=%s\n", fon9::BufferTo<std::string>(req.ExLog_.MoveOut()).c_str());
+         abort();
+      }
+      TestRequestChgInCore(coreResource, *coreResource.OrderFacPark_->GetFactory(0), std::move(req));
+      f9omstw::IncStrAlpha(ordno.begin(), ordno.end());
+   }
+   stopWatch.PrintResult("ReqDel ", testTimes);
+   //---------------------------------------------
    std::cout << "LastSNO = " << coreResource.Backend_.LastSNO() << std::endl;
    if (isWait.begin() && (isWait.empty() || fon9::toupper(static_cast<unsigned char>(*isWait.begin())) == 'Y')) {
       // 要查看資源用量(時間、記憶體...), 可透過 `/usr/bin/time` 指令:

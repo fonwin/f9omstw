@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsRequestPolicy_hpp__
 #define __f9omstw_OmsRequestPolicy_hpp__
 #include "f9omstw/OmsPoIvList.hpp"
+#include "f9omstw/OmsPoUserRights.hpp"
 #include "f9omstw/OmsIvBase.hpp"
 #include "f9omstw/OmsBase.hpp"
 
@@ -11,8 +12,10 @@ namespace f9omstw {
 /// 每次使用者登入後, 都會從「使用者管理員」 **複製** 一份下單權限的設定.
 class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    fon9_NON_COPY_NON_MOVE(OmsRequestPolicy);
-   OmsIvRight  IvRights_{OmsIvRight::DenyAll};
-   char        padding___[3];
+   OmsOrdTeamGroupId OrdTeamGroupId_{0};
+   bool              IsAllowAnyOrdNo_{false};
+   OmsIvRight        IvRights_{OmsIvRight::DenyAll};
+   char              padding___[6];
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -37,11 +40,20 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    };
    using IvMap = fon9::SortedVectorSet<IvRec, IvRecCmpr>;
    IvMap IvMap_;
+
 public:
    OmsRequestPolicy();
    virtual ~OmsRequestPolicy();
 
-   bool PreCheck(OmsRequestRunner& reqRunner) const;
+   bool PreCheckInUser(OmsRequestRunner& reqRunner) const;
+
+   OmsOrdTeamGroupId OrdTeamGroupId() const {
+      return this->OrdTeamGroupId_;
+   }
+   bool IsAllowAnyOrdNo() const {
+      return this->IsAllowAnyOrdNo_;
+   }
+   void SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg& tg);
 
    /// - 如果 iv 是 Subac:
    ///   - 則 subWilds 必定是 empty().
@@ -55,6 +67,7 @@ public:
    ///   - 如果 subWilds 是 empty() 或 "*", 則設定 this->IvRights_ = IsAdmin | rights; 不加入 this->IvMap_;
    ///   - 如果 subWilds 是 "BRKX-1234567-SUBAC"; 券商代號(BRKX)部分必定有 '*' 或 '?'.
    void AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvRight rights);
+
    OmsIvRight GetIvRights(OmsIvBase* ivr) const;
 };
 using OmsRequestPolicySP = fon9::intrusive_ptr<const OmsRequestPolicy>;

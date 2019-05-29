@@ -23,10 +23,12 @@ public:
    OmsRequestRunner(OmsRequestRunner&&) = default;
    OmsRequestRunner& operator=(OmsRequestRunner&&) = default;
 
-   /// \copydoc bool OmsTradingRequest::PreCheck(OmsRequestRunner&);
-   bool PreCheck() {
-      return this->Request_->PreCheck(*this);
+   /// \copydoc bool OmsTradingRequest::PreCheckInUser(OmsRequestRunner&);
+   bool PreCheckInUser() {
+      return this->Request_->PreCheckInUser(*this);
    }
+
+   void RequestAbandon(OmsResource* res, std::string reason);
 };
 
 /// - 禁止使用 new 的方式建立 OmsRequestRunnerInCore;

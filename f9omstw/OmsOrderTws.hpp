@@ -24,10 +24,9 @@ struct OmsOrderTwsRawDat {
    /// 最後交易所成交時間.
    fon9::DayTime  LastMatTime_;
 
-   f9tws::OrdNo   OrdNo_;
    /// 實際送交易所的 OType.
    TwsOType       OType_;
-   OrderErrCode   ErrCode_;
+   char           padding_____[7];
 
    /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
@@ -35,12 +34,11 @@ struct OmsOrderTwsRawDat {
       this->LastExgTime_.AssignNull();
       this->LastMatTime_.AssignNull();
    }
-   /// 除了 this->BeforeQty_ = prev.AfterQty_; 清除 this->ErrCode_; 之外,
+   /// 除了 this->BeforeQty_ = prev.AfterQty_; 之外,
    /// 其餘全部欄位都從 prev 複製而來.
    void ContinuePrevUpdate(const OmsOrderTwsRawDat& prev) {
       memcpy(this, &prev, sizeof(*this));
       this->BeforeQty_ = this->AfterQty_;
-      this->ErrCode_ = OrderErrCode::NoError;
    }
 };
 
@@ -48,11 +46,6 @@ class OmsOrderTwsRaw : public OmsOrderRaw, public OmsOrderTwsRawDat {
    fon9_NON_COPY_NON_MOVE(OmsOrderTwsRaw);
    using base = OmsOrderRaw;
 public:
-   /// 若訊息長度沒有超過 fon9::CharVector::kMaxBinsSize (在x64系統, 大約23 bytes),
-   /// 則可以不用分配記憶體, 一般而言常用的訊息不會超過(例如: "Sending by BBBB-SS", "Queuing"),
-   /// 通常在有錯誤時才會使用較長的訊息.
-   fon9::CharVector  Message_;
-
    using base::base;
    OmsOrderTwsRaw() {
       this->ClearRawDat();

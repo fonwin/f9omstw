@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A6903F8E-94F2-4AAD-92E3-E5268AE9E35B}</ProjectGuid>
-    <RootNamespace>OmsReqOrd_UT</RootNamespace>
+    <ProjectGuid>{FB546700-2744-4F10-8EAF-20F17EC8DE90}</ProjectGuid>
+    <RootNamespace>OmsOrdNoMap_UT</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -46,16 +46,16 @@
     <IntDir>$(OutDir)$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
     <IntDir>$(OutDir)$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -65,8 +65,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -74,12 +74,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsBrk.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvac.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSc.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSubac.cpp" />
-    <ClCompile Include="..\..\..\f9omstw\OmsReqOrd_UT.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsOrdNoMap_UT.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
@@ -88,13 +83,6 @@
     <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
       <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsBrk.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvac.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvSc.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsSubac.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

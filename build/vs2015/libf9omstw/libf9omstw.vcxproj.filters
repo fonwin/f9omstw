@@ -122,6 +122,15 @@
     <ClInclude Include="..\..\..\f9omstw\OmsBackend.hpp">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsOrdNoMap.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsErrCode.h">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -203,6 +212,12 @@
       <Filter>Source Files\_core</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsBackendRecorder.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsOrdNoMap.cpp">
       <Filter>Source Files\_core</Filter>
     </ClCompile>
   </ItemGroup>

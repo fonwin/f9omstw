@@ -15,9 +15,9 @@ OmsSubacSP UtwsIvac::MakeSubac(fon9::StrView subacNo) {
 fon9::seed::LayoutSP UtwsIvac::MakeLayout(fon9::seed::TreeFlag treeflags) {
    using namespace fon9::seed;
    Fields   infoflds;
-   infoflds.Add(fon9_MakeField(fon9::Named{"Name"},       UtwsIvacInfo, Name_));
-   infoflds.Add(fon9_MakeField(fon9::Named{"OrderLimit"}, UtwsIvacInfo, OrderLimit_));
-   return new LayoutN(fon9_MakeField(fon9::Named{"IvacNo"}, UtwsIvac, IvacNo_), treeflags,
+   infoflds.Add(fon9_MakeField2(UtwsIvacInfo, Name));
+   infoflds.Add(fon9_MakeField2(UtwsIvacInfo, OrderLimit));
+   return new LayoutN(fon9_MakeField2(UtwsIvac, IvacNo), treeflags,
       new Tab{fon9::Named{"Info"}, std::move(infoflds), UtwsSubac::MakeLayout(), TabFlag::NoSeedCommand | TabFlag::Writable | TabFlag::HasSapling},
       new Tab{fon9::Named{"Sc"}, UtwsIvSc::MakeFields(), UtwsIvSymb::MakeLayout(), TabFlag::NoSeedCommand | TabFlag::Writable | TabFlag::HasSapling}
    );

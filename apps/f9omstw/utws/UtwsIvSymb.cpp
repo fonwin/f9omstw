@@ -8,16 +8,16 @@ namespace f9omstw {
 
 static fon9::seed::Fields UtwsIvSymb_MakeFields() {
    fon9::seed::Fields   flds;
-   flds.Add(fon9_MakeField(fon9::Named{"GnQty"}, UtwsIvSymbSc, GnQty_));
-   flds.Add(fon9_MakeField(fon9::Named{"CrQty"}, UtwsIvSymbSc, CrQty_));
-   flds.Add(fon9_MakeField(fon9::Named{"CrAmt"}, UtwsIvSymbSc, CrAmt_));
-   flds.Add(fon9_MakeField(fon9::Named{"DbQty"}, UtwsIvSymbSc, DbQty_));
-   flds.Add(fon9_MakeField(fon9::Named{"DbAmt"}, UtwsIvSymbSc, DbAmt_));
+   flds.Add(fon9_MakeField2(UtwsIvSymbSc, GnQty));
+   flds.Add(fon9_MakeField2(UtwsIvSymbSc, CrQty));
+   flds.Add(fon9_MakeField2(UtwsIvSymbSc, CrAmt));
+   flds.Add(fon9_MakeField2(UtwsIvSymbSc, DbQty));
+   flds.Add(fon9_MakeField2(UtwsIvSymbSc, DbAmt));
    return flds;
 }
 fon9::seed::LayoutSP UtwsIvSymb::MakeLayout() {
    using namespace fon9::seed;
-   return new LayoutN(fon9_MakeField(fon9::Named{"SymbId"}, UtwsIvSymb, SymbId_), TreeFlag::AddableRemovable,
+   return new LayoutN(fon9_MakeField2(UtwsIvSymb, SymbId), TreeFlag::AddableRemovable,
       new Tab{fon9::Named{"Bal"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable},
       new Tab{fon9::Named{"Ord"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable},
       new Tab{fon9::Named{"Mat"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable}

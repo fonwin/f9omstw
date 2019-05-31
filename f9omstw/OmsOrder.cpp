@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
-#include "f9omstw/OmsBrk.hpp"
+#include "f9omstw/OmsCore.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/seed/RawRd.hpp"
 
@@ -22,7 +22,7 @@ OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsRequestBase
 //--------------------------------------------------------------------------//
 
 fon9_MSC_WARN_DISABLE(4355); /* 'this': used in base member initializer list */
-OmsOrder::OmsOrder(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes)
+OmsOrder::OmsOrder(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource&& scRes)
    : ScResource_(std::move(scRes))
    , Initiator_{&initiator}
    , Creator_(&creator)
@@ -36,9 +36,9 @@ fon9_MSC_WARN_POP;
 
 OmsOrder::OmsOrder() : Initiator_{nullptr}, Creator_{nullptr}, Head_{nullptr} {
 }
-void OmsOrder::Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource* scRes) {
+void OmsOrder::Initialize(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource* scRes) {
    *const_cast<const OmsOrderFactory**>(&this->Creator_) = &creator;
-   *const_cast<const OmsRequestNew**>(&this->Initiator_) = &initiator;
+   *const_cast<const OmsRequestIni**>(&this->Initiator_) = &initiator;
    *const_cast<const OmsOrderRaw**>(&this->Head_) = creator.MakeOrderRaw(*this, initiator);
    this->Last_ = const_cast<OmsOrderRaw*>(this->Head_);
    if (scRes)
@@ -55,7 +55,7 @@ void OmsOrder::FreeThis() {
 OmsBrk* OmsOrder::GetBrk(OmsResource& res) const {
    if (auto* ivr = this->ScResource_.Ivr_.get())
       return f9omstw::GetBrk(ivr);
-   return this->Initiator_->GetBrk(res);
+   return res.Brks_->GetBrkRec(ToStrView(this->Initiator_->BrkId_));
 }
 
 //--------------------------------------------------------------------------//
@@ -109,10 +109,10 @@ void OmsOrderRaw::MakeFieldsImpl(fon9::seed::Fields& flds) {
    using namespace fon9::seed;
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, OrderSt_))});
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReqSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, RequestSt_))});
-   flds.Add(fon9_MakeField(Named{"ErrCode"},    OmsOrderRaw, ErrCode_));
-   flds.Add(fon9_MakeField(Named{"OrdNo"},      OmsOrderRaw, OrdNo_));
-   flds.Add(fon9_MakeField(Named{"Message"},    OmsOrderRaw, Message_));
-   flds.Add(fon9_MakeField(Named{"UpdateTime"}, OmsOrderRaw, UpdateTime_));
+   flds.Add(fon9_MakeField2(OmsOrderRaw, ErrCode));
+   flds.Add(fon9_MakeField2(OmsOrderRaw, OrdNo));
+   flds.Add(fon9_MakeField2(OmsOrderRaw, Message));
+   flds.Add(fon9_MakeField2(OmsOrderRaw, UpdateTime));
 }
 
 } // namespaces

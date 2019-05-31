@@ -98,11 +98,11 @@ struct OmsBackend::Loader {
             return "MakeOrder:Ini request no updated.";;
          ord = ordfac->MakeOrderRaw(*lastupd->Order_, *reqFrom);
       }
-      else if (const auto* reqNew = dynamic_cast<const OmsRequestNew*>(reqFrom)) {
-         ord = ordfac->MakeOrder(*const_cast<OmsRequestNew*>(reqNew), nullptr);
+      else if (const auto* reqIni = dynamic_cast<const OmsRequestIni*>(reqFrom)) {
+         ord = ordfac->MakeOrder(*const_cast<OmsRequestIni*>(reqIni), nullptr);
       }
       else
-         return "MakeOrder:ReqFrom is not RequestNew.";
+         return "MakeOrder:ReqFrom is not RequestIni.";
       ord->RxSNO_ = this->LastSNO_;
       reqFrom->LastUpdated_ = ord;
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ord}, ln);

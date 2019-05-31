@@ -29,6 +29,9 @@ public:
    OmsOrdNoMap* GetOrdNoMap() {
       return this->OrdNoMap_.get();
    }
+   const OmsOrdNoMap* GetOrdNoMap() const {
+      return this->OrdNoMap_.get();
+   }
 };
 
 class OmsMarketRec {
@@ -108,6 +111,9 @@ public:
       return this->MarketAry_[f9fmkt_TradingMarket_ToIndex(mkt)];
    }
    OmsOrdNoMap* GetOrdNoMap(const fon9::fmkt::TradingRequest& req) {
+      return this->GetMarket(req.Market()).GetSession(req.SessionId()).GetOrdNoMap();
+   }
+   const OmsOrdNoMap* GetOrdNoMap(const fon9::fmkt::TradingRequest& req) const {
       return this->GetMarket(req.Market()).GetSession(req.SessionId()).GetOrdNoMap();
    }
 

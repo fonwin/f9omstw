@@ -6,8 +6,8 @@
 namespace f9omstw {
 
 void UtwsIvSc::MakeFields(fon9::seed::Fields& scflds) {
-   scflds.Add(fon9_MakeField(fon9::Named{"TotalBuy"},  UtwsIvSc, TotalBuy_));
-   scflds.Add(fon9_MakeField(fon9::Named{"TotalSell"}, UtwsIvSc, TotalSell_));
+   scflds.Add(fon9_MakeField2(UtwsIvSc, TotalBuy));
+   scflds.Add(fon9_MakeField2(UtwsIvSc, TotalSell));
 }
 
 } // namespaces

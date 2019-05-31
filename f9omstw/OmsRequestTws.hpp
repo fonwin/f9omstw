@@ -2,7 +2,8 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsRequestTws_hpp__
 #define __f9omstw_OmsRequestTws_hpp__
-#include "f9omstw/OmsRequest.hpp"
+#include "f9omstw/OmsRequestTrade.hpp"
+#include "f9omstw/OmsRequestMatch.hpp"
 #include "f9tws/ExgTypes.hpp"
 
 namespace f9omstw {
@@ -34,61 +35,46 @@ using OmsTwsQty = uint32_t;
 using OmsTwsAmt = fon9::Decimal<uint64_t, 2>;
 using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
 
-struct OmsRequestTwsNewDat {
-   f9tws::BrkId      BrkId_;
-   OmsTwsSymbol      Symbol_;
+struct OmsRequestTwsIniDat {
+   /// 投資人下單類別: ' '=一般, 'A'=自動化設備, 'D'=DMA, 'I'=Internet, 'V'=Voice, 'P'=API;
+   fon9::CharAry<1>  IvacNoFlag_;
    f9fmkt_Side       Side_;
    TwsOType          OType_;
-
+   f9fmkt_PriType    PriType_;
    /// 數量(股數).
    OmsTwsQty         Qty_;
    OmsTwsPri         Pri_;
-   f9fmkt_PriType    PriType_;
+   OmsTwsSymbol      Symbol_;
+   char              padding_____[6];
 
-   /// 投資人下單類別: ' '=一般, 'A'=自動化設備, 'D'=DMA, 'I'=Internet, 'V'=Voice, 'P'=API;
-   fon9::CharAry<1>  IvacNoFlag_;
-   char              padding____[2];
-
-   OmsRequestTwsNewDat() {
+   OmsRequestTwsIniDat() {
       memset(this, 0, sizeof(*this));
    }
 };
 
-class OmsRequestTwsNew : public OmsRequestNew, public OmsRequestTwsNewDat {
-   fon9_NON_COPY_NON_MOVE(OmsRequestTwsNew);
-   using base = OmsRequestNew;
+class OmsRequestTwsIni : public OmsRequestIni, public OmsRequestTwsIniDat {
+   fon9_NON_COPY_NON_MOVE(OmsRequestTwsIni);
+   using base = OmsRequestIni;
 public:
    using base::base;
-   OmsRequestTwsNew() = default;
+   OmsRequestTwsIni() = default;
 
    static void MakeFields(fon9::seed::Fields& flds);
-
-   OmsBrk* GetBrk(OmsResource& res) const override;
 };
 
-/// 需要再配合 fon9::fmkt::TradingRequest 裡面的 Market_; Session_; 才能組成完整的 Key;
-struct TwsOrdKey {
-   f9tws::BrkId   BrkId_;
-   f9tws::OrdNo   OrdNo_;
-
-   TwsOrdKey() {
-      memset(this, 0, sizeof(*this));
-   }
-};
-
-class OmsRequestTwsChg : public OmsRequestUpd, public TwsOrdKey {
+class OmsRequestTwsChg : public OmsRequestUpd {
    fon9_NON_COPY_NON_MOVE(OmsRequestTwsChg);
    using base = OmsRequestUpd;
 public:
+   using QtyType = fon9::make_signed_t<OmsTwsQty>;
+   /// 數量(股數): =0刪單, >0期望改後數量(含成交), <0想要減少的數量.
+   QtyType  Qty_{0};
+   char     padding_____[4];
+
    using base::base;
    OmsRequestTwsChg() = default;
 
    static void MakeFields(fon9::seed::Fields& flds);
-
-   char     padding___[3];
-   using QtyType = fon9::make_signed_t<OmsTwsQty>;
-   /// 數量(股數): =0刪單, >0期望改後數量(含成交), <0想要減少的數量.
-   QtyType  Qty_{0};
 
    /// 檢查並設定 RequestKind, 然後返回 base::PreCheckInUser();
    bool PreCheckInUser(OmsRequestRunner& reqRunner) override;

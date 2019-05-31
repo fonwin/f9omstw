@@ -9,35 +9,36 @@ namespace f9omstw {
 OmsOrdNoMap::~OmsOrdNoMap() {
 }
 
-bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdTeam team) {
-   assert(team.Length_ > 0);
+bool OmsOrdNoMap::AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team) {
+   assert(team.size() > 0);
    // 尋找 team 的最後號.
-   struct OrdNoStr : public OmsOrdNo {
-      uint8_t  Length_;
+   struct OrdNoStr : public fon9::CharAryL<OmsOrdNo::size()> {
+      using base = fon9::CharAryL<OmsOrdNo::size()>;
       void clear() {
-         this->Length_ = 0;
-         memset(this, '0', this->size());
+         base::clear();
+         memset(this->begin(), '0', this->max_size());
       }
-      void push_back(char ch) {
-         assert(this->Length_ < this->size());
-         this->Chars_[this->Length_++] = ch;
+      bool IncOrdNo(size_t idxfrom) {
+         return IncStrAlpha(this->begin() + idxfrom, this->begin() + this->max_size());
+      }
+      void PutOrdNo(OmsOrdNo& dst) {
+         // 此時雖然 this->size() 不是 max_size(); 但因為 clear() 時, 已填 '0',
+         // 所以可已直接取用 ordno.GetOrigCharAry();
+         dst = this->Ary_;
       }
    };
    OrdNoStr ordno;
-   this->find_tail_keystr(fon9::StrView{team.Chars_, team.Length_}, ordno);
-   if (fon9_UNLIKELY(ordno.Length_ < team.Length_)) {
+   this->find_tail_keystr(ToStrView(team), ordno);
+   if (fon9_UNLIKELY(ordno.size() < team.size())) {
       do {
-         ordno.Chars_[ordno.Length_] = team.Chars_[ordno.Length_];
-      } while (++ordno.Length_ < team.Length_);
+         ordno.push_back(team[ordno.size()]);
+      } while (ordno.size() < team.size());
    }
-   else if (fon9_LIKELY(IncStrAlpha(ordno.begin() + team.Length_, ordno.end()))) {
-      assert(ordno.Length_ == ordno.size());
-   }
-   else {
+   else if (fon9_UNLIKELY(!ordno.IncOrdNo(team.size()))) {
       return false;
    }
-   runner.OrderRaw_.OrdNo_ = ordno;
-   auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, runner.OrderRaw_.Order_);
+   ordno.PutOrdNo(runner.OrderRaw_.OrdNo_);
+   auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.begin() + ordno.max_size()}, runner.OrderRaw_.Order_);
    (void)ires; assert(ires.second == true);
    return true;
 }
@@ -48,7 +49,7 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
    auto teams = this->TeamGroups_.FetchTeamList(*tgCfg);
    assert(teams != nullptr);
    while (!teams->empty()) {
-      if (this->AllocOrdNo(runner, teams->back()))
+      if (this->AllocByTeam(runner, teams->back()))
          return true;
       teams->pop_back();
    }
@@ -71,7 +72,7 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo req)
       }
       return this->Reject(runner, OmsErrCode_OrderAlreadyExists);
    }
-   if (this->AllocOrdNo(runner, OmsOrdTeam{req, static_cast<uint8_t>(peos - req.begin())}))
+   if (this->AllocByTeam(runner, OmsOrdTeam{req.begin(), static_cast<uint8_t>(peos - req.begin())}))
       return true;
    return this->Reject(runner, OmsErrCode_OrdNoOverflow);
 }

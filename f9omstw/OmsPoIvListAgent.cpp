@@ -33,9 +33,9 @@ namespace f9omstw {
 fon9::seed::LayoutSP MakeOmsIvListLayout() {
    using namespace fon9::seed;
    Fields fields;
-   fields.Add(fon9_MakeField(fon9::Named{"Rights"}, OmsIvList::value_type, second));
+   fields.Add(fon9_MakeField(OmsIvList::value_type, second, "Rights"));
 
-   return LayoutSP{new Layout1(fon9_MakeField(fon9::Named{"IvKey"}, OmsIvList::value_type, first),
+   return LayoutSP{new Layout1(fon9_MakeField(OmsIvList::value_type, first, "IvKey"),
             TreeFlag::AddableRemovable,
             new Tab{fon9::Named{"IvRights"}, std::move(fields), TabFlag::NoSapling | TabFlag::Writable}
             )};
@@ -80,7 +80,7 @@ class PolicyIvListTree : public fon9::auth::MasterPolicyTree {
 
    static fon9::seed::LayoutSP MakeLayout() {
       using namespace fon9::seed;
-      return new Layout1(fon9_MakeField(fon9::Named{"PolicyId"}, fon9::auth::PolicyItem, PolicyId_),
+      return new Layout1(fon9_MakeField2(fon9::auth::PolicyItem, PolicyId),
          new Tab(fon9::Named{"IvList"}, Fields{}, MakeOmsIvListLayout(), TabFlag::Writable | TabFlag::HasSapling),
          TreeFlag::AddableRemovable);
    }

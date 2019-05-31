@@ -3,19 +3,19 @@
 #ifndef __f9omstw_OmsRequestId_hpp__
 #define __f9omstw_OmsRequestId_hpp__
 #include "f9omstw/OmsRxItem.hpp"
-#include "fon9/CharAry.hpp"
 
 namespace f9omstw {
 
 /// Request 在多主機環境下的唯一編號.
+/// - f9omstw 的下單要求: ReqUID 透過 OmsReqUID_Builder 填入(與 LocalHostId, RxSNO 相關).
 /// - 外部單: 由外部單(回報)提供者提供編碼規則, 例如:
 ///   - Market + Session + BrkId[2尾碼] + OrdNo + 外部單Seq(或AfQty).
 ///   - Market + Session + BrkId[2尾碼] + OrdNo + 成交序號.
-/// - 否則: ReqUID 透過 OmsReqUID_Builder 填入(與 LocalHostId, RxSNO 相關).
 struct OmsRequestId {
    fon9::CharAry<16> ReqUID_;
+
    OmsRequestId() {
-      *ReqUID_.begin() = 0;
+      memset(this, 0, sizeof(*this));
    }
 };
 

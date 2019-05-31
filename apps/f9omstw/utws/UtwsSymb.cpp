@@ -22,7 +22,7 @@ fon9::fmkt::SymbData* UtwsSymb::FetchSymbData(int tabid) {
 }
 fon9::seed::LayoutSP UtwsSymb::MakeLayout(fon9::seed::TreeFlag treeflags) {
    using namespace fon9::seed;
-   return new Layout1(fon9_MakeField(fon9::Named{"SymbId"}, UtwsSymb, SymbId_), treeflags,
+   return new Layout1(fon9_MakeField2(UtwsSymb, SymbId), treeflags,
                       new Tab{fon9::Named{"Base"}, UtwsSymb::MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable}
    );
 }

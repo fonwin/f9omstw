@@ -10,8 +10,8 @@ namespace f9omstw {
 fon9::seed::LayoutSP UtwsSubac::MakeLayout() {
    using namespace fon9::seed;
    Fields infoflds;
-   infoflds.Add(fon9_MakeField(fon9::Named{"OrderLimit"}, UtwsSubacInfo, OrderLimit_));
-   return new LayoutN(fon9_MakeField(fon9::Named{"SubacNo"}, UtwsSubac, SubacNo_), TreeFlag::AddableRemovable,
+   infoflds.Add(fon9_MakeField2(UtwsSubacInfo, OrderLimit));
+   return new LayoutN(fon9_MakeField2(UtwsSubac, SubacNo), TreeFlag::AddableRemovable,
       new Tab{fon9::Named{"Info"}, std::move(infoflds), TabFlag::NoSeedCommand | TabFlag::Writable},
       new Tab{fon9::Named{"Sc"}, UtwsIvSc::MakeFields(), UtwsIvSymb::MakeLayout(), TabFlag::NoSeedCommand | TabFlag::Writable | TabFlag::HasSapling}
    );

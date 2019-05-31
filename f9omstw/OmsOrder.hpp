@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsOrder_hpp__
 #define __f9omstw_OmsOrder_hpp__
-#include "f9omstw/OmsRequest.hpp"
+#include "f9omstw/OmsRequestTrade.hpp"
 #include "f9omstw/OmsErrCode.h"
 #include "fon9/fmkt/Symb.hpp"
 
@@ -24,7 +24,7 @@ public:
 
    /// 新單要求, 建立一個新的委託與其對應, 然後返回 OmsOrderRaw 開始首次更新.
    /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 Order 的初始化.
-   OmsOrderRaw* MakeOrder(OmsRequestNew& initiator, f9omstw::OmsScResource* scRes);
+   OmsOrderRaw* MakeOrder(OmsRequestIni& initiator, f9omstw::OmsScResource* scRes);
 
    /// 建立時須注意, 若此時 order.Last()==nullptr
    /// - 表示要建立的是 order 第一次異動.
@@ -55,7 +55,7 @@ protected:
    virtual ~OmsOrder();
 
 public:
-   const OmsRequestNew* const Initiator_;
+   const OmsRequestIni* const Initiator_;
    OmsOrderFactory* const     Creator_;
 
    /// 在建構時透過 creator 建立 Head_;
@@ -63,12 +63,12 @@ public:
    /// 所以 Head_ 必須是 OmsOrder 最後的 data member.
    const OmsOrderRaw* const   Head_;
 
-   OmsOrder(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource&& scRes);
+   OmsOrder(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource&& scRes);
 
-   /// 實際使用前需配合 Initialize(OmsRequestNew& initiator, OmsScResource* scRes) 初始化;
+   /// 實際使用前需配合 Initialize(OmsRequestIni& initiator, OmsScResource* scRes) 初始化;
    OmsOrder();
    /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 this->ScResource_ 的初始化.
-   virtual void Initialize(OmsRequestNew& initiator, OmsOrderFactory& creator, OmsScResource* scRes);
+   virtual void Initialize(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource* scRes);
 
    /// 必須透過 FreeThis() 來刪除, 預設 delete this;
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;
@@ -173,7 +173,7 @@ public:
 
 //--------------------------------------------------------------------------//
 
-inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestNew& initiator, f9omstw::OmsScResource* scRes) {
+inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestIni& initiator, f9omstw::OmsScResource* scRes) {
    OmsOrder* ord = this->MakeOrderImpl();
    ord->Initialize(initiator, *this, scRes);
    return const_cast<OmsOrderRaw*>(ord->Last());

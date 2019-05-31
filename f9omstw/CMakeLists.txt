@@ -19,8 +19,10 @@ set(f9omstw_src
  OmsIvSymb.cpp
  OmsSymbTree.cpp
 
- OmsRequest.cpp
  OmsRequestId.cpp
+ OmsRequestBase.cpp
+ OmsRequestTrade.cpp
+ OmsRequestMatch.cpp
  OmsRequestFactory.cpp
  OmsRequestRunner.cpp
  OmsOrder.cpp

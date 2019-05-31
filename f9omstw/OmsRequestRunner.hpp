@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsRequestRunner_hpp__
 #define __f9omstw_OmsRequestRunner_hpp__
-#include "f9omstw/OmsRequest.hpp"
+#include "f9omstw/OmsRequestTrade.hpp"
 #include "fon9/RevPrint.hpp"
 
 namespace f9omstw {
@@ -11,7 +11,7 @@ namespace f9omstw {
 class OmsRequestRunner {
    fon9_NON_COPYABLE(OmsRequestRunner);
 public:
-   OmsTradingRequestSP  Request_;
+   OmsRequestTradeSP    Request_;
    fon9::RevBufferList  ExLog_;
 
    OmsRequestRunner() : ExLog_{128} {
@@ -23,7 +23,7 @@ public:
    OmsRequestRunner(OmsRequestRunner&&) = default;
    OmsRequestRunner& operator=(OmsRequestRunner&&) = default;
 
-   /// \copydoc bool OmsTradingRequest::PreCheckInUser(OmsRequestRunner&);
+   /// \copydoc bool OmsRequestTrade::PreCheckInUser(OmsRequestRunner&);
    bool PreCheckInUser() {
       return this->Request_->PreCheckInUser(*this);
    }

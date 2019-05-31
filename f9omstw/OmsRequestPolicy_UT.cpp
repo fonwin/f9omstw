@@ -257,7 +257,7 @@ void TestTeamList(const fon9::StrView cfg, const fon9::StrView expected) {
       if (!res.empty())
          res.push_back(',');
       const auto& team = list.back();
-      res.append(team.begin(), team.Length_);
+      res.append(team.begin(), team.size());
       list.pop_back();
    }
    if (expected == fon9::StrView(&res)) {

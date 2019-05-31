@@ -31,18 +31,22 @@ void ConfigToTeamList(OmsOrdTeamList& list, fon9::StrView cfg) {
       }
       if (rangeFrom > rangeTo)
          std::swap(rangeFrom, rangeTo);
-      OmsOrdTeam  team{rangeFrom};
-      OmsOrdTeam  last{rangeTo};
-      while (last.Chars_[last.Length_ - 1] == 'z') {
-         if (--last.Length_ == 0)
+      OmsOrdTeam  team{rangeFrom, '\0'};
+      OmsOrdTeam  last{rangeTo, '\0'};
+      do {
+         char& chz = last.back();
+         if (chz != 'z')
             break;
-         last.Chars_[last.Length_] = '\0';
-      }
+         chz = '\0';
+         last.pop_back();
+      } while (!last.empty());
 
-      for (uint8_t idx = 0; idx < team.size(); ) {
-         char ch = team.Chars_[idx];
+      const char* const pteam = team.begin();
+      const char* const plast = last.begin();
+      for (uint8_t idx = 0; idx < team.max_size(); ) {
+         char ch = pteam[idx];
       __CONTINUE_CHECK_AT_IDX:
-         if (ch == last.Chars_[idx]) {
+         if (ch == plast[idx]) {
             if (ch == 0) {
                list.push_back(team);
                break;
@@ -51,25 +55,26 @@ void ConfigToTeamList(OmsOrdTeamList& list, fon9::StrView cfg) {
             continue;
          }
          if (ch == 0) { // "A-Axx" rangeFrom 的尾端補 '0' => "A00-Axx"
-            assert(team.Length_ == idx);
-            ch = team.Chars_[team.Length_++] = '0';
+            assert(team.size() == idx);
+            team.push_back(ch = '0');
             goto __CONTINUE_CHECK_AT_IDX;
          }
-         ch = last.Chars_[idx];
+         ch = plast[idx];
          list.push_back(team);
-         char* pteamTail = team.Chars_ + team.Length_ - 1;
-         if (++idx < team.Length_) { // "Axy-X" => Axy,Axz,Ay,Az
+         char* pteamBack = &team.back();
+         if (++idx < team.size()) { // "Axy-X" => Axy,Axz,Ay,Az
             do { 
-               while (IncStrAlpha(pteamTail, pteamTail + 1)) {
+               while (IncStrAlpha(pteamBack, pteamBack + 1)) {
                   list.push_back(team);
                }
-               *pteamTail-- = '\0';
-            } while (idx < --team.Length_);
+               *pteamBack-- = '\0';
+               team.pop_back();
+            } while (idx < team.size());
          }
          for(;;) {
-            if (!IncStrAlpha(pteamTail, pteamTail + 1)) // "A1-Az"
+            if (!IncStrAlpha(pteamBack, pteamBack + 1)) // "A1-Az"
                goto __RANGE_DONE;
-            if (*pteamTail == ch) // "A1-A3" or "A1-A3x" 處理到 "A3" 時,
+            if (*pteamBack == ch) // "A1-A3" or "A1-A3x" 處理到 "A3" 時,
                break;             // 再回到 for(idx) 看看是否需要在尾端補 '0';
             list.push_back(team);
          }

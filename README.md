@@ -1,20 +1,30 @@
 ﻿fon9 Order management system for tw
 ===================================
 
-* TODO:
-  * OmsBackend
-    * 依序紀錄 OmsRxItem;
-    * OmsSaver / OmsLoader
-    * 各類事件(開收盤、斷線...)通知.
-    * 提供 Client 訂閱及回補: OmsReportSubscriber / OmsReportRecover
-  * OmsOrdNo 長度不一定是 5 (例如: 在台灣交易「國外證券、期貨」時), 應思考處理機制.
-
 libf9omstw: 台灣環境的委託管理系統.
 * 採用 static library:
   * 執行時的速度可加快一點點。
   * 僅需提供單一執行檔(減少額外的 dll), 可讓執行環境更單純。
+* TODO:
+  * OmsBackend
+    * 各類事件(開收盤、斷線...)通知.
+    * 提供 Client 訂閱及回補: OmsReportSubscriber / OmsReportRecover
+* 一些特殊狀況的思考:
+  * 收到的回報順序問題:
+    * 沒有新單資料, 先收到其他回報(刪、改、成交)。
+    * 新單尚未成功, 先收到其他回報(刪、改、成交):   
+      由於台灣證交所可能會主動減少新單的委託量, 所以新單尚未成功前, 不能確定新單成功數量。
+    * 刪單成功回報, 但刪減數量無法讓 LeavesQty 為 0, 可能有「在途成交」或「遺漏減量回報」。
+    * 可考慮在 OmsOrder 增加一個容器儲存「等待處理的回報」。
+  * 委託書號對照表異常
+    * 相同委託書號對應到不同的委託書?
+    * 發生原因: 外部回報異常(例如: 送出昨天的回報檔), OMS 沒有清檔...
+    * 如何決定哪筆委託才是正確的?
+
+---------------------------------------
 
 ## 下單要求、委託書內容
+### 如何決定需要那些欄位
 * 需要使用設定檔設定欄位嗎? 或直接使用 struct 配合 fon9_MakeField()?
   * 使用「動態設定欄位」:
     * 在每次使用欄位時, 都要判斷欄位是否有設定.
@@ -41,21 +51,42 @@ libf9omstw: 台灣環境的委託管理系統.
        return false;
     }
     ```
+* OrdNo 綜合底下原因, OrdNo 會在 OmsRequestBase, OmsOrderRaw 裡面都有提供.
+  * Client 如果有 IsAllowAnyOrdNo 權限:
+    * Client 可自訂新單的委託號(例: OrdNo=A1234), 系統需檢查是否重複.
+    * Client 可自訂新單的委託櫃號(例: OrdNo=B1), 然後由後續的步驟編序號.
+  * OrdNo 在一個台灣券商交易系統內, 是有限資源,
+    可能讓某系統專用1碼或2碼櫃號, 因此可用序號範圍: (62^4=14,776,336 或 62^3=238,328).
+  * 所以券商可能要求: 送單前才編製委託書號.
 
-* 一些特殊狀況的思考:
-  * 回報順序問題:
-    * 沒有新單資料, 先收到其他回報(刪、改、成交)。
-    * 新單尚未成功, 先收到其他回報(刪、改、成交):   
-      由於台灣證交所可能會主動減少新單的委託量, 所以新單尚未成功前, 不能確定新單成功數量。
-    * 刪單成功回報, 但刪減數量無法讓 LeavesQty 為 0, 可能有「在途成交」或「遺漏減量回報」。
-    * 可考慮在 OmsOrder 增加一個容器儲存「等待處理的回報」。
-  * 委託書號對照表異常
-    * 相同委託書號對應到不同的委託書?
-    * 發生原因: 外部回報異常(例如: 送出昨天的回報檔), OMS 沒有清檔...
-    * 如何決定哪筆委託才是正確的?
+### OmsRequestBase
+* BrkId, OrdNo 放在 OmsRequestBase; 由 OmsRequestBase 提供市場唯一Key,
+  如此大部分的要求, 就可以有一致的處理方法.
+  * 新單: 如果有 IsAllowAnyOrdNo 權限, 可讓使用者可自訂櫃號或委託書號.
+  * 刪改查、成交: 可填入市場唯一序號(OrdKey), 用來尋找委託.
+* Market, SessionId 應可透過下單內容(商品、數量、價格)自動判斷.
+* RequestKind 若為改單, 可透過下單欄位(數量、價格、TIF)自動判斷.
+* ReqUID 由系統自行編製.
 
-### Backend
-* RxSNO 每個 OMS 自行獨立編號(各編各的號, 也就是OmsA.RxSNO=1, 與OmsB.RxSNO=1, 可能是不同的 OmsRxItem).
+### OmsRequestIni
+* 可初始化委託書的下單要求, 但不一定是新單要求, 也有可能是遺失單的補單「查詢、刪單」之類的操作。
+* 須包含交易所需要的所有欄位(由衍生者提供, 例如: OmsRequestTwsIni)
+* 所以下單要求執行步驟需判斷 RequestKind 來決定是否為新單(或: 刪、改、查...).
+
+---------------------------------------
+
+## Backend
+* 負責:
+  * 依序(RxSNO)記錄「回報(所有歷史資料及事件)」包含:
+    * OmsRequestBase: 進入 OmsCore 的 Request
+    * OmsOrderRaw: Order 異動
+    * OmsCoreEvent: 各類與 OmsCore 有關的事件
+  * 回報訂閱
+    * 增加訂閱、取消訂閱
+    * 回補回報
+* RxSNO
+  * 每個 OMS 自行獨立編號(各編各的號, 也就是OmsA.RxSNO=1, 與OmsB.RxSNO=1, 可能是不同的 OmsRxItem).
+  * 從 1 開始, 依序編號.
 * log format
   * 底下的 '|' = '\x1'; 每行的尾端使用 '\n' 結束.
 
@@ -66,7 +97,7 @@ libf9omstw: 台灣環境的委託管理系統.
 
   * 首碼=數字=RxSNO, 此行表示 OmsRxItem(OmsRequest, OmsOrderRaw, OmsEvent...)
     * 不成案的下單要求:
-      * `RxSNO|ReqName|Fields|AbandonReason\n`
+      * `RxSNO|ReqName|Fields|E:AbandonReason\n`
     * 新單(初成案)要求
       * `RxSNO|ReqName|Fields\n`
     * 一般要求(刪、改、查、成交...)
@@ -82,6 +113,8 @@ libf9omstw: 台灣環境的委託管理系統.
            \_ 包含開頭的 '|' 及尾端的 '\n' 共 exsz bytes _/
     ```
     any bytes: 可包含任意 binary 資料, 須注意: 其中可能含有 '\n'、'\x1' 之類的控制字元。
+
+---------------------------------------
 
 ## 風控資料表
 底下是「f9omstw:台灣環境OMS」所需的資料表, 不同的OMS實作、不同的風控需求, 所需的表格、及表格元素所需的欄位不盡相同。
@@ -101,10 +134,17 @@ libf9omstw: 台灣環境的委託管理系統.
 * Subac
   * SubacId = 字串。
   * 表格使用 OmsSubacMap = fon9::SortedVectorSet<OmsSubacSP, OmsSubacSP_Comper>;
-* OrdNo
+* OrdNoMap 僅適用於「由本地端自編委託序號」的交易情境, 例如: 台灣證券、台灣期權。
   * Brk-Market-Session-OrdNo(fon9::Trie)
+  * 目前台灣券商環境 OmsOrdNo 長度是 5
+  * 若交易其他市場(例如:國外期貨), OrdNo 通常由對方編製,
+    此時不應使用 OrdNo, 應使用其他欄位處理, 例如: ExgOrdId;
+    * 此時不要使用 OrdNoMap, 應考慮使用 std::unordered_map;
+    * OrdNoMap 適用於台灣環境: 由 OMS 端編製「櫃號+序號」的使用情境。
+    * 櫃號為券商資源, 分配給券商端個交易系統, 各自獨立編製序號。
 * Request/Order
-  * RequestId = 依序編號, 所以使用 std::deque
+
+---------------------------------------
 
 ## Thread safety
 因為 OMS 牽涉到的資料表很多, 如果每個表有自己的 mutex, 是不切實際的作法。
@@ -113,12 +153,14 @@ libf9omstw: 台灣環境的委託管理系統.
 * 共用一個 fon9::AQueue
 * 所有工作集中到單一 thread
 
+---------------------------------------
+
 ## 每日清檔作業
 * 可以思考每個交易日建立一個 OmsCore; Name = "omstws_yyyymmdd"; yyyymmdd=交易日(TDay);
   * 這樣就沒有 OmsCore 每日清檔的問題!
-  * 只要有個「DoneForDay 事件」, 然後多一個 OmsMgr, 透過他取得「現在的 OmsCore」
+  * 只要有個「DailyClear 事件」, 然後多一個 OmsMgr, 透過他取得「現在的 OmsCore」
   * 帳號資料、商品資料: 每個 OmsCore 一個?
-    * 如果有註冊「依照帳號回報」, 則收到「DoneForDay 事件」時, 需重新註冊到新的 OmsCore 帳號.
+    * 如果有註冊「依照帳號回報」, 則收到「DailyClear 事件」時, 需重新註冊到新的 OmsCore 帳號.
 
 * 如果每個交易日一個 OmsCore, 就不用考慮底下的問題:
   * 每日結束然後重啟?
@@ -129,6 +171,8 @@ libf9omstw: 台灣環境的委託管理系統.
       * 匯入時處理 IsDailyClear?
       * 先呼叫全部帳號的 OnDailyClear(); ?
 
+---------------------------------------
+
 ## Report
 * Report Recover
 * Report Subscribe
@@ -138,11 +182,14 @@ libf9omstw: 台灣環境的委託管理系統.
   * Line broken
   * Daily clear event
 
+---------------------------------------
+
 ## 下單流程
 ### 可用櫃號
 * 使用者權限:
   * 新單任意委託書號權限, 完全信任對方提供的委託書號(或櫃號), 除非委託書號重複。
-    * OmsRequestNew::PreCheckInUser() 會先檢查: 若有自訂櫃號, 則必須有 IsAllowAnyOrdNo 權限.
+    * OmsRequestIni::PreCheckInUser() 如果是新單, 則會先檢查:
+      若有自訂櫃號, 則必須有 IsAllowAnyOrdNo 權限.
   * 可用櫃號列表, 依序使用, 不讓使用者填選。
   * 不提供可用櫃號, 由系統決定委託櫃號。
 * 若使用者沒提供可用櫃號, 則可能由下列設定提供「可用櫃號列表」

@@ -13,7 +13,7 @@ class OmsOrdNoMap : public fon9::intrusive_ref_counter<OmsOrdNoMap>,
                     private fon9::Trie<fon9::TrieKeyAlNum, OmsOrder*, fon9::TrieDummyPtrValue<OmsOrder> > {
    fon9_NON_COPY_NON_MOVE(OmsOrdNoMap);
    OmsOrdTeamGroups  TeamGroups_;
-   bool AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdTeam team);
+   bool AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team);
 public:
    OmsOrdNoMap() = default;
    ~OmsOrdNoMap();

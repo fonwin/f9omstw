@@ -14,7 +14,7 @@ OmsIvacSP UtwsBrk::MakeIvac(IvacNo ivacNo) {
 //--------------------------------------------------------------------------//
 fon9::seed::LayoutSP UtwsBrk::MakeLayout(fon9::seed::TreeFlag treeflags) {
    using namespace fon9::seed;
-   return new Layout1(fon9_MakeField(fon9::Named{"BrkId"}, UtwsBrk, BrkId_), treeflags,
+   return new Layout1(fon9_MakeField2(UtwsBrk, BrkId), treeflags,
                new Tab{fon9::Named{"Base"}, Fields{},
                       UtwsIvac::MakeLayout(OmsIvacTree::DefaultTreeFlag()),
                       TabFlag::NoSeedCommand}

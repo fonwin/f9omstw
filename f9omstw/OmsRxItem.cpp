@@ -15,7 +15,7 @@ const OmsOrderRaw* OmsRxItem::CastToOrderRaw() const {
 }
 
 fon9::seed::FieldSP OmsRxItem::MakeField_RxSNO() {
-   return fon9_MakeField_const(fon9::Named{"RxSNO"}, OmsRxItem, RxSNO_);
+   return fon9_MakeField2_const(OmsRxItem, RxSNO);
 }
 
 } // namespaces

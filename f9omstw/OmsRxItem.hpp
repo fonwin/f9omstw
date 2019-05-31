@@ -39,7 +39,7 @@ public:
    virtual void RevPrint(fon9::RevBuffer& rbuf) const = 0;
 
    /// 這裡只是提供欄位的型別及名稱, 不應使用此欄位存取 RxSNO_;
-   /// fon9_MakeField_const(fon9::Named{"RxSNO"}, OmsRxItem, RxSNO_);
+   /// fon9_MakeField2_const(OmsRxItem, RxSNO);
    static fon9::seed::FieldSP MakeField_RxSNO();
 };
 

@@ -3,23 +3,15 @@
 #ifndef __f9omstw_OmsOrdTeam_hpp__
 #define __f9omstw_OmsOrdTeam_hpp__
 #include "f9omstw/OmsBase.hpp"
+#include "fon9/CharAryL.hpp"
 #include "fon9/CharVector.hpp"
 #include "fon9/SortedVector.hpp"
 
 namespace f9omstw {
 
-class OmsOrdTeam : public OmsOrdNo {
-   using base = OmsOrdNo;
-public:
-   uint8_t  Length_;
-   OmsOrdTeam(base val, uint8_t len) : base{val}, Length_{len} {
-   }
-   OmsOrdTeam(const fon9::StrView& str) : base{str}, Length_{static_cast<uint8_t>(str.size())} {
-      if (this->Length_ > str.size())
-         this->Length_ = static_cast<uint8_t>(this->size());
-   }
-};
+using OmsOrdTeam = fon9::CharAryL<OmsOrdNo::size()>;
 using OmsOrdTeamList = std::vector<OmsOrdTeam>;
+
 /// cfg = 允許的委託櫃號, 使用 "," 分隔, 或使用 "-" 設定範圍.
 /// - "A-B" 表示可編號 A0000..Bzzzz
 /// - "A-C9" 等同於: "A-B,C0-C9" 表示可編號 A0000..Bzzzz; C0000-C9zzz

@@ -1,7 +1,7 @@
 ﻿// \file f9omstw/OmsRequestId.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsRequestId.hpp"
-#include "f9omstw/OmsRequest.hpp"
+#include "f9omstw/OmsRequestBase.hpp"
 #include "fon9/HostId.hpp"
 #include "fon9/ToStr.hpp"
 

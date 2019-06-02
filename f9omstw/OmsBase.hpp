@@ -2,8 +2,8 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsBase_hpp__
 #define __f9omstw_OmsBase_hpp__
+#include "fon9/fmkt/Trading.hpp"
 #include "fon9/CharAryL.hpp"
-#include "fon9/intrusive_ref_counter.hpp"
 #include <memory>
 
 namespace f9omstw {
@@ -12,7 +12,8 @@ class OmsCore;
 class OmsTree;
 class OmsResource;
 class OmsBackend;
-class OmsRxItem;
+using OmsRxItem = fon9::fmkt::TradingRxItem;
+using OmsRxSNO = fon9::fmkt::TradingRxSNO;
 
 class OmsOrdNoMap;
 using OmsOrdNoMapSP = fon9::intrusive_ptr<OmsOrdNoMap>;

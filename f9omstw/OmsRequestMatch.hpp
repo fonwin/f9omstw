@@ -47,10 +47,10 @@ public:
    using MatchKey = uint64_t;
 
    OmsRequestMatch(OmsRequestFactory& creator)
-      : base{creator, f9fmkt_RequestKind_Match} {
+      : base{creator, f9fmkt_RxKind_RequestMatch} {
    }
    OmsRequestMatch()
-      : base{f9fmkt_RequestKind_Match} {
+      : base{f9fmkt_RxKind_RequestMatch} {
    }
 
    /// 將 curr 依照 MatchKey_ 的順序(小到大), 加入到「成交串列」.

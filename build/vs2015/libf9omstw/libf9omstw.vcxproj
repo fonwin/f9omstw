@@ -101,7 +101,6 @@
     <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTws.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
-    <ClInclude Include="..\..\..\f9omstw\OmsRxItem.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp" />
@@ -135,7 +134,6 @@
     <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTws.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp" />
-    <ClCompile Include="..\..\..\f9omstw\OmsRxItem.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSubac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp" />

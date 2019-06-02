@@ -3,7 +3,6 @@ set(f9omstw_src
  OmsCore.cpp
  OmsResource.cpp
  OmsTools.cpp
- OmsRxItem.cpp
  OmsBackend.cpp
  OmsBackendRecorder.cpp
  OmsOrdTeam.cpp

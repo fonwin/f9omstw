@@ -22,8 +22,8 @@ void OmsRequestTwsChg::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTwsChg, Qty));
 }
 bool OmsRequestTwsChg::PreCheckInUser(OmsRequestRunner& reqRunner) {
-   if (this->RequestKind_ == f9fmkt_RequestKind_Unknown)
-      this->RequestKind_ = (this->Qty_ == 0 ? f9fmkt_RequestKind_Cancel : f9fmkt_RequestKind_ChgQty);
+   if (this->RxKind_ == f9fmkt_RxKind_Unknown)
+      this->RxKind_ = (this->Qty_ == 0 ? f9fmkt_RxKind_RequestCancel : f9fmkt_RxKind_RequestChgQty);
    return base::PreCheckInUser(reqRunner);
 }
 

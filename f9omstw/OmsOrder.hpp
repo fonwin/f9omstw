@@ -107,11 +107,6 @@ class OmsOrderRaw : public OmsRxItem {
    /// - 呼叫 this->ContinuePrevUpdate(); 設定初始化內容.
    virtual void Initialize(const OmsOrderRaw* prev, const OmsRequestBase& req);
 
-   // 只會在 OmsBackend::Append(); 及 ~OmsBackend();
-   // 呼叫一次: OnRxItem_AddRef(); 及 OnRxItem_Release();
-   void OnRxItem_AddRef() const override;
-   void OnRxItem_Release() const override;
-
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
    template <class Derived>
@@ -127,7 +122,7 @@ protected:
    OmsOrderRaw() : Order_{nullptr}, Request_{nullptr}, OrdNo_{""} {
    }
    virtual ~OmsOrderRaw();
-   const OmsOrderRaw* CastToOrderRaw() const override;
+   const OmsOrderRaw* CastToOrder() const override;
 
 public:
    OmsOrder* const             Order_;

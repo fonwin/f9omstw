@@ -20,7 +20,7 @@ bool OmsRequestTrade::PreCheckInUser(OmsRequestRunner& reqRunner) {
 }
 //--------------------------------------------------------------------------//
 bool OmsRequestIni::PreCheckInUser(OmsRequestRunner& reqRunner) {
-   if (this->RequestKind_ == f9fmkt_RequestKind_New && *this->OrdNo_.begin() != '\0') {
+   if (this->RxKind_ == f9fmkt_RxKind_RequestNew && *this->OrdNo_.begin() != '\0') {
       const OmsRequestPolicy* pol = this->Policy();
       if (pol == nullptr || !pol->IsAllowAnyOrdNo()) {
          reqRunner.RequestAbandon(nullptr, "OrdNo must empty.");

@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsBackend_hpp__
 #define __f9omstw_OmsBackend_hpp__
-#include "f9omstw/OmsRxItem.hpp"
+#include "f9omstw/OmsRequestBase.hpp"
 #include "fon9/buffer/RevBufferList.hpp"
 #include "fon9/ThreadController.hpp"
 #include "fon9/File.hpp"
@@ -50,7 +50,7 @@ class OmsBackend {
       const OmsRequestBase* GetRequest(OmsRxSNO sno) const {
          if (sno < this->RxHistory_.size())
             if (const auto* item = this->RxHistory_[sno])
-               return item->CastToRequest();
+               return static_cast<const OmsRequestBase*>(item->CastToRequest());
          return nullptr;
       }
    };
@@ -98,8 +98,7 @@ public:
    }
    /// 只會在 OmsCore 保護下執行.
    OmsRxSNO FetchSNO(OmsRxItem& item) {
-      assert(item.RxSNO_ == 0);
-      return item.RxSNO_ = ++this->LastSNO_;
+      return item.SetRxSNO(++this->LastSNO_);
    }
    /// 僅提供參考使用, 例如: unit test 檢查是否符合預期.
    OmsRxSNO LastSNO() {

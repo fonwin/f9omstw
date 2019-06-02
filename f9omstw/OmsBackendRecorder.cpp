@@ -38,7 +38,7 @@ void OmsBackend::SaveQuItems(QuItems& quItems) {
       if (qi.Item_) {
          fon9::RevPrint(qi.ExLog_, *fon9_kCSTR_ROWSPL);
          qi.Item_->RevPrint(qi.ExLog_);
-         fon9::RevPrint(qi.ExLog_, qi.Item_->RxSNO_, *fon9_kCSTR_CELLSPL);
+         fon9::RevPrint(qi.ExLog_, qi.Item_->RxSNO(), *fon9_kCSTR_CELLSPL);
       }
       dcq.push_back(qi.ExLog_.MoveOut());
    }
@@ -103,7 +103,7 @@ struct OmsBackend::Loader {
       }
       else
          return "MakeOrder:ReqFrom is not RequestIni.";
-      ord->RxSNO_ = this->LastSNO_;
+      ord->SetRxSNO(this->LastSNO_);
       reqFrom->LastUpdated_ = ord;
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ord}, ln);
       this->Items_.AppendHistory(*ord);

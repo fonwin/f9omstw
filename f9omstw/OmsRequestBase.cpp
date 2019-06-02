@@ -8,21 +8,15 @@
 namespace f9omstw {
 
 OmsRequestBase::~OmsRequestBase() {
-   if (this->RequestFlags_ & OmsRequestFlag_Abandon)
+   if (this->RxItemFlags_ & OmsRequestFlag_Abandon)
       delete this->AbandonReason_;
-   else if (this->RequestFlags_ & OmsRequestFlag_Initiator) {
+   else if (this->RxItemFlags_ & OmsRequestFlag_Initiator) {
       assert(this->LastUpdated() != nullptr);
       this->LastUpdated()->Order_->FreeThis();
    }
 }
 const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
-}
-void OmsRequestBase::OnRxItem_AddRef() const {
-   intrusive_ptr_add_ref(this);
-}
-void OmsRequestBase::OnRxItem_Release() const {
-   intrusive_ptr_release(this);
 }
 const OmsRequestBase* OmsRequestBase::PreCheckIniRequest(OmsRxSNO* pIniSNO, OmsResource& res) {
    assert(this->LastUpdated_ == nullptr && this->AbandonReason_ == nullptr);
@@ -71,13 +65,16 @@ __ABANDON_ORDER_NOT_FOUND:
 }
 
 void OmsRequestBase::MakeFieldsImpl(fon9::seed::Fields& flds) {
-   flds.Add(fon9_MakeField(OmsRequestBase, RequestKind_, "Kind"));
+   flds.Add(fon9_MakeField(OmsRequestBase,  RxKind_, "Kind"));
    flds.Add(fon9_MakeField2(OmsRequestBase, Market));
    flds.Add(fon9_MakeField2(OmsRequestBase, SessionId));
    flds.Add(fon9_MakeField2(OmsRequestBase, BrkId));
    flds.Add(fon9_MakeField2(OmsRequestBase, OrdNo));
    flds.Add(fon9_MakeField2(OmsRequestBase, ReqUID));
    flds.Add(fon9_MakeField2(OmsRequestBase, CrTime));
+}
+fon9::seed::FieldSP OmsRequestBase::MakeField_RxSNO() {
+   return fon9_MakeField2_const(OmsRequestBase, RxSNO);
 }
 
 } // namespaces

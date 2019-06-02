@@ -19,7 +19,7 @@ OmsBackend::~OmsBackend() {
 
    for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {
       if (const OmsRxItem* item = items->RxHistory_[L])
-         item->OnRxItem_Release();
+         intrusive_ptr_release(item);
    }
 }
 void OmsBackend::WaitForEndNow() {
@@ -63,12 +63,12 @@ void OmsBackend::ThrRun(std::string thrName) {
 //--------------------------------------------------------------------------//
 
 void OmsBackend::ItemsImpl::AppendHistory(const OmsRxItem& item) {
-   item.OnRxItem_AddRef();
-   const auto snoCurr = item.RxSNO_;
+   intrusive_ptr_add_ref(&item);
+   const auto snoCurr = item.RxSNO();
    if (fon9_UNLIKELY(snoCurr >= this->RxHistory_.size()))
       this->RxHistory_.resize(snoCurr + kReserveExpand);
-   assert(item.RxSNO_ != 0);
-   assert(this->RxHistory_[item.RxSNO_] == nullptr);
+   assert(item.RxSNO() != 0);
+   assert(this->RxHistory_[item.RxSNO()] == nullptr);
    this->RxHistory_[snoCurr] = &item;
 }
 void OmsBackend::ItemsImpl::Append(const OmsRxItem& item, fon9::RevBufferList&& rbuf) {
@@ -76,9 +76,9 @@ void OmsBackend::ItemsImpl::Append(const OmsRxItem& item, fon9::RevBufferList&& 
    this->QuItems_.emplace_back(&item, std::move(rbuf));
 }
 void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
-   assert(item.RxSNO_ == 0 || item.RxSNO_ == this->LastSNO_);
-   if (item.RxSNO_ == 0)
-      item.RxSNO_ = ++this->LastSNO_;
+   assert(item.RxSNO() == 0 || item.RxSNO() == this->LastSNO_);
+   if (item.RxSNO() == 0)
+      item.SetRxSNO(++this->LastSNO_);
    Items::Locker{this->Items_}->Append(item, std::move(rbuf));
 }
 void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
@@ -88,8 +88,8 @@ void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    const bool isNeedsReqAppend = (runner.OrderRaw_.Request_->LastUpdated_ == nullptr);
    assert(!isNeedsReqAppend || runner.OrderRaw_.Request_->RxSNO() == this->LastSNO_);
 
-   assert(runner.OrderRaw_.RxSNO_ == 0);
-   runner.OrderRaw_.RxSNO_ = ++this->LastSNO_;
+   assert(runner.OrderRaw_.RxSNO() == 0);
+   runner.OrderRaw_.SetRxSNO(++this->LastSNO_);
 
    runner.OrderRaw_.Request_->LastUpdated_ = &runner.OrderRaw_;
    runner.OrderRaw_.UpdateTime_ = fon9::UtcNow();

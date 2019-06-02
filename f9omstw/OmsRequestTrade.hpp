@@ -49,10 +49,10 @@ protected:
    }
 
 public:
-   OmsRequestTrade(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
+   OmsRequestTrade(OmsRequestFactory& creator, f9fmkt_RxKind reqKind = f9fmkt_RxKind_Unknown)
       : base{creator, reqKind} {
    }
-   OmsRequestTrade(f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
+   OmsRequestTrade(f9fmkt_RxKind reqKind = f9fmkt_RxKind_Unknown)
       : base{reqKind} {
    }
 
@@ -89,7 +89,7 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
 
    friend class OmsOrder; // OmsOrder 建構時需要呼叫 SetInitiatorFlag() 的權限.
    void SetInitiatorFlag() {
-      this->RequestFlags_ |= OmsRequestFlag_Initiator;
+      this->RxItemFlags_ |= OmsRequestFlag_Initiator;
    }
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
@@ -101,10 +101,10 @@ protected:
    }
 
 public:
-   OmsRequestIni(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_New)
+   OmsRequestIni(OmsRequestFactory& creator, f9fmkt_RxKind reqKind = f9fmkt_RxKind_RequestNew)
       : base{creator, reqKind} {
    }
-   OmsRequestIni(f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_New)
+   OmsRequestIni(f9fmkt_RxKind reqKind = f9fmkt_RxKind_RequestNew)
       : base{reqKind} {
    }
 

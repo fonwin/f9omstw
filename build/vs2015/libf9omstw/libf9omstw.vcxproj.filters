@@ -110,9 +110,6 @@
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp">
       <Filter>Header Files\_request_order</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsRxItem.hpp">
-      <Filter>Header Files\_core</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestId.hpp">
       <Filter>Header Files\_request_order</Filter>
     </ClInclude>
@@ -204,9 +201,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp">
       <Filter>Source Files\_request_order</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsRxItem.cpp">
-      <Filter>Source Files\_core</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestId.cpp">
       <Filter>Source Files\_request_order</Filter>

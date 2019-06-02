@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsRequestId_hpp__
 #define __f9omstw_OmsRequestId_hpp__
-#include "f9omstw/OmsRxItem.hpp"
+#include "f9omstw/OmsBase.hpp"
 
 namespace f9omstw {
 

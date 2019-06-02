@@ -2,14 +2,12 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsRequestBase_hpp__
 #define __f9omstw_OmsRequestBase_hpp__
-#include "f9omstw/OmsRxItem.hpp"
 #include "f9omstw/OmsRequestId.hpp"
-#include "fon9/fmkt/Trading.hpp"
 #include "fon9/seed/Tab.hpp"
 
 namespace f9omstw {
 
-/// OmsRequestBase 定義 fon9::fmkt::TradingRequest::RequestFlags_;
+/// OmsRequestBase 定義 fon9::fmkt::TradingRxItem::RxItemFlags_;
 enum OmsRequestFlag : uint8_t {
    OmsRequestFlag_Initiator = 0x01,
    /// 經由外部回報所建立的 request.
@@ -33,7 +31,7 @@ struct OmsOrdKey {
 };
 
 /// 「新、刪、改、查、成交」的共同基底.
-class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRxItem, public OmsRequestId, public OmsOrdKey {
+class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, public OmsOrdKey {
    fon9_NON_COPY_NON_MOVE(OmsRequestBase);
    using base = fon9::fmkt::TradingRequest;
 
@@ -46,20 +44,11 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRxItem, publ
    };
    fon9::TimeStamp   CrTime_;
 
-   void OnRxItem_AddRef() const override;
-   void OnRxItem_Release() const override;
-   inline friend void intrusive_ptr_add_ref(const OmsRequestBase* p) {
-      intrusive_ptr_add_ref(static_cast<const fon9::fmkt::TradingRequest*>(p));
-   }
-   inline friend void intrusive_ptr_release(const OmsRequestBase* p) {
-      intrusive_ptr_release(static_cast<const fon9::fmkt::TradingRequest*>(p));
-   }
-
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, RequestKind_) == fon9_OffsetOf(OmsRequestBase, RequestKind_),
+      static_assert(fon9_OffsetOf(Derived, RxKind_) == fon9_OffsetOf(OmsRequestBase, RxKind_),
                     "'OmsRequestBase' must be the first base class in derived.");
       MakeFieldsImpl(flds);
    }
@@ -72,12 +61,12 @@ protected:
 
 public:
    OmsRequestFactory* const   Creator_;
-   OmsRequestBase(OmsRequestFactory& creator, f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
+   OmsRequestBase(OmsRequestFactory& creator, f9fmkt_RxKind reqKind = f9fmkt_RxKind_Unknown)
       : base(reqKind)
       , CrTime_{fon9::UtcNow()}
       , Creator_(&creator) {
    }
-   OmsRequestBase(f9fmkt_RequestKind reqKind = f9fmkt_RequestKind_Unknown)
+   OmsRequestBase(f9fmkt_RxKind reqKind = f9fmkt_RxKind_Unknown)
       : base(reqKind)
       , Creator_(nullptr) {
    }
@@ -86,19 +75,23 @@ public:
       this->CrTime_ = now;
    }
    /// 解構時:
-   /// if(this->RequestFlags_ & OmsRequestFlag_Abandon) 則刪除 AbandonReason_.
-   /// if(this->RequestFlags_ & OmsRequestFlag_Initiator) 則刪除 Order.
+   /// if(this->RequestFlags() & OmsRequestFlag_Abandon) 則刪除 AbandonReason_.
+   /// if(this->RequestFlags() & OmsRequestFlag_Initiator) 則刪除 Order.
    ~OmsRequestBase();
+
+   /// 這裡只是提供欄位的型別及名稱, 不應使用此欄位存取 RxSNO_;
+   /// fon9_MakeField2_const(OmsRequestBase, RxSNO);
+   static fon9::seed::FieldSP MakeField_RxSNO();
 
    const OmsRequestBase* CastToRequest() const override;
 
    void RevPrint(fon9::RevBuffer& rbuf) const override;
 
    OmsRequestFlag RequestFlags() const {
-      return static_cast<OmsRequestFlag>(this->RequestFlags_);
+      return static_cast<OmsRequestFlag>(this->RxItemFlags_);
    }
    bool IsInitiator() const {
-      return (this->RequestFlags_ & OmsRequestFlag_Initiator) == OmsRequestFlag_Initiator;
+      return (this->RxItemFlags_& OmsRequestFlag_Initiator) == OmsRequestFlag_Initiator;
    }
    const OmsOrderRaw* LastUpdated() const {
       return IsEnumContains(this->RequestFlags(), OmsRequestFlag_Abandon) ? nullptr : this->LastUpdated_;
@@ -111,9 +104,9 @@ public:
    }
    void Abandon(std::string reason) {
       assert(this->AbandonReason_ == nullptr);
-      assert((this->RequestFlags_ & (OmsRequestFlag_Abandon | OmsRequestFlag_Initiator)) == OmsRequestFlag{});
+      assert((this->RxItemFlags_ & (OmsRequestFlag_Abandon | OmsRequestFlag_Initiator)) == OmsRequestFlag{});
       this->AbandonReason_ = new std::string(std::move(reason));
-      this->RequestFlags_ |= OmsRequestFlag_Abandon;
+      this->RxItemFlags_ |= OmsRequestFlag_Abandon;
    }
 };
 

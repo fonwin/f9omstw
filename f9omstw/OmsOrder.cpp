@@ -65,13 +65,8 @@ OmsOrderRaw::~OmsOrderRaw() {
 void OmsOrderRaw::FreeThis() {
    delete this;
 }
-const OmsOrderRaw* OmsOrderRaw::CastToOrderRaw() const {
+const OmsOrderRaw* OmsOrderRaw::CastToOrder() const {
    return this;
-}
-void OmsOrderRaw::OnRxItem_AddRef() const {
-}
-void OmsOrderRaw::OnRxItem_Release() const {
-   const_cast<OmsOrderRaw*>(this)->FreeThis();
 }
 
 void OmsOrderRaw::Initialize(OmsOrder& order) {

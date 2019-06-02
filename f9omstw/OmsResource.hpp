@@ -12,7 +12,7 @@
 
 namespace f9omstw {
 
-using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRxItem::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
+using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
 using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
 
 using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
@@ -44,7 +44,7 @@ public:
    }
    const OmsRequestBase* GetRequest(OmsRxSNO sno) const {
       if (auto item = this->Backend_.GetItem(sno))
-         return item->CastToRequest();
+         return static_cast<const OmsRequestBase*>(item->CastToRequest());
       return nullptr;
    }
    fon9::TimeStamp TDay() const {

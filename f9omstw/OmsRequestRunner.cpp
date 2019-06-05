@@ -5,8 +5,13 @@
 
 namespace f9omstw {
 
-void OmsRequestRunner::RequestAbandon(OmsResource* res, std::string reason) {
-   this->Request_->Abandon(std::move(reason));
+void OmsRequestRunner::RequestAbandon(OmsResource* res, OmsErrCode errCode) {
+   this->Request_->Abandon(errCode);
+   if (res)
+      res->Backend_.Append(*this->Request_, std::move(this->ExLog_));
+}
+void OmsRequestRunner::RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason) {
+   this->Request_->Abandon(errCode, std::move(reason));
    if (res)
       res->Backend_.Append(*this->Request_, std::move(this->ExLog_));
 }

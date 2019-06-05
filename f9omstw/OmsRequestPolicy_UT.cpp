@@ -63,53 +63,22 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
       std::cout << "[TEST ] " << testName;
       using namespace f9omstw;
       OmsRequestPolicySP pol{new OmsRequestPolicy{}};
-      OmsIvBase*         ivBase;
-      fon9::StrView      subWilds;
       for (size_t L = 0; L < policyCount; ++L) {
          auto& item = policies[L];
-         fon9::StrView ivKey = item.IvKey_;
-         fon9::StrView brkId = fon9::StrFetchTrim(ivKey, '-');
-         if (fon9::FindWildcard(brkId)) {
-            ivBase = nullptr;
-            subWilds = item.IvKey_;
+         const char* err = "?";
+         switch (OmsAddIvRights(*const_cast<OmsRequestPolicy*>(pol.get()), item.IvKey_, item.Rights_, *this->Brks_)) {
+         case OmsIvKind::Brk:       err = "Brk";   break;
+         case OmsIvKind::Ivac:      err = "Ivac";  break;
+         case OmsIvKind::Subac:     err = "Subac"; break;
+         case OmsIvKind::Unknown:   continue;
          }
-         else if(auto* brk = this->Brks_->GetBrkRec(brkId)) {
-            subWilds = ivKey;
-            fon9::StrView strIvacNo = fon9::StrFetchTrim(ivKey, '-');
-            // 不考慮 "BRKX- -SUBAC" 這種設定, 正確應該是: "BRKX-*-SUBAC";
-            if (fon9::StrTrim(&strIvacNo).empty() || fon9::FindWildcard(strIvacNo))
-               ivBase = brk;
-            else if (auto* ivac = brk->FetchIvac(fon9::StrTo(strIvacNo, IvacNo{}))) {
-               fon9::StrTrim(&ivKey);
-               if (ivKey.empty()) {
-                  subWilds.Reset(nullptr);
-                  ivBase = ivac;
-               }
-               else if (fon9::FindWildcard(ivKey)) {
-                  subWilds = ivKey;
-                  ivBase = ivac;
-               }
-               else if((ivBase = static_cast<UtwsIvac*>(ivac)->FetchSubac(ivKey)) != nullptr)
-                  subWilds.Reset(nullptr);
-               else {
-                  std::cout << "|err=Subac not found.|key=" << item.IvKey_.ToString() << "\r[ERROR]" << std::endl;
-                  abort();
-               }
-            }
-            else {
-               std::cout << "|err=Ivac not found.|key=" << item.IvKey_.ToString() << "\r[ERROR]" << std::endl;
-               abort();
-            }
-         }
-         else {
-            std::cout << "|err=Brk not found.|key=" << item.IvKey_.ToString() << "\r[ERROR]" << std::endl;
-            abort();
-         }
-         const_cast<OmsRequestPolicy*>(pol.get())->AddIvRights(ivBase, subWilds, item.Rights_);
+         std::cout << "|err=" << err << " not found.|key=" << item.IvKey_.ToString() << "\r[ERROR]" << std::endl;
+         abort();
       }
       for (size_t L = 0; L < ivacItemCount; ++L) {
          auto& item = ivacItems[L];
          auto* ivac = static_cast<UtwsIvac*>(this->Brks_->GetBrkRec(item.BrkId_)->FetchIvac(item.IvacNo_));
+         OmsIvBase*  ivBase;
          if (item.SubacNo_.empty())
             ivBase = ivac;
          else

@@ -36,16 +36,16 @@ using OmsTwsAmt = fon9::Decimal<uint64_t, 2>;
 using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
 
 struct OmsRequestTwsIniDat {
+   OmsTwsSymbol      Symbol_;
+   char              padding_____[6];
+
    /// 投資人下單類別: ' '=一般, 'A'=自動化設備, 'D'=DMA, 'I'=Internet, 'V'=Voice, 'P'=API;
    fon9::CharAry<1>  IvacNoFlag_;
    f9fmkt_Side       Side_;
    TwsOType          OType_;
    f9fmkt_PriType    PriType_;
-   /// 數量(股數).
-   OmsTwsQty         Qty_;
    OmsTwsPri         Pri_;
-   OmsTwsSymbol      Symbol_;
-   char              padding_____[6];
+   OmsTwsQty         Qty_;
 
    OmsRequestTwsIniDat() {
       memset(this, 0, sizeof(*this));
@@ -60,6 +60,15 @@ public:
    OmsRequestTwsIni() = default;
 
    static void MakeFields(fon9::seed::Fields& flds);
+
+   const char* IsIniFieldEqual(const OmsRequestBase& req) const override;
+
+   /// - 若煤填 Market 或 SessionId, 則會設定 scRes.Symb_;
+   /// - 如果沒填 SessionId, 則:
+   ///   - f9fmkt_PriType_Limit && Pri.IsNull() 使用:  f9fmkt_TradingSessionId_FixedPrice;
+   ///   - Qty < scRes.Symb_->ShUnit_ 使用:            f9fmkt_TradingSessionId_OddLot;
+   ///   - 其他:                                       f9fmkt_TradingSessionId_Normal;
+   const OmsRequestIni* PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) override;
 };
 
 class OmsRequestTwsChg : public OmsRequestUpd {
@@ -76,8 +85,9 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 
-   /// 檢查並設定 RequestKind, 然後返回 base::PreCheckInUser();
-   bool PreCheckInUser(OmsRequestRunner& reqRunner) override;
+   /// 如果沒填 RequestKind, 則根據 Qty 設定 RequestKind.
+   /// 然後返回 base::ValidateInUser();
+   bool ValidateInUser(OmsRequestRunner& reqRunner) override;
 };
 
 class OmsRequestTwsMatch : public OmsRequestMatch {

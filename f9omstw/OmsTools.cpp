@@ -74,6 +74,8 @@ void RevPrintLayout(fon9::RevBuffer& rbuf, const fon9::seed::Layout& layout) {
 void RevPrintIvKey(fon9::RevBuffer& rbuf, const OmsIvBase* ivSrc, const OmsIvBase* ivEnd) {
    for (;;) {
       switch (ivSrc->IvKind_) {
+      case OmsIvKind::Unknown:
+         break;
       case OmsIvKind::Subac:
          fon9::RevPrint(rbuf, static_cast<const OmsSubac*>(ivSrc)->SubacNo_);
          break;

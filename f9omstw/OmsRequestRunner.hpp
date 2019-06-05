@@ -23,12 +23,13 @@ public:
    OmsRequestRunner(OmsRequestRunner&&) = default;
    OmsRequestRunner& operator=(OmsRequestRunner&&) = default;
 
-   /// \copydoc bool OmsRequestTrade::PreCheckInUser(OmsRequestRunner&);
-   bool PreCheckInUser() {
-      return this->Request_->PreCheckInUser(*this);
+   /// \copydoc bool OmsRequestTrade::ValidateInUser(OmsRequestRunner&);
+   bool ValidateInUser() {
+      return this->Request_->ValidateInUser(*this);
    }
 
-   void RequestAbandon(OmsResource* res, std::string reason);
+   void RequestAbandon(OmsResource* res, OmsErrCode errCode);
+   void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
 };
 
 /// - 禁止使用 new 的方式建立 OmsRequestRunnerInCore;
@@ -76,20 +77,20 @@ class OmsRequestRunStep {
 protected:
    void ToNextStep(OmsRequestRunnerInCore&& runner) {
       if (this->NextStep_)
-         this->NextStep_->Run(std::move(runner));
+         this->NextStep_->RunRequest(std::move(runner));
    }
 
 public:
    OmsCore& Core_;
    OmsRequestRunStep(OmsCore& core) : Core_(core) {
    }
-   explicit OmsRequestRunStep(OmsRequestRunStep* prev) : Core_(prev->Core_) {
-      assert(prev->NextStep_.get() == nullptr);
-      prev->NextStep_.reset(this);
+   OmsRequestRunStep(OmsCore& core, OmsRequestRunStepSP next)
+      : NextStep_{std::move(next)}
+      , Core_(core) {
    }
    virtual ~OmsRequestRunStep();
 
-   virtual void Run(OmsRequestRunnerInCore&&) = 0;
+   virtual void RunRequest(OmsRequestRunnerInCore&&) = 0;
 };
 
 } // namespaces

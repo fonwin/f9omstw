@@ -18,49 +18,62 @@ OmsRequestBase::~OmsRequestBase() {
 const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
 }
-const OmsRequestBase* OmsRequestBase::PreCheckIniRequest(OmsRxSNO* pIniSNO, OmsResource& res) {
-   assert(this->LastUpdated_ == nullptr && this->AbandonReason_ == nullptr);
+const OmsRequestIni* OmsRequestBase::GetOrderInitiatorByOrdKey(OmsResource& res) const {
+   if (const OmsBrk* brk = res.Brks_->GetBrkRec(ToStrView(this->BrkId_))) {
+      if (const OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this)) {
+         if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_)) {
+            assert(ord->Initiator_ != nullptr && ord->Initiator_->LastUpdated() != nullptr);
+            return ord->Initiator_;
+         }
+      }
+   }
+   return nullptr;
+}
+const OmsRequestBase* OmsRequestBase::GetRequestInitiator(OmsRxSNO* pIniSNO, OmsResource& res) {
    const OmsRequestBase* inireq;
-   if (pIniSNO && *pIniSNO != 0) {
+   if (pIniSNO == nullptr || *pIniSNO == 0) {
+      if ((inireq = this->GetOrderInitiatorByOrdKey(res)) == nullptr)
+         return nullptr;
+      if (inireq->LastUpdated() == nullptr)
+         return nullptr;
+   }
+   else {
       if ((inireq = res.GetRequest(*pIniSNO)) == nullptr)
-         goto __ABANDON_ORDER_NOT_FOUND;
+         return nullptr;
+      const OmsOrderRaw* lastUpdated = inireq->LastUpdated();
+      if (lastUpdated == nullptr)
+         return nullptr;
+
       if (this->BrkId_.empty())
          this->BrkId_ = inireq->BrkId_;
       else if (this->BrkId_ != inireq->BrkId_)
-         goto __ABANDON_ORDER_NOT_FOUND;
+         return nullptr;
 
-      if (*this->OrdNo_.begin() == 0)
-         this->OrdNo_ = inireq->OrdNo_;
-      else if (this->OrdNo_ != inireq->OrdNo_)
-         goto __ABANDON_ORDER_NOT_FOUND;
+      lastUpdated = lastUpdated->Order_->Last();
+      if (this->OrdNo_.empty1st())
+         this->OrdNo_ = lastUpdated->OrdNo_;
+      else if (this->OrdNo_ != lastUpdated->OrdNo_)
+         return nullptr;
 
       if (this->Market_ == f9fmkt_TradingMarket_Unknown)
          this->Market_ = inireq->Market_;
       else if (this->Market_ != inireq->Market_)
-         goto __ABANDON_ORDER_NOT_FOUND;
+         return nullptr;
 
       if (this->SessionId_ == f9fmkt_TradingSessionId_Unknown)
          this->SessionId_ = inireq->SessionId_;
       else if (this->SessionId_ != inireq->SessionId_)
-         goto __ABANDON_ORDER_NOT_FOUND;
+         return nullptr;
    }
-   else {
-      inireq = nullptr;
-      if (const OmsBrk* brk = res.Brks_->GetBrkRec(ToStrView(this->BrkId_))) {
-         if (const OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this)) {
-            if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_))
-               inireq = ord->Initiator_;
-         }
-      }
-   }
-   if (inireq && inireq->LastUpdated() != nullptr) {
-      if (pIniSNO && *pIniSNO == 0)
-         *pIniSNO = inireq->RxSNO();
+   if (pIniSNO && *pIniSNO == 0)
+      *pIniSNO = inireq->RxSNO();
+   return inireq;
+}
+const OmsRequestBase* OmsRequestBase::PreCheck_GetRequestInitiator(OmsRequestRunner& runner, OmsRxSNO* pIniSNO, OmsResource& res) {
+   assert(this->LastUpdated_ == nullptr && this->AbandonReason_ == nullptr);
+   if (const OmsRequestBase* inireq = this->GetRequestInitiator(pIniSNO, res))
       return inireq;
-   }
-
-__ABANDON_ORDER_NOT_FOUND:
-   this->Abandon("Order not found.");
+   runner.RequestAbandon(&res, OmsErrCode_OrderNotFound);
    return nullptr;
 }
 

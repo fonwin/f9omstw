@@ -7,10 +7,5 @@ namespace f9omstw {
 
 OmsRequestFactory::~OmsRequestFactory() {
 }
-OmsRequestSP OmsRequestFactory::MakeRequest(fon9::TimeStamp now) {
-   OmsRequestSP retval = this->MakeRequestImpl();
-   retval->Initialize(*this, now);
-   return retval;
-}
 
 } // namespaces

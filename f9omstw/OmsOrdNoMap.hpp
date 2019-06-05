@@ -19,12 +19,11 @@ public:
    ~OmsOrdNoMap();
 
    /// 使用第 tgId 的櫃號設定分配委託書號, 不考慮 runner.OrderRaw_.Order_->ScResource_.OrdTeamGroupId_;
-   /// out 不可為 nullptr;
    bool AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId tgId);
 
-   /// 使用 runner.OrderRaw_.Order_->ScResource_.OrdTeamGroupId_; 的櫃號設定.
-   /// 如果 (*req.begin() != '\0') 則必須要有 IsAllowAnyOrdNo_ 權限.
-   /// out 不可為 nullptr;
+   /// 使用 runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
+   /// - 如果沒有 Policy, 或 Policy 沒設定 OrdTeamGroupId, 則 OmsErrCode_OrdTeamGroupId;
+   /// - 如果 (!req.empty1st()) 則必須要有 IsAllowAnyOrdNo_ 權限.
    bool AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdNo req);
 
    /// 固定傳回 false;

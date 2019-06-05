@@ -62,8 +62,8 @@ public:
       return this->Next_;
    }
 
-   const OmsRequestBase* PreCheckIniRequest(OmsResource& res) {
-      return base::PreCheckIniRequest(&this->IniSNO_, res);
+   const OmsRequestBase* PreCheck_GetRequestInitiator(OmsRequestRunner& runner, OmsResource& res) {
+      return base::PreCheck_GetRequestInitiator(runner, &this->IniSNO_, res);
    }
 };
 

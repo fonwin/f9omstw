@@ -32,7 +32,7 @@ public:
       return this->Buffer_ + sizeof(this->Buffer_) - sizeof(OmsRequestId);
    }
 
-   /// 此時若 *req.ReqUID_.begin() == '\0'; 則會編製 req.ReqUID_;
+   /// 此時若 req.ReqUID_.empty1st(); 則會編製 req.ReqUID_;
    void MakeReqUID(OmsRequestId& req, OmsRxSNO sno);
 };
 

@@ -71,6 +71,27 @@ public:
       return nullptr;
    }
 
+   OmsIvBase* GetIvr(fon9::StrView brkid, IvacNo ivacNo, fon9::StrView subacNo) {
+      if (auto* brk = this->GetBrkRec(brkid)) {
+         if (auto* ivac = brk->GetIvac(ivacNo)) {
+            if (subacNo.empty())
+               return ivac;
+            return ivac->GetSubac(subacNo);
+         }
+      }
+      return nullptr;
+   }
+   OmsIvBase* FetchIvr(fon9::StrView brkid, IvacNo ivacNo, fon9::StrView subacNo) {
+      if (auto* brk = this->GetBrkRec(brkid)) {
+         if (auto* ivac = brk->FetchIvac(ivacNo)) {
+            if (subacNo.empty())
+               return ivac;
+            return ivac->FetchSubac(subacNo);
+         }
+      }
+      return nullptr;
+   }
+
    void InThr_OnTreeOp(fon9::seed::FnTreeOp fnCallback) override;
    void InThr_OnParentSeedClear() override;
    void InThr_OnDailyClear();

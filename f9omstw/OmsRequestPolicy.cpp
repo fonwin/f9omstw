@@ -1,9 +1,7 @@
 ﻿// \file f9omstw/OmsRequestPolicy.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsRequestPolicy.hpp"
-#include "f9omstw/OmsRequestRunner.hpp"
-#include "f9omstw/OmsBrk.hpp"
-#include "f9omstw/OmsSubac.hpp"
+#include "f9omstw/OmsBrkTree.hpp"
 #include "fon9/Unaligned.hpp"
 
 namespace f9omstw {
@@ -12,16 +10,15 @@ OmsRequestPolicy::OmsRequestPolicy() {
 }
 OmsRequestPolicy::~OmsRequestPolicy() {
 }
-bool OmsRequestPolicy::PreCheckInUser(OmsRequestRunner& reqRunner) const {
-   (void)reqRunner;
-   // reqRunner.Request_->RequestKind() 是否允許此類下單要求?
-   // 但此時還在 user thread, 無法取得 OmsIvBase* ivr;
-   return true;
-}
-
-void OmsRequestPolicy::SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg& tg) {
-   this->OrdTeamGroupId_ = tg.TeamGroupId_;
-   this->IsAllowAnyOrdNo_ = tg.IsAllowAnyOrdNo_;
+void OmsRequestPolicy::SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg* tg) {
+   if (tg) {
+      this->OrdTeamGroupId_ = tg->TeamGroupId_;
+      this->IsAllowAnyOrdNo_ = tg->IsAllowAnyOrdNo_;
+   }
+   else {
+      this->OrdTeamGroupId_ = 0;
+      this->IsAllowAnyOrdNo_ = false;
+   }
 }
 void OmsRequestPolicy::AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvRight rights) {
    if (ivr == nullptr) {
@@ -80,6 +77,48 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr) const {
       } // for (search ivr
    } // if (!this->IvMap_.empty()
    return IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin) ? this->IvRights_ : OmsIvRight::DenyAll;
+}
+
+OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks) {
+   OmsIvBase*     ivBase;
+   fon9::StrView  subWilds;
+   fon9::StrView  ivKey = srcIvKey;
+   fon9::StrView  brkId = fon9::StrFetchTrim(ivKey, '-');
+   if (fon9::FindWildcard(brkId)) {
+      ivBase = nullptr;
+      subWilds = srcIvKey;
+   }
+   else if (auto* brk = brks.GetBrkRec(brkId)) {
+      subWilds = ivKey;
+      fon9::StrView strIvacNo = fon9::StrFetchTrim(ivKey, '-');
+      // 不考慮 "BRKX- -SUBAC" 這種設定, 正確應該是: "BRKX-*-SUBAC";
+      if (fon9::StrTrim(&strIvacNo).empty() || fon9::FindWildcard(strIvacNo))
+         ivBase = brk;
+      else if (auto* ivac = brk->FetchIvac(fon9::StrTo(strIvacNo, IvacNo{}))) {
+         fon9::StrTrim(&ivKey);
+         if (ivKey.empty()) {
+            subWilds.Reset(nullptr);
+            ivBase = ivac;
+         }
+         else if (fon9::FindWildcard(ivKey)) {
+            subWilds = ivKey;
+            ivBase = ivac;
+         }
+         else if ((ivBase = ivac->FetchSubac(ivKey)) != nullptr)
+            subWilds.Reset(nullptr);
+         else {
+            return OmsIvKind::Subac;
+         }
+      }
+      else {
+         return OmsIvKind::Ivac;
+      }
+   }
+   else {
+      return OmsIvKind::Brk;
+   }
+   dst.AddIvRights(ivBase, subWilds, ivRights);
+   return OmsIvKind::Unknown;
 }
 
 } // namespaces

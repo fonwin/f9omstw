@@ -5,7 +5,6 @@
 #include "f9omstw/OmsPoIvList.hpp"
 #include "f9omstw/OmsPoUserRights.hpp"
 #include "f9omstw/OmsIvBase.hpp"
-#include "f9omstw/OmsBase.hpp"
 
 namespace f9omstw {
 
@@ -45,15 +44,13 @@ public:
    OmsRequestPolicy();
    virtual ~OmsRequestPolicy();
 
-   bool PreCheckInUser(OmsRequestRunner& reqRunner) const;
-
-   OmsOrdTeamGroupId OrdTeamGroupId() const {
-      return this->OrdTeamGroupId_;
-   }
    bool IsAllowAnyOrdNo() const {
       return this->IsAllowAnyOrdNo_;
    }
-   void SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg& tg);
+   OmsOrdTeamGroupId OrdTeamGroupId() const {
+      return this->OrdTeamGroupId_;
+   }
+   void SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg* tg);
 
    /// - 如果 iv 是 Subac:
    ///   - 則 subWilds 必定是 empty().
@@ -69,8 +66,34 @@ public:
    void AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvRight rights);
 
    OmsIvRight GetIvRights(OmsIvBase* ivr) const;
+
+   /// 必須是 this->IvMap_.empty() 且 IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin) 才會傳回 this->IvRights_;
+   OmsIvRight GetIvrAdminRights() const {
+      return this->IvMap_.empty() && IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin)
+         ? this->IvRights_ : OmsIvRight::DenyAll;
+   }
 };
 using OmsRequestPolicySP = fon9::intrusive_ptr<const OmsRequestPolicy>;
+
+inline OmsIvRight RxKindToIvRightDeny(f9fmkt_RxKind rxKind) {
+   fon9_WARN_DISABLE_SWITCH;
+   switch (rxKind) {
+   case f9fmkt_RxKind_RequestNew:      return f9omstw::OmsIvRight::DenyTradingNew;
+   case f9fmkt_RxKind_RequestCancel:
+   case f9fmkt_RxKind_RequestChgQty:   return f9omstw::OmsIvRight::DenyTradingChgQty;
+   case f9fmkt_RxKind_RequestChgPri:   return f9omstw::OmsIvRight::DenyTradingChgPri;
+   case f9fmkt_RxKind_RequestQuery:    return f9omstw::OmsIvRight::DenyTradingQuery;
+   default:                            return f9omstw::OmsIvRight::DenyTradingAll;
+   }
+   fon9_WARN_POP;
+}
+
+/// 將 srcIvKey 設定的 ivRights 加入 dst.
+/// \retval OmsIvKind::Unknow 成功加入一個設定.
+/// \retval OmsIvKind::Brk    brks.GetBrkRec(); 失敗, 無法取得券商資料.
+/// \retval OmsIvKind::Ivac   brk->FetchIvac(); 失敗.
+/// \retval OmsIvKind::Subac  ivac->FetchSubac(); 失敗.
+OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks);
 
 } // namespaces
 #endif//__f9omstw_OmsRequestPolicy_hpp__

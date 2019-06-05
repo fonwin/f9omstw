@@ -6,6 +6,22 @@ libf9omstw: 台灣環境的委託管理系統.
   * 執行時的速度可加快一點點。
   * 僅需提供單一執行檔(減少額外的 dll), 可讓執行環境更單純。
 * TODO:
+  * 外來回報進入 OMS 使用 OmsRequestRptStep, OmsRequestRptInCore;
+    * 不需要 ExLogForUpd_, 只需要 ExLogForReq_
+    * 增加 struct OmsRequestRptDat; 暫時性的記錄回報內容, 回報處理完畢後就刪除.
+      ```
+      struct OmsRequestRptTwsOrd : public OmsRequestRptDat, public OmsRequestTwsIniDat {
+         ExgTime_; BeforeQty; AfterQty;...
+      };
+      struct OmsRequestRptTwsMat : public OmsRequestRptDat, public OmsRequestTwsIniDat {
+         ExgTime_; Qty; Pri;...
+      };
+      ```
+    * 或是 OmsRequestRptDat, OmsRequestRptInCore, OmsRequestRptStep 合併成一個「自主回報處理」的類別.
+      「自主回報處理」物件: 丟到 OmsCore, 取得 OmsResource 之後, 開始自主處理回報:
+      * 「建立 or 取得 or 等候」 Initiator request.
+      * 判斷是否重複回報.
+      * 建立回報內容 OmsRequestXXX; 然後開始更新 OrderRaw;
   * OmsBackend
     * 各類事件(開收盤、斷線...)通知.
     * 提供 Client 訂閱及回補: OmsReportSubscriber / OmsReportRecover
@@ -97,7 +113,7 @@ libf9omstw: 台灣環境的委託管理系統.
 
   * 首碼=數字=RxSNO, 此行表示 OmsRxItem(OmsRequest, OmsOrderRaw, OmsEvent...)
     * 不成案的下單要求:
-      * `RxSNO|ReqName|Fields|E:AbandonReason\n`
+      * `RxSNO|ReqName|Fields|E:OmsErrCode:AbandonReason\n`
     * 新單(初成案)要求
       * `RxSNO|ReqName|Fields\n`
     * 一般要求(刪、改、查、成交...)
@@ -109,8 +125,8 @@ libf9omstw: 台灣環境的委託管理系統.
 
   * 額外資訊, 沒有首碼, 第一碼就是 '|' = '\x1'
     ```
-    |exsz\n|............ (exsz-2) any bytes ............\n
-           \_ 包含開頭的 '|' 及尾端的 '\n' 共 exsz bytes _/
+    |exsz|............ (exsz-2) any bytes ............\n
+         \_ 包含開頭的 '|' 及尾端的 '\n' 共 exsz bytes _/
     ```
     any bytes: 可包含任意 binary 資料, 須注意: 其中可能含有 '\n'、'\x1' 之類的控制字元。
 
@@ -158,9 +174,9 @@ libf9omstw: 台灣環境的委託管理系統.
 ## 每日清檔作業
 * 可以思考每個交易日建立一個 OmsCore; Name = "omstws_yyyymmdd"; yyyymmdd=交易日(TDay);
   * 這樣就沒有 OmsCore 每日清檔的問題!
-  * 只要有個「DailyClear 事件」, 然後多一個 OmsMgr, 透過他取得「現在的 OmsCore」
-  * 帳號資料、商品資料: 每個 OmsCore 一個?
-    * 如果有註冊「依照帳號回報」, 則收到「DailyClear 事件」時, 需重新註冊到新的 OmsCore 帳號.
+  * 只要有個「DailyClear事件 或 換日事件」, 然後透過 OmsMgr 取得「現在的 OmsCore」
+  * 投資人帳號資料、商品資料: 每個 OmsCore 一個?
+    * 如果有註冊「依照投資人帳號回報」, 則收到「DailyClear事件 或 換日事件」時, 需重新註冊到新的 OmsCore 投資人帳號.
 
 * 如果每個交易日一個 OmsCore, 就不用考慮底下的問題:
   * 每日結束然後重啟?
@@ -188,8 +204,7 @@ libf9omstw: 台灣環境的委託管理系統.
 ### 可用櫃號
 * 使用者權限:
   * 新單任意委託書號權限, 完全信任對方提供的委託書號(或櫃號), 除非委託書號重複。
-    * OmsRequestIni::PreCheckInUser() 如果是新單, 則會先檢查:
-      若有自訂櫃號, 則必須有 IsAllowAnyOrdNo 權限.
+    * 在 user thread 如果是新單, 則會先檢查: 若有自訂櫃號, 則必須有 IsAllowAnyOrdNo 權限.
   * 可用櫃號列表, 依序使用, 不讓使用者填選。
   * 不提供可用櫃號, 由系統決定委託櫃號。
 * 若使用者沒提供可用櫃號, 則可能由下列設定提供「可用櫃號列表」
@@ -220,17 +235,20 @@ libf9omstw: 台灣環境的委託管理系統.
 1. 前置作業
    * 此時仍允許修改 req 內容.
    * 若有失敗則 req 進入 Abandon 狀態: 此時透過 OmsBackend 回報機制, 回報給 user(session)
+   * 先將下單要求編號: OmsResource.PutRequestId(req);
    * 聯繫 OmsOrder.
      * 新單要求: 建立新委託
-       * 檢查是否為可用帳號? 透過 OmsRequestPolicy;
+       * PreCheck_OrdKey():  檢查 OrdKey 是否正確.
+       * PreCheck_IvRight(): 檢查是否為可用帳號? 透過 OmsRequestPolicy;
        * 建立新的 OmsOrder: 設定 OmsOrder.ScResource_;
        * 分配委託書號, 此動作也可能在其他地方處理, 例如: 送出前 or 風控成功後 or...
          分配好之後, 應立即加入委託書對照表.
        * 結束 req 的異動, 進入委託異動狀態.
      * 改單(或查單)要求: 取得舊委託;
-       * 如果有提供 IniSNO: 透過 IniSNO 找回委託, 如果有提供 OrdKey(BrkId-Market-SessionId-OrdNo), 則檢查是否正確.
-       * 如果沒提供 IniSNO: 透過 OrdKey 找回委託, 然後填入 req.IniSNO_;
-       * 取得舊委託後, 檢查是否為可用帳號? 透過 OmsOrder.ScResource_.Ivr_ 及 OmsRequestPolicy;
+       * PreCheck_GetRequestInitiator()
+         * 如果有提供 IniSNO: 透過 IniSNO 找回委託, 如果有提供 OrdKey(BrkId-Market-SessionId-OrdNo), 則檢查是否正確.
+         * 如果沒提供 IniSNO: 透過 OrdKey 找回委託, 然後填入 req.IniSNO_;
+       * 取得舊委託後, 檢查是否為可用帳號? 透過 inireq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight(reqr, res);
        * 結束 req 的異動, 建立新的 OmsOrderRaw, 進入委託異動狀態.
 
 2. 風控檢查.

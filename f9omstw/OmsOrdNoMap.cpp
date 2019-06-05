@@ -56,11 +56,19 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
    return this->Reject(runner, OmsErrCode_OrdTeamUsedUp);
 }
 bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo req) {
-   if (*req.begin() == '\0')
-      return this->AllocOrdNo(runner, runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_);
-   auto tgCfg = runner.Resource_.OrdTeamGroupMgr_.GetTeamGroupCfg(runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_);
+   OmsOrdTeamGroupId tgId;
+   if (const auto* reqPolicy = runner.OrderRaw_.Order_->Initiator_->Policy())
+      if ((tgId = reqPolicy->OrdTeamGroupId()) != 0)
+         goto __READY_GroupId;
+__ERROR_OrdTeamGroupId:
+   return this->Reject(runner, OmsErrCode_OrdTeamGroupId);
+
+__READY_GroupId:
+   if (req.empty1st())
+      return this->AllocOrdNo(runner, tgId);
+   auto tgCfg = runner.Resource_.OrdTeamGroupMgr_.GetTeamGroupCfg(tgId);
    if (fon9_UNLIKELY(tgCfg == nullptr))
-      return this->Reject(runner, OmsErrCode_OrdTeamGroupId);
+      goto __ERROR_OrdTeamGroupId;
    if (!tgCfg->IsAllowAnyOrdNo_)
       return this->Reject(runner, OmsErrCode_OrdNoMustEmpty);
    const char* peos = reinterpret_cast<const char*>(memchr(req.begin(), '\0', req.size()));
@@ -84,7 +92,7 @@ bool OmsOrdNoMap::Reject(OmsRequestRunnerInCore& runner, OmsErrCode errc) {
 }
 
 bool OmsOrdNoMap::EmplaceOrder(const OmsOrderRaw& ord) {
-   assert(*ord.OrdNo_.begin() != '\0');
+   assert(!ord.OrdNo_.empty1st());
    const auto ires = this->emplace(fon9::StrView{ord.OrdNo_.begin(), ord.OrdNo_.end()}, ord.Order_);
    return(ires.second || ord.Order_ == ires.first->value());
 }

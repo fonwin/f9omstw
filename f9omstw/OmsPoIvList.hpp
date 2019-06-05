@@ -14,7 +14,11 @@ enum class OmsIvRight : uint8_t {
    DenyTradingChgPri = 0x04,
    DenyTradingQuery  = 0x08,
    DenyTradingAll    = 0x0f,
-   AllowTradingAll   = 0x00,
+
+   /// 允許使用 OmsRequestIni 建立「刪、改、查」下單要求.
+   /// 通常用於「委託遺失(例如:新單尚未寫檔,但系統crash,重啟後委託遺失)」的補單操作。
+   AllowRequestIni = 0x10,
+   AllowTradingAll = AllowRequestIni,
 
    DenyAll = DenyTradingAll,
 

@@ -21,12 +21,18 @@ namespace f9omstw {
 #define f9omstw_kCSTR_RequestAbandonHeader   "E:"
 
 void OmsRequestBase::RevPrint(fon9::RevBuffer& rbuf) const {
-   if (auto* abres = this->AbandonReason())
-      fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL f9omstw_kCSTR_RequestAbandonHeader, *abres);
+   if (fon9_UNLIKELY(this->IsAbandoned())) {
+      if (this->AbandonReason_)
+         fon9::RevPrint(rbuf, ':', *this->AbandonReason_);
+      fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL f9omstw_kCSTR_RequestAbandonHeader, this->AbandonErrCode_);
+   }
    RevPrintFields(rbuf, *this->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
    fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->Request_->RxSNO());
+#ifdef _DEBUG
+   fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->UpdSeq_);
+#endif
    RevPrintFields(rbuf, *this->Order_->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 //--------------------------------------------------------------------------//
@@ -72,7 +78,12 @@ struct OmsBackend::Loader {
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*req}, ln);
       if (ln.size() >= sizeof(f9omstw_kCSTR_RequestAbandonHeader)
       && memcmp(ln.begin(), f9omstw_kCSTR_RequestAbandonHeader, sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1) == 0) {
-         req->Abandon(std::string{ln.begin() + sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1, ln.end()});
+         ln.SetBegin(ln.begin() + sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1);
+         OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(&ln, fon9::underlying_type_t<OmsErrCode>{0}));
+         if (ln.size() <= 1)
+            req->Abandon(ec);
+         else
+            req->Abandon(ec, std::string(ln.begin() + 1, ln.end()));
       }
       this->Items_.AppendHistory(*req);
       return nullptr;
@@ -87,27 +98,40 @@ struct OmsBackend::Loader {
       const auto* reqFrom = this->Items_.GetRequest(snoReqFrom);
       if (reqFrom == nullptr)
          return "MakeOrder:Request not found.";
-      OmsOrderRaw* ord;
-      if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
-         auto iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
-         const auto* reqIni = this->Items_.GetRequest(iniSNO);
-         if (reqIni == nullptr)
-            return "MakeOrder:Ini request not found.";
-         const auto* lastupd = reqIni->LastUpdated();
-         if (lastupd == nullptr)
-            return "MakeOrder:Ini request no updated.";;
+      OmsOrderRaw*       ord = nullptr;
+      const OmsOrderRaw* lastupd = reqFrom->LastUpdated();
+      if (lastupd == nullptr) {
+         if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
+            auto iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
+            const auto* reqIni = this->Items_.GetRequest(iniSNO);
+            if (reqIni == nullptr)
+               return "MakeOrder:Ini request not found.";
+            if ((lastupd = reqIni->LastUpdated()) == nullptr)
+               return "MakeOrder:Ini request no updated.";
+         }
+         else if (const auto* reqIni = dynamic_cast<const OmsRequestIni*>(reqFrom)) {
+            if (reqFrom->RxKind() == f9fmkt_RxKind_RequestNew
+            || (reqIni = reqFrom->GetOrderInitiatorByOrdKey(this->Resource_)) == nullptr)
+               // reqFrom = 新單 or 「補單的刪改查」.
+               ord = ordfac->MakeOrder(*const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
+            else {
+               // reqFrom = 使用 OmsRequestIni 的「一般刪改查」.
+               // 是否有必要檢查欄位是否正確? reqIni->IsIniFieldEqual(reqFrom);
+               lastupd = reqIni->LastUpdated();
+            }
+         }
+         else
+            return "MakeOrder:ReqFrom is not RequestIni.";
+      }
+      if (ord == nullptr) {
+         assert(lastupd != nullptr);
          ord = ordfac->MakeOrderRaw(*lastupd->Order_, *reqFrom);
       }
-      else if (const auto* reqIni = dynamic_cast<const OmsRequestIni*>(reqFrom)) {
-         ord = ordfac->MakeOrder(*const_cast<OmsRequestIni*>(reqIni), nullptr);
-      }
-      else
-         return "MakeOrder:ReqFrom is not RequestIni.";
       ord->SetRxSNO(this->LastSNO_);
       reqFrom->LastUpdated_ = ord;
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ord}, ln);
       this->Items_.AppendHistory(*ord);
-      if ((*ord->OrdNo_.begin() != '\0') && (ord->Prev_ == nullptr || ord->Prev_->OrdNo_ != ord->OrdNo_)) {
+      if (!ord->OrdNo_.empty1st() && (ord->Prev_ == nullptr || ord->Prev_->OrdNo_ != ord->OrdNo_)) {
          if (OmsBrk* brk = ord->Order_->GetBrk(this->Resource_))
             if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*ord->Order_->Initiator_))
                if (!ordNoMap->EmplaceOrder(*ord)) {

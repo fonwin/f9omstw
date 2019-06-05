@@ -97,8 +97,8 @@ void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    Items::Locker  items{this->Items_};
    if (isNeedsReqAppend) {
       // req 首次異動, 應先將 req 加入 backend.
-      assert(runner.OrderRaw_.Request_->AbandonReason() == nullptr); // 必定沒有 request abandon.
-      assert(runner.OrderRaw_.Request_->RxSNO() != 0);               // 必定已經編過號.
+      assert(!runner.OrderRaw_.Request_->IsAbandoned()); // 必定沒有 Abandon.
+      assert(runner.OrderRaw_.Request_->RxSNO() != 0);   // 必定已經編過號.
       items->Append(*runner.OrderRaw_.Request_, std::move(runner.ExLogForReq_));
    }
    items->Append(runner.OrderRaw_, std::move(runner.ExLogForUpd_));

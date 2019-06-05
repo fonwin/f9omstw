@@ -7,9 +7,10 @@
 namespace f9omstw {
 
 enum class OmsIvKind {
-   Subac,
-   Ivac,
-   Brk,
+   Unknown = 0,
+   Subac = 1,
+   Ivac = 2,
+   Brk = 3,
 };
 
 /// OmsIvBase 衍生出:「子帳」、「投資人帳號」、「券商」.

@@ -128,9 +128,10 @@ fon9_WARN_POP;
 inline OmsBrk* GetBrk(OmsIvBase* ivr) {
    if (ivr)
       switch (ivr->IvKind_) {
-      case OmsIvKind::Subac:  return static_cast<OmsBrk*>(ivr->Parent_->Parent_.get());
-      case OmsIvKind::Ivac:   return static_cast<OmsBrk*>(ivr->Parent_.get());
-      case OmsIvKind::Brk:    return static_cast<OmsBrk*>(ivr);
+      case OmsIvKind::Unknown:   break;
+      case OmsIvKind::Subac:     return static_cast<OmsBrk*>(ivr->Parent_->Parent_.get());
+      case OmsIvKind::Ivac:      return static_cast<OmsBrk*>(ivr->Parent_.get());
+      case OmsIvKind::Brk:       return static_cast<OmsBrk*>(ivr);
       }
    return nullptr;
 }

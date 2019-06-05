@@ -65,9 +65,11 @@ public:
    }
 
    /// 請參閱「下單流程」文件.
-   /// 在建立好 req 之後, 預先檢查程序, 此時還在 user thread, 尚未進入 OmsCore.
-   /// return this->Policy_ ? this->Policy_->PreCheckInUser(reqRunner) : true;
-   virtual bool PreCheckInUser(OmsRequestRunner& reqRunner);
+   /// 在建立好 req 之後的 req 驗證程序, 此時還在 user thread, 尚未進入 OmsCore.
+   /// 預設傳回 true;
+   virtual bool ValidateInUser(OmsRequestRunner&) {
+      return true;
+   }
 };
 
 //--------------------------------------------------------------------------//
@@ -92,6 +94,9 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
       this->RxItemFlags_ |= OmsRequestFlag_Initiator;
    }
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
+
+   OmsIvRight CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
+
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
@@ -99,6 +104,10 @@ protected:
                     "'OmsRequestIni' must be the first base class in derived.");
       MakeFieldsImpl(flds);
    }
+
+   /// 傳回不相同的欄位名稱, 例如: "IvacNo", "SubacNo";
+   /// 不檢查 SalesNo, 因為此欄不同也不影響委託內容.
+   const char* IsIniFieldEqualImpl(const OmsRequestIni& req) const;
 
 public:
    OmsRequestIni(OmsRequestFactory& creator, f9fmkt_RxKind reqKind = f9fmkt_RxKind_RequestNew)
@@ -108,8 +117,36 @@ public:
       : base{reqKind} {
    }
 
-   /// 檢查: 若 OrdNo_.begin() != '\0'; 則必須有 IsAllowAnyOrdNo_ 權限.
-   bool PreCheckInUser(OmsRequestRunner& reqRunner) override;
+   /// 檢查: 若 OrdNo_.begin() != '\0'; 則必須有 Policy()->IsAllowAnyOrdNo() 權限.
+   bool ValidateInUser(OmsRequestRunner& reqRunner) override;
+
+   /// \retval "RequestIni"   iniReq 不是 OmsRequestIni;
+   /// \retval "BrkId"        BrkId 不相同.
+   /// \retval "IvacNo"       IvacNo 不相同.
+   /// \retval "SubacNo"      SubacNo 不相同.
+   virtual const char* IsIniFieldEqual(const OmsRequestBase& req) const;
+
+   /// - 檢查 BrkId, OrdNo: 必須有填.
+   /// - 如果沒填 Market, 則根據 scRes.Symb_ 判斷 Market.
+   /// - 如果沒填 SessionId 則(由衍生者處理):
+   ///   - 證券: 根據「數量 or 價格」判斷.
+   ///   - 期權: 根據「期交所的 FlowGroup」判斷.
+   ///
+   /// \retval nullptr 表示失敗, 已呼叫 runner.RequestAbandon();
+   /// \retval this    表示此筆為「新單要求」 or 「補單的刪改查」.
+   /// \retval else    表示此筆為「刪改查要求」, 傳回要操作的「初始委託要求」.
+   virtual const OmsRequestIni* PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes);
+
+   /// this 為「初始委託要求」, 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
+   /// - 應在 inireq = runner.Request_->PreCheck_OrdKey() 之後執行: inireq->PreCheck_IvRight(runner...);
+   /// - this 有可能等於 runner.Request_:「新單要求」 or 「補單的刪改查(必須要有額外的 OmsIvRight::AllowRequestIni 權限)」
+   /// - 如果允許, 且不是因 admin 權限, 則會設定 scRes.Ivr_;
+   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
+
+   /// this 為「初始委託要求」, 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
+   /// - 應在 inireq = runner.Request_->PreCheck_GetRequestInitiator() 之後執行:
+   ///   inireq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight(runner);
+   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const;
 };
 
 class OmsRequestUpd : public OmsRequestTrade {
@@ -135,8 +172,8 @@ public:
       return this->IniSNO_;
    }
 
-   const OmsRequestBase* PreCheckIniRequest(OmsResource& res) {
-      return base::PreCheckIniRequest(&this->IniSNO_, res);
+   const OmsRequestBase* PreCheck_GetRequestInitiator(OmsRequestRunner& runner, OmsResource& res) {
+      return base::PreCheck_GetRequestInitiator(runner, &this->IniSNO_, res);
    }
 };
 

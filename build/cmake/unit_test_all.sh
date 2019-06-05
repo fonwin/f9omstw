@@ -18,13 +18,18 @@ set -e
 
 OUTPUT_DIR=${OUTPUT_DIR:-${BUILD_DIR}/${BUILD_TYPE}/f9omstw}
 
-$OUTPUT_DIR/OmsRequestPolicy_UT
+rm -f *.log
+
 $OUTPUT_DIR/OmsOrdNoMap_UT
+$OUTPUT_DIR/OmsRequestPolicy_UT
+
+# 測試 2 次, 第2次會載入前次資料.
+$OUTPUT_DIR/OmsRequestTrade_UT
+$OUTPUT_DIR/OmsRequestTrade_UT
 
 $OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 0
 $OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 1
 
-rm -f OmsReqOrd_UT.log
 $OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
 $OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
 

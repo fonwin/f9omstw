@@ -1,7 +1,6 @@
 ﻿// \file f9omstw/OmsOrder.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsOrder.hpp"
-#include "f9omstw/OmsIvSymb.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/seed/RawRd.hpp"
@@ -29,7 +28,7 @@ OmsOrder::OmsOrder(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScReso
    , Head_{creator.MakeOrderRaw(*this, initiator)} {
    this->Last_ = const_cast<OmsOrderRaw*>(this->Head_);
 
-   assert(initiator.LastUpdated() == nullptr && initiator.AbandonReason() == nullptr);
+   assert(initiator.LastUpdated() == nullptr && !initiator.IsAbandoned());
    initiator.SetInitiatorFlag();
 }
 fon9_MSC_WARN_POP;
@@ -43,7 +42,7 @@ void OmsOrder::Initialize(OmsRequestIni& initiator, OmsOrderFactory& creator, Om
    this->Last_ = const_cast<OmsOrderRaw*>(this->Head_);
    if (scRes)
       this->ScResource_ = std::move(*scRes);
-   assert(initiator.LastUpdated() == nullptr && initiator.AbandonReason() == nullptr);
+   assert(initiator.LastUpdated() == nullptr && !initiator.IsAbandoned());
    initiator.SetInitiatorFlag();
 }
 

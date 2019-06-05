@@ -8,7 +8,7 @@
 #include "fon9/TestTools.hpp"
 //--------------------------------------------------------------------------//
 void VerifyAllocError(f9omstw::OmsOrderRaw& ord, bool allocResult, OmsErrCode errc) {
-   std::cout << "|TeamGroupId=" << ord.Order_->ScResource().OrdTeamGroupId_
+   std::cout << "|TeamGroupId=" << ord.Order_->Initiator_->Policy()->OrdTeamGroupId()
              << "|expected.ErrCode=" << errc;
    if (allocResult == true) {
       std::cout << "|err=expect AllocOrdNo() fail, but it success."
@@ -34,7 +34,7 @@ void VerifyAllocError(f9omstw::OmsOrderRaw& ord, bool allocResult, OmsErrCode er
    abort();
 }
 void VerifyAllocOK(f9omstw::OmsOrderRaw& ord, bool allocResult, f9omstw::OmsOrdNo expected) {
-   std::cout << "|TeamGroupId=" << ord.Order_->ScResource().OrdTeamGroupId_;
+   std::cout << "|TeamGroupId=" << ord.Order_->Initiator_->Policy()->OrdTeamGroupId();
    if (allocResult == false) {
       std::cout << "|err=expect AllocOrdNo() OK, but it fail."
          "|ErrCode=" << ord.ErrCode_
@@ -115,6 +115,9 @@ int main(int argc, char* argv[]) {
       256u};
    testCore.GetResource().PutRequestId(*newReq);
 
+   f9omstw::OmsRequestPolicy* reqPolicy{new f9omstw::OmsRequestPolicy{}};
+   newReq->SetPolicy(reqPolicy);
+
    f9omstw::OmsOrdNoMap    ordNoMap;
    const f9omstw::OmsOrdNo ordNoNil{""};
  
@@ -122,8 +125,7 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ] OrdTeamGroupId=0, No groups.";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
-   *const_cast<f9omstw::OmsOrdTeamGroupId*>(&runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_) =
-      testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,A").TeamGroupId_;
+   reqPolicy->SetOrdTeamGroupCfg(&testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,A"));
    std::cout << "[TEST ] SetTeamGroup('*,adm,A').    ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "adm00");
    std::cout << "[TEST ]  AllocOrdNo() again.        ";
@@ -137,19 +139,18 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ]  reqOrdNo='X':      Overflow";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, "X"), OmsErrCode_OrdNoOverflow);
    // -----------------------------
-   *const_cast<f9omstw::OmsOrdTeamGroupId*>(&runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_) =
-      testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00").TeamGroupId_;
+   reqPolicy->SetOrdTeamGroupCfg(&testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00"));
    std::cout << "[TEST ] SetTeamGroup('a00,b00').    ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "a0000");
    std::cout << "[TEST ]  AllocOrdNo(OrdTeamGroupId).";
-   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_), "a0001");
+   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId()), "a0001");
    std::cout << "[TEST ]  reqOrdNo='X':     MustEmpty";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, "X"), OmsErrCode_OrdNoMustEmpty);
 
    // 把 a00, b00 用完, 測試是否會 OmsErrCode_OrdTeamUsedUp
    std::cout << "[TEST ]  Alloc: a00*,b00*           ";
    for (unsigned L = 2; L < fon9::kSeq2AlphaSize * fon9::kSeq2AlphaSize * 2; ++L)
-      ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_);
+      ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId());
    std::cout << "|LastOrdNo=" << std::string{runner.OrderRaw_.OrdNo_.begin(), runner.OrderRaw_.OrdNo_.end()};
    if (runner.OrderRaw_.OrdNo_ != f9omstw::OmsOrdNo{"b00zz"}) {
       std::cout << "|expected=b00zz" "\r[ERROR]" << std::endl;
@@ -158,20 +159,21 @@ int main(int argc, char* argv[]) {
    std::cout << "\r[OK   ]" << std::endl;
 
    std::cout << "[TEST ]  AllocOrdNo() again:  UsedUp";
-   VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_), OmsErrCode_OrdTeamUsedUp);
+   VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId()), OmsErrCode_OrdTeamUsedUp);
    std::cout << "[TEST ]  SetTeamGroup('..,c01')     ";
    testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00,c01");
-   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_), "c0100");
+   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId()), "c0100");
    // -----------------------------
-   *const_cast<f9omstw::OmsOrdTeamGroupId*>(&runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_) = 0;
+   reqPolicy->SetOrdTeamGroupCfg(nullptr);
    std::cout << "[TEST ] OrdTeamGroupId=0, 2 groups. ";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
    std::cout << "[TEST ] OrdTeamGroupId=3, 2 groups. ";
-   *const_cast<f9omstw::OmsOrdTeamGroupId*>(&runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_) = 3;
+   f9omstw::OmsOrdTeamGroupCfg badcfg;
+   badcfg.TeamGroupId_ = 3;
+   reqPolicy->SetOrdTeamGroupCfg(&badcfg);
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
-   *const_cast<f9omstw::OmsOrdTeamGroupId*>(&runner.OrderRaw_.Order_->ScResource().OrdTeamGroupId_) =
-      testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamB", "B00,C00,D").TeamGroupId_;
+   reqPolicy->SetOrdTeamGroupCfg(&testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamB", "B00,C00,D"));
    #ifdef _DEBUG
       const unsigned  kTimes = 1000 * 100;
    #else

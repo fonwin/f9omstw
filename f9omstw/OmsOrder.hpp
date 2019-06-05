@@ -3,7 +3,7 @@
 #ifndef __f9omstw_OmsOrder_hpp__
 #define __f9omstw_OmsOrder_hpp__
 #include "f9omstw/OmsRequestTrade.hpp"
-#include "f9omstw/OmsErrCode.h"
+#include "f9omstw/OmsIvSymb.hpp"
 #include "fon9/fmkt/Symb.hpp"
 
 namespace f9omstw {
@@ -37,7 +37,18 @@ struct OmsScResource {
    fon9::fmkt::SymbSP   Symb_;
    OmsIvBaseSP          Ivr_;
    OmsIvSymbSP          IvSymb_;
-   OmsOrdTeamGroupId    OrdTeamGroupId_{0};
+
+   uint32_t GetTwsSymbShUnit() const {
+      if (const auto* symb = this->Symb_.get())
+         if (0 < symb->ShUnit_)
+            return symb->ShUnit_;
+      return 1000; // 台灣證券大部分的商品 1張 = 1000股.
+   }
+   void CheckMoveFrom(OmsScResource&& rhs) {
+      if (!this->Symb_)    this->Symb_   = std::move(rhs.Symb_);
+      if (!this->Ivr_)     this->Ivr_    = std::move(rhs.Ivr_);
+      if (!this->IvSymb_)  this->IvSymb_ = std::move(rhs.IvSymb_);
+   }
 };
 fon9_WARN_POP;
 
@@ -79,6 +90,9 @@ public:
    }
 
    const OmsScResource& ScResource() const {
+      return this->ScResource_;
+   }
+   OmsScResource& ScResource() {
       return this->ScResource_;
    }
 

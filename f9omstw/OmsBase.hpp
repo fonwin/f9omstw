@@ -72,6 +72,8 @@ using OmsRequestFactorySP = fon9::intrusive_ptr<OmsRequestFactory>;
 
 class OmsRequestRunStep;
 using OmsRequestRunStepSP = std::unique_ptr<OmsRequestRunStep>;
+class OmsRequestRptStep;
+using OmsRequestRptStepSP = std::unique_ptr<OmsRequestRptStep>;
 
 class OmsRequestRunner;
 class OmsRequestRunnerInCore;

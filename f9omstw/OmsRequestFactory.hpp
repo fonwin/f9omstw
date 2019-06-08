@@ -17,6 +17,9 @@ class OmsRequestFactory : public fon9::seed::Tab {
    virtual OmsRequestSP MakeRequestImpl() = 0;
 
 public:
+   /// 如果 this 建立的 request 屬於 OmsRequestIni,
+   /// 則必須提供此類 request, 對應的 OrderFactory;
+   const OmsOrderFactorySP    OrderFactory_;
    const OmsRequestRunStepSP  RunStep_;
 
    using base::base;
@@ -24,6 +27,12 @@ public:
    template <class... TabArgsT>
    OmsRequestFactory(OmsRequestRunStepSP runStepList, TabArgsT&&... tabArgs)
       : base{std::forward<TabArgsT>(tabArgs)...}
+      , RunStep_{std::move(runStepList)} {
+   }
+   template <class... TabArgsT>
+   OmsRequestFactory(OmsOrderFactorySP ordFactory, OmsRequestRunStepSP runStepList, TabArgsT&&... tabArgs)
+      : base{std::forward<TabArgsT>(tabArgs)...}
+      , OrderFactory_{std::move(ordFactory)}
       , RunStep_{std::move(runStepList)} {
    }
 

@@ -78,12 +78,12 @@ using OmsRequestPolicySP = fon9::intrusive_ptr<const OmsRequestPolicy>;
 inline OmsIvRight RxKindToIvRightDeny(f9fmkt_RxKind rxKind) {
    fon9_WARN_DISABLE_SWITCH;
    switch (rxKind) {
-   case f9fmkt_RxKind_RequestNew:      return f9omstw::OmsIvRight::DenyTradingNew;
+   case f9fmkt_RxKind_RequestNew:      return OmsIvRight::DenyTradingNew;
    case f9fmkt_RxKind_RequestCancel:
-   case f9fmkt_RxKind_RequestChgQty:   return f9omstw::OmsIvRight::DenyTradingChgQty;
-   case f9fmkt_RxKind_RequestChgPri:   return f9omstw::OmsIvRight::DenyTradingChgPri;
-   case f9fmkt_RxKind_RequestQuery:    return f9omstw::OmsIvRight::DenyTradingQuery;
-   default:                            return f9omstw::OmsIvRight::DenyTradingAll;
+   case f9fmkt_RxKind_RequestChgQty:   return OmsIvRight::DenyTradingChgQty;
+   case f9fmkt_RxKind_RequestChgPri:   return OmsIvRight::DenyTradingChgPri;
+   case f9fmkt_RxKind_RequestQuery:    return OmsIvRight::DenyTradingQuery;
+   default:                            return OmsIvRight::DenyTradingAll;
    }
    fon9_WARN_POP;
 }

@@ -55,6 +55,13 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
    ~OmsRequestPolicy_UT() {
       this->Brks_->InThr_OnParentSeedClear();
    }
+   void EmplaceMessage(f9omstw::OmsCoreTask&&) override {
+      assert(!"Not suppport EmplaceMessage()");
+   }
+   bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override {
+      assert(!"Not suppport MoveToCoreImpl()");
+      return false;
+   }
 
    void TestCase(const char* testName,
                  const PolicyItem* policies, size_t policyCount,

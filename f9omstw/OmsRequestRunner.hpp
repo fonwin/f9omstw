@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsRequestRunner_hpp__
 #define __f9omstw_OmsRequestRunner_hpp__
 #include "f9omstw/OmsRequestTrade.hpp"
+#include "f9omstw/OmsOrder.hpp"
 #include "fon9/RevPrint.hpp"
 
 namespace f9omstw {
@@ -26,6 +27,9 @@ public:
    /// \copydoc bool OmsRequestTrade::ValidateInUser(OmsRequestRunner&);
    bool ValidateInUser() {
       return this->Request_->ValidateInUser(*this);
+   }
+   OmsOrderRaw* BeforeRunInCore(OmsResource& res) {
+      return this->Request_->BeforeRunInCore(*this, res);
    }
 
    void RequestAbandon(OmsResource* res, OmsErrCode errCode);
@@ -69,6 +73,28 @@ public:
    }
 
    ~OmsRequestRunnerInCore();
+
+   /// 使用 this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
+   bool AllocOrdNo(OmsOrdNo reqOrdNo);
+   /// 使用 tgId 的櫃號設定, 不考慮 Request policy.
+   bool AllocOrdNo(OmsOrdTeamGroupId tgId);
+
+   /// 在 this->OrderRaw_.OrdNo_.empty1st() 時, 分配委託書號.
+   /// - 如果 !this->OrderRaw_.Order_->Initiator_->OrdNo_.empty1st()
+   ///     || this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId() != 0;
+   ///   也就是下單時有指定櫃號, 或 Policy 有指定櫃號群組.
+   ///   則使用 this->AllocOrdNo(this->OrderRaw_.Order_->Initiator_->OrdNo_).
+   /// - 否則使用 this->AllocOrdNo(tgId);
+   bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId) {
+      if (!this->OrderRaw_.OrdNo_.empty1st()) // 已編號.
+         return true;
+      assert(this->OrderRaw_.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
+      assert(this->OrderRaw_.Order_->Initiator_ == this->OrderRaw_.Request_);
+      auto iniReq = this->OrderRaw_.Order_->Initiator_;
+      if (!iniReq->OrdNo_.empty1st() || iniReq->Policy()->OrdTeamGroupId() != 0)
+         return this->AllocOrdNo(iniReq->OrdNo_);
+      return this->AllocOrdNo(tgId);
+   }
 };
 
 class OmsRequestRunStep {

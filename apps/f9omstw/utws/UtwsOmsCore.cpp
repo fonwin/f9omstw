@@ -9,9 +9,9 @@
 
 namespace f9omstw {
 
-struct UtwsOmsCore : public OmsCore {
+struct UtwsOmsCore : public OmsCoreByThread {
    fon9_NON_COPY_NON_MOVE(UtwsOmsCore);
-   using base = OmsCore;
+   using base = OmsCoreByThread;
    UtwsOmsCore() : base{"omstws"} {
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));

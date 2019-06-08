@@ -8,7 +8,7 @@
 namespace f9omstw {
 
 fon9_WARN_DISABLE_PADDING;
-fon9_MSC_WARN_DISABLE_NO_PUSH(4582); // 'f9omstw::OmsMarketRec::SessionAry_': constructor is not implicitly called
+fon9_MSC_WARN_DISABLE_NO_PUSH(4582); // 'OmsMarketRec::SessionAry_': constructor is not implicitly called
 class OmsSessionRec {
    fon9_NON_COPY_NON_MOVE(OmsSessionRec);
    // 可各自獨立, 也可能會共用, 例如: [上市][盤中] = [上市][定價] = [上市][零股].

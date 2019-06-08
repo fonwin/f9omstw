@@ -33,6 +33,8 @@ OmsRequestPolicySP MakePolicyInCore(const OmsRequestPolicyCfg& src, OmsResource&
 
 } // namespace f9omstw
 //--------------------------------------------------------------------------//
+unsigned gRxHistoryCount = 0;
+
 void CheckExpectedAbandon(f9omstw::OmsRequestBase* req, OmsErrCode abandonErrCode) {
    if (const std::string* abres = req->AbandonReason())
       std::cout << "|msg=" << *abres;
@@ -52,115 +54,59 @@ void CheckExpectedAbandon(f9omstw::OmsRequestBase* req, OmsErrCode abandonErrCod
    std::cout << "\r[ERROR]" << std::endl;
    abort();
 }
-void TestCase(f9omstw::OmsResource& coreResource, f9omstw::OmsRequestPolicySP pol,
-              void (*fnTestRequestInCore)(f9omstw::OmsResource&, f9omstw::OmsRequestRunner&&, OmsErrCode abandonErrCode),
+
+void TestCase(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP pol,
               OmsErrCode abandonErrCode, fon9::StrView reqstr) {
    if (abandonErrCode != OmsErrCode_NoError)
       std::cout << "|expected.ErrCode=" << abandonErrCode;
-   auto reqr = MakeOmsRequestRunner(*coreResource.RequestFacPark_, reqstr);
-   reqr.Request_->SetPolicy(pol);
-   if (!reqr.ValidateInUser()) {
-      CheckExpectedAbandon(reqr.Request_.get(), abandonErrCode);
-      return;
-   }
-   fnTestRequestInCore(coreResource, std::move(reqr), abandonErrCode);
+   auto runner = MakeOmsRequestRunner(core.RequestFactoryPark(), reqstr);
+   runner.Request_->SetPolicy(pol);
+   if (core.MoveToCore(std::move(runner)))
+      ++gRxHistoryCount;
+   CheckExpectedAbandon(runner.Request_.get(), abandonErrCode);
 }
 //--------------------------------------------------------------------------//
-unsigned gRxHistoryCount = 0;
+struct TwsNewChecker : public f9omstw::OmsRequestRunStep {
+   fon9_NON_COPY_NON_MOVE(TwsNewChecker);
+   using base = f9omstw::OmsRequestRunStep;
+   using base::base;
 
-void TestRequestNewInCore(f9omstw::OmsResource& res, f9omstw::OmsRequestRunner&& reqr, OmsErrCode abandonErrCode) {
-   ++gRxHistoryCount;
-   // 開始新單流程:
-   // 1. 設定 req 序號.
-   res.PutRequestId(*reqr.Request_);
+   /// 「線路群組」的「櫃號組別Id」, 需透過 OmsResource 取得.
+   f9omstw::OmsOrdTeamGroupId TgId_ = 0;
+   char  padding_____[4];
 
-   // 2. OmsRequestIni 基本檢查, 過程中可能需要取得資源: 商品、投資人帳號、投資人商品資料...
-   //    - 如果失敗 req.Abandon(), 使用回報機制通知 user(io session), 回報訂閱者需判斷 req.UserId_;
-   f9omstw::OmsRequestIni* curReq = static_cast<f9omstw::OmsRequestTwsIni*>(reqr.Request_.get());
-   f9omstw::OmsScResource  scRes;
-
-   const f9omstw::OmsRequestIni* iniReq = curReq->PreCheck_OrdKey(reqr, res, scRes);
-   if (iniReq == nullptr) {
-      CheckExpectedAbandon(curReq, abandonErrCode);
-      return;
-   }
-   f9omstw::OmsOrderRaw*      ordraw;
-   f9omstw::OmsOrderFactory&  ordFactory = *res.OrderFacPark_->GetFactory(0);
-   if (iniReq == reqr.Request_.get()) {
-      if (!iniReq->PreCheck_IvRight(reqr, res, scRes)) {
-         CheckExpectedAbandon(curReq, abandonErrCode);
-         return;
-      }
-      CheckExpectedAbandon(curReq, abandonErrCode);
-      ordraw = ordFactory.MakeOrder(*curReq, &scRes);
-   }
-   else {
-      f9omstw::OmsOrder* ord = iniReq->LastUpdated()->Order_;
-      f9omstw::OmsScResource& ordScRes = ord->ScResource();
-      ordScRes.CheckMoveFrom(std::move(scRes));
-      if (!iniReq->PreCheck_IvRight(reqr, res, ordScRes)) {
-         CheckExpectedAbandon(curReq, abandonErrCode);
-         return;
-      }
-      CheckExpectedAbandon(curReq, abandonErrCode);
-      ordraw = ordFactory.MakeOrderRaw(*ord, *reqr.Request_);
-   }
-
-   // 3. 建立委託書, 開始執行「下單要求」步驟.
-   //    開始 OmsRequestRunnerInCore 之後, req 就不能再變動了!
-   //    接下來 req 將被凍結 , 除了 LastUpdated_ 不會再有異動.
-   f9omstw::OmsRequestRunnerInCore  runner{res, *ordraw, std::move(reqr.ExLog_), 256};
-   ++gRxHistoryCount;
-
-   // 分配委託書號.
-   f9omstw::OmsBrk* brk = runner.OrderRaw_.Order_->GetBrk(runner.Resource_);  assert(brk);
-   if (f9omstw::OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*curReq)) {
-      if (!ordNoMap->AllocOrdNo(runner, curReq->OrdNo_))
+   void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
+      ++gRxHistoryCount;
+      // 最遲在下單要求送出(交易所)前, 必須編製委託書號.
+      if (!runner.AllocOrdNo_IniOrTgid(this->TgId_))
          return;
    }
-   else {
-      f9omstw::OmsOrdNoMap::Reject(runner, OmsErrCode_OrdNoMapNotFound);
-      return;
+};
+struct TwsChgChecker : public f9omstw::OmsRequestRunStep {
+   fon9_NON_COPY_NON_MOVE(TwsChgChecker);
+   using base = f9omstw::OmsRequestRunStep;
+   using base::base;
+   void RunRequest(f9omstw::OmsRequestRunnerInCore&&) override {
+      ++gRxHistoryCount;
    }
-}
-void TestRequestChgInCore(f9omstw::OmsResource& res, f9omstw::OmsRequestRunner&& reqr, OmsErrCode abandonErrCode) {
-   ++gRxHistoryCount;
-   res.PutRequestId(*reqr.Request_);
-   f9omstw::OmsRequestUpd*        curReq = static_cast<f9omstw::OmsRequestUpd*>(reqr.Request_.get());
-   const f9omstw::OmsRequestBase* iniReq = curReq->PreCheck_GetRequestInitiator(reqr, res);
-   if (iniReq == nullptr) {
-      CheckExpectedAbandon(curReq, abandonErrCode);
-      return;
-   }
-   f9omstw::OmsOrder* ord = iniReq->LastUpdated()->Order_;
-   if (!ord->Initiator_->PreCheck_IvRight(reqr, res)) {
-      CheckExpectedAbandon(curReq, abandonErrCode);
-      return;
-   }
-   CheckExpectedAbandon(curReq, abandonErrCode);
-
-   f9omstw::OmsOrderFactory&        ordFactory = *res.OrderFacPark_->GetFactory(0);
-   f9omstw::OmsRequestRunnerInCore  runner{res,
-      *ordFactory.MakeOrderRaw(*ord, *reqr.Request_),
-      std::move(reqr.ExLog_), 256};
-   ++gRxHistoryCount;
-}
+};
 //--------------------------------------------------------------------------//
-f9fmkt_TradingMarket    gExpectedMarket;
-f9fmkt_TradingSessionId gExpectedSessionId;
-void TestRequestMarketSessionId(f9omstw::OmsResource& res, f9omstw::OmsRequestRunner&& reqr, OmsErrCode abandonErrCode) {
-   std::cout << "|expected.Market=" << static_cast<char>(gExpectedMarket)
-             << "|expected.SessionId=" << static_cast<char>(gExpectedSessionId);
+// 檢查 req->PreCheck_OrdKey(); 是否有補填正確的 Market, SessionId.
+void TestMarketSessionId(f9omstw::OmsResource& coreResource, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesid, fon9::StrView reqstr) {
+   std::cout << "[TEST ] auto.Market.SessionId."
+             << "|expected.Market=" << static_cast<char>(mkt)
+             << "|expected.SessionId=" << static_cast<char>(sesid);
 
-   f9omstw::OmsScResource  scRes;
-   static_cast<f9omstw::OmsRequestIni*>(reqr.Request_.get())->PreCheck_OrdKey(reqr, res, scRes);
+   f9omstw::OmsScResource    scRes;
+   f9omstw::OmsRequestRunner runner = MakeOmsRequestRunner(*coreResource.RequestFactoryPark_, reqstr);
+   static_cast<f9omstw::OmsRequestIni*>(runner.Request_.get())->PreCheck_OrdKey(runner, coreResource, scRes);
 
-   if (reqr.Request_->Market() != gExpectedMarket)
-      std::cout << "|err=Invalid Market|request.Market=" << static_cast<char>(reqr.Request_->Market());
-   else if (reqr.Request_->SessionId() != gExpectedSessionId)
-      std::cout << "|err=Invalid SessionId|request.SessionId=" << static_cast<char>(reqr.Request_->SessionId());
+   if (runner.Request_->Market() != mkt)
+      std::cout << "|err=Invalid Market|request.Market=" << static_cast<char>(runner.Request_->Market());
+   else if (runner.Request_->SessionId() != sesid)
+      std::cout << "|err=Invalid SessionId|request.SessionId=" << static_cast<char>(runner.Request_->SessionId());
    else {
-      CheckExpectedAbandon(reqr.Request_.get(), abandonErrCode);
+      CheckExpectedAbandon(runner.Request_.get(), OmsErrCode_NoError);
       return;
    }
    std::cout << "\r[ERROR]" << std::endl;
@@ -177,9 +123,9 @@ int main(int argc, char* argv[]) {
 
    TestCore testCore(argc, argv);
    auto&    coreResource = testCore.GetResource();
-   coreResource.RequestFacPark_.reset(new f9omstw::OmsRequestFactoryPark(
-      new OmsRequestTwsIniFactory("TwsNew", nullptr),
-      new OmsRequestTwsChgFactory("TwsChg", nullptr)
+   coreResource.RequestFactoryPark_.reset(new f9omstw::OmsRequestFactoryPark(
+      new OmsRequestTwsIniFactory("TwsNew", coreResource.OrderFactoryPark_->GetFactory("TwsOrd"), f9omstw::OmsRequestRunStepSP{new TwsNewChecker{testCore}}),
+      new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new TwsChgChecker{testCore}})
    ));
    testCore.OpenReload(argc, argv, "ReqTradeUT.log");
    const auto snoStart = coreResource.Backend_.LastSNO();
@@ -199,124 +145,114 @@ int main(int argc, char* argv[]) {
    f9omstw::OmsRequestPolicySP   poUser{f9omstw::MakePolicyInCore(poCfg, coreResource)};
    //---------------------------------------------
    auto symb = coreResource.Symbs_->FetchSymb("1101");
-   symb->TradingMarket_ = gExpectedMarket = f9fmkt_TradingMarket_TwSEC;
+   symb->TradingMarket_ = f9fmkt_TradingMarket_TwSEC;
    symb->ShUnit_ = 1000;
-   gExpectedSessionId = f9fmkt_TradingSessionId_FixedPrice;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000|Pri=");
-   gExpectedSessionId = f9fmkt_TradingSessionId_Normal;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000");
-   gExpectedSessionId = f9fmkt_TradingSessionId_OddLot;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800");
-
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_FixedPrice,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000|Pri=");
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_Normal,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000");
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_OddLot,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800");
    symb->ShUnit_ = 200;
-   gExpectedSessionId = f9fmkt_TradingSessionId_Normal;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=200");
-   gExpectedSessionId = f9fmkt_TradingSessionId_OddLot;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=100");
-
-   symb->TradingMarket_ = gExpectedMarket = f9fmkt_TradingMarket_TwOTC;
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_Normal,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=200");
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_OddLot,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=100");
+   symb->TradingMarket_ = f9fmkt_TradingMarket_TwOTC;
    symb->ShUnit_ = 0; // symb 沒提供 ShUnit_; 測試預設 1張 = 1000股.
-   gExpectedSessionId = f9fmkt_TradingSessionId_OddLot;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800");
-   gExpectedSessionId = f9fmkt_TradingSessionId_Normal;
-   std::cout << "[TEST ] auto.Market.SessionId.";
-   TestCase(coreResource, poAdmin, &TestRequestMarketSessionId, OmsErrCode_NoError, "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=1000");
-
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwOTC, f9fmkt_TradingSessionId_OddLot,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800");
+   TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwOTC, f9fmkt_TradingSessionId_Normal,
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=1000");
    //---------------------------------------------
    std::cout << "[TEST ] admin.RequestNew";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_NoError,
             "TwsNew|Market=T|SessionId=N|OrdNo=A|BrkId=8610|IvacNo=10|SubacNo=sa01"
             "|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0|SesName=UT|Src=A|UsrDef=UD123|ClOrdId=C12");
    std::cout << "[TEST ] admin.RequestNew(Bad BrkId)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_Bad_BrkId,
+   TestCase(testCore, poAdmin, OmsErrCode_Bad_BrkId,
             "TwsNew|Market=T|SessionId=N|OrdNo=A|BrkId=861a|IvacNo=10|SubacNo=sa01");
 
    std::cout << "[TEST ] admin.RequestIni(Cancel A0000)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_NoError,
             "TwsNew|Kind=C|Market=T|SessionId=N|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
    std::cout << "[TEST ] admin.RequestIni(ChgQty A0000)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_NoError,
             "TwsNew|Kind=Q|Market=T|SessionId=N|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] admin.RequestIni(ChgQty, No OrdNo)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_Bad_OrdNo,
+   TestCase(testCore, poAdmin, OmsErrCode_Bad_OrdNo,
             "TwsNew|Kind=Q|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, No Market)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_Bad_MarketId_SymbNotFound,
+   TestCase(testCore, poAdmin, OmsErrCode_Bad_MarketId_SymbNotFound,
             "TwsNew|Kind=Q|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    symb = coreResource.Symbs_->FetchSymb("BADMK");
    symb->TradingMarket_ = f9fmkt_TradingMarket_Unknown;
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad Symbol market)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_Bad_SymbMarketId,
+   TestCase(testCore, poAdmin, OmsErrCode_Bad_SymbMarketId,
             "TwsNew|Kind=Q|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=BADMK|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad IvacNo) ";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_FieldNotMatch,
+   TestCase(testCore, poAdmin, OmsErrCode_FieldNotMatch,
             "TwsNew|Market=T|SessionId=N|Kind=Q|OrdNo=A0000|BrkId=8610|IvacNo=21|SubacNo=sa01|Side=B|Symbol=2317");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad SubacNo)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_FieldNotMatch,
+   TestCase(testCore, poAdmin, OmsErrCode_FieldNotMatch,
             "TwsNew|Market=T|SessionId=N|Kind=Q|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=01|Side=B|Symbol=2317");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad Side)   ";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_FieldNotMatch,
+   TestCase(testCore, poAdmin, OmsErrCode_FieldNotMatch,
             "TwsNew|Market=T|SessionId=N|Kind=Q|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=S|Symbol=2317");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad Symbol) ";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_FieldNotMatch,
+   TestCase(testCore, poAdmin, OmsErrCode_FieldNotMatch,
             "TwsNew|Market=T|SessionId=N|Kind=Q|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317A");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad OType)  ";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_FieldNotMatch,
+   TestCase(testCore, poAdmin, OmsErrCode_FieldNotMatch,
             "TwsNew|Market=T|SessionId=N|Kind=Q|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|OType=5");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, No OType)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_NoError,
             "TwsNew|Market=T|SessionId=N|Kind=Q|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317");
    //---------------------------------------------
    std::cout << "[TEST ] admin.RequestIni(Query Z0000)";
-   TestCase(coreResource, poAdmin, &TestRequestNewInCore, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_NoError,
             "TwsNew|Kind=u|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
    std::cout << "[TEST ] user.RequestIni(Query Z0000)";
-   TestCase(coreResource, poUser, &TestRequestNewInCore, OmsErrCode_NoError,
+   TestCase(testCore, poUser, OmsErrCode_NoError,
             "TwsNew|Kind=u|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] user.RequestIni(Query Z0001)";
-   TestCase(coreResource, poUser, &TestRequestNewInCore, OmsErrCode_DenyRequestIni,
+   TestCase(testCore, poUser, OmsErrCode_DenyRequestIni,
             "TwsNew|Kind=u|Market=T|SessionId=N|OrdNo=Z0001|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] user.RequestIni(ChgPri Z0000)";
-   TestCase(coreResource, poUser, &TestRequestNewInCore, OmsErrCode_IvNoPermission,
+   TestCase(testCore, poUser, OmsErrCode_IvNoPermission,
             "TwsNew|Kind=P|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
    std::cout << "[TEST ] user.RequestUpd(ChgPri Z0000)";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_IvNoPermission,
+   TestCase(testCore, poUser, OmsErrCode_IvNoPermission,
             "TwsChg|Kind=P|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610");
    //---------------------------------------------
    std::cout << "[TEST ] Cancel(IniSNO + No OrdKey)                  ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_NoError, "TwsChg|IniSNO=1");
+   TestCase(testCore, poUser, OmsErrCode_NoError, "TwsChg|IniSNO=1");
    std::cout << "[TEST ] Cancel(IniSNO + OrdKey)                     ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_NoError,       "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=A0000");
+   TestCase(testCore, poUser, OmsErrCode_NoError,       "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=A0000");
    std::cout << "[TEST ] OrderNotFound(Bad IniSNO)                   ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=999999999999999");
+   TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=999999999999999");
    std::cout << "[TEST ] OrderNotFound(No IniSNO + Bad OrdKey)       ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|OrdNo=X0000");
+   TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|OrdNo=X0000");
    std::cout << "[TEST ] OrderNotFound(IniSNO + Bad OrdKey:Market)   ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_OrderNotFound, "TwsChg|Market=O|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=A0000");
+   TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=O|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=A0000");
    std::cout << "[TEST ] OrderNotFound(IniSNO + Bad OrdKey:SessionId)";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=F|BrkId=8610|IniSNO=1|OrdNo=A0000");
+   TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=F|BrkId=8610|IniSNO=1|OrdNo=A0000");
    std::cout << "[TEST ] OrderNotFound(IniSNO + Bad OrdKey:BrkId)    ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8611|IniSNO=1|OrdNo=A0000");
+   TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8611|IniSNO=1|OrdNo=A0000");
    std::cout << "[TEST ] OrderNotFound(IniSNO + Bad OrdKey:OrdNo)    ";
-   TestCase(coreResource, poUser, &TestRequestChgInCore, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=B0000");
+   TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=B0000");
    //---------------------------------------------
    std::cout << "[TEST ] user.RequestNew";
-   TestCase(coreResource, poUser, &TestRequestNewInCore, OmsErrCode_NoError, "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01");
+   TestCase(testCore, poUser, OmsErrCode_NoError, "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01");
    std::cout << "[TEST ] user.RequestNew(IvNoPermission)";
-   TestCase(coreResource, poUser, &TestRequestNewInCore, OmsErrCode_IvNoPermission, "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10");
+   TestCase(testCore, poUser, OmsErrCode_IvNoPermission, "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10");
    std::cout << "[TEST ] user.RequestNew+OrdNo";
-   TestCase(coreResource, poUser, &TestRequestNewInCore, OmsErrCode_OrdNoMustEmpty, "TwsNew|Market=T|SessionId=N|BrkId=8610|OrdNo=B");
+   TestCase(testCore, poUser, OmsErrCode_OrdNoMustEmpty, "TwsNew|Market=T|SessionId=N|BrkId=8610|OrdNo=B");
    //---------------------------------------------
    const auto snoCount = coreResource.Backend_.LastSNO() - snoStart;
    std::cout << "[TEST ] RxHistoryCount|expected=" << gRxHistoryCount;

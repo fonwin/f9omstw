@@ -16,8 +16,11 @@ enum OmsErrCode : uint16_t {
 
    /// OmsRequestBase::PreCheck_GetRequestInitiator();
    /// 刪改查要求, 但找不到對應的委託書.
-   /// 通常是提供的 OrdKey(BrkId or Market or SessionId or OrdNo) 不正確.
+   /// 通常是提供的 IniSNO 或 OrdKey(BrkId or Market or SessionId or OrdNo) 不正確.
    OmsErrCode_OrderNotFound = 1,
+   /// OmsCore::RunInCore();
+   /// Request_->Creator_->RunStep_ 沒定義.
+   OmsErrCode_RequestStepNotFound = 2,
 
    /// OmsRequestIni::PreCheck_OrdKey();
    /// 下單要求的 BrkId 找不到對應的券商資料.

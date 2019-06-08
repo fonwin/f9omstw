@@ -7,7 +7,7 @@ namespace f9omstw {
 
 void OmsTree::OnTreeOp(fon9::seed::FnTreeOp fnCallback) {
    fon9::intrusive_ptr<OmsTree> pthis{this};
-   this->OmsCore_.EmplaceMessage([pthis, fnCallback]() {
+   this->OmsCore_.EmplaceMessage([pthis, fnCallback](OmsResource&) {
       pthis->InThr_OnTreeOp(std::move(fnCallback));
    });
 }
@@ -15,7 +15,7 @@ void OmsTree::InThr_OnParentSeedClear() {
 }
 void OmsTree::OnParentSeedClear() {
    fon9::intrusive_ptr<OmsTree> pthis{this};
-   this->OmsCore_.EmplaceMessage([pthis]() {
+   this->OmsCore_.EmplaceMessage([pthis](OmsResource&) {
       pthis->InThr_OnParentSeedClear();
    });
 }

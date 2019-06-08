@@ -67,7 +67,7 @@ void RevPrintTabFieldNames(fon9::RevBuffer& rbuf, const fon9::seed::Tab& tab, ch
 void RevPrintLayout(fon9::RevBuffer& rbuf, const fon9::seed::Layout& layout) {
    for (size_t tidx = layout.GetTabCount(); tidx > 0;) {
       fon9::RevPrint(rbuf, '\n');
-      f9omstw::RevPrintTabFieldNames(rbuf, *layout.GetTab(--tidx), *fon9_kCSTR_CELLSPL);
+      RevPrintTabFieldNames(rbuf, *layout.GetTab(--tidx), *fon9_kCSTR_CELLSPL);
    }
 }
 

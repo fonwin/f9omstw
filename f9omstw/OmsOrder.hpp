@@ -2,35 +2,12 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsOrder_hpp__
 #define __f9omstw_OmsOrder_hpp__
+#include "f9omstw/OmsOrderFactory.hpp"
 #include "f9omstw/OmsRequestTrade.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
 #include "fon9/fmkt/Symb.hpp"
 
 namespace f9omstw {
-
-/// Name_   = 委託名稱, 例如: TwsOrd;
-/// Fields_ = 委託書會隨著操作、成交而變動的欄位(例如: 剩餘量...),
-///           委託的初始內容(例如: 帳號、商品...), 由 OmsRequest 負責提供;
-class OmsOrderFactory : public fon9::seed::Tab {
-   fon9_NON_COPY_NON_MOVE(OmsOrderFactory);
-   using base = fon9::seed::Tab;
-
-   virtual OmsOrderRaw* MakeOrderRawImpl() = 0;
-   virtual OmsOrder* MakeOrderImpl() = 0;
-public:
-   using base::base;
-
-   virtual ~OmsOrderFactory();
-
-   /// 新單要求, 建立一個新的委託與其對應, 然後返回 OmsOrderRaw 開始首次更新.
-   /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 Order 的初始化.
-   OmsOrderRaw* MakeOrder(OmsRequestIni& initiator, f9omstw::OmsScResource* scRes);
-
-   /// 建立時須注意, 若此時 order.Last()==nullptr
-   /// - 表示要建立的是 order 第一次異動.
-   /// - 包含 order.Head_ 及之後的 data members、衍生類別, 都處在尚未初始化的狀態.
-   OmsOrderRaw* MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req);
-};
 
 fon9_WARN_DISABLE_PADDING;
 struct OmsScResource {
@@ -97,6 +74,12 @@ public:
    }
 
    OmsBrk* GetBrk(OmsResource& res) const;
+
+   /// 透過 this->Creator_->MakeOrderRaw() 建立委託異動資料.
+   /// - 通常配合 OmsRequestRunnerInCore 建立 runner; 然後執行下單(或回報)步驟.
+   OmsOrderRaw* BeginUpdate(const OmsRequestBase& req) {
+      return this->Creator_->MakeOrderRaw(*this, req);
+   }
 };
 
 /// 每次委託異動增加一個 OmsOrderRaw;
@@ -182,7 +165,7 @@ public:
 
 //--------------------------------------------------------------------------//
 
-inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestIni& initiator, f9omstw::OmsScResource* scRes) {
+inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestIni& initiator, OmsScResource* scRes) {
    OmsOrder* ord = this->MakeOrderImpl();
    ord->Initialize(initiator, *this, scRes);
    return const_cast<OmsOrderRaw*>(ord->Last());

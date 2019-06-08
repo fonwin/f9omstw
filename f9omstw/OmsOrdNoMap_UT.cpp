@@ -5,6 +5,7 @@
 #include "f9omstw/OmsOrderTws.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
+#include "fon9/ThreadId.hpp"
 #include "fon9/TestTools.hpp"
 //--------------------------------------------------------------------------//
 void VerifyAllocError(f9omstw::OmsOrderRaw& ord, bool allocResult, OmsErrCode errc) {
@@ -100,15 +101,17 @@ int main(int argc, char* argv[]) {
       fon9_NON_COPY_NON_MOVE(TestCore);
       using base = f9omstw::OmsCore;
       TestCore() : base{"OmsOrdNoMap_UT"} {
+         this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
       }
       ~TestCore() {
       }
       f9omstw::OmsResource& GetResource() {
          return *static_cast<f9omstw::OmsResource*>(this);
       }
+      void EmplaceMessage(f9omstw::OmsCoreTask&&) override {}
+      bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override { return false; }
    };
    TestCore                         testCore;
-   f9omstw::OmsThreadTaskHandler    omsCoreHandler{testCore};
    fon9::intrusive_ptr<RequestNew>  newReq{new RequestNew{reqFactory}};
    f9omstw::OmsRequestRunnerInCore  runner{testCore.GetResource(),
       *ordFactory.MakeOrder(*newReq, nullptr),

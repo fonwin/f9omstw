@@ -16,6 +16,21 @@ void OmsRequestRunner::RequestAbandon(OmsResource* res, OmsErrCode errCode, std:
       res->Backend_.Append(*this->Request_, std::move(this->ExLog_));
 }
 //--------------------------------------------------------------------------//
+bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdNo reqOrdNo) {
+   if (OmsBrk* brk = this->OrderRaw_.Order_->GetBrk(this->Resource_)) {
+      if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this->OrderRaw_.Request_))
+         return ordNoMap->AllocOrdNo(*this, reqOrdNo);
+   }
+   return OmsOrdNoMap::Reject(*this, OmsErrCode_OrdNoMapNotFound);
+}
+bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdTeamGroupId tgId) {
+   if (OmsBrk* brk = this->OrderRaw_.Order_->GetBrk(this->Resource_)) {
+      if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this->OrderRaw_.Request_))
+         return ordNoMap->AllocOrdNo(*this, tgId);
+   }
+   return OmsOrdNoMap::Reject(*this, OmsErrCode_OrdNoMapNotFound);
+}
+//--------------------------------------------------------------------------//
 OmsRequestRunStep::~OmsRequestRunStep() {
 }
 

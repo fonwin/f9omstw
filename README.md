@@ -232,11 +232,11 @@ libf9omstw: 台灣環境的委託管理系統.
 * 在安全的取得 OmsResource 之後(可能在 OmsCore thread, 或透過 locker), 才能進行底下步驟。
 
 #### 下單(交易)要求
-1. 前置作業
+1. 前置作業: req->BeforeRunInCore();
    * 此時仍允許修改 req 內容.
    * 若有失敗則 req 進入 Abandon 狀態: 此時透過 OmsBackend 回報機制, 回報給 user(session)
    * 先將下單要求編號: OmsResource.PutRequestId(req);
-   * 聯繫 OmsOrder.
+   * 聯繫 OmsOrder;
      * 新單要求: 建立新委託
        * PreCheck_OrdKey():  檢查 OrdKey 是否正確.
        * PreCheck_IvRight(): 檢查是否為可用帳號? 透過 OmsRequestPolicy;

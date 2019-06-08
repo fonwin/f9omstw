@@ -18,7 +18,7 @@ public:
    OmsOrdNoMap() = default;
    ~OmsOrdNoMap();
 
-   /// 使用第 tgId 的櫃號設定分配委託書號, 不考慮 runner.OrderRaw_.Order_->ScResource_.OrdTeamGroupId_;
+   /// 使用第 tgId 的櫃號設定分配委託書號, 不考慮 runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
    bool AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId tgId);
 
    /// 使用 runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.

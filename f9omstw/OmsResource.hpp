@@ -32,8 +32,8 @@ public:
    using BrkTreeSP = fon9::intrusive_ptr<OmsBrkTree>;
    BrkTreeSP   Brks_;
 
-   OmsOrderFactoryParkSP   OrderFacPark_;
-   OmsRequestFactoryParkSP RequestFacPark_;
+   OmsOrderFactoryParkSP   OrderFactoryPark_;
+   OmsRequestFactoryParkSP RequestFactoryPark_;
    /// Backend_ 死亡時需要用到 Factories 做最後的存檔,
    /// 所以必須放在 Factories 之後建構, 然後比 Factories 早死.
    OmsBackend              Backend_;

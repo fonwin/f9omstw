@@ -89,7 +89,6 @@ struct OmsBackend::Loader {
       return nullptr;
    }
    const char* MakeOrder(fon9::StrView ln, const FieldsRec& flds) {
-      OmsOrderFactory* ordfac = static_cast<OmsOrderFactory*>(flds.Factory_);
       using namespace fon9; // for memrchr();
       const char* pReqFrom = reinterpret_cast<const char*>(memrchr(ln.begin(), *fon9_kCSTR_CELLSPL, ln.size()));
       if (pReqFrom == nullptr)
@@ -113,7 +112,7 @@ struct OmsBackend::Loader {
             if (reqFrom->RxKind() == f9fmkt_RxKind_RequestNew
             || (reqIni = reqFrom->GetOrderInitiatorByOrdKey(this->Resource_)) == nullptr)
                // reqFrom = 新單 or 「補單的刪改查」.
-               ord = ordfac->MakeOrder(*const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
+               ord = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(*const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
             else {
                // reqFrom = 使用 OmsRequestIni 的「一般刪改查」.
                // 是否有必要檢查欄位是否正確? reqIni->IsIniFieldEqual(reqFrom);
@@ -125,7 +124,9 @@ struct OmsBackend::Loader {
       }
       if (ord == nullptr) {
          assert(lastupd != nullptr);
-         ord = ordfac->MakeOrderRaw(*lastupd->Order_, *reqFrom);
+         if (lastupd->Order_->Creator_ != flds.Factory_)
+            return "MakeOrder:Unknown order factory.";
+         ord = lastupd->Order_->BeginUpdate(*reqFrom);
       }
       ord->SetRxSNO(this->LastSNO_);
       reqFrom->LastUpdated_ = ord;
@@ -157,11 +158,11 @@ struct OmsBackend::Loader {
       flds.CfgLine_.assign(tag.begin(), ln.end());
       flds.Fields_.clear();
       if (flds.Factory_ == nullptr) {
-         if (auto* ordfac = this->Resource_.OrderFacPark_->GetFactory(tag)) {
+         if (auto* ordfac = this->Resource_.OrderFactoryPark_->GetFactory(tag)) {
             flds.Factory_ = ordfac;
             flds.FnMaker_ = &Loader::MakeOrder;
          }
-         else if (auto* reqfac = this->Resource_.RequestFacPark_->GetFactory(tag)) {
+         else if (auto* reqfac = this->Resource_.RequestFactoryPark_->GetFactory(tag)) {
             flds.Factory_ = reqfac;
             flds.FnMaker_ = &Loader::MakeRequest;
          }
@@ -284,8 +285,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       this->LastSNO_ = loader.LastSNO_;
    }
    fon9::RevBufferList rbuf{128};
-   loader.MakeLayout(rbuf, *resource.RequestFacPark_);
-   loader.MakeLayout(rbuf, *resource.OrderFacPark_);
+   loader.MakeLayout(rbuf, *resource.RequestFactoryPark_);
+   loader.MakeLayout(rbuf, *resource.OrderFactoryPark_);
    fon9::RevPrint(rbuf, "===== OMS start @ ", fon9::UtcNow(), " | ", logFileName, " =====\n");
    if (fsize > 0)
       fon9::RevPrint(rbuf, '\n');

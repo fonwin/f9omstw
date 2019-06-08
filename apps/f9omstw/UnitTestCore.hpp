@@ -12,6 +12,7 @@
 
 #include "fon9/CmdArgs.hpp"
 #include "fon9/Log.hpp"
+#include "fon9/ThreadId.hpp"
 #include "fon9/TestTools.hpp"
 //--------------------------------------------------------------------------//
 #include "fon9/ObjSupplier.hpp"
@@ -85,6 +86,11 @@ public:
              fon9::Named(std::move(name)),
              f9omstw::MakeFieldsT<OmsRequestT>()) {
    }
+   OmsRequestFactoryT(std::string name, f9omstw::OmsOrderFactorySP ordFactory, f9omstw::OmsRequestRunStepSP runStepList)
+      : base(std::move(ordFactory), std::move(runStepList),
+             fon9::Named(std::move(name)),
+             f9omstw::MakeFieldsT<OmsRequestT>()) {
+   }
 
    ~OmsRequestFactoryT() {
    }
@@ -93,7 +99,7 @@ using OmsRequestTwsIniFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsIni>;
 using OmsRequestTwsChgFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsChg>;
 using OmsRequestTwsMatchFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsMatch>;
 //--------------------------------------------------------------------------//
-f9omstw::OmsRequestRunner MakeOmsRequestRunner(f9omstw::OmsRequestFactoryPark& facPark, fon9::StrView reqstr) {
+f9omstw::OmsRequestRunner MakeOmsRequestRunner(const f9omstw::OmsRequestFactoryPark& facPark, fon9::StrView reqstr) {
    f9omstw::OmsRequestRunner retval{reqstr};
    fon9::StrView tag = fon9::StrFetchNoTrim(reqstr, '|');
    if (auto* fac = facPark.GetFactory(tag)) {
@@ -134,14 +140,14 @@ void PrintOmsRequest(f9omstw::OmsRequestBase& req) {
 struct TestCore : public f9omstw::OmsCore {
    fon9_NON_COPY_NON_MOVE(TestCore);
    using base = f9omstw::OmsCore;
-   f9omstw::OmsThreadTaskHandler CoreHandler_;
 
-   fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
-   TestCore(int argc, char* argv[]) : base{"ut"}, CoreHandler_(*this) {
+   TestCore(int argc, char* argv[]) : base{"ut"} {
+      this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
+
       gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
       std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
 
-      this->OrderFacPark_.reset(new f9omstw::OmsOrderFactoryPark(
+      this->OrderFactoryPark_.reset(new f9omstw::OmsOrderFactoryPark(
          new OmsOrderTwsFactory
       ));
 
@@ -153,7 +159,6 @@ struct TestCore : public f9omstw::OmsCore {
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
    }
-   fon9_MSC_WARN_POP;
 
    ~TestCore() {
       this->Backend_.WaitForEndNow();
@@ -169,6 +174,15 @@ struct TestCore : public f9omstw::OmsCore {
 
    f9omstw::OmsResource& GetResource() {
       return *static_cast<f9omstw::OmsResource*>(this);
+   }
+
+   void EmplaceMessage(f9omstw::OmsCoreTask&& task) override {
+      task(this->GetResource());
+   }
+   bool MoveToCoreImpl(f9omstw::OmsRequestRunner&& runner) override {
+      // TestCore: 使用 單一 thread, 無 locker, 所以直接呼叫
+      this->RunInCore(std::move(runner));
+      return true;
    }
 };
 #endif//__f9omstw_apps_UnitTestCore_hpp__

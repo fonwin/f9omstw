@@ -7,19 +7,6 @@
 
 namespace f9omstw {
 
-OmsOrderFactory::~OmsOrderFactory() {
-}
-OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req) {
-   OmsOrderRaw* raw = this->MakeOrderRawImpl();
-   if (auto last = order.Last())
-      raw->Initialize(last, req);
-   else
-      raw->Initialize(order);
-   return raw;
-}
-
-//--------------------------------------------------------------------------//
-
 fon9_MSC_WARN_DISABLE(4355); /* 'this': used in base member initializer list */
 OmsOrder::OmsOrder(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource&& scRes)
    : ScResource_(std::move(scRes))

@@ -70,6 +70,22 @@ public:
    virtual bool ValidateInUser(OmsRequestRunner&) {
       return true;
    }
+
+   /// 執行下單步驟的前置作業:
+   /// - assert(runner.Request_.get() == this);
+   /// - res.PutRequestId(*this);
+   /// - OmsRequestIni
+   ///   - iniReq = this->PreCheck_OrdKey();
+   ///   - iniReq->PreCheck_IvRight();
+   ///   - 新單 or 補單操作: this->Creator_->OrderFactory_->MakeOrder();
+   ///   - 一般刪改查, 返回: iniReq->LastUpdated()->Order_->BeginUpdate(*this);
+   /// - OmsRequestUpd 一般刪改查:
+   ///   - iniReq = this->PreCheck_GetRequestInitiator();
+   ///   - iniReq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight();
+   ///   - 返回: iniReq->LastUpdated()->Order_->BeginUpdate(*this);
+   /// - 如果返回 nullptr, 表示已呼叫 runner.RequestAbandon();
+   /// - 返回後 request 不應再有異動.
+   virtual OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) = 0;
 };
 
 //--------------------------------------------------------------------------//
@@ -147,6 +163,8 @@ public:
    /// - 應在 inireq = runner.Request_->PreCheck_GetRequestInitiator() 之後執行:
    ///   inireq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight(runner);
    bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const;
+
+   OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) override;
 };
 
 class OmsRequestUpd : public OmsRequestTrade {
@@ -175,6 +193,8 @@ public:
    const OmsRequestBase* PreCheck_GetRequestInitiator(OmsRequestRunner& runner, OmsResource& res) {
       return base::PreCheck_GetRequestInitiator(runner, &this->IniSNO_, res);
    }
+
+   OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) override;
 };
 
 } // namespaces

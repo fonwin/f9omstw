@@ -1,5 +1,7 @@
 ﻿// \file f9omstw/OmsRequestTrade.cpp
 // \author fonwinz@gmail.com
+#include "f9omstw/OmsRequestRunner.hpp"
+#include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "fon9/seed/FieldMaker.hpp"
@@ -15,7 +17,9 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTrade, UsrDef));
    flds.Add(fon9_MakeField2(OmsRequestTrade, ClOrdId));
 }
+
 //--------------------------------------------------------------------------//
+
 bool OmsRequestIni::ValidateInUser(OmsRequestRunner& reqRunner) {
    if (this->RxKind_ == f9fmkt_RxKind_RequestNew && !this->OrdNo_.empty1st()) {
       const OmsRequestPolicy* pol = this->Policy();
@@ -134,10 +138,39 @@ bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res)
    return this->CheckIvRight(runner, res, this->LastUpdated()->Order_->ScResource())
       != OmsIvRight::DenyAll;
 }
+OmsOrderRaw* OmsRequestIni::BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) {
+   assert(this == runner.Request_.get());
+   OmsScResource  scRes;
+   if (const OmsRequestIni* iniReq = this->PreCheck_OrdKey(runner, res, scRes)) {
+      if (iniReq == runner.Request_.get()) {
+         if (iniReq->PreCheck_IvRight(runner, res, scRes))
+            return iniReq->Creator_->OrderFactory_->MakeOrder(*this, &scRes);
+      }
+      else {
+         OmsOrder*      ord = iniReq->LastUpdated()->Order_;
+         OmsScResource& ordScRes = ord->ScResource();
+         ordScRes.CheckMoveFrom(std::move(scRes));
+         if (iniReq->PreCheck_IvRight(runner, res, ordScRes))
+            return ord->BeginUpdate(*this);
+      }
+   }
+   return nullptr;
+}
+
 //--------------------------------------------------------------------------//
+
 void OmsRequestUpd::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestUpd, IniSNO));
    base::MakeFields<OmsRequestUpd>(flds);
+}
+OmsOrderRaw* OmsRequestUpd::BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) {
+   assert(this == runner.Request_.get());
+   if (const OmsRequestBase* iniReq = this->PreCheck_GetRequestInitiator(runner, res)) {
+      OmsOrder* ord = iniReq->LastUpdated()->Order_;
+      if (ord->Initiator_->PreCheck_IvRight(runner, res))
+         return ord->BeginUpdate(*runner.Request_);
+   }
+   return nullptr;
 }
 
 } // namespaces

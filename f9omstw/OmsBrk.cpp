@@ -25,7 +25,7 @@ OmsIvacSP OmsBrk::RemoveIvac(IvacNo ivacNo) {
    return nullptr;
 }
 //--------------------------------------------------------------------------//
-fon9_MSC_WARN_DISABLE(4583); // 'f9omstw::OmsMarketRec::SessionAry_': destructor is not implicitly called
+fon9_MSC_WARN_DISABLE(4583); // 'OmsMarketRec::SessionAry_': destructor is not implicitly called
 OmsMarketRec::~OmsMarketRec() {
    fon9::destroy_at(&this->SessionAry_);
 }

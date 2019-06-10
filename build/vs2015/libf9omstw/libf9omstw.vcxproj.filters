@@ -143,6 +143,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp">
       <Filter>Header Files\_request_order</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -237,6 +240,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsOrderFactory.cpp">
       <Filter>Source Files\_request_order</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp">
+      <Filter>Source Files\_core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

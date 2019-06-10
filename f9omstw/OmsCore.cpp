@@ -6,6 +6,14 @@
 
 namespace f9omstw {
 
+bool OmsCore::IsThisThread() const {
+   return this->ThreadId_ == fon9::GetThisThreadId().ThreadId_;
+}
+void OmsCore::SetThisThreadId() {
+   assert(this->ThreadId_ == fon9::ThreadId::IdType{});
+   this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
+}
+
 OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileName) {
    this->TDay_ = tday;
    auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
@@ -41,35 +49,6 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
    else {
       runner.RequestAbandon(this, OmsErrCode_RequestStepNotFound);
    }
-}
-
-//--------------------------------------------------------------------------//
-
-OmsThreadTaskHandler::OmsThreadTaskHandler(OmsThread& owner)
-   : Owner_{static_cast<OmsCoreByThread*>(&owner)} {
-   assert(static_cast<OmsCoreByThread*>(&owner)->ThreadId_ == fon9::ThreadId::IdType{});
-   static_cast<OmsCoreByThread*>(&owner)->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
-}
-void OmsThreadTaskHandler::OnThreadEnd(const std::string& threadName) {
-   (void)threadName;
-   this->Owner_->Backend_.WaitForEndNow();
-}
-bool OmsCore::IsThisThread() const {
-   return this->ThreadId_ == fon9::GetThisThreadId().ThreadId_;
-}
-
-OmsCore::StartResult OmsCoreByThread::Start(fon9::TimeStamp tday, std::string logFileName) {
-   auto res = base::Start(tday, std::move(logFileName));
-   if (!res.IsError())
-      this->StartThread(1, &this->Name_);
-   return res;
-}
-void OmsCoreByThread::EmplaceMessage(OmsCoreTask&& task) {
-   baseThread::EmplaceMessage(std::move(task));
-}
-bool OmsCoreByThread::MoveToCoreImpl(OmsRequestRunner&& runner) {
-   if (0); runner.RequestAbandon(nullptr, OmsErrCode_OrderNotFound, "OmsCoreByThread::MoveToCoreImpl() not impl.");
-   return false;
 }
 
 } // namespaces

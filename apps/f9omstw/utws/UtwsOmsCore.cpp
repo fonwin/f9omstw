@@ -1,6 +1,6 @@
 ﻿// \file utws/UtwsOmsCore.cpp
 // \author fonwinz@gmail.com
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreByThread.hpp"
 #include "utws/UtwsSymb.hpp"
 #include "utws/UtwsBrk.hpp"
 #include "fon9/seed/Plugins.hpp"

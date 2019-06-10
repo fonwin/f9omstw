@@ -1,6 +1,7 @@
 set(f9omstw_src
  IvacNo.cpp
  OmsCore.cpp
+ OmsCoreByThread.cpp
  OmsResource.cpp
  OmsTools.cpp
  OmsBackend.cpp

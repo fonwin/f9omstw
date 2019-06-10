@@ -26,7 +26,8 @@ void OmsBackend::WaitForEndNow() {
    this->Items_.WaitForEndNow();
    fon9::JoinThread(this->Thread_);
 }
-void OmsBackend::StartThread(std::string thrName) {
+void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval) {
+   this->FlushInterval_ = flushInterval;
    this->Items_.OnBeforeThreadStart(1);
    this->Thread_ = std::thread(&OmsBackend::ThrRun, this, std::move(thrName));
 }
@@ -38,7 +39,7 @@ void OmsBackend::ThrRun(std::string thrName) {
 
       Locker   items{this->Items_};
       while (this->Items_.GetState(items) == fon9::ThreadState::ExecutingOrWaiting) {
-         this->Items_.WaitFor(items, std::chrono::milliseconds(10));
+         this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
          if (items->QuItems_.empty())
             continue;
          auto cursz = items->RxHistory_.size();

@@ -22,6 +22,8 @@ class OmsCore : protected OmsResource {
 protected:
    uintptr_t   ThreadId_{};
 
+   void SetThisThreadId();
+
    using StartResult = OmsBackend::OpenResult;
    /// - 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    /// - 啟動 thread.
@@ -77,40 +79,6 @@ public:
    }
 };
 using OmsCoreSP = fon9::intrusive_ptr<OmsCore>;
-
-//--------------------------------------------------------------------------//
-class OmsCoreByThread;
-struct OmsThreadTaskHandler;
-using OmsThread = fon9::MessageQueue<OmsThreadTaskHandler, OmsCoreTask>;
-
-struct OmsThreadTaskHandler {
-   fon9_NON_COPY_NON_MOVE(OmsThreadTaskHandler);
-   using MessageType = OmsCoreTask;
-   OmsCoreByThread* const Owner_;
-   OmsThreadTaskHandler(OmsThread&);
-   void OnMessage(OmsCoreTask& task);
-   void OnThreadEnd(const std::string& threadName);
-};
-
-class OmsCoreByThread : public OmsThread, public OmsCore {
-   fon9_NON_COPY_NON_MOVE(OmsCoreByThread);
-   using base = OmsCore;
-   using baseThread = OmsThread;
-protected:
-   friend struct OmsThreadTaskHandler;
-   StartResult Start(fon9::TimeStamp tday, std::string logFileName);
-
-   bool MoveToCoreImpl(OmsRequestRunner&& runner) override;
-
-public:
-   using base::base;
-
-   void EmplaceMessage(OmsCoreTask&& task) override;
-};
-
-inline void OmsThreadTaskHandler::OnMessage(OmsCoreTask& task) {
-   task(*this->Owner_);
-}
 
 } // namespaces
 #endif//__f9omstw_OmsCore_hpp__

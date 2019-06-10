@@ -56,10 +56,11 @@ class OmsBackend {
    };
    fon9_WARN_POP;
    using Items = fon9::ThreadController<ItemsImpl, fon9::WaitPolicy_CV>;
-   std::thread Thread_;
-   Items       Items_;
-   OmsRxSNO    LastSNO_;
-   fon9::File  RecorderFd_;
+   std::thread          Thread_;
+   Items                Items_;
+   OmsRxSNO             LastSNO_;
+   fon9::File           RecorderFd_;
+   fon9::TimeInterval   FlushInterval_;
 
    void ThrRun(std::string thrName);
    void SaveQuItems(QuItems& quItems);
@@ -89,7 +90,7 @@ public:
 
    using OpenResult = fon9::File::Result;
    OpenResult OpenReload(std::string logFileName, OmsResource& resource);
-   void StartThread(std::string thrName);
+   void StartThread(std::string thrName, fon9::TimeInterval flushInterval = fon9::TimeInterval_Millisecond(1));
    void WaitForEndNow();
 
    const OmsRxItem* GetItem(OmsRxSNO sno) const {

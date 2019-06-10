@@ -79,6 +79,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsBrk.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsBrkTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCore.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsErrCode.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp" />
@@ -115,6 +116,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsBrk.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsBrkTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp" />

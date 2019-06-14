@@ -1,21 +1,21 @@
-﻿// \file f9omstw/OmsRequestMatch.cpp
+﻿// \file f9omstw/OmsRequestFilled.cpp
 // \author fonwinz@gmail.com
-#include "f9omstw/OmsRequestMatch.hpp"
+#include "f9omstw/OmsRequestFilled.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
 
-void OmsRequestMatch::MakeFieldsImpl(fon9::seed::Fields& flds) {
-   flds.Add(fon9_MakeField2(OmsRequestMatch, IniSNO));
-   flds.Add(fon9_MakeField2(OmsRequestMatch, MatchKey));
-   base::MakeFields<OmsRequestMatch>(flds);
+void OmsRequestFilled::MakeFieldsImpl(fon9::seed::Fields& flds) {
+   flds.Add(fon9_MakeField2(OmsRequestFilled, IniSNO));
+   flds.Add(fon9_MakeField2(OmsRequestFilled, MatchKey));
+   base::MakeFields<OmsRequestFilled>(flds);
 }
-void OmsRequestMatch::NoReadyLineReject(fon9::StrView) {
+void OmsRequestFilled::NoReadyLineReject(fon9::StrView) {
 }
-const OmsRequestMatch* OmsRequestMatch::Insert(const OmsRequestMatch** ppHead,
-                                               const OmsRequestMatch** ppLast,
-                                               const OmsRequestMatch* curr) {
-   if (const OmsRequestMatch* chk = *ppLast) {
+const OmsRequestFilled* OmsRequestFilled::Insert(const OmsRequestFilled** ppHead,
+                                                 const OmsRequestFilled** ppLast,
+                                                 const OmsRequestFilled* curr) {
+   if (const OmsRequestFilled* chk = *ppLast) {
       assert(*ppHead != nullptr);
       if (fon9_LIKELY(chk->MatchKey_ < curr->MatchKey_)) {
          *ppLast = curr;

@@ -3,7 +3,7 @@
 #ifndef __f9omstw_OmsRequestTws_hpp__
 #define __f9omstw_OmsRequestTws_hpp__
 #include "f9omstw/OmsRequestTrade.hpp"
-#include "f9omstw/OmsRequestMatch.hpp"
+#include "f9omstw/OmsRequestFilled.hpp"
 #include "f9tws/ExgTypes.hpp"
 
 namespace f9omstw {
@@ -90,18 +90,18 @@ public:
    bool ValidateInUser(OmsRequestRunner& reqRunner) override;
 };
 
-class OmsRequestTwsMatch : public OmsRequestMatch {
-   fon9_NON_COPY_NON_MOVE(OmsRequestTwsMatch);
-   using base = OmsRequestMatch;
+class OmsRequestTwsFilled : public OmsRequestFilled {
+   fon9_NON_COPY_NON_MOVE(OmsRequestTwsFilled);
+   using base = OmsRequestFilled;
 public:
    using base::base;
-   OmsRequestTwsMatch() = default;
+   OmsRequestTwsFilled() = default;
 
    static void MakeFields(fon9::seed::Fields& flds) {
-      base::MakeFields<OmsRequestTwsMatch>(flds);
+      base::MakeFields<OmsRequestTwsFilled>(flds);
    }
 
-   /// 取得方式: static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastMatTime_;
+   /// 取得方式: static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastFilledTime_;
    fon9::DayTime Time() const;
    /// 取得方式: static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->CumQty_ - prev->CumQty_;
    OmsTwsQty Qty() const;

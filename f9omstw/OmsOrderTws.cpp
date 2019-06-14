@@ -14,7 +14,7 @@ void OmsOrderTwsRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsOrderTwsRaw, AfterQty));
    flds.Add(fon9_MakeField2(OmsOrderTwsRaw, LeavesQty));
 
-   flds.Add(fon9_MakeField2(OmsOrderTwsRaw, LastMatTime));
+   flds.Add(fon9_MakeField2(OmsOrderTwsRaw, LastFilledTime));
    flds.Add(fon9_MakeField2(OmsOrderTwsRaw, CumQty));
    flds.Add(fon9_MakeField2(OmsOrderTwsRaw, CumAmt));
 }

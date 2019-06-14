@@ -39,6 +39,12 @@
     <Filter Include="Source Files\_tws">
       <UniqueIdentifier>{389c6ccf-bc9f-4263-8637-a72e4c8489d2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\_RcServer">
+      <UniqueIdentifier>{7cf189dc-aa63-435b-8a5b-63969a503c9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_RcServer">
+      <UniqueIdentifier>{cf59629c-f126-4089-bdf0-15617495f67f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp">
@@ -134,9 +140,6 @@
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTws.hpp">
       <Filter>Header Files\_tws</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsRequestMatch.hpp">
-      <Filter>Header Files\_request_order</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp">
       <Filter>Header Files\_request_order</Filter>
     </ClInclude>
@@ -145,6 +148,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp">
       <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRequestFilled.hpp">
+      <Filter>Header Files\_request_order</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRcServer.hpp">
+      <Filter>Header Files\_RcServer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRcServerFunc.hpp">
+      <Filter>Header Files\_RcServer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp">
+      <Filter>Header Files\_policy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -232,9 +247,6 @@
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTws.cpp">
       <Filter>Source Files\_tws</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsRequestMatch.cpp">
-      <Filter>Source Files\_request_order</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp">
       <Filter>Source Files\_request_order</Filter>
     </ClCompile>
@@ -243,6 +255,18 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp">
       <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRequestFilled.cpp">
+      <Filter>Source Files\_request_order</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRcServer.cpp">
+      <Filter>Source Files\_RcServer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRcServerFunc.cpp">
+      <Filter>Source Files\_RcServer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp">
+      <Filter>Source Files\_policy</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

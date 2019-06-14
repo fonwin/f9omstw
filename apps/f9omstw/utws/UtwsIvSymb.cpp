@@ -18,13 +18,13 @@ static fon9::seed::Fields UtwsIvSymb_MakeFields() {
 fon9::seed::LayoutSP UtwsIvSymb::MakeLayout() {
    using namespace fon9::seed;
    return new LayoutN(fon9_MakeField2(UtwsIvSymb, SymbId), TreeFlag::AddableRemovable,
-      new Tab{fon9::Named{"Bal"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable},
-      new Tab{fon9::Named{"Ord"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable},
-      new Tab{fon9::Named{"Mat"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable}
+      new Tab{fon9::Named{"Bal"},    UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable},
+      new Tab{fon9::Named{"Ord"},    UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable},
+      new Tab{fon9::Named{"Filled"}, UtwsIvSymb_MakeFields(), TabFlag::NoSapling_NoSeedCommand_Writable}
    );
-   #define kTabIndex_Bal   0
-   #define kTabIndex_Ord   1
-   #define kTabIndex_Mat   2
+   #define kTabIndex_Bal      0
+   #define kTabIndex_Ord      1
+   #define kTabIndex_Filled   2
 }
 
 template <class RawBase>
@@ -32,9 +32,9 @@ struct UtwsIvSymbRaw : public RawBase {
    fon9_NON_COPY_NON_MOVE(UtwsIvSymbRaw);
    static fon9::byte* CastToRawPointer(int tabIndex, UtwsIvSymb& symb) {
       switch (tabIndex) {
-      case kTabIndex_Bal:  return fon9::seed::CastToRawPointer(&symb.Bal_);
-      case kTabIndex_Ord:  return fon9::seed::CastToRawPointer(&symb.Ord_);
-      case kTabIndex_Mat:  return fon9::seed::CastToRawPointer(&symb.Mat_);
+      case kTabIndex_Bal:     return fon9::seed::CastToRawPointer(&symb.Bal_);
+      case kTabIndex_Ord:     return fon9::seed::CastToRawPointer(&symb.Ord_);
+      case kTabIndex_Filled:  return fon9::seed::CastToRawPointer(&symb.Filled_);
       }
       assert(!"UomsIvSymbRaw|err=Unknown tabIndex");
       return nullptr;

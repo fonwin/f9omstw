@@ -50,11 +50,9 @@ class OmsOrderTwsFactory : public f9omstw::OmsOrderFactory {
       return new OmsOrderTws{};
    }
 public:
-   fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
    OmsOrderTwsFactory()
       : base(fon9::Named{"TwsOrd"}, f9omstw::MakeFieldsT<OmsOrderTwsRaw>()) {
    }
-   fon9_MSC_WARN_POP;
 
    ~OmsOrderTwsFactory() {
    }
@@ -97,7 +95,7 @@ public:
 };
 using OmsRequestTwsIniFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsIni>;
 using OmsRequestTwsChgFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsChg>;
-using OmsRequestTwsMatchFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsMatch>;
+using OmsRequestTwsFilledFactory = OmsRequestFactoryT<f9omstw::OmsRequestTwsFilled>;
 //--------------------------------------------------------------------------//
 f9omstw::OmsRequestRunner MakeOmsRequestRunner(const f9omstw::OmsRequestFactoryPark& facPark, fon9::StrView reqstr) {
    f9omstw::OmsRequestRunner retval{reqstr};
@@ -136,18 +134,65 @@ void PrintOmsRequest(f9omstw::OmsRequestBase& req) {
    puts(fon9::BufferTo<std::string>(rbuf.MoveOut()).c_str());
 }
 //--------------------------------------------------------------------------//
+struct UomsTwsIniRiskCheck : public f9omstw::OmsRequestRunStep {
+   fon9_NON_COPY_NON_MOVE(UomsTwsIniRiskCheck);
+   using base = f9omstw::OmsRequestRunStep;
+   using base::base;
+   void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
+      // TODO: 風控檢查.
+      // 風控成功, 執行下一步驟.
+      this->ToNextStep(std::move(runner));
+   }
+};
+struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
+   fon9_NON_COPY_NON_MOVE(UomsTwsExgSender);
+   using base = f9omstw::OmsRequestRunStep;
+   using base::base;
+   UomsTwsExgSender() = default;
+   /// 「線路群組」的「櫃號組別Id」, 需透過 OmsResource 取得.
+   f9omstw::OmsOrdTeamGroupId TgId_ = 0;
+   char                       padding_____[4];
+
+   void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
+      // 排隊 or 送單.
+      // 最遲在下單要求送出(交易所)前, 必須編製委託書號.
+      if (!runner.AllocOrdNo_IniOrTgid(this->TgId_))
+         return;
+      if (runner.OrderRaw_.Request_->RxKind() == f9fmkt_RxKind_RequestNew)
+         runner.OrderRaw_.OrderSt_ = f9fmkt_OrderSt_NewSending;
+      runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
+      // TODO: Test 送單狀態, 1 ms 之後 Accepted.
+   }
+};
+//--------------------------------------------------------------------------//
 // 測試用, 不啟動 OmsThread: 把 main thread 當成 OmsThread.
 struct TestCore : public f9omstw::OmsCore {
    fon9_NON_COPY_NON_MOVE(TestCore);
    using base = f9omstw::OmsCore;
+   unsigned TestCount_;
+   bool     IsWaitQuit_{false};
+   char     padding___[3];
 
-   TestCore(int argc, char* argv[]) : base{"ut"} {
+   static f9omstw::OmsCoreMgrSP MakeCoreMgr(int argc, char* argv[]) {
+      fon9::intrusive_ptr<TestCore> core{new TestCore{argc, argv}};
+      core->Owner_->Add(&core->GetResource());
+      return core->Owner_;
+   }
+
+   TestCore(int argc, char* argv[]) : base(new f9omstw::OmsCoreMgr{"ut"}, "ut") {
       this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 
       gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
       std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
 
-      this->OrderFactoryPark_.reset(new f9omstw::OmsOrderFactoryPark(
+      this->TestCount_ = fon9::StrTo(fon9::GetCmdArg(argc, argv, "c", "count"), 0u);
+      if (this->TestCount_ <= 0)
+         this->TestCount_ = kPoolObjCount * 2;
+
+      const auto isWait = fon9::GetCmdArg(argc, argv, "w", "wait");
+      this->IsWaitQuit_ = (isWait.begin() && (isWait.empty() || fon9::toupper(static_cast<unsigned char>(*isWait.begin())) == 'Y'));
+
+      this->Owner_->SetOrderFactoryPark(new f9omstw::OmsOrderFactoryPark(
          new OmsOrderTwsFactory
       ));
 
@@ -161,6 +206,16 @@ struct TestCore : public f9omstw::OmsCore {
    }
 
    ~TestCore() {
+      std::cout << "LastSNO = " << this->Backend_.LastSNO() << std::endl;
+      if (this->IsWaitQuit_) {
+         // 要查看資源用量(時間、記憶體...), 可透過 `/usr/bin/time` 指令:
+         //    /usr/bin/time --verbose ~/devel/output/f9omstw/release/f9omstw/OmsReqOrd_UT
+         // 或在結束前先暫停, 在透過其他外部工具查看:
+         //    ~/devel/output/f9omstw/release/f9omstw/OmsReqOrd_UT -w
+         //    例如: $cat /proc/19420(pid)/status 查看 VmSize
+         std::cout << "Press <Enter> to quit.";
+         getchar();
+      }
       this->Backend_.WaitForEndNow();
       this->Brks_->InThr_OnParentSeedClear();
    }

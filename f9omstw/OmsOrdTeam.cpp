@@ -84,7 +84,9 @@ void ConfigToTeamList(OmsOrdTeamList& list, fon9::StrView cfg) {
    std::reverse(list.begin() + static_cast<signed>(bfsz), list.end());
 }
 
-const OmsOrdTeamGroupCfg& OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr) {
+const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr) {
+   if (name.empty())
+      return nullptr;
    auto&                tname = this->TeamNameMap_.kfetch(fon9::CharVector{name});
    OmsOrdTeamGroupCfg*  tgCfg;
    if (tname.second != 0)
@@ -103,7 +105,7 @@ const OmsOrdTeamGroupCfg& OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, f
       ConfigToTeamList(tgCfg->TeamList_, cfgstr);
       ++tgCfg->UpdatedCount_;
    }
-   return *tgCfg;
+   return tgCfg;
 }
 
 } // namespaces

@@ -107,12 +107,9 @@ protected:
    }
 
 public:
-   OmsCore& Core_;
-   OmsRequestRunStep(OmsCore& core) : Core_(core) {
-   }
-   OmsRequestRunStep(OmsCore& core, OmsRequestRunStepSP next)
-      : NextStep_{std::move(next)}
-      , Core_(core) {
+   OmsRequestRunStep() = default;
+   OmsRequestRunStep(OmsRequestRunStepSP next)
+      : NextStep_{std::move(next)} {
    }
    virtual ~OmsRequestRunStep();
 

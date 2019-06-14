@@ -38,7 +38,7 @@ public:
 
    UtwsIvSymbSc Bal_;
    UtwsIvSymbSc Ord_;
-   UtwsIvSymbSc Mat_;
+   UtwsIvSymbSc Filled_;
 
    static OmsIvSymbSP SymbMaker(const fon9::StrView& symbid, OmsIvBase* owner) {
       (void)owner;

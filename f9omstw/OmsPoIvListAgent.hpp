@@ -30,7 +30,7 @@ namespace f9omstw {
 
 /// 「Oms可用帳號」政策管理.
 /// \code
-/// AuthMgr/PoIvList.Layout =
+/// AuthMgr/OmsIvList.Layout =
 ///   { KeyName = "PolicyId",
 ///     Tab[0] = { TabName = "IvList", Fields[] = {},
 ///                Sapling.Layout =
@@ -50,19 +50,19 @@ namespace f9omstw {
 /// |----------------|-------------------------|
 /// | 8610-0000010   | x0                      |
 /// | 8610-0000021   | x0                      |
-class PolicyIvListAgent : public fon9::auth::PolicyAgent {
-   fon9_NON_COPY_NON_MOVE(PolicyIvListAgent);
+class OmsPoIvListAgent : public fon9::auth::PolicyAgent {
+   fon9_NON_COPY_NON_MOVE(OmsPoIvListAgent);
    using base = fon9::auth::PolicyAgent;
 
 public:
-   PolicyIvListAgent(fon9::seed::MaTree* authMgrAgents, std::string name);
+   OmsPoIvListAgent(fon9::seed::MaTree* authMgrAgents, std::string name);
 
-   #define fon9_kCSTR_PolicyIvListAgent_Name    "PoIvList"
-   /// 在 authMgr.Agents_ 上面新增一個 PolicyIvListAgent.
+   #define fon9_kCSTR_OmsPoIvListAgent_Name    "OmsPoIvList"
+   /// 在 authMgr.Agents_ 上面新增一個 OmsPoIvListAgent.
    /// \retval nullptr   name 已存在.
-   /// \retval !=nullptr 新增成功的 PolicyIvListAgent 物件, 返回前會先執行 LinkStorage().
-   static fon9::intrusive_ptr<PolicyIvListAgent> Plant(fon9::auth::AuthMgr& authMgr, std::string name = fon9_kCSTR_PolicyIvListAgent_Name) {
-      auto res = authMgr.Agents_->Plant<PolicyIvListAgent>("PolicyIvListAgent.Plant", std::move(name));
+   /// \retval !=nullptr 新增成功的 OmsPoIvListAgent 物件, 返回前會先執行 LinkStorage().
+   static fon9::intrusive_ptr<OmsPoIvListAgent> Plant(fon9::auth::AuthMgr& authMgr, std::string name = fon9_kCSTR_OmsPoIvListAgent_Name) {
+      auto res = authMgr.Agents_->Plant<OmsPoIvListAgent>("OmsPoIvListAgent.Plant", std::move(name));
       if (res)
          res->LinkStorage(authMgr.Storage_, 128);
       return res;

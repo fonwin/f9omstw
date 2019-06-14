@@ -1,7 +1,7 @@
 ﻿// \file f9omstw/OmsRequestPolicy.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsRequestPolicy.hpp"
-#include "f9omstw/OmsBrkTree.hpp"
+#include "f9omstw/OmsCore.hpp"
 #include "fon9/Unaligned.hpp"
 
 namespace f9omstw {
@@ -78,7 +78,7 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr) const {
    } // if (!this->IvMap_.empty()
    return IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin) ? this->IvRights_ : OmsIvRight::DenyAll;
 }
-
+//--------------------------------------------------------------------------//
 OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks) {
    OmsIvBase*     ivBase;
    fon9::StrView  subWilds;
@@ -119,6 +119,16 @@ OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, Om
    }
    dst.AddIvRights(ivBase, subWilds, ivRights);
    return OmsIvKind::Unknown;
+}
+
+void OmsRequestPolicyCfg::FetchPolicy(OmsResource& res) {
+   this->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
+      ToStrView(this->TeamGroupName_), ToStrView(this->UserRights_.AllowOrdTeams_)));
+   for (const auto& item : this->IvList_) {
+      auto ec = OmsAddIvRights(*this, ToStrView(item.first), item.second, *res.Brks_);
+      if (ec != OmsIvKind::Unknown)
+         fon9_LOG_ERROR("OmsRequestPolicyCfg.FetchPolicy|IvKey=", item.first, "|ec=", ec);
+   }
 }
 
 } // namespaces

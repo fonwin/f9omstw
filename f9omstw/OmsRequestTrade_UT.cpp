@@ -3,35 +3,12 @@
 // OmsRequestIni, OmsRequestUpd;
 // - 不考慮 OmsCore 的 thread 切換問題.
 // - 測試:
-//   - 從填妥下單要求之後的 ValidateInUser(), 到 OmsCore 進入下單流程前的過程.
+//   - 從填妥下單要求之後的 ValidateInUser(), 到 OmsCore 進入下單流程.
 //   - 過程中包含相關資源(Symb,Ivac...)的取得.
 //   - 包含 Policy 的驗證.
 //
 // \author fonwinz@gmail.com
 #include "apps/f9omstw/UnitTestCore.hpp"
-//--------------------------------------------------------------------------//
-namespace f9omstw {
-
-/// 在 user thread 登入後, 取得權限設定,
-/// 然後到 OmsCore 透過 MakePolicyInCore() 建立 OmsRequestPolicySP;
-struct OmsRequestPolicyCfg {
-   fon9::CharVector  TeamGroupName_;
-   fon9::CharVector  TeamGroupCfg_;
-   OmsIvList         IvList_;
-};
-
-OmsRequestPolicySP MakePolicyInCore(const OmsRequestPolicyCfg& src, OmsResource& res) {
-   OmsRequestPolicy* pol = new OmsRequestPolicy{};
-   pol->SetOrdTeamGroupCfg(&res.OrdTeamGroupMgr_.SetTeamGroup(ToStrView(src.TeamGroupName_), ToStrView(src.TeamGroupCfg_)));
-   for (const auto& item : src.IvList_) {
-      auto ec = OmsAddIvRights(*pol, ToStrView(item.first), item.second, *res.Brks_);
-      if (ec != OmsIvKind::Unknown)
-         fon9_LOG_ERROR("MakePolicyInCore|IvKey=", item.first, "|ec=", ec);
-   }
-   return pol;
-}
-
-} // namespace f9omstw
 //--------------------------------------------------------------------------//
 unsigned gRxHistoryCount = 0;
 
@@ -59,7 +36,7 @@ void TestCase(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP pol,
               OmsErrCode abandonErrCode, fon9::StrView reqstr) {
    if (abandonErrCode != OmsErrCode_NoError)
       std::cout << "|expected.ErrCode=" << abandonErrCode;
-   auto runner = MakeOmsRequestRunner(core.RequestFactoryPark(), reqstr);
+   auto runner = MakeOmsRequestRunner(core.Owner_->RequestFactoryPark(), reqstr);
    runner.Request_->SetPolicy(pol);
    if (core.MoveToCore(std::move(runner)))
       ++gRxHistoryCount;
@@ -70,10 +47,11 @@ struct TwsNewChecker : public f9omstw::OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(TwsNewChecker);
    using base = f9omstw::OmsRequestRunStep;
    using base::base;
+   TwsNewChecker() = default;
 
    /// 「線路群組」的「櫃號組別Id」, 需透過 OmsResource 取得.
    f9omstw::OmsOrdTeamGroupId TgId_ = 0;
-   char  padding_____[4];
+   char                       padding_____[4];
 
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       ++gRxHistoryCount;
@@ -86,6 +64,7 @@ struct TwsChgChecker : public f9omstw::OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(TwsChgChecker);
    using base = f9omstw::OmsRequestRunStep;
    using base::base;
+   TwsChgChecker() = default;
    void RunRequest(f9omstw::OmsRequestRunnerInCore&&) override {
       ++gRxHistoryCount;
    }
@@ -98,7 +77,7 @@ void TestMarketSessionId(f9omstw::OmsResource& coreResource, f9fmkt_TradingMarke
              << "|expected.SessionId=" << static_cast<char>(sesid);
 
    f9omstw::OmsScResource    scRes;
-   f9omstw::OmsRequestRunner runner = MakeOmsRequestRunner(*coreResource.RequestFactoryPark_, reqstr);
+   f9omstw::OmsRequestRunner runner = MakeOmsRequestRunner(coreResource.Core_.Owner_->RequestFactoryPark(), reqstr);
    static_cast<f9omstw::OmsRequestIni*>(runner.Request_.get())->PreCheck_OrdKey(runner, coreResource, scRes);
 
    if (runner.Request_->Market() != mkt)
@@ -123,26 +102,28 @@ int main(int argc, char* argv[]) {
 
    TestCore testCore(argc, argv);
    auto&    coreResource = testCore.GetResource();
-   coreResource.RequestFactoryPark_.reset(new f9omstw::OmsRequestFactoryPark(
-      new OmsRequestTwsIniFactory("TwsNew", coreResource.OrderFactoryPark_->GetFactory("TwsOrd"), f9omstw::OmsRequestRunStepSP{new TwsNewChecker{testCore}}),
-      new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new TwsChgChecker{testCore}})
+   testCore.Owner_->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
+      new OmsRequestTwsIniFactory("TwsNew", testCore.Owner_->OrderFactoryPark().GetFactory("TwsOrd"), f9omstw::OmsRequestRunStepSP{new TwsNewChecker}),
+      new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new TwsChgChecker})
    ));
-   testCore.OpenReload(argc, argv, "ReqTradeUT.log");
+   testCore.OpenReload(argc, argv, "OmsRequestTrade_UT.log");
    const auto snoStart = coreResource.Backend_.LastSNO();
    std::this_thread::sleep_for(std::chrono::milliseconds{100});
    //---------------------------------------------
-   f9omstw::OmsRequestPolicyCfg  poCfg;
-   poCfg.TeamGroupName_.assign("admin");
-   poCfg.TeamGroupCfg_.assign("*");
-   poCfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowTradingAll;
-   f9omstw::OmsRequestPolicySP   poAdmin{f9omstw::MakePolicyInCore(poCfg, coreResource)};
+   using PolicyCfgSP = fon9::intrusive_ptr<f9omstw::OmsRequestPolicyCfg>;
+   PolicyCfgSP poAdmin{new f9omstw::OmsRequestPolicyCfg};
+   poAdmin->TeamGroupName_.assign("admin");
+   poAdmin->UserRights_.AllowOrdTeams_.assign("*");
+   poAdmin->IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowTradingAll;
+   poAdmin->FetchPolicy(coreResource);
    //---------------------------------------------
-   poCfg.TeamGroupName_.assign("PoUserRights.user"); // = PolicyName.PolicyId
-   poCfg.TeamGroupCfg_.assign("B");
-   poCfg.IvList_.clear();
-   poCfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10"}).second = f9omstw::OmsIvRight::DenyTradingNew;
-   poCfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second = f9omstw::OmsIvRight::DenyTradingChgPri;
-   f9omstw::OmsRequestPolicySP   poUser{f9omstw::MakePolicyInCore(poCfg, coreResource)};
+   PolicyCfgSP poUser{new f9omstw::OmsRequestPolicyCfg};
+   poUser->TeamGroupName_.assign("PoUserRights.user"); // = PolicyName.PolicyId
+   poUser->UserRights_.AllowOrdTeams_.assign("B");
+   poUser->IvList_.clear();
+   poUser->IvList_.kfetch(f9omstw::OmsIvKey{"8610-10"}).second = f9omstw::OmsIvRight::DenyTradingNew;
+   poUser->IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second = f9omstw::OmsIvRight::DenyTradingChgPri;
+   poUser->FetchPolicy(coreResource);
    //---------------------------------------------
    auto symb = coreResource.Symbs_->FetchSymb("1101");
    symb->TradingMarket_ = f9fmkt_TradingMarket_TwSEC;

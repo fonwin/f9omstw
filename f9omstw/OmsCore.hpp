@@ -42,19 +42,17 @@ protected:
    void RunInCore(f9omstw::OmsRequestRunner&& runner);
 
 public:
+   const OmsCoreMgrSP   Owner_;
+
    fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
    template <class... NamedArgsT>
-   OmsCore(NamedArgsT&&... namedargs)
-      : OmsResource(*this, std::forward<NamedArgsT>(namedargs)...) {
+   OmsCore(OmsCoreMgrSP owner, NamedArgsT&&... namedargs)
+      : OmsResource(*this, std::forward<NamedArgsT>(namedargs)...)
+      , Owner_{std::move(owner)} {
    }
    fon9_MSC_WARN_POP;
 
-   const OmsRequestFactoryPark& RequestFactoryPark() {
-      return *this->RequestFactoryPark_;
-   }
-   const OmsOrderFactoryPark& RequestOrderPark() {
-      return *this->OrderFactoryPark_;
-   }
+   ~OmsCore();
 
    /// 先呼叫 runner.ValidateInUser(); 如果成功, 則將 runner 移到 core 之後執行下單步驟.
    /// \retval false 失敗, 已呼叫 runner.RequestAbandon(), 沒有將要求送到 OmsCore.
@@ -79,6 +77,45 @@ public:
    }
 };
 using OmsCoreSP = fon9::intrusive_ptr<OmsCore>;
+
+//--------------------------------------------------------------------------//
+
+/// 管理 OmsCore 的生死.
+/// - 每個 OmsCore 僅處理一交易日的資料, 不處理換日、清檔,
+///   交易日結束時, 由 OmsCoreMgr 在適當時機刪除過時的 OmsCore.
+/// - 新交易日開始時, 由 OmsCoreMgr 建立新的 OmsCore.
+class OmsCoreMgr : public fon9::seed::MaTree {
+   fon9_NON_COPY_NON_MOVE(OmsCoreMgr);
+   using base = fon9::seed::MaTree;
+   OmsCoreSP   CurrentCore_;
+
+protected:
+   OmsOrderFactoryParkSP   OrderFactoryPark_;
+   OmsRequestFactoryParkSP RequestFactoryPark_;
+
+   void OnMaTree_AfterAdd(Locker&, fon9::seed::NamedSeed& seed) override;
+   void OnMaTree_AfterClear() override;
+
+public:
+   using base::base;
+
+   OmsCoreSP GetCurrentCore() const;
+
+   void SetRequestFactoryPark(OmsRequestFactoryParkSP&& facPark) {
+      assert(this->RequestFactoryPark_.get() == nullptr);
+      this->RequestFactoryPark_ = std::move(facPark);
+   }
+   void SetOrderFactoryPark(OmsOrderFactoryParkSP&& facPark) {
+      assert(this->OrderFactoryPark_.get() == nullptr);
+      this->OrderFactoryPark_ = std::move(facPark);
+   }
+   const OmsRequestFactoryPark& RequestFactoryPark() const {
+      return *this->RequestFactoryPark_;
+   }
+   const OmsOrderFactoryPark& OrderFactoryPark() const {
+      return *this->OrderFactoryPark_;
+   }
+};
 
 } // namespaces
 #endif//__f9omstw_OmsCore_hpp__

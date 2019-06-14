@@ -89,7 +89,7 @@ public:
    PolicyIvListTree() : base{MakeLayout()} {
    }
 
-   using PolicyConfig = PolicyIvListAgent::PolicyConfig;
+   using PolicyConfig = OmsPoIvListAgent::PolicyConfig;
    bool GetPolicy(const fon9::StrView& policyId, PolicyConfig& res) const {
       struct ResultHandler {
          PolicyConfig* Result_;
@@ -106,12 +106,12 @@ public:
    }
 };
 //--------------------------------------------------------------------------//
-PolicyIvListAgent::PolicyIvListAgent(fon9::seed::MaTree* authMgrAgents, std::string name)
+OmsPoIvListAgent::OmsPoIvListAgent(fon9::seed::MaTree* authMgrAgents, std::string name)
    : base(new PolicyIvListTree{}, std::move(name)) {
    (void)authMgrAgents;
 }
 
-bool PolicyIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {
+bool OmsPoIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {
    PolicyConfig rout;
    if (!static_cast<PolicyIvListTree*>(this->Sapling_.get())->GetPolicy(authr.GetPolicyId(&this->Name_), rout))
       return false;

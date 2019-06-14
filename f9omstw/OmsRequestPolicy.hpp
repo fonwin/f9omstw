@@ -79,7 +79,7 @@ inline OmsIvRight RxKindToIvRightDeny(f9fmkt_RxKind rxKind) {
    fon9_WARN_DISABLE_SWITCH;
    switch (rxKind) {
    case f9fmkt_RxKind_RequestNew:      return OmsIvRight::DenyTradingNew;
-   case f9fmkt_RxKind_RequestCancel:
+   case f9fmkt_RxKind_RequestDelete:
    case f9fmkt_RxKind_RequestChgQty:   return OmsIvRight::DenyTradingChgQty;
    case f9fmkt_RxKind_RequestChgPri:   return OmsIvRight::DenyTradingChgPri;
    case f9fmkt_RxKind_RequestQuery:    return OmsIvRight::DenyTradingQuery;
@@ -94,6 +94,17 @@ inline OmsIvRight RxKindToIvRightDeny(f9fmkt_RxKind rxKind) {
 /// \retval OmsIvKind::Ivac   brk->FetchIvac(); 失敗.
 /// \retval OmsIvKind::Subac  ivac->FetchSubac(); 失敗.
 OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks);
+
+struct OmsRequestPolicyCfg : public OmsRequestPolicy {
+   fon9_NON_COPY_NON_MOVE(OmsRequestPolicyCfg);
+   OmsRequestPolicyCfg() = default;
+
+   fon9::CharVector  TeamGroupName_;
+   OmsUserRights     UserRights_;
+   OmsIvList         IvList_;
+
+   void FetchPolicy(OmsResource& res);
+};
 
 } // namespaces
 #endif//__f9omstw_OmsRequestPolicy_hpp__

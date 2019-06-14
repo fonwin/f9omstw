@@ -22,7 +22,7 @@ struct OmsOrderTwsRawDat {
    /// 總成價金, 成交均價 = CumAmt_ / CumQty_;
    OmsTwsAmt      CumAmt_;
    /// 最後交易所成交時間.
-   fon9::DayTime  LastMatTime_;
+   fon9::DayTime  LastFilledTime_;
 
    /// 實際送交易所的 OType.
    TwsOType       OType_;
@@ -32,7 +32,7 @@ struct OmsOrderTwsRawDat {
    void ClearRawDat() {
       memset(this, 0, sizeof(*this));
       this->LastExgTime_.AssignNull();
-      this->LastMatTime_.AssignNull();
+      this->LastFilledTime_.AssignNull();
    }
    /// 除了 this->BeforeQty_ = prev.AfterQty_; 之外,
    /// 其餘全部欄位都從 prev 複製而來.
@@ -60,25 +60,25 @@ public:
 
 //--------------------------------------------------------------------------//
 
-inline fon9::DayTime OmsRequestTwsMatch::Time() const {
+inline fon9::DayTime OmsRequestTwsFilled::Time() const {
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
-   return static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastMatTime_;
+   return static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastFilledTime_;
 }
-inline OmsTwsQty OmsRequestTwsMatch::Qty() const {
+inline OmsTwsQty OmsRequestTwsFilled::Qty() const {
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()->Prev_) != nullptr);
    auto* curr = static_cast<const OmsOrderTwsRaw*>(this->LastUpdated());
    auto* prev = static_cast<const OmsOrderTwsRaw*>(curr->Prev_);
    return curr->CumQty_ - prev->CumQty_;
 }
-inline OmsTwsAmt OmsRequestTwsMatch::Amt() const {
+inline OmsTwsAmt OmsRequestTwsFilled::Amt() const {
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()->Prev_) != nullptr);
    auto* curr = static_cast<const OmsOrderTwsRaw*>(this->LastUpdated());
    auto* prev = static_cast<const OmsOrderTwsRaw*>(curr->Prev_);
    return curr->CumAmt_ - prev->CumAmt_;
 }
-inline OmsTwsPri OmsRequestTwsMatch::Pri() const {
+inline OmsTwsPri OmsRequestTwsFilled::Pri() const {
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
    assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()->Prev_) != nullptr);
    auto* curr = static_cast<const OmsOrderTwsRaw*>(this->LastUpdated());

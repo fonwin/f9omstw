@@ -47,7 +47,7 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
    using base = f9omstw::OmsCore;
    using base::Brks_;
 
-   OmsRequestPolicy_UT() : f9omstw::OmsCore{"ut"} {
+   OmsRequestPolicy_UT() : f9omstw::OmsCore(new f9omstw::OmsCoreMgr{"ut"}, "ut") {
       using namespace f9omstw;
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
       this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);

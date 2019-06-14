@@ -13,7 +13,7 @@ libf9omstw: 台灣環境的委託管理系統.
       struct OmsRequestRptTwsOrd : public OmsRequestRptDat, public OmsRequestTwsIniDat {
          ExgTime_; BeforeQty; AfterQty;...
       };
-      struct OmsRequestRptTwsMat : public OmsRequestRptDat, public OmsRequestTwsIniDat {
+      struct OmsRequestRptTwsFilled : public OmsRequestRptDat, public OmsRequestTwsIniDat {
          ExgTime_; Qty; Pri;...
       };
       ```

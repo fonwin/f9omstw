@@ -33,7 +33,7 @@ const OmsRequestIni* OmsRequestTwsIni::PreCheck_OrdKey(OmsRequestRunner& runner,
       if (!scRes.Symb_)
          scRes.Symb_ = res.Symbs_->GetSymb(ToStrView(this->Symbol_));
       if (this->SessionId_ == f9fmkt_TradingSessionId_Unknown) {
-         if (this->PriType_ == f9fmkt_PriType_Limit && this->Pri_.IsNull())
+         if (this->Pri_.IsNull() && (this->PriType_ == f9fmkt_PriType_Limit || this->PriType_ == f9fmkt_PriType_Unknown))
             this->SessionId_ = f9fmkt_TradingSessionId_FixedPrice;
          else {
             auto shUnit = scRes.GetTwsSymbShUnit();
@@ -53,7 +53,7 @@ void OmsRequestTwsChg::MakeFields(fon9::seed::Fields& flds) {
 }
 bool OmsRequestTwsChg::ValidateInUser(OmsRequestRunner& reqRunner) {
    if (this->RxKind_ == f9fmkt_RxKind_Unknown)
-      this->RxKind_ = (this->Qty_ == 0 ? f9fmkt_RxKind_RequestCancel : f9fmkt_RxKind_RequestChgQty);
+      this->RxKind_ = (this->Qty_ == 0 ? f9fmkt_RxKind_RequestDelete : f9fmkt_RxKind_RequestChgQty);
    return base::ValidateInUser(reqRunner);
 }
 

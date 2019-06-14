@@ -158,11 +158,11 @@ struct OmsBackend::Loader {
       flds.CfgLine_.assign(tag.begin(), ln.end());
       flds.Fields_.clear();
       if (flds.Factory_ == nullptr) {
-         if (auto* ordfac = this->Resource_.OrderFactoryPark_->GetFactory(tag)) {
+         if (auto* ordfac = this->Resource_.Core_.Owner_->OrderFactoryPark().GetFactory(tag)) {
             flds.Factory_ = ordfac;
             flds.FnMaker_ = &Loader::MakeOrder;
          }
-         else if (auto* reqfac = this->Resource_.RequestFactoryPark_->GetFactory(tag)) {
+         else if (auto* reqfac = this->Resource_.Core_.Owner_->RequestFactoryPark().GetFactory(tag)) {
             flds.Factory_ = reqfac;
             flds.FnMaker_ = &Loader::MakeRequest;
          }
@@ -201,7 +201,7 @@ struct OmsBackend::Loader {
       }
    }
 
-   void MakeLayout(fon9::RevBufferList& rbuf, fon9::seed::Layout& layout) {
+   void MakeLayout(fon9::RevBufferList& rbuf, const fon9::seed::Layout& layout) {
       size_t idx = layout.GetTabCount();
       while (idx > 0) {
          fon9::RevBufferList rtmp{256};
@@ -285,8 +285,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       this->LastSNO_ = loader.LastSNO_;
    }
    fon9::RevBufferList rbuf{128};
-   loader.MakeLayout(rbuf, *resource.RequestFactoryPark_);
-   loader.MakeLayout(rbuf, *resource.OrderFactoryPark_);
+   loader.MakeLayout(rbuf, resource.Core_.Owner_->RequestFactoryPark());
+   loader.MakeLayout(rbuf, resource.Core_.Owner_->OrderFactoryPark());
    fon9::RevPrint(rbuf, "===== OMS start @ ", fon9::UtcNow(), " | ", logFileName, " =====\n");
    if (fsize > 0)
       fon9::RevPrint(rbuf, '\n');

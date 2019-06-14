@@ -34,8 +34,8 @@ fon9_WARN_POP;
 class OmsOrder {
    fon9_NON_COPY_NON_MOVE(OmsOrder);
    friend class OmsOrderRaw; // 建構時更新 OmsOrder::Last_;
-   OmsRequestMatch*  MatchHead_{nullptr};
-   OmsRequestMatch*  MatchLast_{nullptr};
+   OmsRequestFilled* FilledHead_{nullptr};
+   OmsRequestFilled* FilledLast_{nullptr};
    OmsOrderRaw*      Last_{nullptr};
    OmsScResource     ScResource_;
 

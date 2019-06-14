@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
    struct TestCore : public f9omstw::OmsCore {
       fon9_NON_COPY_NON_MOVE(TestCore);
       using base = f9omstw::OmsCore;
-      TestCore() : base{"OmsOrdNoMap_UT"} {
+      TestCore() : base(new f9omstw::OmsCoreMgr{"ut"}, "OmsOrdNoMap_UT") {
          this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
       }
       ~TestCore() {
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ] OrdTeamGroupId=0, No groups.";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
-   reqPolicy->SetOrdTeamGroupCfg(&testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,A"));
+   reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,A"));
    std::cout << "[TEST ] SetTeamGroup('*,adm,A').    ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "adm00");
    std::cout << "[TEST ]  AllocOrdNo() again.        ";
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ]  reqOrdNo='X':      Overflow";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, "X"), OmsErrCode_OrdNoOverflow);
    // -----------------------------
-   reqPolicy->SetOrdTeamGroupCfg(&testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00"));
+   reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00"));
    std::cout << "[TEST ] SetTeamGroup('a00,b00').    ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "a0000");
    std::cout << "[TEST ]  AllocOrdNo(OrdTeamGroupId).";
@@ -176,7 +176,7 @@ int main(int argc, char* argv[]) {
    reqPolicy->SetOrdTeamGroupCfg(&badcfg);
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
-   reqPolicy->SetOrdTeamGroupCfg(&testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamB", "B00,C00,D"));
+   reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamB", "B00,C00,D"));
    #ifdef _DEBUG
       const unsigned  kTimes = 1000 * 100;
    #else

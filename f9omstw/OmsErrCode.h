@@ -60,7 +60,7 @@ enum OmsErrCode : uint16_t {
    OmsErrCode_NoReadyLine = 1000,
 
    /// 來自風控管制的錯誤碼.
-   OmsErrCode_FromSc = 10000,
+   OmsErrCode_FromRisk = 10000,
    /// 來自交易所的錯誤碼 = OrderErr::FromExg + 交易所錯誤代號.
    OmsErrCode_FromExg = 20000,
 };

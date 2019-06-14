@@ -48,7 +48,8 @@ public:
       return --tgId >= this->TeamGroupCfgs_.size() ? nullptr : &this->TeamGroupCfgs_[tgId];
    }
    /// 若 cfgstr 第一碼為 '*', 則表示有 IsAllowAnyOrdNo_ 權限.
-   const OmsOrdTeamGroupCfg& SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr);
+   /// 若 name.empty() 則傳回 nullptr;
+   const OmsOrdTeamGroupCfg* SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr);
 };
 
 /// 放在 OrdNoMap 裡面, 要分配委託書號時:

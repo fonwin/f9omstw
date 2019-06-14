@@ -8,8 +8,16 @@
 namespace f9omstw {
 
 OmsBackend::~OmsBackend() {
+}
+void OmsBackend::WaitForEndNow() {
+   this->Items_.WaitForEndNow();
+   fon9::JoinThread(this->Thread_);
+
    // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    Locker items{this->Items_};
+   if (this->LastSNO_ == 0 && !this->RecorderFd_.IsOpened())
+      return;
+
    this->SaveQuItems(items->QuItems_);
 
    fon9::RevBufferList rbuf{128};
@@ -21,10 +29,8 @@ OmsBackend::~OmsBackend() {
       if (const OmsRxItem* item = items->RxHistory_[L])
          intrusive_ptr_release(item);
    }
-}
-void OmsBackend::WaitForEndNow() {
-   this->Items_.WaitForEndNow();
-   fon9::JoinThread(this->Thread_);
+   this->LastSNO_ = 0;
+   this->RecorderFd_.Close();
 }
 void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval) {
    this->FlushInterval_ = flushInterval;

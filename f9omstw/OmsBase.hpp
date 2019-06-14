@@ -9,6 +9,9 @@
 namespace f9omstw {
 
 class OmsCore;
+class OmsCoreMgr;
+using OmsCoreMgrSP = fon9::intrusive_ptr<OmsCoreMgr>;
+
 class OmsTree;
 class OmsResource;
 class OmsBackend;
@@ -53,17 +56,17 @@ using OmsIvSymbSP = fon9::intrusive_ptr<OmsIvSymb>;
 //
 //                        OmsRequestBase
 //                           ↑       ↑
-//               OmsRequestTrade   OmsRequestMatch
+//               OmsRequestTrade   OmsRequestFilled
 //                   ↑    ↑                  ↑
 //        OmsRequestIni  OmsRequestUpd       ↑
 //                   ↑    ↑                  ↑
-//     OmsRequestTwsIni  OmsRequestTwsChg  OmsRequestTwsMatch  (類推 Twf)
+//     OmsRequestTwsIni  OmsRequestTwsChg  OmsRequestTwsFilled  (類推 Twf)
 //
 class OmsRequestBase;
 class OmsRequestTrade;
 class OmsRequestIni;
 class OmsRequestUpd;
-class OmsRequestMatch;
+class OmsRequestFilled;
 using OmsRequestSP = fon9::intrusive_ptr<OmsRequestBase>;
 using OmsRequestTradeSP = fon9::intrusive_ptr<OmsRequestTrade>;
 

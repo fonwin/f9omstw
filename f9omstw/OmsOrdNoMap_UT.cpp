@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
    struct TestCore : public f9omstw::OmsCore {
       fon9_NON_COPY_NON_MOVE(TestCore);
       using base = f9omstw::OmsCore;
-      TestCore() : base(new f9omstw::OmsCoreMgr{"ut"}, "OmsOrdNoMap_UT") {
+      TestCore() : base(new f9omstw::OmsCoreMgr{"ut"}, "seed/path", "OmsOrdNoMap_UT") {
          this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
       }
       ~TestCore() {
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
       f9omstw::OmsResource& GetResource() {
          return *static_cast<f9omstw::OmsResource*>(this);
       }
-      void EmplaceMessage(f9omstw::OmsCoreTask&&) override {}
+      void RunCoreTask(f9omstw::OmsCoreTask&&) override {}
       bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override { return false; }
    };
    TestCore                         testCore;

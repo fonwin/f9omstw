@@ -15,7 +15,7 @@ fon9_WARN_DISABLE_PADDING;
 struct RcFuncMgr : public fon9::intrusive_ref_counter<RcFuncMgr>, public fon9::rc::RcFunctionMgr {
    fon9_NON_COPY_NON_MOVE(RcFuncMgr);
    RcFuncMgr(f9omstw::ApiSesCfgSP sesCfg) {
-      this->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::RcFuncOmsRequest{sesCfg}});
+      this->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::OmsRcServerAgent{sesCfg}});
    }
    unsigned AddRef() override {
       return intrusive_ptr_add_ref(static_cast<fon9::intrusive_ref_counter<RcFuncMgr>*>(this));
@@ -35,20 +35,22 @@ int main(int argc, char* argv[]) {
    #endif
    fon9::AutoPrintTestInfo utinfo{"OmsRcServer"};
    //---------------------------------------------
-   f9omstw::OmsCoreMgrSP   coreMgr = TestCore::MakeCoreMgr(argc, argv);
+   auto  core = TestCore::MakeCoreMgr(argc, argv);
+   auto  coreMgr = core->Owner_;
    coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
       new OmsRequestTwsIniFactory("TwsNew", coreMgr->OrderFactoryPark().GetFactory("TwsOrd"),
                                   f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
       new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
       new OmsRequestTwsFilledFactory("TwsFilled", nullptr)
    ));
-   static_cast<TestCore*>(coreMgr->GetCurrentCore().get())->OpenReload(argc, argv, "OmsRcServer.log");
+   std::string fnDefault = "OmsRcServer.log";
+   core->OpenReload(argc, argv, fnDefault);
    std::this_thread::sleep_for(std::chrono::milliseconds{100});
    //---------------------------------------------
    f9omstw::ApiSesCfgSP sesCfg;
    try {
       sesCfg = f9omstw::MakeApiSesCfg(coreMgr, "$TxLang={zh} $include:../../forms/ApiAll.cfg");
-      puts(sesCfg->ApiSesCfgStr_.c_str());
+      // puts(sesCfg->ApiSesCfgStr_.c_str());
    }
    catch (fon9::ConfigLoader::Err& err) {
       std::cout << fon9::RevPrintTo<std::string>(err) << std::endl;
@@ -132,12 +134,35 @@ int main(int argc, char* argv[]) {
    // OnSaslDone(): 直接觸發 OnSessionApReady() 事件, 測試 Policy 的取得及設定.
    apiSes->OnSaslDone(fon9_Auth_Success, kUSERID);
    // 模擬 Client:
-   // - query: OmsCoreMgr(Name)、TDate、layout、可用帳號、可用櫃號、流量參數....
+   // - query config: OmsCoreMgr(SeedPath)、TDay、layout、可用帳號、可用櫃號、流量參數....
    // - recover report, subscribe report.
    // - send request.
    // - ...
-   // getchar();
+   auto* note = apiSes->GetNote(fon9::rc::RcFunctionCode::OmsApi);
+   fon9::RevBufferFixedSize<1024> rbuf;
+   fon9::ToBitv(rbuf, f9omstw::OmsRcOpKind::Config);
+   fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
+   fon9::DcQueueFixedMem     dcq{rbuf};
+   fon9::rc::RcFunctionParam param{dcq, dcq.CalcSize()};
+   note->OnRecvFunctionCall(*apiSes, param);
    //---------------------------------------------
+   // 測試 TDayChanged.
+   unsigned forceTDay = 0;
+   do {
+      core.reset(new TestCore(argc, argv, fon9::RevPrintTo<std::string>("ut_", ++forceTDay), coreMgr));
+      core->OpenReload(argc, argv, fnDefault, forceTDay);
+      coreMgr->Add(&core->GetResource());
+   } while (forceTDay < 5);
+   // 測試 TDayConfirm.
+   rbuf.Rewind();
+   fon9::ToBitv(rbuf, fon9::TimeStampResetHHMMSS(param.RecvTime_) + fon9::TimeInterval_Second(forceTDay));
+   fon9::ToBitv(rbuf, f9omstw::OmsRcOpKind::TDayConfirm);
+   fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
+   dcq.Reset(rbuf);
+   param.RemainParamSize_ = dcq.CalcSize();
+   note->OnRecvFunctionCall(*apiSes, param);
+   //---------------------------------------------
+   // getchar();
    dev->AsyncClose("");
    authMgr->Storage_->Close();
    coreMgr->OnParentSeedClear();

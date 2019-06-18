@@ -47,7 +47,7 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
    using base = f9omstw::OmsCore;
    using base::Brks_;
 
-   OmsRequestPolicy_UT() : f9omstw::OmsCore(new f9omstw::OmsCoreMgr{"ut"}, "ut") {
+   OmsRequestPolicy_UT() : f9omstw::OmsCore(new f9omstw::OmsCoreMgr{"ut"}, "seed/path", "ut") {
       using namespace f9omstw;
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
       this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
@@ -55,8 +55,8 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
    ~OmsRequestPolicy_UT() {
       this->Brks_->InThr_OnParentSeedClear();
    }
-   void EmplaceMessage(f9omstw::OmsCoreTask&&) override {
-      assert(!"Not suppport EmplaceMessage()");
+   void RunCoreTask(f9omstw::OmsCoreTask&&) override {
+      assert(!"Not suppport RunCoreTask()");
    }
    bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override {
       assert(!"Not suppport MoveToCoreImpl()");

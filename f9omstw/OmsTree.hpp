@@ -52,13 +52,13 @@ public:
 
    void OnTreeOp(fon9::seed::FnTreeOp fnCallback) override {
       fon9::intrusive_ptr<OmsSapling> pthis{this};
-      this->OmsCore_.EmplaceMessage([pthis, fnCallback](OmsResource&) {
+      this->OmsCore_.RunCoreTask([pthis, fnCallback](OmsResource&) {
          pthis->base::OnTreeOp(std::move(fnCallback));
       });
    }
    void OnParentSeedClear() override {
       fon9::intrusive_ptr<OmsSapling> pthis{this};
-      this->OmsCore_.EmplaceMessage([pthis](OmsResource&) {
+      this->OmsCore_.RunCoreTask([pthis](OmsResource&) {
          pthis->base::OnParentSeedClear();
       });
    }

@@ -173,17 +173,23 @@ struct TestCore : public f9omstw::OmsCore {
    bool     IsWaitQuit_{false};
    char     padding___[3];
 
-   static f9omstw::OmsCoreMgrSP MakeCoreMgr(int argc, char* argv[]) {
+   static fon9::intrusive_ptr<TestCore> MakeCoreMgr(int argc, char* argv[]) {
       fon9::intrusive_ptr<TestCore> core{new TestCore{argc, argv}};
       core->Owner_->Add(&core->GetResource());
-      return core->Owner_;
+      return core;
    }
 
-   TestCore(int argc, char* argv[]) : base(new f9omstw::OmsCoreMgr{"ut"}, "ut") {
+   TestCore(int argc, char* argv[], std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
+      : base(owner ? owner : new f9omstw::OmsCoreMgr{"ut"}, "seed/path", name) {
       this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 
-      gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
-      std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
+      if (owner.get() == nullptr) {
+         this->Owner_->SetOrderFactoryPark(new f9omstw::OmsOrderFactoryPark(
+            new OmsOrderTwsFactory
+         ));
+         gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
+         std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
+      }
 
       this->TestCount_ = fon9::StrTo(fon9::GetCmdArg(argc, argv, "c", "count"), 0u);
       if (this->TestCount_ <= 0)
@@ -191,10 +197,6 @@ struct TestCore : public f9omstw::OmsCore {
 
       const auto isWait = fon9::GetCmdArg(argc, argv, "w", "wait");
       this->IsWaitQuit_ = (isWait.begin() && (isWait.empty() || fon9::toupper(static_cast<unsigned char>(*isWait.begin())) == 'Y'));
-
-      this->Owner_->SetOrderFactoryPark(new f9omstw::OmsOrderFactoryPark(
-         new OmsOrderTwsFactory
-      ));
 
       using namespace f9omstw;
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
@@ -220,18 +222,25 @@ struct TestCore : public f9omstw::OmsCore {
       this->Brks_->InThr_OnParentSeedClear();
    }
 
-   void OpenReload(int argc, char* argv[], std::string fnDefault) {
+   void OpenReload(int argc, char* argv[], std::string fnDefault, uint32_t forceTDay = 0) {
       const auto  outfn = fon9::GetCmdArg(argc, argv, "o", "out");
-      this->TDay_ = fon9::UtcNow();
-      this->Backend_.OpenReload(outfn.empty() ? fnDefault : outfn.ToString(), this->GetResource());
-      this->Backend_.StartThread(this->Name_ + "_Backend");
+      if (!outfn.empty())
+         fnDefault = outfn.ToString();
+      if (forceTDay != 0) {
+         if (fnDefault.size() >= 4 && memcmp(&*(fnDefault.end() - 4), ".log", 4) == 0)
+            fnDefault.resize(fnDefault.size() - 4);
+         fnDefault += fon9::RevPrintTo<std::string>('.', forceTDay, ".log");
+      }
+      StartResult res = this->Start(fon9::UtcNow(), fnDefault, forceTDay);
+      if (res.IsError())
+         std::cout << "OmsCore.Reload error:" << fon9::RevPrintTo<std::string>(res) << std::endl;
    }
 
    f9omstw::OmsResource& GetResource() {
       return *static_cast<f9omstw::OmsResource*>(this);
    }
 
-   void EmplaceMessage(f9omstw::OmsCoreTask&& task) override {
+   void RunCoreTask(f9omstw::OmsCoreTask&& task) override {
       task(this->GetResource());
    }
    bool MoveToCoreImpl(f9omstw::OmsRequestRunner&& runner) override {

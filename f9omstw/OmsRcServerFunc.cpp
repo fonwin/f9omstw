@@ -9,79 +9,145 @@
 
 namespace f9omstw {
 
-RcFuncOmsRequest::~RcFuncOmsRequest() {
+OmsRcServerAgent::~OmsRcServerAgent() {
 }
-void RcFuncOmsRequest::OnSessionApReady(ApiSession& ses) {
-   RcFuncOmsRequestNote* note;
-   ses.ResetNote(this->FunctionCode_, fon9::rc::RcFunctionNoteSP{note = new RcFuncOmsRequestNote(this->ApiSesCfg_, ses)});
-
-   auto  polcfg = note->Policy_;
-   polcfg->Device_.reset(ses.GetDevice());
-   if (auto* authNote = ses.GetNote<fon9::rc::RcServerNote_SaslAuth>(fon9::rc::RcFunctionCode::SASL)) {
-      const fon9::auth::AuthResult& authr = authNote->GetAuthResult();
-      if (auto agIvList = authr.AuthMgr_->Agents_->Get<OmsPoIvListAgent>(fon9_kCSTR_OmsPoIvListAgent_Name))
-         agIvList->GetPolicy(authr, polcfg->IvList_);
-      if (auto agUserRights = authr.AuthMgr_->Agents_->Get<OmsPoUserRightsAgent>(fon9_kCSTR_OmsPoUserRightsAgent_Name))
-         agUserRights->GetPolicy(authr, polcfg->UserRights_, &polcfg->TeamGroupName_);
-
-      if (0);// 應該在 Client 查詢 config(TDay、layouts、可用櫃號、可用帳號、流量參數...) 時:
-      // - 建立 Policy: 透過 OmsCore 取得: 可用帳號、櫃號群組... 取得完畢後就可直接回覆.
-      // - this->ApiSesCfg_->CoreMgr_->Reg Core Changed(TDay changed) event;
-      //   - TDay changed 事件: 通知 client, 但先不要切換 CurrentCore;
-      //   - client 也許出現訊息視窗告知, 等候使用者確定.
-      //   - 等 client confirm TDay changed 之後:
-      //     - 重新透過新的 OmsCore 取得 Policy, 然後再告知 client 成功切換 CurrentCore.
-
-      if (OmsCoreSP core = this->ApiSesCfg_->CoreMgr_->GetCurrentCore()) {
-         core->EmplaceMessage([polcfg](OmsResource& res) {
-            // 這裡是在 OmsCore thread, 操作 ApiSession 的 Note 是不安全的.
-            // 所以先取得 policy, 然後再到 device thread 通知 PolicyReady.
-            polcfg->FetchPolicy(res);
-            RcFuncOmsRequestNote::SetPolicyReady(polcfg);
-         });
-         return;
+void OmsRcServerAgent::OnSessionApReady(ApiSession& ses) {
+   ses.ResetNote(this->FunctionCode_,
+                 fon9::rc::RcFunctionNoteSP{new OmsRcServerNote(this->ApiSesCfg_, ses)});
+}
+void OmsRcServerAgent::OnSessionLinkBroken(ApiSession& ses) {
+   // 清除 note 之前, 要先確定 note 已無人參考.
+   // 如果正在處理: 回報、訂閱... 要如何安全的刪除 note 呢?
+   // => 由 Policy_ 接收回報、訂閱, 然後在必要時回到 Device thread 處理.
+   if (auto* note = static_cast<OmsRcServerNote*>(ses.GetNote(fon9::rc::RcFunctionCode::OmsApi))) {
+      if (note->Handler_) {
+         note->Handler_->ClearResource();
+         note->Handler_.reset();
       }
-   }
-   note->Stage_ = RcFuncOmsRequestNote::Stage::PolicyReady;
-}
-void RcFuncOmsRequest::OnSessionLinkBroken(ApiSession& ses) {
-   // TODO: 清除 note 之前, 要先確定 note 已無人參考.
-   // 如果正在處理: 回報、訂閱、OmsRequestPolicy... 要如何安全的刪除 note 呢?
-   if (auto* curNote = static_cast<ApiSession*>(&ses)->GetNote(fon9::rc::RcFunctionCode::OmsRequest)) {
-      static_cast<RcFuncOmsRequestNote*>(curNote)->Policy_.reset();
+      this->ApiSesCfg_->CoreMgr_->TDayChangedEvent_.Unsubscribe(&note->SubrTDayChanged_);
    }
 }
 //--------------------------------------------------------------------------//
-RcFuncOmsRequestNote::~RcFuncOmsRequestNote() {
+OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
+   : ApiSesCfg_{std::move(cfg)} {
+   if (auto* authNote = ses.GetNote<fon9::rc::RcServerNote_SaslAuth>(fon9::rc::RcFunctionCode::SASL)) {
+      const fon9::auth::AuthResult& authr = authNote->GetAuthResult();
+      if (auto agUserRights = authr.AuthMgr_->Agents_->Get<OmsPoUserRightsAgent>(fon9_kCSTR_OmsPoUserRightsAgent_Name))
+         agUserRights->GetPolicy(authr, this->PolicyCfg_.UserRights_, &this->PolicyCfg_.TeamGroupName_);
+      if (auto agIvList = authr.AuthMgr_->Agents_->Get<OmsPoIvListAgent>(fon9_kCSTR_OmsPoIvListAgent_Name))
+         agIvList->GetPolicy(authr, this->PolicyCfg_.IvList_);
+   }
 }
-void RcFuncOmsRequestNote::SetPolicyReady(PolicyCfgSP polcfg) {
-   polcfg->Device_->OpQueue_.AddTask(fon9::io::DeviceAsyncOp{[polcfg](fon9::io::Device& dev) {
-      auto* curNote = static_cast<ApiSession*>(dev.Session_.get())->GetNote(fon9::rc::RcFunctionCode::OmsRequest);
-      if (curNote == nullptr || static_cast<RcFuncOmsRequestNote*>(curNote)->Policy_ != polcfg)
-         return;
-      assert(static_cast<RcFuncOmsRequestNote*>(curNote)->Stage_ <= Stage::WaitPolicy);
-      if (static_cast<RcFuncOmsRequestNote*>(curNote)->Stage_ == Stage::WaitClient)
-         static_cast<RcFuncOmsRequestNote*>(curNote)->Stage_ = Stage::PolicyReady;
-      else {
-         assert(static_cast<RcFuncOmsRequestNote*>(curNote)->Stage_ == Stage::WaitPolicy);
-         static_cast<RcFuncOmsRequestNote*>(curNote)->SendLayout();
-      }
-   }});
+OmsRcServerNote::~OmsRcServerNote() {
 }
-void RcFuncOmsRequestNote::SendLayout() {
-   assert(this->Stage_ < Stage::LayoutAcked);
+void OmsRcServerNote::SendConfig(ApiSession& ses) {
+   fon9::RevBufferList rbuf{256};
+   // TODO: 其他參數: 可用櫃號、可用帳號、流量參數、重複登入時間及來源、上次連線時間及來源...
+   fon9::ToBitv(rbuf, this->ApiSesCfg_->ApiSesCfgStr_);
+   fon9::IntToBitv(rbuf, fon9::LocalHostId_);
+   OmsCore* core = this->Handler_->Core_.get();
+   fon9::ToBitv(rbuf, core ? core->TDay() : fon9::TimeStamp::Null());
+   fon9::ToBitv(rbuf, core ? core->SeedPath_ : std::string{});
+   ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
 }
-void RcFuncOmsRequestNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
-   // query config.
-   // TDay changed confirm.
-   // Request: OmsRequestTrade.
-   // Query:   seed/tree.
+void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCore* core) {
+   if (this->Handler_)
+      this->Handler_->ClearResource();
+   PolicyRunner   runner{new Handler(ses.GetDevice(), this->PolicyCfg_, core)};
+   this->Handler_ = runner;
+   if (core)
+      core->RunCoreTask(runner);
+   else // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
+      this->SendConfig(ses);
+}
+void OmsRcServerNote::OnRecvStartApi(ApiSession& ses) {
+   if (this->SubrTDayChanged_ != nullptr) {
+      ses.ForceLogout("Dup Start OmsApi.");
+      return;
+   }
+   fon9::io::DeviceSP   pdev = ses.GetDevice();
+   this->SubrTDayChanged_ = this->ApiSesCfg_->CoreMgr_->TDayChangedEvent_.Subscribe([pdev](OmsCore& core) {
+      // 通知 TDayChanged, 等候 client 回覆 TDayConfirm, 然後才正式切換.
+      // 不能在此貿然更換 CurrentCore, 因為可能還有在路上針對 CurrentCore 的操作.
+      // - TDay changed 事件: 通知 client, 但先不要切換 CurrentCore;
+      // - client 也許出現訊息視窗告知, 等候使用者確定.
+      // - 等 client confirm TDay changed 之後:
+      //   重新透過新的 OmsCore 取得 Policy, 然後再告知 client 成功切換 CurrentCore.
+      fon9::RevBufferList rbuf{128};
+      fon9::ToBitv(rbuf, core.TDay());
+      fon9::ToBitv(rbuf, OmsRcOpKind::TDayChanged);
+      static_cast<ApiSession*>(pdev->Session_.get())->Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
+   });
+   this->StartPolicyRunner(ses, this->ApiSesCfg_->CoreMgr_->CurrentCore().get());
+}
+void OmsRcServerNote::OnRecvTDayConfirm(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
+   fon9::TimeStamp tday;
+   fon9::BitvTo(param.RecvBuffer_, tday);
+   auto core = this->ApiSesCfg_->CoreMgr_->CurrentCore();
+   if (core && core->TDay() == tday) {
+      // 有可能在 SendConfig() 之前, CurrentCore 又改變了.
+      // => 可能性不高, 所以不用考慮效率問題.
+      // => 如果真的發生了, 必定還會再 TDayConfirm 一次.
+      // => 所以最終 client 還是會得到正確的 config;
+      this->StartPolicyRunner(ses, core.get());
+   }
+}
+void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
+   OmsRcOpKind opkind{};
+   fon9::BitvTo(param.RecvBuffer_, opkind);
+   switch (opkind) {
+   case OmsRcOpKind::Config:
+      this->OnRecvStartApi(ses);
+      break;
+   case OmsRcOpKind::TDayConfirm:
+      this->OnRecvTDayConfirm(ses, param);
+      break;
+   case OmsRcOpKind::ReportRecover:
+   case OmsRcOpKind::ReportSubscribe:
+      if (0);// ReportRecover/ReportSubscribe;
+      return;
+   default:
+      if (0);// Unknown qkind: throw exception?
+      return;
+   }
+}
+void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
+   uint32_t reqTableId{};
+   fon9::BitvTo(param.RecvBuffer_, reqTableId);
+   if (fon9_UNLIKELY(reqTableId == 0))
+      return this->OnRecvOmsOp(ses, param);
+   if (fon9_UNLIKELY(reqTableId > this->ApiSesCfg_->ApiReqCfgs_.size())) {
+      if (0);// Unknown reqTableId: throw exception?
+   }
+   const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId - 1];
+   // TODO: Request: OmsRequestTrade.
+}
+//--------------------------------------------------------------------------//
+void OmsRcServerNote::Handler::ClearResource() {
+   if (0);// (1) 取消回報訂閱.
+   if (this->Device_->OpImpl_GetState() == fon9::io::State::LinkReady) {
+      // (2) 移除 fon9::rc SeedTree 裡面 OmsCore/* 的權限.
+   }
+}
+
+void OmsRcServerNote::PolicyRunner::operator()(OmsResource& res) {
+   this->get()->MakePolicy(res, this->get());
+   this->get()->Device_->OpQueue_.AddTask(PolicyRunner{*this});
+}
+void OmsRcServerNote::PolicyRunner::operator()(fon9::io::Device& dev) {
+   auto& ses = *static_cast<ApiSession*>(dev.Session_.get());
+   auto* note = static_cast<OmsRcServerNote*>(ses.GetNote(fon9::rc::RcFunctionCode::OmsApi));
+   if (note && note->Handler_ == this->get())
+      note->SendConfig(ses);
+   if (auto* seedNote = ses.GetNote(fon9::rc::RcFunctionCode::SeedTree)) {
+      if (0);// TODO: 設定 fon9::rc SeedTree 裡面 OmsCore/Brks/BrkId/IvacNo/SubacNo 的權限.
+   }
 }
 //--------------------------------------------------------------------------//
 void FnPutApiField_ApiSesName(const ApiReqFieldCfg& cfg, const ApiReqFieldArg& arg) {
-   fon9::rc::RcFunctionNote* note = arg.ApiSession_.GetNote(fon9::rc::RcFunctionCode::OmsRequest);
-   assert(dynamic_cast<RcFuncOmsRequestNote*>(note) != nullptr);
-   cfg.Field_->StrToCell(arg, &static_cast<RcFuncOmsRequestNote*>(note)->ApiSesCfg_->SessionName_);
+   fon9::rc::RcFunctionNote* note = arg.ApiSession_.GetNote(fon9::rc::RcFunctionCode::OmsApi);
+   assert(dynamic_cast<OmsRcServerNote*>(note) != nullptr);
+   cfg.Field_->StrToCell(arg, &static_cast<OmsRcServerNote*>(note)->ApiSesCfg_->SessionName_);
 }
 void FnPutApiField_ApiSesUserId(const ApiReqFieldCfg& cfg, const ApiReqFieldArg& arg) {
    cfg.Field_->StrToCell(arg, ToStrView(arg.ApiSession_.GetUserId()));

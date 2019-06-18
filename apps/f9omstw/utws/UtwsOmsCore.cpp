@@ -107,7 +107,8 @@ struct UtwsOmsCore : public OmsCoreByThread {
    fon9_NON_COPY_NON_MOVE(UtwsOmsCore);
    using base = OmsCoreByThread;
    friend struct UtwsOmsCoreMgr;
-   UtwsOmsCore(OmsCoreMgrSP owner, std::string name) : base(std::move(owner), std::move(name)) {
+   UtwsOmsCore(OmsCoreMgrSP owner, std::string seedPath, std::string name)
+      : base(std::move(owner), std::move(seedPath), std::move(name)) {
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
       this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
@@ -140,7 +141,11 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
    bool AddCore(fon9::TimeStamp tday) {
       fon9::RevBufferFixedSize<128> rbuf;
       fon9::RevPrint(rbuf, this->Name_, '_', fon9::GetYYYYMMDD(tday));
-      UtwsOmsCore* core = new UtwsOmsCore(static_cast<OmsCoreMgr*>(this->Sapling_.get()), rbuf.ToStrT<std::string>());
+      std::string coreName = rbuf.ToStrT<std::string>();
+      fon9::RevPrint(rbuf, this->Name_, '/');
+      UtwsOmsCore* core = new UtwsOmsCore(static_cast<OmsCoreMgr*>(this->Sapling_.get()),
+                                          rbuf.ToStrT<std::string>(),
+                                          std::move(coreName));
       if (!static_cast<OmsCoreMgr*>(this->Sapling_.get())->Add(core))
          return false;
       fon9::TimedFileName logfn(fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_), fon9::TimedFileName::TimeScale::Day);

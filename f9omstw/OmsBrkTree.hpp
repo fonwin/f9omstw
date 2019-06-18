@@ -94,7 +94,6 @@ public:
 
    void InThr_OnTreeOp(fon9::seed::FnTreeOp fnCallback) override;
    void InThr_OnParentSeedClear() override;
-   void InThr_OnDailyClear();
 
    constexpr static fon9::seed::TreeFlag DefaultTreeFlag() {
       return fon9::seed::TreeFlag{};

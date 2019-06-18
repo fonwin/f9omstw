@@ -95,15 +95,13 @@ inline OmsIvRight RxKindToIvRightDeny(f9fmkt_RxKind rxKind) {
 /// \retval OmsIvKind::Subac  ivac->FetchSubac(); 失敗.
 OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks);
 
-struct OmsRequestPolicyCfg : public OmsRequestPolicy {
-   fon9_NON_COPY_NON_MOVE(OmsRequestPolicyCfg);
-   OmsRequestPolicyCfg() = default;
-
+struct OmsRequestPolicyCfg {
    fon9::CharVector  TeamGroupName_;
    OmsUserRights     UserRights_;
    OmsIvList         IvList_;
 
-   void FetchPolicy(OmsResource& res);
+   OmsRequestPolicySP MakePolicy(OmsResource& res,
+                                 fon9::intrusive_ptr<OmsRequestPolicy> pol = new OmsRequestPolicy);
 };
 
 } // namespaces

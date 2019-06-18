@@ -110,20 +110,18 @@ int main(int argc, char* argv[]) {
    const auto snoStart = coreResource.Backend_.LastSNO();
    std::this_thread::sleep_for(std::chrono::milliseconds{100});
    //---------------------------------------------
-   using PolicyCfgSP = fon9::intrusive_ptr<f9omstw::OmsRequestPolicyCfg>;
-   PolicyCfgSP poAdmin{new f9omstw::OmsRequestPolicyCfg};
-   poAdmin->TeamGroupName_.assign("admin");
-   poAdmin->UserRights_.AllowOrdTeams_.assign("*");
-   poAdmin->IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowTradingAll;
-   poAdmin->FetchPolicy(coreResource);
+   f9omstw::OmsRequestPolicyCfg  polcfg;
+   polcfg.TeamGroupName_.assign("admin");
+   polcfg.UserRights_.AllowOrdTeams_.assign("*");
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowTradingAll;
+   f9omstw::OmsRequestPolicySP poAdmin = polcfg.MakePolicy(coreResource);
    //---------------------------------------------
-   PolicyCfgSP poUser{new f9omstw::OmsRequestPolicyCfg};
-   poUser->TeamGroupName_.assign("PoUserRights.user"); // = PolicyName.PolicyId
-   poUser->UserRights_.AllowOrdTeams_.assign("B");
-   poUser->IvList_.clear();
-   poUser->IvList_.kfetch(f9omstw::OmsIvKey{"8610-10"}).second = f9omstw::OmsIvRight::DenyTradingNew;
-   poUser->IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second = f9omstw::OmsIvRight::DenyTradingChgPri;
-   poUser->FetchPolicy(coreResource);
+   polcfg.TeamGroupName_.assign("PoUserRights.user"); // = PolicyName.PolicyId
+   polcfg.UserRights_.AllowOrdTeams_.assign("B");
+   polcfg.IvList_.clear();
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10"}).second = f9omstw::OmsIvRight::DenyTradingNew;
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second = f9omstw::OmsIvRight::DenyTradingChgPri;
+   f9omstw::OmsRequestPolicySP poUser = polcfg.MakePolicy(coreResource);
    //---------------------------------------------
    auto symb = coreResource.Symbs_->FetchSymb("1101");
    symb->TradingMarket_ = f9fmkt_TradingMarket_TwSEC;

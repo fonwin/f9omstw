@@ -46,7 +46,7 @@ protected:
 public:
    using base::base;
 
-   void EmplaceMessage(OmsCoreTask&& task) override;
+   void RunCoreTask(OmsCoreTask&& task) override;
 };
 
 //--------------------------------------------------------------------------//

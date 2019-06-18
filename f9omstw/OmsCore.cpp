@@ -19,8 +19,9 @@ void OmsCore::SetThisThreadId() {
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 }
 
-OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileName) {
-   this->TDay_ = fon9::TimeStampResetHHMMSS(tday);
+OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileName, uint32_t forceTDay) {
+   assert(forceTDay < fon9::kOneDaySeconds);
+   this->TDay_ = fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay);
    auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
    if (res.IsError())
       return res;
@@ -60,18 +61,39 @@ void OmsCoreMgr::OnMaTree_AfterClear() {
    ConstLocker locker{this->Container_};
    this->CurrentCore_.reset();
 }
-void OmsCoreMgr::OnMaTree_AfterAdd(Locker&, fon9::seed::NamedSeed& seed) {
-   if (OmsResource* coreResource = dynamic_cast<OmsResource*>(&seed)) {
-      static_assert(std::is_base_of<fon9::seed::NamedSeed, OmsResource>::value, "OmsResource is not derived from NamedSeed?");
-      if (!this->CurrentCore_ || this->CurrentCore_->TDay() < coreResource->TDay()) {
-         this->CurrentCore_.reset(&coreResource->Core_);
-         if (0);// TODO: (1) CurrentCore changed event. (2) Remove old core.
-      }
+void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& seed) {
+   static_assert(std::is_base_of<fon9::seed::NamedSeed, OmsResource>::value, "OmsResource is not derived from NamedSeed?");
+   OmsResource* coreResource = dynamic_cast<OmsResource*>(&seed);
+   if (coreResource == nullptr)
+      return;
+   // 如果真有必要重新啟動 TDay core, 則使用 TDay + SecondOfDay.
+   // OmsCore::Start() 設定 TDay 的地方也要略為調整.
+   if (this->CurrentCore_ && this->CurrentCore_->TDay() >= coreResource->TDay())
+      return;
+   OmsCoreSP old = std::move(this->CurrentCore_);
+   this->CurrentCore_.reset(&coreResource->Core_);
+   if (this->IsTDayChanging_)
+      return;
+   this->IsTDayChanging_ = true;
+   for (;;) {
+      OmsCoreSP cur = this->CurrentCore_;
+      cur->SetCoreSt(OmsCoreSt::CurrentCore);
+      if (old)
+         old->SetCoreSt(OmsCoreSt::Disposing);
+      treeLocker.unlock();
+
+      this->TDayChangedEvent_.Publish(*cur);
+      if (old)
+         this->Remove(&old->Name_);
+
+      treeLocker.lock();
+      if (cur == this->CurrentCore_)
+         break;
+      // 在 Publish() 或 Remove(old) 期間, CurrentCore 又改變了?!
+      // 即使這裡一輩子也用不到, 但也不能不考慮.
+      old = std::move(cur);
    }
-}
-OmsCoreSP OmsCoreMgr::GetCurrentCore() const {
-   ConstLocker locker{this->Container_};
-   return this->CurrentCore_;
+   this->IsTDayChanging_ = false;
 }
 
 } // namespaces

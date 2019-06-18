@@ -167,25 +167,18 @@ libf9omstw: 台灣環境的委託管理系統.
 目前可以考慮的方式有:
 * 共用一個 mutex
 * 共用一個 fon9::AQueue
-* 所有工作集中到單一 thread
+* OmsCoreByThread: 所有工作集中到單一 thread
 
 ---------------------------------------
 
 ## 每日清檔作業
-* 可以思考每個交易日建立一個 OmsCore; Name = "omstws_yyyymmdd"; yyyymmdd=交易日(TDay);
-  * 這樣就沒有 OmsCore 每日清檔的問題!
-  * 只要有個「DailyClear事件 或 換日事件」, 然後透過 OmsMgr 取得「現在的 OmsCore」
-  * 投資人帳號資料、商品資料: 每個 OmsCore 一個?
-    * 如果有註冊「依照投資人帳號回報」, 則收到「DailyClear事件 或 換日事件」時, 需重新註冊到新的 OmsCore 投資人帳號.
-
-* 如果每個交易日一個 OmsCore, 就不用考慮底下的問題:
-  * 每日結束然後重啟?
-  * 設計 DailyClear 程序?
-    * 清除 OrdNoMap
-    * 帳號資料:
-      * 移除後重新匯入? 如果有註冊「依照帳號回報」, 是否可以不要重新註冊?
-      * 匯入時處理 IsDailyClear?
-      * 先呼叫全部帳號的 OnDailyClear(); ?
+* 當 TDay 開始時, 先建立當日的 OmsCore, 備妥後加入 OmsCoreMgr;
+  * 加入前, 匯入: 商品、投資人基本資料、庫存...
+* OmsCoreMgr 觸發新交易日開始事件.
+  * 由於每個 OmsCore 各自擁有: 商品資料、投資人基本資料、庫存...
+  * 所以收到新交易日開始事件時, 應重新取得相關資料.
+* 舊的 OmsCore 則在適當時機刪除.
+* 這樣就沒有 OmsCore 每日清檔的問題!
 
 ---------------------------------------
 
@@ -196,7 +189,6 @@ libf9omstw: 台灣環境的委託管理系統.
 * Market event Report
   * Preopen/Open/Close
   * Line broken
-  * Daily clear event
 
 ---------------------------------------
 

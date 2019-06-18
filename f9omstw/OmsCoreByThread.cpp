@@ -34,7 +34,7 @@ OmsCore::StartResult OmsCoreByThread::Start(fon9::TimeStamp tday, std::string lo
       this->StartThread(1, &this->Name_);
    return res;
 }
-void OmsCoreByThread::EmplaceMessage(OmsCoreTask&& task) {
+void OmsCoreByThread::RunCoreTask(OmsCoreTask&& task) {
    baseThread::EmplaceMessage(std::move(task));
 }
 bool OmsCoreByThread::MoveToCoreImpl(OmsRequestRunner&& runner) {

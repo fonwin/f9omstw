@@ -87,15 +87,23 @@ void ConfigToTeamList(OmsOrdTeamList& list, fon9::StrView cfg) {
 const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr) {
    if (name.empty())
       return nullptr;
-   auto&                tname = this->TeamNameMap_.kfetch(fon9::CharVector{name});
-   OmsOrdTeamGroupCfg*  tgCfg;
-   if (tname.second != 0)
-      tgCfg = &this->TeamGroupCfgs_[tname.second - 1];
+   TeamNameMap::value_type* tname;
+   if (!cfgstr.empty())
+      tname = &this->TeamNameMap_.kfetch(fon9::CharVector{name});
    else {
-      this->TeamGroupCfgs_.resize(tname.second = static_cast<OmsOrdTeamGroupId>(this->TeamGroupCfgs_.size() + 1));
+      auto ifind = this->TeamNameMap_.find(fon9::CharVector::MakeRef(name));
+      if (ifind == this->TeamNameMap_.end())
+         return nullptr;
+      tname = &*ifind;
+   }
+   OmsOrdTeamGroupCfg*  tgCfg;
+   if (tname->second != 0)
+      tgCfg = &this->TeamGroupCfgs_[tname->second - 1];
+   else {
+      this->TeamGroupCfgs_.resize(tname->second = static_cast<OmsOrdTeamGroupId>(this->TeamGroupCfgs_.size() + 1));
       tgCfg = &this->TeamGroupCfgs_.back();
       tgCfg->Name_.assign(name);
-      tgCfg->TeamGroupId_ = tname.second;
+      tgCfg->TeamGroupId_ = tname->second;
    }
    if (ToStrView(tgCfg->Config_) != fon9::StrTrim(&cfgstr)) {
       tgCfg->Config_.assign(cfgstr);

@@ -46,8 +46,6 @@ void OmsBrk::InitializeMarketAry() {
 fon9_MSC_WARN_POP;
 //--------------------------------------------------------------------------//
 void OmsBrk::OnParentSeedClear() {
-   this->ClearOrdNoMap();
-
    OmsIvacMap  tmpIvacs{std::move(this->Ivacs_)};
    IvacNC      i;
    if (auto* pivacSP = tmpIvacs.GetFirst(i)) {
@@ -56,15 +54,6 @@ void OmsBrk::OnParentSeedClear() {
             ivac->OnParentSeedClear();
       } while ((pivacSP = tmpIvacs.GetNext(i)) != nullptr);
    }
-}
-void OmsBrk::OnDailyClear() {
-   this->ClearOrdNoMap();
-   // TODO: Ivacs_ 的 OnDailyClear();
-   // - 移除後重新匯入? 如果有註冊「帳號回報」, 是否可以不要重新註冊?
-   // - 匯入時處理 IsDailyClear?
-   // - 先呼叫全部帳號的 OnDailyClear(); ?
-}
-void OmsBrk::ClearOrdNoMap() {
 }
 
 } // namespaces

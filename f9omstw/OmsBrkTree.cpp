@@ -78,9 +78,6 @@ void OmsBrkTree::BrksClear(void(OmsBrk::*fnClear)()) {
 void OmsBrkTree::InThr_OnParentSeedClear() {
    this->BrksClear(&OmsBrk::OnParentSeedClear);
 }
-void OmsBrkTree::InThr_OnDailyClear() {
-   this->BrksClear(&OmsBrk::OnDailyClear);
-}
 //--------------------------------------------------------------------------//
 struct OmsBrkTree::TreeOp : public fon9::seed::TreeOp {
    fon9_NON_COPY_NON_MOVE(TreeOp);

@@ -121,14 +121,15 @@ OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, Om
    return OmsIvKind::Unknown;
 }
 
-void OmsRequestPolicyCfg::FetchPolicy(OmsResource& res) {
-   this->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
+OmsRequestPolicySP OmsRequestPolicyCfg::MakePolicy(OmsResource& res, fon9::intrusive_ptr<OmsRequestPolicy> pol) {
+   pol->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
       ToStrView(this->TeamGroupName_), ToStrView(this->UserRights_.AllowOrdTeams_)));
    for (const auto& item : this->IvList_) {
-      auto ec = OmsAddIvRights(*this, ToStrView(item.first), item.second, *res.Brks_);
+      auto ec = OmsAddIvRights(*pol, ToStrView(item.first), item.second, *res.Brks_);
       if (ec != OmsIvKind::Unknown)
          fon9_LOG_ERROR("OmsRequestPolicyCfg.FetchPolicy|IvKey=", item.first, "|ec=", ec);
    }
+   return pol;
 }
 
 } // namespaces

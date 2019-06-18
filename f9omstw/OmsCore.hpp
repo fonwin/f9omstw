@@ -7,10 +7,19 @@
 
 namespace f9omstw {
 
+enum class OmsCoreSt {
+   /// 剛建立 OmsCore, 變成 CurrentCore 之前.
+   Loading,
+   CurrentCore,
+   Disposing,
+};
+
 using OmsCoreTask = std::function<void(OmsResource&)>;
 
+fon9_WARN_DISABLE_PADDING;
 /// - 管理 OMS 所需的資源.
 /// - 不同市場應建立各自的 OmsCore, 例如: 台灣證券的OmsCore, 台灣期權的OmsCore;
+/// - 不同交易日應建立各自的 OmsCore.
 /// - 由衍生者自行初始化、啟動及結束:
 ///   - 建立 this->Symbs_;
 ///   - 建立 this->Brks_; 初始化 this->Brks_->Initialize();
@@ -19,15 +28,22 @@ using OmsCoreTask = std::function<void(OmsResource&)>;
 class OmsCore : protected OmsResource {
    fon9_NON_COPY_NON_MOVE(OmsCore);
 
+   friend class OmsCoreMgr;// for: SetCoreSt();
+   OmsCoreSt   CoreSt_{OmsCoreSt::Loading};
+   void SetCoreSt(OmsCoreSt st) {
+      this->CoreSt_ = st;
+   }
+
 protected:
    uintptr_t   ThreadId_{};
-
    void SetThisThreadId();
 
    using StartResult = OmsBackend::OpenResult;
    /// - 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    /// - 啟動 thread.
-   StartResult Start(fon9::TimeStamp tday, std::string logFileName);
+   /// - 如果需要重新啟動 TDay core,
+   ///   則 forceTDay 必須大於上一個 TDay core 的 forceTDay, 但小於 fon9::kOneDaySeconds;
+   StartResult Start(fon9::TimeStamp tday, std::string logFileName, uint32_t forceTDay = 0);
 
    /// 執行 runner.ValidateInUser();  成功之後,
    /// 由衍生者實作將 runner 移到 core 執行.
@@ -43,12 +59,14 @@ protected:
 
 public:
    const OmsCoreMgrSP   Owner_;
+   const std::string    SeedPath_;
 
    fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
    template <class... NamedArgsT>
-   OmsCore(OmsCoreMgrSP owner, NamedArgsT&&... namedargs)
+   OmsCore(OmsCoreMgrSP owner, std::string seedPath, NamedArgsT&&... namedargs)
       : OmsResource(*this, std::forward<NamedArgsT>(namedargs)...)
-      , Owner_{std::move(owner)} {
+      , Owner_{std::move(owner)}
+      , SeedPath_{std::move(seedPath)} {
    }
    fon9_MSC_WARN_POP;
 
@@ -61,12 +79,14 @@ public:
    ///            當然也有可能尚未執行, 或正在執行.
    bool MoveToCore(OmsRequestRunner&& runner);
 
-   virtual void EmplaceMessage(OmsCoreTask&& task) = 0;
+   virtual void RunCoreTask(OmsCoreTask&& task) = 0;
 
    bool IsThisThread() const;
 
-   fon9::TimeStamp TDay() const {
-      return this->TDay_;
+   using OmsResource::TDay;
+
+   OmsCoreSt CoreSt() const {
+      return this->CoreSt_;
    }
 
    inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
@@ -76,18 +96,22 @@ public:
       intrusive_ptr_release(static_cast<const OmsResource*>(p));
    }
 };
-using OmsCoreSP = fon9::intrusive_ptr<OmsCore>;
 
 //--------------------------------------------------------------------------//
+
+using OmsTDayChangedHandler = std::function<void(OmsCore&)>;
 
 /// 管理 OmsCore 的生死.
 /// - 每個 OmsCore 僅處理一交易日的資料, 不處理換日、清檔,
 ///   交易日結束時, 由 OmsCoreMgr 在適當時機刪除過時的 OmsCore.
-/// - 新交易日開始時, 由 OmsCoreMgr 建立新的 OmsCore.
+/// - 新交易日開始時, 建立新的 OmsCore.
+///   - OmsCore 建立時, 轉入隔日有效單.
+///   - 匯入商品資料、投資人資料、庫存...
 class OmsCoreMgr : public fon9::seed::MaTree {
    fon9_NON_COPY_NON_MOVE(OmsCoreMgr);
    using base = fon9::seed::MaTree;
    OmsCoreSP   CurrentCore_;
+   bool        IsTDayChanging_{false};
 
 protected:
    OmsOrderFactoryParkSP   OrderFactoryPark_;
@@ -99,7 +123,16 @@ protected:
 public:
    using base::base;
 
-   OmsCoreSP GetCurrentCore() const;
+   using TDayChangedEvent = fon9::Subject<OmsTDayChangedHandler>;
+   TDayChangedEvent  TDayChangedEvent_;
+
+   /// 取得 CurrentCore, 僅供參考.
+   /// - 返回前有可能會收到 TDayChanged 事件.
+   /// - 傳回 nullptr 表示目前沒有 CurrentCore.
+   OmsCoreSP CurrentCore() const {
+      ConstLocker locker{this->Container_};
+      return this->CurrentCore_;
+   }
 
    void SetRequestFactoryPark(OmsRequestFactoryParkSP&& facPark) {
       assert(this->RequestFactoryPark_.get() == nullptr);
@@ -116,6 +149,7 @@ public:
       return *this->OrderFactoryPark_;
    }
 };
+fon9_WARN_POP;
 
 } // namespaces
 #endif//__f9omstw_OmsCore_hpp__

@@ -9,6 +9,8 @@
 namespace f9omstw {
 
 class OmsCore;
+using OmsCoreSP = fon9::intrusive_ptr<OmsCore>;
+
 class OmsCoreMgr;
 using OmsCoreMgrSP = fon9::intrusive_ptr<OmsCoreMgr>;
 

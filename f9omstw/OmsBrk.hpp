@@ -65,7 +65,6 @@ public:
 class OmsBrk : public OmsIvBase {
    fon9_NON_COPY_NON_MOVE(OmsBrk);
    using base = OmsIvBase;
-   void ClearOrdNoMap();
 
    using MarketAry = std::array<OmsMarketRec, f9fmkt_TradingMarket_MaxIndex + 1u>;
    union { // OmsMarketRec 沒有預設建構, OmsBrk() 建構時初始化 MarketAry_;
@@ -117,7 +116,6 @@ public:
    }
 
    virtual void OnParentSeedClear();
-   virtual void OnDailyClear();
 
    /// 建立 grid view, 包含 BrkId_; 不含尾端分隔符號.
    virtual void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) = 0;

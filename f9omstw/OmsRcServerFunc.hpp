@@ -6,6 +6,15 @@
 
 namespace f9omstw {
 
+/// 在 server 回覆 Config 時, 提供 table 資料時,
+/// 行的第1個字元, 如果是 *fon9_kCSTR_LEAD_TABLE, 則表示一個 table 的開始.
+/// ```
+/// fon9_kCSTR_LEAD_TABLE + TableNamed\n
+/// FieldNames\n
+/// FieldValues\n    可能有 0..n 行
+/// ```
+#define fon9_kCSTR_LEAD_TABLE    "\x02"
+
 enum class OmsRcOpKind : uint8_t {
    Config,
 
@@ -57,14 +66,20 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    struct PolicyRunner : public HandlerSP {
       using HandlerSP::HandlerSP;
       /// core.RunCoreTask() handler. run in OmsCore.
+      /// - MakePolicy(res, this->get());
+      /// - to device thread, run (*this)(dev);
       void operator()(OmsResource& res);
       /// Device_->OpQueue_.AddTask() handler. run in device.
+      /// - if (ses.Note.Handler_ == this)   SendConfig();
       void operator()(fon9::io::Device& dev);
    };
 
-   HandlerSP            Handler_;
-   OmsRequestPolicyCfg  PolicyCfg_;
-   fon9::SubConn        SubrTDayChanged_{};
+   struct PolicyConfig : OmsRequestPolicyCfg {
+      std::string TablesGridView_;
+   };
+   PolicyConfig   PolicyConfig_;
+   HandlerSP      Handler_;
+   fon9::SubConn  SubrTDayChanged_{};
 
    void SendConfig(ApiSession& ses);
    void OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param);

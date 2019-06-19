@@ -19,17 +19,22 @@
 * `std::string SeedPath`
 * `fon9::TimeStamp TDay`
 * `uint32_t HostId`
-* 其他使用 ConfigLoader 形式提供:
-  * Layouts
-    * REQ.Names {}
-    * RPT.Named {}
-    * Table.Named {}
-      * Table.IvList { C26L IvKey\n U1 Rights\n }
-  * Values(Variables)
-    * 可用帳號: `$IvList = { IvKey|Rights\n ... }`
-    * 可用櫃號: `$OrdTeams = 使用「,」分隔櫃號`
-    * 下單流量: `$FcRequest = count/ms`
-    * 查詢流量: `$FcQuery = count/ms`
+* Layouts 使用 ConfigLoader 形式提供:
+  * REQ.Names { Fields }
+  * RPT.Named { }
+* Tables 使用 gv 格式提供
+  ```
+  fon9_kCSTR_LEAD_TABLE("\x02") + TableNamed\n
+  FieldNames\n     使用 fon9_kCSTR_CELLSPL("\x01") 分隔
+  FieldValues\n    可能有 0..n 行
+  ```
+  目前有的 tables:
+  * OmsPoIvList, 可用帳號
+    * IvKey|Rights
+    * IvKey = BrkId-IvacNo-SubacNo
+    * [Rights = enum class OmsIvRight](OmsPoIvList.hpp)
+  * OmsPoUserRights, 使用者權限(可用櫃號、下單流量、查詢流量)
+    * OrdTeams|FcReqCount|FcReqMS|FcQryCount|FcQryMS
 
 ### TDay changed
 `fon9::TimeStamp TDay`

@@ -123,5 +123,11 @@ bool OmsPoIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConf
    }
    return true;
 }
+void OmsPoIvListAgent::MakeGridView(fon9::RevBuffer& rbuf, const PolicyConfig& ivList) {
+   auto* gvLayout = this->Sapling_->LayoutSP_->GetTab(0)->SaplingLayout_.get();
+   auto* gvTab = gvLayout->GetTab(0);
+   fon9::seed::SimpleMakeFullGridView(ivList, *gvTab, rbuf);
+   fon9::seed::FieldsNameRevPrint(gvLayout, *gvTab, rbuf);
+}
 
 } // namespaces

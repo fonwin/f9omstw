@@ -32,17 +32,28 @@ OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
    : ApiSesCfg_{std::move(cfg)} {
    if (auto* authNote = ses.GetNote<fon9::rc::RcServerNote_SaslAuth>(fon9::rc::RcFunctionCode::SASL)) {
       const fon9::auth::AuthResult& authr = authNote->GetAuthResult();
-      if (auto agUserRights = authr.AuthMgr_->Agents_->Get<OmsPoUserRightsAgent>(fon9_kCSTR_OmsPoUserRightsAgent_Name))
-         agUserRights->GetPolicy(authr, this->PolicyCfg_.UserRights_, &this->PolicyCfg_.TeamGroupName_);
-      if (auto agIvList = authr.AuthMgr_->Agents_->Get<OmsPoIvListAgent>(fon9_kCSTR_OmsPoIvListAgent_Name))
-         agIvList->GetPolicy(authr, this->PolicyCfg_.IvList_);
+      fon9::RevBufferList  rbuf{128};
+      if (auto agUserRights = authr.AuthMgr_->Agents_->Get<OmsPoUserRightsAgent>(fon9_kCSTR_OmsPoUserRightsAgent_Name)) {
+         agUserRights->GetPolicy(authr, this->PolicyConfig_.UserRights_, &this->PolicyConfig_.TeamGroupName_);
+         fon9::RevPrint(rbuf, *fon9_kCSTR_ROWSPL);
+         agUserRights->MakeGridView(rbuf, this->PolicyConfig_.UserRights_);
+         fon9::RevPrint(rbuf, fon9_kCSTR_LEAD_TABLE, agUserRights->Name_, *fon9_kCSTR_ROWSPL);
+      }
+      if (auto agIvList = authr.AuthMgr_->Agents_->Get<OmsPoIvListAgent>(fon9_kCSTR_OmsPoIvListAgent_Name)) {
+         agIvList->GetPolicy(authr, this->PolicyConfig_.IvList_);
+         fon9::RevPrint(rbuf, *fon9_kCSTR_ROWSPL);
+         agIvList->MakeGridView(rbuf, this->PolicyConfig_.IvList_);
+         fon9::RevPrint(rbuf, fon9_kCSTR_LEAD_TABLE, agIvList->Name_, *fon9_kCSTR_ROWSPL);
+      }
+      this->PolicyConfig_.TablesGridView_ = fon9::BufferTo<std::string>(rbuf.MoveOut());
    }
 }
 OmsRcServerNote::~OmsRcServerNote() {
 }
 void OmsRcServerNote::SendConfig(ApiSession& ses) {
    fon9::RevBufferList rbuf{256};
-   // TODO: 其他參數: 可用櫃號、可用帳號、流量參數、重複登入時間及來源、上次連線時間及來源...
+   // TODO: 其他資料: 重複登入時間及來源、上次連線時間及來源...
+   fon9::ToBitv(rbuf, this->PolicyConfig_.TablesGridView_);
    fon9::ToBitv(rbuf, this->ApiSesCfg_->ApiSesCfgStr_);
    fon9::IntToBitv(rbuf, fon9::LocalHostId_);
    OmsCore* core = this->Handler_->Core_.get();
@@ -53,7 +64,7 @@ void OmsRcServerNote::SendConfig(ApiSession& ses) {
 void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCore* core) {
    if (this->Handler_)
       this->Handler_->ClearResource();
-   PolicyRunner   runner{new Handler(ses.GetDevice(), this->PolicyCfg_, core)};
+   PolicyRunner   runner{new Handler(ses.GetDevice(), this->PolicyConfig_, core)};
    this->Handler_ = runner;
    if (core)
       core->RunCoreTask(runner);

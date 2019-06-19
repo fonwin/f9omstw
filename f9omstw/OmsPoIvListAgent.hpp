@@ -70,6 +70,7 @@ public:
 
    using PolicyConfig = OmsIvList;
    bool GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res);
+   void MakeGridView(fon9::RevBuffer& rbuf, const PolicyConfig& ivList);
 };
 
 } // namespaces

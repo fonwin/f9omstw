@@ -37,6 +37,7 @@ public:
    using PolicyConfig = OmsUserRights;
    /// 如果 teamGroupName!=nullptr, 則會填入 "PoUsr." + PolicyId;
    bool GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res, fon9::CharVector* teamGroupName);
+   void MakeGridView(fon9::RevBuffer& rbuf, const PolicyConfig& val);
 };
 
 } // namespaces

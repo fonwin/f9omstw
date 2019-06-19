@@ -95,5 +95,16 @@ bool OmsPoUserRightsAgent::GetPolicy(const fon9::auth::AuthResult& authr, Policy
    }
    return true;
 }
+void OmsPoUserRightsAgent::MakeGridView(fon9::RevBuffer& rbuf, const PolicyConfig& val) {
+   OmsPoUserRightsPolicy pol{fon9::StrView{}};
+   *static_cast<PolicyConfig*>(&pol) = val;
+   using namespace fon9::seed;
+   auto* gvLayout = this->Sapling_->LayoutSP_.get();
+   auto* gvTab = gvLayout->GetTab(0);
+   FieldsCellRevPrint(gvTab->Fields_, SimpleRawRd{pol}, rbuf, GridViewResult::kCellSplitter);
+   // 沒有 key field, 所以把最前方的「cell 分隔字元」, 改成「row 分隔字元」
+   *const_cast<char*>(rbuf.GetCurrent()) = GridViewResult::kRowSplitter;
+   FieldsNameRevPrint(nullptr, *gvTab, rbuf);
+}
 
 } // namespaces

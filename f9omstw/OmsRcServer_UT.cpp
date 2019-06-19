@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
       new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
       new OmsRequestTwsFilledFactory("TwsFilled", nullptr)
    ));
-   std::string fnDefault = "OmsRcServer.log";
+   const std::string fnDefault = "OmsRcServer.log";
    core->OpenReload(argc, argv, fnDefault);
    std::this_thread::sleep_for(std::chrono::milliseconds{100});
    //---------------------------------------------
@@ -148,14 +148,32 @@ int main(int argc, char* argv[]) {
    //---------------------------------------------
    // 測試 TDayChanged.
    unsigned forceTDay = 0;
-   do {
+   auto fnMakeCore = [&core, coreMgr, &forceTDay, &argc, argv, &fnDefault]() {
       core.reset(new TestCore(argc, argv, fon9::RevPrintTo<std::string>("ut_", ++forceTDay), coreMgr));
       core->OpenReload(argc, argv, fnDefault, forceTDay);
       coreMgr->Add(&core->GetResource());
-   } while (forceTDay < 5);
+   };
+   fnMakeCore();
+   fnMakeCore();
+   //測試在 TDayChanged event 時, 再次設定新的 core;
+   #define kLastForceTDay  5
+   fon9::SubConn subrTDay;
+   coreMgr->TDayChangedEvent_.Subscribe(&subrTDay, [&fnMakeCore, &forceTDay](f9omstw::OmsCore&) {
+      if (forceTDay < kLastForceTDay)
+         fnMakeCore();
+   });
+   fnMakeCore();
+   coreMgr->TDayChangedEvent_.Unsubscribe(&subrTDay);
+   fon9::TimeStamp lastTDay = fon9::TimeStampResetHHMMSS(param.RecvTime_) + fon9::TimeInterval_Second(forceTDay);
+   if (coreMgr->CurrentCore()->TDay() != lastTDay || kLastForceTDay != forceTDay) {
+      std::cout << "Last CurrentCore.TDay not match|forceTDay=" << forceTDay
+         << "|lastTDay=" << (lastTDay - fon9::TimeStampResetHHMMSS(param.RecvTime_)).GetIntPart()
+         << std::endl;
+      abort();
+   }
    // 測試 TDayConfirm.
    rbuf.Rewind();
-   fon9::ToBitv(rbuf, fon9::TimeStampResetHHMMSS(param.RecvTime_) + fon9::TimeInterval_Second(forceTDay));
+   fon9::ToBitv(rbuf, lastTDay);
    fon9::ToBitv(rbuf, f9omstw::OmsRcOpKind::TDayConfirm);
    fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
    dcq.Reset(rbuf);

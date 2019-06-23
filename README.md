@@ -24,7 +24,6 @@ libf9omstw: 台灣環境的委託管理系統.
       * 建立回報內容 OmsRequestXXX; 然後開始更新 OrderRaw;
   * OmsBackend
     * 各類事件(開收盤、斷線...)通知.
-    * 提供 Client 訂閱及回補: OmsReportSubscriber / OmsReportRecover
 * 一些特殊狀況的思考:
   * 收到的回報順序問題:
     * 沒有新單資料, 先收到其他回報(刪、改、成交)。
@@ -98,8 +97,14 @@ libf9omstw: 台灣環境的委託管理系統.
     * OmsOrderRaw: Order 異動
     * OmsCoreEvent: 各類與 OmsCore 有關的事件
   * 回報訂閱
-    * 增加訂閱、取消訂閱
+    * 只會在 Backend thread 裡面通知.
     * 回補回報
+      * using RxRecover = std::function<OmsRxSNO(OmsCore&, const OmsRxItem* item)>;
+      * ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer);
+      * 可在收到回補結束訊息時訂閱 ReportSubject.
+    * 增加訂閱、取消訂閱
+      * ReportSubject_.Subscribe()、ReportSubject_.Unubscribe()
+      * core.ReportSubject().Subscribe()、core.ReportSubject().Unubscribe()
 * RxSNO
   * 每個 OMS 自行獨立編號(各編各的號, 也就是OmsA.RxSNO=1, 與OmsB.RxSNO=1, 可能是不同的 OmsRxItem).
   * 從 1 開始, 依序編號.

@@ -282,7 +282,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
             break;
       } // for() read block.
 
-      this->LastSNO_ = loader.LastSNO_;
+      this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
    }
    fon9::RevBufferList rbuf{128};
    loader.MakeLayout(rbuf, resource.Core_.Owner_->RequestFactoryPark());

@@ -161,6 +161,7 @@ struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
       if (runner.OrderRaw_.Request_->RxKind() == f9fmkt_RxKind_RequestNew)
          runner.OrderRaw_.OrderSt_ = f9fmkt_OrderSt_NewSending;
       runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
+      runner.OrderRaw_.Message_.assign("Sending by 8610T1");
       // TODO: Test 送單狀態, 1 ms 之後 Accepted.
    }
 };
@@ -208,7 +209,8 @@ struct TestCore : public f9omstw::OmsCore {
    }
 
    ~TestCore() {
-      std::cout << "LastSNO = " << this->Backend_.LastSNO() << std::endl;
+      this->Backend_WaitForEndNow();
+      this->Brks_->InThr_OnParentSeedClear();
       if (this->IsWaitQuit_) {
          // 要查看資源用量(時間、記憶體...), 可透過 `/usr/bin/time` 指令:
          //    /usr/bin/time --verbose ~/devel/output/f9omstw/release/f9omstw/OmsReqOrd_UT
@@ -218,8 +220,12 @@ struct TestCore : public f9omstw::OmsCore {
          std::cout << "Press <Enter> to quit.";
          getchar();
       }
+   }
+   void Backend_WaitForEndNow() {
+      auto lastSNO = this->Backend_.LastSNO();
       this->Backend_.WaitForEndNow();
-      this->Brks_->InThr_OnParentSeedClear();
+      if (lastSNO > 0)
+         std::cout << this->Name_ << ".LastSNO = " << lastSNO << std::endl;
    }
 
    void OpenReload(int argc, char* argv[], std::string fnDefault, uint32_t forceTDay = 0) {
@@ -231,7 +237,7 @@ struct TestCore : public f9omstw::OmsCore {
             fnDefault.resize(fnDefault.size() - 4);
          fnDefault += fon9::RevPrintTo<std::string>('.', forceTDay, ".log");
       }
-      StartResult res = this->Start(fon9::UtcNow(), fnDefault, forceTDay);
+      StartResult res = this->Start(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset(), fnDefault, forceTDay);
       if (res.IsError())
          std::cout << "OmsCore.Reload error:" << fon9::RevPrintTo<std::string>(res) << std::endl;
    }
@@ -245,6 +251,7 @@ struct TestCore : public f9omstw::OmsCore {
    }
    bool MoveToCoreImpl(f9omstw::OmsRequestRunner&& runner) override {
       // TestCore: 使用 單一 thread, 無 locker, 所以直接呼叫
+      this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
       this->RunInCore(std::move(runner));
       return true;
    }

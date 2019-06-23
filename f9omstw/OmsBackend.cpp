@@ -43,11 +43,24 @@ void OmsBackend::ThrRun(std::string thrName) {
       QuItems  quItems;
       quItems.reserve(kReserveQuItems);
 
+      OmsCore& core = fon9::ContainerOf(*this, &OmsResource::Backend_).Core_;
+      size_t   recoverIndex = 0;
       Locker   items{this->Items_};
       while (this->Items_.GetState(items) == fon9::ThreadState::ExecutingOrWaiting) {
-         this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
-         if (items->QuItems_.empty())
+         if (items->QuItems_.empty() && !items->IsNotified_) {
+            switch (this->CheckRecoverHandler(items, recoverIndex)) {
+            case RecoverResult::Empty:
+               this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
+               break;
+            case RecoverResult::Erase:
+               items->Recovers_.erase(items->Recovers_.begin() + fon9::signed_cast(recoverIndex));
+               break;
+            case RecoverResult::Continue:
+               break;
+            }
+            assert(items.owns_lock());
             continue;
+         }
          auto cursz = items->RxHistory_.size();
          if (cursz < this->LastSNO_ + this->kReserveExpand)
             items->RxHistory_.resize(cursz + kReserveExpand * 2);
@@ -57,7 +70,14 @@ void OmsBackend::ThrRun(std::string thrName) {
          // ------------
          // quItems: 寫檔、回報...
          this->SaveQuItems(quItems);
-         if (0);// TODO: Report to client.
+         // Report.
+         for (QuItem& qi : quItems) {
+            if (qi.Item_) {
+               assert(qi.Item_->RxSNO() == this->PublishedSNO_ + 1);
+               this->PublishedSNO_ = qi.Item_->RxSNO();
+               this->ReportSubject_.Publish(core, *qi.Item_);
+            }
+         }
          quItems.clear();
          // ------------
          items.lock();
@@ -65,6 +85,59 @@ void OmsBackend::ThrRun(std::string thrName) {
       this->Items_.OnBeforeThreadEnd(items);
    }
    fon9_LOG_ThrRun("OmsBackend.ThrRun.End|name=", thrName);
+}
+OmsBackend::RecoverResult OmsBackend::CheckRecoverHandler(Items::Locker& items, size_t& recoverIndex) {
+   const unsigned kMaxRecoverCount = 100; // 每次每個 RecoverHandler 最多回補 100 筆.
+   if (items->Recovers_.empty())
+      return RecoverResult::Empty;
+   recoverIndex = (recoverIndex % items->Recovers_.size());
+   auto*             handler = &items->Recovers_[recoverIndex];
+   OmsRxSNO          nextSNO = handler->NextSNO_;
+   RxRecover         consumer = std::move(handler->Consumer_);
+   const OmsRxItem*  rxHistory[kMaxRecoverCount];
+   OmsRxSNO          count = (this->PublishedSNO_ - nextSNO) + 1;
+   if (count > kMaxRecoverCount)
+      count = kMaxRecoverCount;
+   auto iHistory = items->RxHistory_.begin() + fon9::signed_cast(nextSNO);
+   std::copy(iHistory, iHistory + fon9::signed_cast(count), rxHistory);
+   items.unlock();
+
+   OmsCore& core = fon9::ContainerOf(*this, &OmsResource::Backend_).Core_;
+   for (size_t L = 0; L < count;) {
+      if (nextSNO > this->PublishedSNO_)
+         break;
+      const OmsRxItem* item = rxHistory[L];
+      if (item == nullptr) {
+         ++L;
+         ++nextSNO;
+         continue;
+      }
+      if ((nextSNO = consumer(core, item)) > item->RxSNO()) {
+         L += (nextSNO - item->RxSNO());
+         continue;
+      }
+      if (nextSNO != 0)
+         break;
+      items.lock();
+      return RecoverResult::Erase;
+   }
+   // 有 items.unlock(), 可能 items->Recovers_ 會被改變, 所以先前的 handler 可能已經失效.
+   items.lock();
+   if (nextSNO > this->PublishedSNO_) { // 回補完畢.
+      consumer(core, nullptr);
+      return RecoverResult::Erase;
+   }
+   handler = &items->Recovers_[recoverIndex++];
+   handler->Consumer_ = std::move(consumer);
+   handler->NextSNO_ = nextSNO;
+   return RecoverResult::Continue;
+}
+void OmsBackend::ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer) {
+   Items::Locker  items{this->Items_};
+   bool           needNotify = items->Recovers_.empty();
+   items->Recovers_.emplace_back(fromSNO, std::move(consumer));
+   if (needNotify)
+      this->Items_.NotifyAll(items);
 }
 
 //--------------------------------------------------------------------------//
@@ -89,15 +162,18 @@ void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
    Items::Locker{this->Items_}->Append(item, std::move(rbuf));
 }
 void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
+   // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
    assert(runner.Resource_.Core_.IsThisThread());
    assert(runner.OrderRaw_.Order_->Last() == &runner.OrderRaw_);
 
-   const bool isNeedsReqAppend = (runner.OrderRaw_.Request_->LastUpdated_ == nullptr);
+   // 如果 isNeedsReqAppend == true: req 進入 core, 首次與 order 連結之後的異動.
+   const bool  isNeedsReqAppend = (runner.OrderRaw_.Request_->LastUpdated_ == nullptr);
+   // req 有可能因為需要編製 RequestId 而先呼叫了 FetchSNO(),
+   // 等流程告一段落時才會來到這裡, 所以此時 req 的 SNO 必定等於 LastSNO_;
    assert(!isNeedsReqAppend || runner.OrderRaw_.Request_->RxSNO() == this->LastSNO_);
-
    assert(runner.OrderRaw_.RxSNO() == 0);
-   runner.OrderRaw_.SetRxSNO(++this->LastSNO_);
 
+   runner.OrderRaw_.SetRxSNO(++this->LastSNO_);
    runner.OrderRaw_.Request_->LastUpdated_ = &runner.OrderRaw_;
    runner.OrderRaw_.UpdateTime_ = fon9::UtcNow();
 

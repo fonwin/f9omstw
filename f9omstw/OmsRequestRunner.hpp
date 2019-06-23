@@ -15,7 +15,7 @@ public:
    OmsRequestTradeSP    Request_;
    fon9::RevBufferList  ExLog_;
 
-   OmsRequestRunner() : ExLog_{128} {
+   OmsRequestRunner() : ExLog_{256} {
    }
    OmsRequestRunner(fon9::StrView exlog) : ExLog_{static_cast<fon9::BufferNodeSize>(exlog.size() + 128)} {
       fon9::RevPrint(this->ExLog_, exlog, '\n');

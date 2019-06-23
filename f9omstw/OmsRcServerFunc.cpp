@@ -1,9 +1,11 @@
 ﻿// \file f9omstw/OmsRcServerFunc.cpp
 // \author fonwinz@gmail.com
+#include "f9omstw/OmsRc.h"
 #include "f9omstw/OmsRcServerFunc.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "f9omstw/OmsPoIvListAgent.hpp"
 #include "f9omstw/OmsPoUserRightsAgent.hpp"
+#include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/rc/RcFuncConn.hpp"
 #include "fon9/io/Device.hpp"
 
@@ -52,13 +54,15 @@ OmsRcServerNote::~OmsRcServerNote() {
 }
 void OmsRcServerNote::SendConfig(ApiSession& ses) {
    fon9::RevBufferList rbuf{256};
-   // TODO: 其他資料: 重複登入時間及來源、上次連線時間及來源...
+   // TODO: 其他資料: 重複登入時間及來源(即時通知?)、上次連線時間及來源...
    fon9::ToBitv(rbuf, this->PolicyConfig_.TablesGridView_);
    fon9::ToBitv(rbuf, this->ApiSesCfg_->ApiSesCfgStr_);
    fon9::IntToBitv(rbuf, fon9::LocalHostId_);
    OmsCore* core = this->Handler_->Core_.get();
-   fon9::ToBitv(rbuf, core ? core->TDay() : fon9::TimeStamp::Null());
    fon9::ToBitv(rbuf, core ? core->SeedPath_ : std::string{});
+   fon9::ToBitv(rbuf, core ? core->TDay() : fon9::TimeStamp::Null());
+   fon9::ToBitv(rbuf, f9_OmsRcOpKind_Config);
+   fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
    ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
 }
 void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCore* core) {
@@ -86,7 +90,8 @@ void OmsRcServerNote::OnRecvStartApi(ApiSession& ses) {
       //   重新透過新的 OmsCore 取得 Policy, 然後再告知 client 成功切換 CurrentCore.
       fon9::RevBufferList rbuf{128};
       fon9::ToBitv(rbuf, core.TDay());
-      fon9::ToBitv(rbuf, OmsRcOpKind::TDayChanged);
+      fon9::ToBitv(rbuf, f9_OmsRcOpKind_TDayChanged);
+      fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
       static_cast<ApiSession*>(pdev->Session_.get())->Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
    });
    this->StartPolicyRunner(ses, this->ApiSesCfg_->CoreMgr_->CurrentCore().get());
@@ -104,34 +109,79 @@ void OmsRcServerNote::OnRecvTDayConfirm(ApiSession& ses, fon9::rc::RcFunctionPar
    }
 }
 void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
-   OmsRcOpKind opkind{};
+   f9_OmsRcOpKind opkind{};
    fon9::BitvTo(param.RecvBuffer_, opkind);
    switch (opkind) {
-   case OmsRcOpKind::Config:
+   case f9_OmsRcOpKind_Config:
       this->OnRecvStartApi(ses);
       break;
-   case OmsRcOpKind::TDayConfirm:
+   case f9_OmsRcOpKind_TDayConfirm:
       this->OnRecvTDayConfirm(ses, param);
       break;
-   case OmsRcOpKind::ReportRecover:
-   case OmsRcOpKind::ReportSubscribe:
+   case f9_OmsRcOpKind_ReportRecover:
+   case f9_OmsRcOpKind_ReportSubscribe:
       if (0);// ReportRecover/ReportSubscribe;
       return;
    default:
-      if (0);// Unknown qkind: throw exception?
+      ses.ForceLogout("OmsRcServer:Unknown OmsRcOpKind");
       return;
    }
 }
 void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
-   uint32_t reqTableId{};
+   unsigned reqTableId{};
    fon9::BitvTo(param.RecvBuffer_, reqTableId);
    if (fon9_UNLIKELY(reqTableId == 0))
       return this->OnRecvOmsOp(ses, param);
    if (fon9_UNLIKELY(reqTableId > this->ApiSesCfg_->ApiReqCfgs_.size())) {
-      if (0);// Unknown reqTableId: throw exception?
+      ses.ForceLogout("OmsRcServer:Unknown ReqTableId");
+      return;
    }
    const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId - 1];
-   // TODO: Request: OmsRequestTrade.
+
+   if (fon9_UNLIKELY(this->Handler_.get() == nullptr)) {
+      ses.ForceLogout("OmsRcServer:Api not ready.");
+      return;
+   }
+   size_t   byteCount;
+   if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
+      fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
+   if (byteCount <= 0)
+      return;
+   OmsRequestRunner  runner;
+   fon9::RevPrint(runner.ExLog_, '\n');
+   char* const pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
+   runner.ExLog_.SetPrefixUsed(pout);
+   param.RecvBuffer_.Read(pout, byteCount);
+
+   runner.Request_ = static_cast<OmsRequestTrade*>(cfg.Factory_->MakeRequest(param.RecvTime_).get());
+   runner.Request_->SetPolicy(this->Handler_);
+
+   fon9::StrView  reqstr{pout, byteCount};
+   ApiReqFieldArg arg{*runner.Request_.get(), ses};
+   for (const auto& fldcfg : cfg.ApiFields_) {
+      arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
+      if (fldcfg.Field_)
+         fldcfg.Field_->StrToCell(arg, arg.ClientFieldValue_);
+      if (fldcfg.FnPut_)
+         (*fldcfg.FnPut_)(fldcfg, arg);
+   }
+   arg.ClientFieldValue_.Reset(nullptr);
+   for (const auto& fldcfg : cfg.SysFields_) {
+      if (fldcfg.FnPut_)
+         (*fldcfg.FnPut_)(fldcfg, arg);
+   }
+   if (!this->Handler_->Core_->MoveToCore(std::move(runner))) {
+      runner.ExLog_.RemoveBackData(1); // 移除尾端的 '\n'
+      fon9::ByteArraySizeToBitvT(runner.ExLog_, fon9::CalcDataSize(runner.ExLog_.cfront()));
+      if (const std::string* errmsg = runner.Request_->AbandonReason())
+         fon9::ToBitv(runner.ExLog_, *errmsg);
+      else
+         fon9::RevPutBitv(runner.ExLog_, fon9_BitvV_ByteArrayEmpty);
+      fon9::ToBitv(runner.ExLog_, runner.Request_->AbandonErrCode());
+      fon9::ToBitv(runner.ExLog_, reqTableId);
+      fon9::RevPutBitv(runner.ExLog_, fon9_BitvV_NumberNull);
+      ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(runner.ExLog_));
+   }
 }
 //--------------------------------------------------------------------------//
 void OmsRcServerNote::Handler::ClearResource() {

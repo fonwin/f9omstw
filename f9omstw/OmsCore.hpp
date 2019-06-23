@@ -83,11 +83,14 @@ public:
 
    bool IsThisThread() const;
 
-   using OmsResource::TDay;
-
    OmsCoreSt CoreSt() const {
       return this->CoreSt_;
    }
+
+   using OmsResource::TDay;
+   using OmsResource::ReportRecover;
+   using OmsResource::ReportSubject;
+   using OmsResource::LogAppend;
 
    inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
       intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));

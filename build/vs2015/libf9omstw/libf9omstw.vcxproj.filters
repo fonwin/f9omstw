@@ -39,11 +39,11 @@
     <Filter Include="Source Files\_tws">
       <UniqueIdentifier>{389c6ccf-bc9f-4263-8637-a72e4c8489d2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\_RcServer">
-      <UniqueIdentifier>{7cf189dc-aa63-435b-8a5b-63969a503c9d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\_RcServer">
+    <Filter Include="Header Files\_Rc_OmsApi">
       <UniqueIdentifier>{cf59629c-f126-4089-bdf0-15617495f67f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_Rc_OmsApi">
+      <UniqueIdentifier>{7cf189dc-aa63-435b-8a5b-63969a503c9d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -153,13 +153,19 @@
       <Filter>Header Files\_request_order</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRcServer.hpp">
-      <Filter>Header Files\_RcServer</Filter>
+      <Filter>Header Files\_Rc_OmsApi</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRcServerFunc.hpp">
-      <Filter>Header Files\_RcServer</Filter>
+      <Filter>Header Files\_Rc_OmsApi</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp">
       <Filter>Header Files\_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRcClient.hpp">
+      <Filter>Header Files\_Rc_OmsApi</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsRc.h">
+      <Filter>Header Files\_Rc_OmsApi</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -260,13 +266,16 @@
       <Filter>Source Files\_request_order</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcServer.cpp">
-      <Filter>Source Files\_RcServer</Filter>
+      <Filter>Source Files\_Rc_OmsApi</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcServerFunc.cpp">
-      <Filter>Source Files\_RcServer</Filter>
+      <Filter>Source Files\_Rc_OmsApi</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp">
       <Filter>Source Files\_policy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRcClient.cpp">
+      <Filter>Source Files\_Rc_OmsApi</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

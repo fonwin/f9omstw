@@ -94,6 +94,8 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRc.h" />
+    <ClInclude Include="..\..\..\f9omstw\OmsRcClient.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRcServer.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRcServerFunc.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp" />
@@ -132,6 +134,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsPoIvListAgent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRcClient.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRcServer.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRcServerFunc.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp" />

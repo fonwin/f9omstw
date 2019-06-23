@@ -6,29 +6,6 @@
 
 namespace f9omstw {
 
-/// 在 server 回覆 Config 時, 提供 table 資料時,
-/// 行的第1個字元, 如果是 *fon9_kCSTR_LEAD_TABLE, 則表示一個 table 的開始.
-/// ```
-/// fon9_kCSTR_LEAD_TABLE + TableNamed\n
-/// FieldNames\n
-/// FieldValues\n    可能有 0..n 行
-/// ```
-#define fon9_kCSTR_LEAD_TABLE    "\x02"
-
-enum class OmsRcOpKind : uint8_t {
-   Config,
-
-   /// C <- S.
-   /// 如果 server 正在建立新的 OmsCore, 則 Client 可能先收到 TDayChanged 然後才收到 Config.
-   /// 此時 client 應先將 TDay 保留, 等收到 Config 時, 如果 TDay 不一致, 則送出 TDayConfirm;
-   TDayChanged = 1,
-   /// C -> S.
-   TDayConfirm = 1,
-
-   ReportRecover,
-   ReportSubscribe,
-};
-
 class OmsRcServerAgent : public fon9::rc::RcFunctionAgent {
    fon9_NON_COPY_NON_MOVE(OmsRcServerAgent);
    using base = fon9::rc::RcFunctionAgent;

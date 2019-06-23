@@ -17,6 +17,8 @@ class ApiReqFieldArg : public fon9::seed::SimpleRawWr {
 public:
    OmsRequestTrade&  Request_;
    ApiSession&       ApiSession_;
+   fon9::StrView     ClientFieldValue_;
+
    ApiReqFieldArg(OmsRequestTrade& req, ApiSession& ses)
       : base{req}
       , Request_(req)
@@ -104,8 +106,11 @@ struct ApiSesCfg : public fon9::intrusive_ref_counter<ApiSesCfg> {
    /// Request map, index = Client 端填入的 form id.
    ApiReqCfgs  ApiReqCfgs_;
 
-   /// Report(Order) map: 回報給 API 的格式.
-   // 可考慮在此訂閱 OmsCore 事件, 收到事件後編製回報訊息, 然後再通知 ApiSession;
+   /// 回報給 API 的格式.
+
+   /// 收到 OmsCore 的即時回報後, 編製的回報訊息.
+   std::string       ReportMessage_;
+   const OmsRxItem*  ReportMessageFor_{nullptr};
 };
 using ApiSesCfgSP = fon9::intrusive_ptr<const ApiSesCfg>;
 fon9_WARN_POP;

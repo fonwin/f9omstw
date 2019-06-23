@@ -6,12 +6,21 @@
 #include "fon9/buffer/RevBufferList.hpp"
 #include "fon9/ThreadController.hpp"
 #include "fon9/File.hpp"
+#include "fon9/Subr.hpp"
 #include <deque>
 #include <vector>
 
 namespace f9omstw {
 
 using RxHistory = std::deque<const OmsRxItem*>;
+using RxConsumer = std::function<void(OmsCore&, const OmsRxItem&)>;
+using ReportSubject = fon9::Subject<RxConsumer>;
+
+/// - item == nullptr 表示已回補完畢, 此時不理會返回值, 若有需要即時回報可在此時訂閱 ReportSubject.
+/// - 返回下一個要回補的序號, 一般而言返回 item->RxSNO() + 1;
+/// - 返回 0 表示停止回補, 不會再有回補訊息.
+/// - 返回 <= item->RxSNO() 表示暫時停止, 等下一個回補週期.
+using RxRecover = std::function<OmsRxSNO(OmsCore&, const OmsRxItem* item)>;
 
 /// - OmsCore 發生的「各類要求、委託異動、事件...」依序記錄(保留)在此.
 /// - Append 之後的 OmsRxItem 就不應再有變動, 因為可能已寫入記錄檔.
@@ -33,11 +42,23 @@ class OmsBackend {
    };
    using QuItems = std::vector<QuItem>;
 
+   struct RecoverHandler {
+      OmsRxSNO    NextSNO_;
+      RxRecover   Consumer_;
+      RecoverHandler(OmsRxSNO from, RxRecover&& consumer)
+         : NextSNO_{from}
+         , Consumer_{std::move(consumer)} {
+      }
+   };
+   using Recovers = std::vector<RecoverHandler>;
+
    fon9_WARN_DISABLE_PADDING;
    struct ItemsImpl {
       RxHistory   RxHistory_;
       QuItems     QuItems_;
+      Recovers    Recovers_;
       bool        IsNotified_{false};
+
       ItemsImpl(RxHistory&& rhs) : RxHistory_{std::move(rhs)} {
          this->QuItems_.reserve(kReserveQuItems);
       }
@@ -58,15 +79,26 @@ class OmsBackend {
    using Items = fon9::ThreadController<ItemsImpl, fon9::WaitPolicy_CV>;
    std::thread          Thread_;
    Items                Items_;
-   OmsRxSNO             LastSNO_;
+   OmsRxSNO             LastSNO_{0};
+   OmsRxSNO             PublishedSNO_{0};
    fon9::File           RecorderFd_;
    fon9::TimeInterval   FlushInterval_;
+
+   enum class RecoverResult {
+      Empty,
+      Erase,
+      Continue,
+   };
+   RecoverResult CheckRecoverHandler(Items::Locker& items, size_t& recoverIndex);
 
    void ThrRun(std::string thrName);
    void SaveQuItems(QuItems& quItems);
    struct Loader;
 
 public:
+   /// 回報會在 Backend thread 寫入完畢後通知.
+   ReportSubject  ReportSubject_;
+
    using Locker = Items::Locker;
 
    enum : size_t {
@@ -83,8 +115,7 @@ public:
    };
 
    OmsBackend(size_t reserveSize = kReserveWhenCtor)
-      : Items_{reserveSize}
-      , LastSNO_{0} {
+      : Items_{reserveSize} {
    }
    ~OmsBackend();
 
@@ -110,6 +141,13 @@ public:
    /// - 返回前會呼叫 item.OnRxItem_AddRef(); 並在 this 解構時呼叫 item.OnRxItem_Release();
    /// - 在呼叫 Append() 之後就不應再變動 item 的內容.
    void Append(OmsRxItem& item, fon9::RevBufferList&& rbuf);
+
+   /// 將自訂內容寫入 log.
+   void LogAppend(fon9::RevBufferList&& rbuf) {
+      Items::Locker{this->Items_}->QuItems_.emplace_back(nullptr, std::move(rbuf));
+   }
+
+   void ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer);
 
 private:
    friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 OnAfterOrderUpdated();

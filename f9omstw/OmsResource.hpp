@@ -43,8 +43,22 @@ public:
          return static_cast<const OmsRequestBase*>(item->CastToRequest());
       return nullptr;
    }
+
    fon9::TimeStamp TDay() const {
       return this->TDay_;
+   }
+
+   /// 一旦要求回補, 如果想要取消, 就只能透過 consumer 返回 0 來取消.
+   /// 否則就會回補到最後一筆為止.
+   /// 回補結束時, 可透過 ReportSubject().Subscribe() 來訂閱即時回報.
+   void ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer) {
+      return this->Backend_.ReportRecover(fromSNO, std::move(consumer));
+   }
+   f9omstw::ReportSubject& ReportSubject() {
+      return this->Backend_.ReportSubject_;
+   }
+   void LogAppend(fon9::RevBufferList&& rbuf) {
+      this->Backend_.LogAppend(std::move(rbuf));
    }
 
 protected:

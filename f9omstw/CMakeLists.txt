@@ -27,6 +27,7 @@ set(f9omstw_src
  OmsRequestRunner.cpp
  OmsOrder.cpp
  OmsOrderFactory.cpp
+ OmsEventFactory.cpp
 
  OmsRequestPolicy.cpp
  OmsPoIvList.cpp

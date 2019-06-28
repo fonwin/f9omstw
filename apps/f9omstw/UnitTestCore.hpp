@@ -140,6 +140,10 @@ struct UomsTwsIniRiskCheck : public f9omstw::OmsRequestRunStep {
    using base::base;
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       // TODO: 風控檢查.
+      assert(dynamic_cast<const f9omstw::OmsRequestTwsIni*>(runner.OrderRaw_.Order_->Initiator_) != nullptr);
+      const auto* inidat = static_cast<const f9omstw::OmsRequestTwsIni*>(runner.OrderRaw_.Order_->Initiator_);
+      if (static_cast<f9omstw::OmsOrderTwsRaw*>(&runner.OrderRaw_)->OType_ == f9omstw::TwsOType{})
+         static_cast<f9omstw::OmsOrderTwsRaw*>(&runner.OrderRaw_)->OType_ = inidat->OType_;
       // 風控成功, 執行下一步驟.
       this->ToNextStep(std::move(runner));
    }
@@ -187,6 +191,8 @@ struct TestCore : public f9omstw::OmsCore {
       if (owner.get() == nullptr) {
          this->Owner_->SetOrderFactoryPark(new f9omstw::OmsOrderFactoryPark(
             new OmsOrderTwsFactory
+         ));
+         this->Owner_->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark(
          ));
          gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
          std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;

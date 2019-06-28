@@ -27,14 +27,8 @@
     <Filter Include="Source Files\_policy">
       <UniqueIdentifier>{26e995f4-0e8f-426a-a2c1-89e149ec7990}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\_request_order">
-      <UniqueIdentifier>{ea691485-f57d-419c-9b48-a243d729ff11}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\_tws">
       <UniqueIdentifier>{9c46fbd3-8345-44a5-94fc-b5fc16567650}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\_request_order">
-      <UniqueIdentifier>{f3685643-ae1e-4f22-87f3-3b8c1cf04246}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\_tws">
       <UniqueIdentifier>{389c6ccf-bc9f-4263-8637-a72e4c8489d2}</UniqueIdentifier>
@@ -44,6 +38,12 @@
     </Filter>
     <Filter Include="Source Files\_Rc_OmsApi">
       <UniqueIdentifier>{7cf189dc-aa63-435b-8a5b-63969a503c9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_request_order_event">
+      <UniqueIdentifier>{ea691485-f57d-419c-9b48-a243d729ff11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_request_order_event">
+      <UniqueIdentifier>{f3685643-ae1e-4f22-87f3-3b8c1cf04246}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -72,7 +72,7 @@
       <Filter>Header Files\_sc_tables %28trees%29</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsOrder.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp">
       <Filter>Header Files\_sc_tables %28trees%29</Filter>
@@ -93,7 +93,7 @@
       <Filter>Header Files\_core</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp">
       <Filter>Header Files\_core</Filter>
@@ -114,10 +114,10 @@
       <Filter>Header Files\_core</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestId.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsBackend.hpp">
       <Filter>Header Files\_core</Filter>
@@ -132,7 +132,7 @@
       <Filter>Header Files\_core</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestBase.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsOrderTws.hpp">
       <Filter>Header Files\_tws</Filter>
@@ -141,16 +141,16 @@
       <Filter>Header Files\_tws</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFilled.hpp">
-      <Filter>Header Files\_request_order</Filter>
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRcServer.hpp">
       <Filter>Header Files\_Rc_OmsApi</Filter>
@@ -166,6 +166,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRc.h">
       <Filter>Header Files\_Rc_OmsApi</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsEventFactory.hpp">
+      <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -191,7 +194,7 @@
       <Filter>Source Files\_sc_tables %28trees%29</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp">
       <Filter>Source Files\_core</Filter>
@@ -209,7 +212,7 @@
       <Filter>Source Files\_sc_tables %28trees%29</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp">
       <Filter>Source Files\_core</Filter>
@@ -227,10 +230,10 @@
       <Filter>Source Files\_policy</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestId.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsBackend.cpp">
       <Filter>Source Files\_core</Filter>
@@ -245,7 +248,7 @@
       <Filter>Source Files\_core</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestBase.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsOrderTws.cpp">
       <Filter>Source Files\_tws</Filter>
@@ -254,16 +257,16 @@
       <Filter>Source Files\_tws</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsOrderFactory.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp">
       <Filter>Source Files\_core</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFilled.cpp">
-      <Filter>Source Files\_request_order</Filter>
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcServer.cpp">
       <Filter>Source Files\_Rc_OmsApi</Filter>
@@ -276,6 +279,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcClient.cpp">
       <Filter>Source Files\_Rc_OmsApi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp">
+      <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

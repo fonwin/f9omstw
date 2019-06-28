@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsRcServerFunc_hpp__
 #define __f9omstw_OmsRcServerFunc_hpp__
 #include "f9omstw/OmsRcServer.hpp"
+#include "f9omstw/OmsRc.h"
 
 namespace f9omstw {
 
@@ -23,20 +24,34 @@ public:
    // void OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) override;
 };
 
+fon9_WARN_DISABLE_PADDING;
 class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    fon9_NON_COPY_NON_MOVE(OmsRcServerNote);
    friend class OmsRcServerAgent;
 
-   struct Handler : public OmsRequestPolicy, public OmsRequestPolicyCfg {
+   struct Handler : public fon9::intrusive_ref_counter<Handler>, public OmsRequestPolicyCfg {
       fon9_NON_COPY_NON_MOVE(Handler);
+      OmsRequestPolicySP         RequestPolicy_;
       const fon9::io::DeviceSP   Device_;
       const OmsCoreSP            Core_;
-      Handler(fon9::io::DeviceSP dev, const OmsRequestPolicyCfg& cfg, OmsCoreSP core)
+      const ApiSesCfgSP          ApiSesCfg_;
+      Handler(fon9::io::DeviceSP dev, const OmsRequestPolicyCfg& cfg, OmsCoreSP core, ApiSesCfgSP apicfg)
          : OmsRequestPolicyCfg(cfg)
          , Device_{std::move(dev)}
-         , Core_{std::move(core)} {
+         , Core_{std::move(core)}
+         , ApiSesCfg_{std::move(apicfg)} {
       }
       void ClearResource();
+      void StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter);
+   private:
+      f9OmsRc_RptFilter RptFilter_;
+      bool              IsReporting_{false};
+      bool              IsDisposing_{false};
+      fon9::SubConn     RptSubr_{};
+      OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);
+      void OnReport(OmsCore&, const OmsRxItem& item);
+      void SendReport(const OmsRxItem& item);
+      ApiSession* IsNeedReport(const OmsRxItem& item);
    };
    using HandlerSP = fon9::intrusive_ptr<Handler>;
 
@@ -57,7 +72,9 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    PolicyConfig   PolicyConfig_;
    HandlerSP      Handler_;
    fon9::SubConn  SubrTDayChanged_{};
+   unsigned       ConfigSentCount_{};
 
+   bool CheckApiReady(ApiSession& ses);
    void SendConfig(ApiSession& ses);
    void OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param);
    void OnRecvStartApi(ApiSession& ses);
@@ -72,6 +89,7 @@ public:
 
    void OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) override;
 };
+fon9_WARN_POP;
 
 } // namespaces
 #endif//__f9omstw_OmsRcServerFunc_hpp__

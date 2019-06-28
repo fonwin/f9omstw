@@ -94,19 +94,14 @@ class OmsRequestTwsFilled : public OmsRequestFilled {
    fon9_NON_COPY_NON_MOVE(OmsRequestTwsFilled);
    using base = OmsRequestFilled;
 public:
+   fon9::DayTime  Time_;
+   OmsTwsPri      Pri_;
+   OmsTwsQty      Qty_;
+
    using base::base;
    OmsRequestTwsFilled() = default;
 
-   static void MakeFields(fon9::seed::Fields& flds) {
-      base::MakeFields<OmsRequestTwsFilled>(flds);
-   }
-
-   /// 取得方式: static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastFilledTime_;
-   fon9::DayTime Time() const;
-   /// 取得方式: static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->CumQty_ - prev->CumQty_;
-   OmsTwsQty Qty() const;
-   OmsTwsPri Pri() const;
-   OmsTwsAmt Amt() const;
+   static void MakeFields(fon9::seed::Fields& flds);
 };
 
 } // namespaces

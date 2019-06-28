@@ -58,34 +58,5 @@ public:
    void ContinuePrevUpdate() override;
 };
 
-//--------------------------------------------------------------------------//
-
-inline fon9::DayTime OmsRequestTwsFilled::Time() const {
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
-   return static_cast<const OmsOrderTwsRaw*>(this->LastUpdated())->LastFilledTime_;
-}
-inline OmsTwsQty OmsRequestTwsFilled::Qty() const {
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()->Prev_) != nullptr);
-   auto* curr = static_cast<const OmsOrderTwsRaw*>(this->LastUpdated());
-   auto* prev = static_cast<const OmsOrderTwsRaw*>(curr->Prev_);
-   return curr->CumQty_ - prev->CumQty_;
-}
-inline OmsTwsAmt OmsRequestTwsFilled::Amt() const {
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()->Prev_) != nullptr);
-   auto* curr = static_cast<const OmsOrderTwsRaw*>(this->LastUpdated());
-   auto* prev = static_cast<const OmsOrderTwsRaw*>(curr->Prev_);
-   return curr->CumAmt_ - prev->CumAmt_;
-}
-inline OmsTwsPri OmsRequestTwsFilled::Pri() const {
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()) != nullptr);
-   assert(dynamic_cast<const OmsOrderTwsRaw*>(this->LastUpdated()->Prev_) != nullptr);
-   auto* curr = static_cast<const OmsOrderTwsRaw*>(this->LastUpdated());
-   auto* prev = static_cast<const OmsOrderTwsRaw*>(curr->Prev_);
-   auto  amt = (curr->CumAmt_ - prev->CumAmt_) / (curr->CumQty_ - prev->CumQty_);
-   return OmsTwsPri::Make<amt.Scale>(amt.GetOrigValue());
-}
-
 } // namespaces
 #endif//__f9omstw_OmsOrderTws_hpp__

@@ -87,7 +87,11 @@ class OmsOrderRaw;
 class OmsOrder;
 class OmsOrderFactory;
 using OmsOrderFactorySP = fon9::intrusive_ptr<OmsOrderFactory>;
+
 struct OmsScResource;
+
+class OmsEventFactory;
+using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
 
 } // namespaces
 #endif//__f9omstw_OmsBase_hpp__

@@ -7,16 +7,9 @@
 #include "f9omstw/OmsBackend.hpp"
 #include "f9omstw/OmsOrdTeam.hpp"
 #include "f9omstw/OmsRequestRunner.hpp"
-#include "f9omstw/OmsFactoryPark.hpp"
 #include "fon9/seed/MaTree.hpp"
 
 namespace f9omstw {
-
-using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
-using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
-
-using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
-using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
 
 /// OMS 所需的資源, 集中在此處理.
 /// - 這裡的資源都 **不是** thread safe!

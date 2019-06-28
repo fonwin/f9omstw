@@ -283,6 +283,18 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       } // for() read block.
 
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
+      for (OmsRxSNO sno = loader.LastSNO_; sno > 0; --sno) {
+         auto* icur = items->RxHistory_[sno];
+         if (icur->RxKind() != f9fmkt_RxKind_Order)
+            continue;
+         auto ord = static_cast<const OmsOrderRaw*>(icur)->Order_;
+         OmsScResource& scResource = ord->ScResource();
+         if (scResource.Ivr_.get() != nullptr)
+            continue;
+         if (0); // 重建 Order 的 ScResource; 及重算風控資料.
+         auto* inireq = ord->Initiator_;
+         scResource.Ivr_ = resource.Brks_->FetchIvr(ToStrView(inireq->BrkId_), inireq->IvacNo_, ToStrView(inireq->SubacNo_));
+      }
    }
    fon9::RevBufferList rbuf{128};
    loader.MakeLayout(rbuf, resource.Core_.Owner_->RequestFactoryPark());

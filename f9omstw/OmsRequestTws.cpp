@@ -56,5 +56,12 @@ bool OmsRequestTwsChg::ValidateInUser(OmsRequestRunner& reqRunner) {
       this->RxKind_ = (this->Qty_ == 0 ? f9fmkt_RxKind_RequestDelete : f9fmkt_RxKind_RequestChgQty);
    return base::ValidateInUser(reqRunner);
 }
+//--------------------------------------------------------------------------//
+void OmsRequestTwsFilled::MakeFields(fon9::seed::Fields& flds) {
+   base::MakeFields<OmsRequestTwsFilled>(flds);
+   flds.Add(fon9_MakeField2(OmsRequestTwsFilled, Time));
+   flds.Add(fon9_MakeField2(OmsRequestTwsFilled, Pri));
+   flds.Add(fon9_MakeField2(OmsRequestTwsFilled, Qty));
+}
 
 } // namespaces

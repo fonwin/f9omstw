@@ -133,8 +133,12 @@ public:
       return item.SetRxSNO(++this->LastSNO_);
    }
    /// 僅提供參考使用, 例如: unit test 檢查是否符合預期.
-   OmsRxSNO LastSNO() {
+   OmsRxSNO LastSNO() const {
       return this->LastSNO_;
+   }
+   /// 最後回報的序號, 如果在 Recover 事件裡面, 可取得正確的值.
+   OmsRxSNO PublishedSNO() const {
+      return this->PublishedSNO_;
    }
 
    /// - item.RxSNO_ 必定為 this->LastSNO_ (例: Abandon request), 或為 0 (返回前由 this 編製新的序號).

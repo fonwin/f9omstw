@@ -3,7 +3,7 @@
 #ifndef __f9omstw_OmsCore_hpp__
 #define __f9omstw_OmsCore_hpp__
 #include "f9omstw/OmsResource.hpp"
-#include "fon9/MessageQueue.hpp"
+#include "f9omstw/OmsEventFactory.hpp"
 
 namespace f9omstw {
 
@@ -91,6 +91,10 @@ public:
    using OmsResource::ReportRecover;
    using OmsResource::ReportSubject;
    using OmsResource::LogAppend;
+   OmsRxSNO PublishedSNO() const {
+      return this->Backend_.PublishedSNO();
+   }
+
 
    inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
       intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));
@@ -103,6 +107,15 @@ public:
 //--------------------------------------------------------------------------//
 
 using OmsTDayChangedHandler = std::function<void(OmsCore&)>;
+
+using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
+using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
+
+using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
+using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
+
+using OmsEventFactoryPark = OmsFactoryPark_NoKey<OmsEventFactory, fon9::seed::TreeFlag::Unordered>;
+using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
 
 /// 管理 OmsCore 的生死.
 /// - 每個 OmsCore 僅處理一交易日的資料, 不處理換日、清檔,
@@ -119,6 +132,7 @@ class OmsCoreMgr : public fon9::seed::MaTree {
 protected:
    OmsOrderFactoryParkSP   OrderFactoryPark_;
    OmsRequestFactoryParkSP RequestFactoryPark_;
+   OmsEventFactoryParkSP   EventFactoryPark_;
 
    void OnMaTree_AfterAdd(Locker&, fon9::seed::NamedSeed& seed) override;
    void OnMaTree_AfterClear() override;
@@ -145,11 +159,18 @@ public:
       assert(this->OrderFactoryPark_.get() == nullptr);
       this->OrderFactoryPark_ = std::move(facPark);
    }
+   void SetEventFactoryPark(OmsEventFactoryParkSP&& facPark) {
+      assert(this->EventFactoryPark_.get() == nullptr);
+      this->EventFactoryPark_ = std::move(facPark);
+   }
    const OmsRequestFactoryPark& RequestFactoryPark() const {
       return *this->RequestFactoryPark_;
    }
    const OmsOrderFactoryPark& OrderFactoryPark() const {
       return *this->OrderFactoryPark_;
+   }
+   const OmsEventFactoryPark& EventFactoryPark() const {
+      return *this->EventFactoryPark_;
    }
 };
 fon9_WARN_POP;

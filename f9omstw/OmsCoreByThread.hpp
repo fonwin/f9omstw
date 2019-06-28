@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsCoreByThread_hpp__
 #define __f9omstw_OmsCoreByThread_hpp__
 #include "f9omstw/OmsCore.hpp"
+#include "fon9/MessageQueue.hpp"
 
 namespace f9omstw {
 

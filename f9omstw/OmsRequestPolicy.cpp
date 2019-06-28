@@ -3,6 +3,7 @@
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "fon9/Unaligned.hpp"
+#include "fon9/Log.hpp"
 
 namespace f9omstw {
 

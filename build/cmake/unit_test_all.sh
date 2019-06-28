@@ -40,7 +40,7 @@ $OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 $OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 
 # -------------------------------
-$OUTPUT_DIR/OmsRcServer_UT
+$OUTPUT_DIR/OmsRcServer_UT --log=0
 
 { set +x; } 2>/dev/null
 echo '#####################################################'

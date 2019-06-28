@@ -67,6 +67,7 @@ OmsOrderRaw::OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req)
    , OrdNo_{""} {
    assert(prev->Next_ == nullptr && prev->Order_->Last_ == prev);
    prev->Next_ = prev->Order_->Last_ = this;
+   this->RxKind_ = f9fmkt_RxKind_Order;
 }
 void OmsOrderRaw::Initialize(const OmsOrderRaw* prev, const OmsRequestBase& req) {
    assert(prev != nullptr && prev->Next_ == nullptr && prev->Order_->Last_ == prev);

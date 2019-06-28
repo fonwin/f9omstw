@@ -4,6 +4,8 @@
 #include "f9omstw/OmsCore.hpp"
 #include "f9omstw/OmsOrder.hpp"
 #include "fon9/buffer/DcQueueList.hpp"
+#include "fon9/ThreadTools.hpp"
+#include "fon9/Log.hpp"
 
 namespace f9omstw {
 

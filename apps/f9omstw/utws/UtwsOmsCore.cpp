@@ -77,6 +77,10 @@ struct UomsTwsIniRiskCheck : public OmsRequestRunStep {
 
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
       // TODO: 風控檢查.
+      assert(dynamic_cast<const OmsRequestTwsIni*>(runner.OrderRaw_.Order_->Initiator_) != nullptr);
+      const auto* inidat = static_cast<const OmsRequestTwsIni*>(runner.OrderRaw_.Order_->Initiator_);
+      if (static_cast<OmsOrderTwsRaw*>(&runner.OrderRaw_)->OType_ == TwsOType{})
+         static_cast<OmsOrderTwsRaw*>(&runner.OrderRaw_)->OType_ = inidat->OType_;
       // 風控成功, 執行下一步驟.
       this->ToNextStep(std::move(runner));
    }
@@ -137,6 +141,7 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
          new OmsRequestTwsChgFactory("TwsChg", OmsRequestRunStepSP{new UomsTwsExgSender}),
          new OmsRequestTwsFilledFactory("TwsFilled", nullptr)
       ));
+      coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
    }
    bool AddCore(fon9::TimeStamp tday) {
       fon9::RevBufferFixedSize<128> rbuf;

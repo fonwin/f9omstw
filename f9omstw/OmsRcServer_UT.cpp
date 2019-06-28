@@ -14,21 +14,6 @@
 #include "fon9/auth/SaslScramSha256Server.hpp"
 #include "fon9/DefaultThreadPool.hpp"
 //--------------------------------------------------------------------------//
-class OmsRcClientSession : public fon9::rc::RcSession {
-   fon9_NON_COPY_NON_MOVE(OmsRcClientSession);
-   using base = fon9::rc::RcSession;
-   std::string Password_;
-public:
-   OmsRcClientSession(fon9::rc::RcFunctionMgrSP funcMgr, fon9::StrView userid, std::string passwd)
-      : base(std::move(funcMgr), fon9::rc::RcSessionRole::User)
-      , Password_{std::move(passwd)} {
-      this->SetUserId(userid);
-   }
-   fon9::StrView GetAuthPassword() const override {
-      return fon9::StrView{&this->Password_};
-   }
-};
-//--------------------------------------------------------------------------//
 fon9_WARN_DISABLE_PADDING;
 struct RcFuncMgr : public fon9::intrusive_ref_counter<RcFuncMgr>, public fon9::rc::RcFunctionMgr {
    fon9_NON_COPY_NON_MOVE(RcFuncMgr);
@@ -51,21 +36,50 @@ struct RcFuncMgr : public fon9::intrusive_ref_counter<RcFuncMgr>, public fon9::r
 };
 fon9_WARN_POP;
 //--------------------------------------------------------------------------//
+f9OmsRc_ClientConfig ClientConfig_;
+f9OmsRc_SNO          LastSNO_;
+fon9::CharVector     LastClOrdId_;
+void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
+   if (ClientConfig_.HostId_ != cfg->HostId_
+       || ClientConfig_.YYYYMMDD_ != cfg->YYYYMMDD_
+       || ClientConfig_.UpdatedCount_ != cfg->UpdatedCount_) {
+      LastSNO_ = 0;
+      ClientConfig_ = *cfg;
+   }
+   f9OmsRc_SubscribeReport(ses, &ClientConfig_, LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
+}
+void OnClientReport(f9OmsRc_ClientSession*, const f9OmsRc_ClientReport* rpt) {
+   LastSNO_ = rpt->ReportSNO_;
+   if (rpt->Layout_->ClOrdId_ >= 0) {
+      const auto& val = rpt->FieldArray_[rpt->Layout_->ClOrdId_];
+      LastClOrdId_.assign(val.Begin_, val.End_);
+   }
+}
+//--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
+   f9OmsRc_ClientSession clicfg;
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
       //_CrtSetBreakAlloc(176);
       SetConsoleCP(CP_UTF8);
       SetConsoleOutputCP(CP_UTF8);
       // setvbuf(stdout, nullptr, _IOFBF, 10000); // for std::cout + UTF8;
+      clicfg.LogFlags_ = f9OmsRc_ClientLogFlag_All;
+   #else
+      clicfg.LogFlags_ = f9OmsRc_ClientLogFlag_Config;
    #endif
    fon9::AutoPrintTestInfo utinfo{"OmsRcServer"};
+   //---------------------------------------------
+   fon9::StrView arg = fon9::GetCmdArg(argc, argv, "l", "log");
+   if (!arg.empty())
+      clicfg.LogFlags_ = static_cast<f9OmsRc_ClientLogFlag>(fon9::HIntStrTo(arg, 0u));
    //---------------------------------------------
    auto  core = TestCore::MakeCoreMgr(argc, argv);
    auto  coreMgr = core->Owner_;
    coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
       new OmsRequestTwsIniFactory("TwsNew", coreMgr->OrderFactoryPark().GetFactory("TwsOrd"),
-                                  f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
+                                  f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
+                                     f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
       new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
       new OmsRequestTwsFilledFactory("TwsFilled", nullptr)
    ));
@@ -147,8 +161,9 @@ int main(int argc, char* argv[]) {
    devSvr->WaitGetDeviceId();
    //---------------------------------------------
    // Client 登入.
+   f9OmsRc_ClientHandler cliHandler{ &OnClientConfig, &OnClientReport };
    RcFuncMgrSP    rcFuncMgrCli{new RcFuncMgr};
-   ApiSessionSP   sesCli{new OmsRcClientSession(rcFuncMgrCli, kUSERID, kPASSWD)};
+   ApiSessionSP   sesCli{new f9omstw::OmsRcClientSession(rcFuncMgrCli, kUSERID, kPASSWD, cliHandler, clicfg)};
    TestDevSP      devCli{new fon9::io::TestDevice2(sesCli, iomgr)};
    devCli->Initialize();
    devCli->SetPeer(devSvr);
@@ -163,6 +178,7 @@ int main(int argc, char* argv[]) {
    const fon9::TimeStamp tday = fon9::TimeStampResetHHMMSS(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset());
    unsigned forceTDay = 0;
    auto fnMakeCore = [&core, coreMgr, &forceTDay, &argc, argv, &fnDefault]() {
+      core->IsWaitQuit_ = false;
       core.reset(new TestCore(argc, argv, fon9::RevPrintTo<std::string>("ut_", ++forceTDay), coreMgr));
       core->OpenReload(argc, argv, fnDefault, forceTDay);
       coreMgr->Add(&core->GetResource());
@@ -178,6 +194,7 @@ int main(int argc, char* argv[]) {
    });
    fnMakeCore();
    coreMgr->TDayChangedEvent_.Unsubscribe(&subrTDay);
+
    fon9::TimeStamp lastTDay = fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay);
    if (coreMgr->CurrentCore()->TDay() != lastTDay || kLastForceTDay != forceTDay) {
       std::cout << "Last CurrentCore.TDay not match|forceTDay=" << forceTDay
@@ -271,11 +288,13 @@ int main(int argc, char* argv[]) {
    auto fnWaitSendReq = [&lastRxItem, layout, &fldValues]() {
       // 等候全部測試結束: 「訂閱 or 回補」到最後一筆.
       for (;;) {
-         if (const auto* ord = dynamic_cast<const f9omstw::OmsOrderRaw*>(lastRxItem)) {
-            if (const auto* req = dynamic_cast<const f9omstw::OmsRequestTrade*>(ord->Request_))
-               if (fon9::ToStrView(req->ClOrdId_) == fldValues[static_cast<unsigned>(layout->ClOrdId_)])
-                  break;
+         const f9omstw::OmsRequestTrade* req = dynamic_cast<const f9omstw::OmsRequestTrade*>(lastRxItem);
+         if (req == nullptr) {
+            if (const auto* ord = dynamic_cast<const f9omstw::OmsOrderRaw*>(lastRxItem))
+               req = dynamic_cast<const f9omstw::OmsRequestTrade*>(ord->Request_);
          }
+         if (req && fon9::ToStrView(req->ClOrdId_) == fldValues[static_cast<unsigned>(layout->ClOrdId_)])
+            break;
          std::this_thread::yield();
       }
    };
@@ -301,8 +320,23 @@ int main(int argc, char* argv[]) {
       fnSendReq();
    }
    fnWaitSendReq();
+
+   fon9::RevPrint(rbuf, "----- Test Abandon -----\n");
+   // 在 user thread 的失敗: ErrCode=OmsErrCode_OrdNoMustEmpty#203, RxSNO()==0;
+   PUT_FIELD_VAL(fldValues, layout->OrdNo_, "A");
+   fnSendReq();
+   // 在 core thread 的失敗: ErrCode=OmsErrCode_Bad_BrkId#100
+   PUT_FIELD_VAL(fldValues, layout->OrdNo_, "");
+   PUT_FIELD_VAL(fldValues, layout->BrkId_, "9999");
+   fnSendReq();
+   fnWaitSendReq();
    //---------------------------------------------
-   fon9_LOG_INFO("Test END.");
+   // 等 Client 收完回報.
+   fon9_LOG_INFO("Waiting Client|LastClOrdId=", LastClOrdId_, "|LastSNO=", lastRxItem->RxSNO());
+   while (fon9::ToStrView(LastClOrdId_) != fldValues[static_cast<unsigned>(layout->ClOrdId_)])
+      std::this_thread::yield();
+   //---------------------------------------------
+   fon9_LOG_INFO("Test END      |LastClOrdId=", LastClOrdId_);
    devCli->ResetPeer();
    devCli->AsyncClose("dev.client.close");
    devSvr->AsyncClose("dev.server.close");

@@ -117,6 +117,7 @@ protected:
    /// 然後在 OmsOrderFactory::MakeOrderRaw() 返回前, 再透過 OmsOrderRaw::Initialize() 初始化.
    /// 在此預設建構裡面, 應先將一些欄位初始化, 讓 OmsOrderRaw::Initialize(order) 可以快一些.
    OmsOrderRaw() : Order_{nullptr}, Request_{nullptr}, OrdNo_{""} {
+      this->RxKind_ = f9fmkt_RxKind_Order;
    }
    virtual ~OmsOrderRaw();
    const OmsOrderRaw* CastToOrder() const override;
@@ -142,6 +143,7 @@ public:
    /// 請注意: 此時的 order 還在建構階段.
    /// 此處返回後才會設定 order.Head_;
    OmsOrderRaw(OmsOrder& order) : Order_(&order), Request_(order.Initiator_), OrdNo_{""} {
+      this->RxKind_ = f9fmkt_RxKind_Order;
    }
    /// 使用此方式建構, 在使用前必須自行呼叫 ContinuePrevUpdate();
    OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req);

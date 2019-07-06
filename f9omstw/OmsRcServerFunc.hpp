@@ -4,6 +4,7 @@
 #define __f9omstw_OmsRcServerFunc_hpp__
 #include "f9omstw/OmsRcServer.hpp"
 #include "f9omstw/OmsRc.h"
+#include "fon9/FlowCounter.hpp"
 
 namespace f9omstw {
 
@@ -13,10 +14,7 @@ class OmsRcServerAgent : public fon9::rc::RcFunctionAgent {
 public:
    const ApiSesCfgSP ApiSesCfg_;
 
-   OmsRcServerAgent(ApiSesCfgSP cfg)
-      : base{fon9::rc::RcFunctionCode::OmsApi}
-      , ApiSesCfg_{std::move(cfg)} {
-   }
+   OmsRcServerAgent(ApiSesCfgSP cfg);
    ~OmsRcServerAgent();
 
    void OnSessionApReady(ApiSession& ses) override;
@@ -44,9 +42,14 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       void ClearResource();
       void StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter);
    private:
+      enum class HandlerSt {
+         Preparing,
+         Recovering,
+         Reporting,
+         Disposing,
+      };
+      HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
-      bool              IsReporting_{false};
-      bool              IsDisposing_{false};
       fon9::SubConn     RptSubr_{};
       OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);
       void OnReport(OmsCore&, const OmsRxItem& item);
@@ -67,7 +70,9 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    };
 
    struct PolicyConfig : OmsRequestPolicyCfg {
-      std::string TablesGridView_;
+      std::string       TablesGridView_;
+      fon9::FlowCounter FcReq_;
+      unsigned          FcReqOverCount_{};
    };
    PolicyConfig   PolicyConfig_;
    HandlerSP      Handler_;

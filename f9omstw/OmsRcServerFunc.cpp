@@ -11,7 +11,13 @@
 
 namespace f9omstw {
 
+OmsRcServerAgent::OmsRcServerAgent(ApiSesCfgSP cfg)
+   : base{fon9::rc::RcFunctionCode::OmsApi}
+   , ApiSesCfg_{std::move(cfg)} {
+   const_cast<ApiSesCfg*>(this->ApiSesCfg_.get())->Subscribe();
+}
 OmsRcServerAgent::~OmsRcServerAgent() {
+   const_cast<ApiSesCfg*>(this->ApiSesCfg_.get())->Unsubscribe();
 }
 void OmsRcServerAgent::OnSessionApReady(ApiSession& ses) {
    ses.ResetNote(this->FunctionCode_,
@@ -30,6 +36,19 @@ void OmsRcServerAgent::OnSessionLinkBroken(ApiSession& ses) {
    }
 }
 //--------------------------------------------------------------------------//
+const unsigned kFcOverCountForceLogout = 10;
+static void ResetFlowCounter(fon9::FlowCounter& fc, FlowControlArgs fcArgs) {
+   unsigned count = fcArgs.Count_;
+   auto     ti = fon9::TimeInterval_Millisecond(fcArgs.IntervalMS_);
+   if (count && ti.GetOrigValue() > 0) {
+      // 增加一點緩衝, 避免網路延遲造成退單爭議.
+      unsigned cbuf = count / 10;
+      count += (cbuf <= 0) ? 1 : cbuf;
+      ti -= ti / 10;
+   }
+   fc.Resize(count, ti);
+}
+
 OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
    : ApiSesCfg_{std::move(cfg)} {
    if (auto* authNote = ses.GetNote<fon9::rc::RcServerNote_SaslAuth>(fon9::rc::RcFunctionCode::SASL)) {
@@ -40,6 +59,7 @@ OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
          fon9::RevPrint(rbuf, *fon9_kCSTR_ROWSPL);
          agUserRights->MakeGridView(rbuf, this->PolicyConfig_.UserRights_);
          fon9::RevPrint(rbuf, fon9_kCSTR_LEAD_TABLE, agUserRights->Name_, *fon9_kCSTR_ROWSPL);
+         ResetFlowCounter(this->PolicyConfig_.FcReq_, this->PolicyConfig_.UserRights_.FcRequest_);
       }
       if (auto agIvList = authr.AuthMgr_->Agents_->Get<OmsPoIvListAgent>(fon9_kCSTR_OmsPoIvListAgent_Name)) {
          agIvList->GetPolicy(authr, this->PolicyConfig_.IvList_);
@@ -53,6 +73,7 @@ OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
 OmsRcServerNote::~OmsRcServerNote() {
 }
 void OmsRcServerNote::SendConfig(ApiSession& ses) {
+   this->PolicyConfig_.FcReqOverCount_ = 0;
    fon9::RevBufferList rbuf{256};
    if (++this->ConfigSentCount_ == 1) {
       fon9::ToBitv(rbuf, this->PolicyConfig_.TablesGridView_);
@@ -141,7 +162,6 @@ void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& pa
       fon9::BitvTo(param.RecvBuffer_, tday);
       fon9::BitvTo(param.RecvBuffer_, from);
       fon9::BitvTo(param.RecvBuffer_, filter);
-      fon9_LOG_TRACE("ReportSubscribe|tday=", tday, fon9::FmtTS("f-t"), "|from=", from, "|filter=", fon9::ToHex(filter));
       if (this->Handler_->Core_->TDay() == tday)
          this->Handler_->StartRecover(from, filter);
       return;
@@ -166,14 +186,12 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
       return;
    OmsRequestRunner  runner;
    fon9::RevPrint(runner.ExLog_, '\n');
-   char* const pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
+   char* const    pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
+   fon9::StrView  reqstr{pout, byteCount};
    runner.ExLog_.SetPrefixUsed(pout);
    param.RecvBuffer_.Read(pout, byteCount);
 
    runner.Request_ = static_cast<OmsRequestTrade*>(cfg.Factory_->MakeRequest(param.RecvTime_).get());
-   runner.Request_->SetPolicy(this->Handler_->RequestPolicy_);
-
-   fon9::StrView  reqstr{pout, byteCount};
    ApiReqFieldArg arg{*runner.Request_.get(), ses};
    for (const auto& fldcfg : cfg.ApiFields_) {
       arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
@@ -187,30 +205,51 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
       if (fldcfg.FnPut_)
          (*fldcfg.FnPut_)(fldcfg, arg);
    }
-   if (!this->Handler_->Core_->MoveToCore(std::move(runner))) {
-      runner.ExLog_.MoveOut();
-      if (this->ApiSesCfg_->MakeReport(runner.ExLog_, *runner.Request_))
-         ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(runner.ExLog_));
+   const char* cstrForceLogout;
+   if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
+      runner.Request_->SetPolicy(this->Handler_->RequestPolicy_);
+      if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner))))
+         return;
+      cstrForceLogout = nullptr;
    }
+   else {
+      if (++this->PolicyConfig_.FcReqOverCount_ > kFcOverCountForceLogout) {
+         // 超過流量, 若超過次數超過 n 則強制斷線.
+         // 避免有惡意連線, 大量下單壓垮系統.
+         runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl,
+                               cstrForceLogout = "FlowControl: ForceLogout.");
+      }
+      else {
+         runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl);
+         cstrForceLogout = nullptr;
+      }
+   }
+   // request abandon, 立即回報失敗.
+   assert(runner.Request_->IsAbandoned());
+   runner.ExLog_.MoveOut();
+   if (this->ApiSesCfg_->MakeReport(runner.ExLog_, *runner.Request_))
+      ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(runner.ExLog_));
+   if (cstrForceLogout)
+      ses.ForceLogout(cstrForceLogout);
 }
 //--------------------------------------------------------------------------//
 void OmsRcServerNote::Handler::ClearResource() {
-   this->IsDisposing_ = true;
+   this->State_ = HandlerSt::Disposing;
    this->Core_->ReportSubject().Unsubscribe(&this->RptSubr_);
    if (this->Device_->OpImpl_GetState() == fon9::io::State::LinkReady) {
-      if (0);// TODO: 移除 fon9::rc SeedTree 裡面 OmsCore/* 的權限.
+      if (0);// TODO: 移除 fon9::rc SeedVisitor 裡面 OmsCore/* 的權限.
    }
 }
 void OmsRcServerNote::Handler::StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter) {
-   if (this->IsReporting_ || this->IsDisposing_) // 重覆訂閱/回補?
+   if (this->State_ > HandlerSt::Recovering) // 重覆訂閱/回補/解構中?
       return;
-   this->IsReporting_ = true;
+   this->State_ = HandlerSt::Recovering;
    this->RptFilter_ = filter;
    using namespace std::placeholders;
    this->Core_->ReportRecover(from, std::bind(&Handler::OnRecover, HandlerSP{this}, _1, _2));
 }
 OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* item) {
-   if (this->IsDisposing_)
+   if (this->State_ != HandlerSt::Recovering)
       return 0;
    if (item) {
       if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverLastSt) {
@@ -236,7 +275,7 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
    return 0;
 }
 void OmsRcServerNote::Handler::OnReport(OmsCore&, const OmsRxItem& item) {
-   if (!this->IsDisposing_)
+   if (this->State_ < HandlerSt::Disposing)
       this->SendReport(item);
 }
 void OmsRcServerNote::Handler::SendReport(const OmsRxItem& item) {
@@ -287,7 +326,7 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
       return ses;
    // 如果有重啟過, Ivr_ 會在 Backend 載入時建立.
    auto rights = this->RequestPolicy_->GetIvRights(ord->Order_->ScResource().Ivr_.get());
-   if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
+   if (IsEnumContains(rights, OmsIvRight::AllowReport)
        || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
       return ses;
    return nullptr;
@@ -303,8 +342,8 @@ void OmsRcServerNote::PolicyRunner::operator()(fon9::io::Device& dev) {
    auto* note = static_cast<OmsRcServerNote*>(ses.GetNote(fon9::rc::RcFunctionCode::OmsApi));
    if (note && note->Handler_ == this->get())
       note->SendConfig(ses);
-   if (auto* seedNote = ses.GetNote(fon9::rc::RcFunctionCode::SeedTree)) {
-      if (0);// TODO: 設定 fon9::rc SeedTree 裡面 OmsCore/Brks/BrkId/IvacNo/SubacNo 的權限.
+   if (auto* seedNote = ses.GetNote(fon9::rc::RcFunctionCode::SeedVisitor)) {
+      if (0);// TODO: 設定 fon9::rc SeedVisitor 裡面 OmsCore/Brks/BrkId/IvacNo/SubacNo 的權限.
    }
 }
 //--------------------------------------------------------------------------//
@@ -326,3 +365,76 @@ static FnPutApiField_Register regFnPutApiField_ApiSes{
 };
 
 } // namespaces
+
+//--------------------------------------------------------------------------//
+
+#include "fon9/seed/Plugins.hpp"
+#include "fon9/ConfigLoader.hpp"
+#include "fon9/framework/IoManager.hpp"
+
+static bool OmsRcServerAgent_Start(fon9::seed::PluginsHolder& holder, fon9::StrView args) {
+   //"OmsCore=CoreMgr|Cfg=forms/ApiAll.cfg|AddTo=FpSession.RcSv"
+   f9omstw::ApiSesCfgSP  sesCfg;
+   f9omstw::OmsCoreMgrSP coreMgr;
+   while (!args.empty()) {
+      fon9::StrView value = SbrFetchNoTrim(args, '|');
+      fon9::StrView tag = StrFetchTrim(value, '=');
+      StrTrim(&value);
+      if (tag == "OmsCore") {
+         coreMgr = holder.Root_->GetSapling<f9omstw::OmsCoreMgr>(value);
+         if (!coreMgr) {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "Not found OmsCore=", value);
+            return false;
+         }
+      }
+      else if (tag == "Cfg") {
+         if (!coreMgr) {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "OmsCore not setted.");
+            return false;
+         }
+         try {
+            sesCfg.reset();
+            sesCfg = f9omstw::MakeApiSesCfg(coreMgr, value);
+         }
+         catch (fon9::ConfigLoader::Err& err) {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "Cfg load err=", err);
+            return false;
+         }
+      }
+      else if (tag == "AddTo") { // IoMgr or SessionFactoryPark.
+         if (!sesCfg) {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "Config not setted.");
+            return false;
+         }
+         const char* pAddTo = value.begin();
+         tag = fon9::StrFetchTrim(value, '/');
+         auto sesFacPark = holder.Root_->Get<fon9::SessionFactoryPark>(tag);
+         if (!sesFacPark) {
+            if (auto iomgr = holder.Root_->GetSapling<fon9::IoManager>(tag))
+               sesFacPark = iomgr->SessionFactoryPark_;
+            if (!sesFacPark) {
+               holder.SetPluginsSt(fon9::LogLevel::Error, "Not found SessionFactoryPark=",
+                                   fon9::StrView{pAddTo, value.end()});
+               return false;
+            }
+         }
+         // 參考 RcFuncConnServer.cpp 裡面的 struct RcSessionServer_Factory;
+         fon9::rc::RcFunctionMgr* rcFuncMgr = dynamic_cast<fon9::rc::RcFunctionMgr*>(sesFacPark->Get(value).get());
+         if (!rcFuncMgr) {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "Not found RcFunctionMgr=",
+                                fon9::StrView{pAddTo, value.end()});
+            return false;
+         }
+         rcFuncMgr->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::OmsRcServerAgent{sesCfg}});
+      }
+      else {
+         holder.SetPluginsSt(fon9::LogLevel::Error, "Unknown tag=", tag);
+         return false;
+      }
+   }
+   return true;
+}
+
+extern "C" fon9::seed::PluginsDesc f9p_OmsRcServerAgent;
+static fon9::seed::PluginsPark f9p_NamedIoManager_reg{"OmsRcServerAgent", &f9p_OmsRcServerAgent};
+fon9::seed::PluginsDesc f9p_OmsRcServerAgent{"", &OmsRcServerAgent_Start, nullptr, nullptr,};

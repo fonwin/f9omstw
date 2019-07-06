@@ -465,23 +465,28 @@ ApiSesCfgSP MakeApiSesCfg(OmsCoreMgrSP coreMgr, fon9::StrView cfgstr) {
    retval->ApiSesCfgStr_ = fon9::BufferTo<std::string>(rbuf.MoveOut());
    if (!retval->ApiSesCfgStr_.empty() && retval->ApiSesCfgStr_.back() == '\n')
       retval->ApiSesCfgStr_.pop_back();
-   retval->SubscribeReport();
    return retval;
 }
 
 //--------------------------------------------------------------------------//
 
 ApiSesCfg::~ApiSesCfg() {
-   this->CoreMgr_->TDayChangedEvent_.Unsubscribe(&this->SubrTDay_);
-   this->UnsubscribeRpt();
+   assert(this->SubrTimes_ == 0);
 }
-void ApiSesCfg::SubscribeReport() {
+void ApiSesCfg::Unsubscribe() {
+   if (--this->SubrTimes_ == 0) {
+      this->CoreMgr_->TDayChangedEvent_.Unsubscribe(&this->SubrTDay_);
+      this->UnsubscribeRpt();
+   }
+}
+void ApiSesCfg::Subscribe() {
+   if (++this->SubrTimes_ != 1)
+      return;
    if (this->SubrTDay_ || this->ApiRptCfgs_.empty())
       return;
+   using namespace std::placeholders;
    this->CoreMgr_->TDayChangedEvent_.Subscribe(&this->SubrTDay_,
-                                               [this](OmsCore& core) {
-      this->SubscribeRpt(core);
-   });
+                                               std::bind(&ApiSesCfg::SubscribeRpt, this, _1));
    auto tdayLocker = this->CoreMgr_->TDayChangedEvent_.Lock();
    if (auto core = this->CoreMgr_->CurrentCore())
       this->SubscribeRpt(*core);
@@ -496,7 +501,7 @@ void ApiSesCfg::SubscribeRpt(OmsCore& core) {
    this->UnsubscribeRpt();
    this->CurrentCore_.reset(&core);
    using namespace std::placeholders;
-   core.ReportSubject().Subscribe(std::bind(&ApiSesCfg::OnReport, this, _1, _2));
+   core.ReportSubject().Subscribe(&this->SubrRpt_, std::bind(&ApiSesCfg::OnReport, this, _1, _2));
 }
 bool ApiSesCfg::MakeReport(fon9::RevBufferList& rbuf, const OmsRxItem& item) const {
    if (this->ReportMessageFor_ == &item) {

@@ -11,7 +11,7 @@ extern "C" {
 
 /// 下單失敗的原因: 錯誤代碼.
 /// 0:沒有錯誤, 1..9999: OMS內部錯誤.
-enum OmsErrCode : uint16_t {
+fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_NoError = 0,
 
    /// OmsRequestBase::PreCheck_GetRequestInitiator();
@@ -38,8 +38,11 @@ enum OmsErrCode : uint16_t {
    /// OmsRequestIni::PreCheck_IvRight(); 必要欄位不正確(例如: IvacNo, Side, Symbol...)
    OmsErrCode_FieldNotMatch = 121,
    /// OmsRequestIni::PreCheck_IvRight(); Order not found, or RequestIni not allowed.
-   // 若委託不存在(用 OrdKey 找不到委託) => 「委託遺失」的補單操作, 必須有 AllowRequestIni 權限.
+   /// 若委託不存在(用 OrdKey 找不到委託) => 「委託遺失」的補單操作, 必須有 AllowRequestIni 權限.
    OmsErrCode_DenyRequestIni = 122,
+
+   /// 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
+   OmsErrCode_OverFlowControl = 130,
 
    /// OmsOrdNoMap::AllocOrdNo(); 下單的 OrdTeamGroupId 有問題.
    OmsErrCode_OrdTeamGroupId = 200,

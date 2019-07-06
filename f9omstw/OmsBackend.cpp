@@ -15,18 +15,19 @@ void OmsBackend::WaitForEndNow() {
    this->Items_.WaitForEndNow();
    fon9::JoinThread(this->Thread_);
 
-   // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    Locker items{this->Items_};
    if (this->LastSNO_ == 0 && !this->RecorderFd_.IsOpened())
       return;
 
    this->SaveQuItems(items->QuItems_);
+   items->QuItems_.clear();
 
    fon9::RevBufferList rbuf{128};
    fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::UtcNow(), " =====\n");
    fon9::DcQueueList dcq{rbuf.MoveOut()};
    this->RecorderFd_.Append(dcq);
 
+   // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {
       if (const OmsRxItem* item = items->RxHistory_[L])
          intrusive_ptr_release(item);
@@ -85,6 +86,7 @@ void OmsBackend::ThrRun(std::string thrName) {
          items.lock();
       }
       this->Items_.OnBeforeThreadEnd(items);
+      items->Recovers_.clear(); // 清理 Recover (RecoverHandler.Consumer_) 的資源.
    }
    fon9_LOG_ThrRun("OmsBackend.ThrRun.End|name=", thrName);
 }

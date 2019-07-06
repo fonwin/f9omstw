@@ -40,8 +40,14 @@ $OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 $OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 
 # -------------------------------
-$OUTPUT_DIR/OmsRcServer_UT --log=0
+$OUTPUT_DIR/OmsRcAgents_UT --log=0
 
+# -------------------------------
+$OUTPUT_DIR/OmsRcFramework_UT
+$OUTPUT_DIR/OmsRcFramework_UT
+
+# -------------------------------
+rm -f *.f9dbf
 { set +x; } 2>/dev/null
 echo '#####################################################'
 echo '#           f9omstw All tests passed!               #'

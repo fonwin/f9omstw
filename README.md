@@ -263,6 +263,5 @@ libf9omstw: 台灣環境的委託管理系統.
 #### 異動結束
 * 將 OmsRequest 或 委託異動資料(OmsOrderRaw) 丟到 OmsBackend.
 * 定時(例:1 ms), 或有空時通知, 或資料累積太多: 通知有新增的 OmsRxItem.
-  * OmsBackend 將新增的 OmsRxItem 寫入檔案.
-  * OmsReportSubscriber 處理回報通知.
+  * OmsBackend 將新增的 OmsRxItem 寫入檔案, 及回報通知.
 

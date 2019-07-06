@@ -10,16 +10,13 @@
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
     <Filter Include="Header Files\utws">
-      <UniqueIdentifier>{aba02dc6-594a-4afa-b552-c5ca2d867f71}</UniqueIdentifier>
+      <UniqueIdentifier>{cab975f7-f68e-4ec4-876d-e157d772e6fb}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\utws">
-      <UniqueIdentifier>{4d037db3-941d-487d-b76e-c411a4736a9f}</UniqueIdentifier>
+      <UniqueIdentifier>{669a2c23-826c-41ea-8125-c767ffcc151b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\f9omstw\OmsRcServer_UT.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsBrk.cpp">
       <Filter>Source Files\utws</Filter>
     </ClCompile>
@@ -36,6 +33,15 @@
       <Filter>Source Files\utws</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSymb.cpp">
+      <Filter>Source Files\utws</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRcFramework_UT.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRcFramework_UT_C.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsOmsCore.cpp">
       <Filter>Source Files\utws</Filter>
     </ClCompile>
   </ItemGroup>

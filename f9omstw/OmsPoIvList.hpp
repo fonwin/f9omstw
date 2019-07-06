@@ -2,31 +2,32 @@
 /// \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsPoIvList_hpp__
 #define __f9omstw_OmsPoIvList_hpp__
+#include "f9omstw/OmsPoIvList.h"
 #include "fon9/CharVector.hpp"
 #include "fon9/SortedVector.hpp"
 #include "fon9/Utility.hpp"
 
 namespace f9omstw {
 
-enum class OmsIvRight : uint8_t {
-   DenyTradingNew    = 0x01,
-   DenyTradingChgQty = 0x02,
-   DenyTradingChgPri = 0x04,
-   DenyTradingQuery  = 0x08,
-   DenyTradingAll    = 0x0f,
+enum class OmsIvRight : fon9::underlying_type_t<f9oms_IvRight> {
+   DenyTradingNew    = f9oms_IvRight_DenyTradingNew,
+   DenyTradingChgQty = f9oms_IvRight_DenyTradingChgQty,
+   DenyTradingChgPri = f9oms_IvRight_DenyTradingChgPri,
+   DenyTradingQuery  = f9oms_IvRight_DenyTradingQuery,
+   DenyTradingAll    = f9oms_IvRight_DenyTradingAll,
 
    /// 允許使用 OmsRequestIni 建立「刪、改、查」下單要求.
    /// 通常用於「委託遺失(例如:新單尚未寫檔,但系統crash,重啟後委託遺失)」的補單操作。
-   AllowRequestIni = 0x10,
+   AllowRequestIni = f9oms_IvRight_AllowRequestIni,
    AllowTradingAll = AllowRequestIni,
 
    DenyAll = DenyTradingAll,
 
    /// 只有在 DenyTradingAll 的情況下才需要判斷此旗標.
-   /// 因為只要允許任一種交易, 就必定允許訂閱回報.
-   AllowSubscribeReport = 0x10,
+   /// 因為只要允許任一種交易, 就必定允許回報.
+   AllowReport = f9oms_IvRight_AllowReport,
 
-   IsAdmin = 0x80,
+   IsAdmin = f9oms_IvRight_IsAdmin,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsIvRight);
 

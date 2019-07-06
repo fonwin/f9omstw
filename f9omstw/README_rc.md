@@ -2,9 +2,11 @@
 ========================
 
 * TODO: 重複登入時間及來源(即時通知?)、上次(及目前)連線時間及來源...
+* TODO: 同一個使用者: 瞬間登入次數管制、上線數量管制....
+* TODO: 同一個來源IP: 瞬間連線次數管制、上線數量管制....
 
 
-## f9oms API: Function code = 0x08: f9oms api
+## fon9::rc::RcFunctionCode::OmsApi = 0x08
 * `unsigned tableId`
   * tableId == 0 各類查詢、操作: [`enum f9OmsRc_OpKind`](OmsRc.h)
   * tableId != 0
@@ -14,15 +16,17 @@
 
 ---------------------------------------
 
-### client 下單要求(C -> S): tableId = "REQ." 下單表格序號
+### Client 下單要求(C -> S): tableId = "REQ." 下單表格序號
 * `tableId != 0`
 * `下單要求字串` 參考下單要求欄位: Layouts 的 "REQ."
 
-### server 回報(C <- S): tableId = "RPT." 回報表格序號
+### Server 回報(C <- S): tableId = "RPT." 回報表格序號
 * `tableId != 0`
 * `OmsRxSNO reportSNO`  從1開始依序編號, 不一定連續.
   * 如果為 0, 則表示該筆為 request abandon, 是沒有進入系統的拒絕, 無法回補.
     * 此時沒有 `OmsRxSNO referenceSNO`
+    * 若超過流量, 也會透過此處回報(拒絕下單: OmsErrCode_OverFlowControl),
+      若「超過流量」的累計筆數超過 N(由券商自訂), 則強制斷線.
   * 下次連線後的回補(訂閱)要求, 應從「TDay + (最後收到的序號+1)」開始.
     * 回補時 server 端會檢查: 若 TDay 不正確, 則拒絕回補.
 * `OmsRxSNO referenceSNO`
@@ -35,7 +39,7 @@
 ---------------------------------------
 
 ### QueryConfig: f9OmsRc_OpKind_Config
-#### client 發起
+#### Client 發起
 * `tableId = 0`
 * `f9OmsRc_OpKind_Config`
 
@@ -44,7 +48,7 @@
 * 在收到回覆之前, 可能會先收到 TDayChanged, 此時應先將 TDay 保留,
   等收到回覆時若 TDayChanged.TDay > Config.TDay, 則需回覆 TDayConfirm, 等候新的 Config;
 
-#### server 回覆
+#### Server 回覆
 * `tableId = 0`
 * `f9OmsRc_OpKind_Config`
 * `fon9::TimeStamp TDay`
@@ -106,12 +110,12 @@
 ---------------------------------------
 
 ### TDayChanged: f9OmsRc_OpKind_TDayChanged, f9OmsRc_OpKind_TDayConfirm
-#### server 發起 f9OmsRc_OpKind_TDayChanged
+#### Server 發起 f9OmsRc_OpKind_TDayChanged
 * `tableId = 0`
 * `f9OmsRc_OpKind_TDayChanged`
 * `fon9::TimeStamp TDay`
 
-#### client 回覆 f9OmsRc_OpKind_TDayConfirm
+#### Client 回覆 f9OmsRc_OpKind_TDayConfirm
 * `tableId = 0`
 * `f9OmsRc_OpKind_TDayConfirm`
 * `fon9::TimeStamp TDay`
@@ -125,7 +129,7 @@
 ---------------------------------------
 
 ### Report Recover & Subscribe: f9OmsRc_OpKind_ReportSubscribe
-#### client 發起 f9OmsRc_OpKind_ReportSubscribe
+#### Client 發起 f9OmsRc_OpKind_ReportSubscribe
 * `tableId = 0`
 * `f9OmsRc_OpKind_ReportSubscribe`
 * `fon9::TimeStamp TDay`
@@ -135,7 +139,7 @@
 * 不理會相同 TDay 的重覆要求.
 * 不理會不同 TDay 的要求.
 
-#### server 回覆 f9OmsRc_OpKind_ReportSubscribe
+#### Server 回覆 f9OmsRc_OpKind_ReportSubscribe
 * `tableId = 0`
 * `f9OmsRc_OpKind_ReportSubscribe`
 * `fon9::TimeStamp TDay`

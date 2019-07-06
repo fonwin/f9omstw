@@ -83,6 +83,8 @@
     <ClInclude Include="..\..\..\f9omstw\OmsErrCode.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsEventFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsGvTable.h" />
+    <ClInclude Include="..\..\..\f9omstw\OmsGvTable.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvacTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvBase.hpp" />
@@ -91,6 +93,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrderTws.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdNoMap.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
@@ -124,6 +127,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsGvTable.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp" />
@@ -137,6 +141,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRcClient.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRcClientApi.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRcServer.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRcServerFunc.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp" />

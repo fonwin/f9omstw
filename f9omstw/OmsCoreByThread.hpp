@@ -21,7 +21,7 @@ struct OmsThreadTaskHandler {
    fon9_NON_COPY_NON_MOVE(OmsThreadTaskHandler);
    using MessageType = OmsCoreTask;
    OmsCoreByThread* const Owner_;
-   std::vector<OmsRequestRunner> PendingReqs_;
+   std::vector<OmsRequestRunner> PendingReqsInThr_;
 
    OmsThreadTaskHandler(OmsThread&);
    void OnMessage(OmsCoreTask& task);
@@ -44,8 +44,11 @@ protected:
 
    bool MoveToCoreImpl(OmsRequestRunner&& runner) override;
 
+   /// this->WaitForEndNow(); 並完成剩餘的工作.
+   void OnBeforeDestroy();
 public:
    using base::base;
+   ~OmsCoreByThread();
 
    void RunCoreTask(OmsCoreTask&& task) override;
 };

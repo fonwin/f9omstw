@@ -95,7 +95,6 @@ public:
       return this->Backend_.PublishedSNO();
    }
 
-
    inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
       intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));
    }

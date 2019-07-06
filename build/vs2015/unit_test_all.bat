@@ -24,8 +24,15 @@ del OmsReqOrd_UT.log
 %EXEDIR%\OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 
 @REM -----------------------
-%EXEDIR%\OmsRcServer_UT --log=0
+%EXEDIR%\OmsRcAgents_UT --log=0
 
+@REM -----------------------
+%EXEDIR%\OmsRcFramework_UT
+%EXEDIR%\OmsRcFramework_UT
+
+@REM -----------------------
+del *.f9dbf
+del *.log
 @echo '#####################################################'
 @echo '#           f9omstw All tests passed!               #'
 @echo '#####################################################'

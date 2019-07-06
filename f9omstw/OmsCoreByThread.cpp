@@ -7,7 +7,7 @@ namespace f9omstw {
 OmsThreadTaskHandler::OmsThreadTaskHandler(OmsThread& owner)
    : Owner_{static_cast<OmsCoreByThread*>(&owner)} {
    static_cast<OmsCoreByThread*>(&owner)->SetThisThreadId();
-   this->PendingReqs_.reserve(1024 * 10);
+   this->PendingReqsInThr_.reserve(1024 * 10);
 }
 void OmsThreadTaskHandler::OnThreadEnd(const std::string& threadName) {
    (void)threadName;
@@ -15,18 +15,30 @@ void OmsThreadTaskHandler::OnThreadEnd(const std::string& threadName) {
 }
 //--------------------------------------------------------------------------//
 void OmsThreadTaskHandler::OnAfterWakeup(OmsThread::Locker& queue) {
-   if (this->Owner_->PendingReqs_.empty())
-      return;
-   // 使用 swap() 不釋放 PendingReqs_ 已分配的 memory.
-   this->PendingReqs_.swap(this->Owner_->PendingReqs_);
-   queue.unlock();
-   for (OmsRequestRunner& runner : this->PendingReqs_) {
-      this->Owner_->RunInCore(std::move(runner));
+   for (;;) {
+      if (this->Owner_->PendingReqs_.empty())
+         return;
+      // 使用 swap() 不釋放 PendingReqsInThr_ 已分配的 memory.
+      this->PendingReqsInThr_.swap(this->Owner_->PendingReqs_);
+      queue.unlock();
+      for (OmsRequestRunner& runner : this->PendingReqsInThr_) {
+         this->Owner_->RunInCore(std::move(runner));
+      }
+      this->PendingReqsInThr_.clear();
+      queue.lock();
    }
-   this->PendingReqs_.clear();
-   queue.lock();
 }
 //--------------------------------------------------------------------------//
+OmsCoreByThread::~OmsCoreByThread() {
+   this->OnBeforeDestroy();
+}
+void OmsCoreByThread::OnBeforeDestroy() {
+   this->WaitForEndNow();
+   // 完成剩餘的工作, 避免 memory leak.
+   this->ThreadId_ = 0;
+   OmsThreadTaskHandler handler{*this};
+   this->WaitForEndNow(handler);
+}
 OmsCore::StartResult OmsCoreByThread::Start(fon9::TimeStamp tday, std::string logFileName) {
    this->PendingReqs_.reserve(1024 * 10);
    auto res = base::Start(tday, std::move(logFileName));

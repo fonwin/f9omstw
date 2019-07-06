@@ -12,7 +12,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F06E87AD-BBE6-405B-BA58-8B1E1655C8EB}</ProjectGuid>
-    <RootNamespace>OmsRcServer_UT</RootNamespace>
+    <RootNamespace>OmsRcAgents_UT</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -80,7 +80,7 @@
     <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.cpp" />
     <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSubac.cpp" />
     <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSymb.cpp" />
-    <ClCompile Include="..\..\..\f9omstw\OmsRcServer_UT.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsRcAgents_UT.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj">

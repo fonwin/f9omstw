@@ -241,9 +241,10 @@ public:
 
 class ApiSesCfg : public fon9::intrusive_ref_counter<ApiSesCfg> {
    fon9_NON_COPY_NON_MOVE(ApiSesCfg);
-   OmsCoreSP      CurrentCore_;
-   fon9::SubConn  SubrRpt_{};
-   fon9::SubConn  SubrTDay_{};
+   OmsCoreSP               CurrentCore_;
+   fon9::SubConn           SubrRpt_{};
+   fon9::SubConn           SubrTDay_{};
+   std::atomic<unsigned>   SubrTimes_{0};
    void OnReport(OmsCore&, const OmsRxItem&);
    void UnsubscribeRpt();
    void SubscribeRpt(OmsCore& core);
@@ -269,8 +270,10 @@ public:
    /// 回報給 API 的格式.
    ApiRptCfgs  ApiRptCfgs_;
 
-   /// 由 MakeApiSesCfg() 呼叫訂閱.
-   void SubscribeReport();
+   /// 訂閱: TDayChangedEvent_; ReportSubject();
+   /// Subscribe()/Unsubscribe(); 必須成對出現, 最後一次 Unsubscribe() 時, 才會真的取消訂閱.
+   void Subscribe();
+   void Unsubscribe();
 
    /// 收到 OmsCore 的即時回報後, 編製的回報訊息.
    /// 包含開頭的 rptTableId、reportSNO、referenceSNO (Bitv格式);

@@ -121,7 +121,11 @@ struct UtwsOmsCore : public OmsCoreByThread {
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
    }
    ~UtwsOmsCore() {
-      this->WaitForEndNow();
+      this->OnBeforeDestroy();
+   }
+   void OnParentTreeClear(fon9::seed::Tree& tree) override {
+      base::OnParentTreeClear(tree);
+      this->OnBeforeDestroy();
    }
 };
 struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
@@ -175,5 +179,6 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
 
 } // namespaces
 //--------------------------------------------------------------------------//
-static fon9::seed::PluginsDesc f9p_UtwsOmsCore{"", &f9omstw::UtwsOmsCoreMgr::Create, nullptr, nullptr,};
+extern "C" fon9::seed::PluginsDesc f9p_UtwsOmsCore;
+fon9::seed::PluginsDesc f9p_UtwsOmsCore{"", &f9omstw::UtwsOmsCoreMgr::Create, nullptr, nullptr,};
 static fon9::seed::PluginsPark f9pRegister{"UtwsOmsCore", &f9p_UtwsOmsCore};

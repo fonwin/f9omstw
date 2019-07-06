@@ -33,17 +33,17 @@
     <Filter Include="Source Files\_tws">
       <UniqueIdentifier>{389c6ccf-bc9f-4263-8637-a72e4c8489d2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\_Rc_OmsApi">
-      <UniqueIdentifier>{cf59629c-f126-4089-bdf0-15617495f67f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\_Rc_OmsApi">
-      <UniqueIdentifier>{7cf189dc-aa63-435b-8a5b-63969a503c9d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\_request_order_event">
       <UniqueIdentifier>{ea691485-f57d-419c-9b48-a243d729ff11}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\_request_order_event">
       <UniqueIdentifier>{f3685643-ae1e-4f22-87f3-3b8c1cf04246}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_OmsRc_Api">
+      <UniqueIdentifier>{cf59629c-f126-4089-bdf0-15617495f67f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_OmsRc_Api">
+      <UniqueIdentifier>{7cf189dc-aa63-435b-8a5b-63969a503c9d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -153,22 +153,31 @@
       <Filter>Header Files\_request_order_event</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRcServer.hpp">
-      <Filter>Header Files\_Rc_OmsApi</Filter>
+      <Filter>Header Files\_OmsRc_Api</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRcServerFunc.hpp">
-      <Filter>Header Files\_Rc_OmsApi</Filter>
+      <Filter>Header Files\_OmsRc_Api</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp">
       <Filter>Header Files\_policy</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRcClient.hpp">
-      <Filter>Header Files\_Rc_OmsApi</Filter>
+      <Filter>Header Files\_OmsRc_Api</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsRc.h">
-      <Filter>Header Files\_Rc_OmsApi</Filter>
+      <Filter>Header Files\_OmsRc_Api</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsEventFactory.hpp">
       <Filter>Header Files\_request_order_event</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.h">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsGvTable.hpp">
+      <Filter>Header Files\_OmsRc_Api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsGvTable.h">
+      <Filter>Header Files\_OmsRc_Api</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -269,19 +278,25 @@
       <Filter>Source Files\_request_order_event</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcServer.cpp">
-      <Filter>Source Files\_Rc_OmsApi</Filter>
+      <Filter>Source Files\_OmsRc_Api</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcServerFunc.cpp">
-      <Filter>Source Files\_Rc_OmsApi</Filter>
+      <Filter>Source Files\_OmsRc_Api</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp">
       <Filter>Source Files\_policy</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsRcClient.cpp">
-      <Filter>Source Files\_Rc_OmsApi</Filter>
+      <Filter>Source Files\_OmsRc_Api</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp">
       <Filter>Source Files\_request_order_event</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsRcClientApi.cpp">
+      <Filter>Source Files\_OmsRc_Api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsGvTable.cpp">
+      <Filter>Source Files\_OmsRc_Api</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

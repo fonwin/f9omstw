@@ -1,4 +1,16 @@
 ﻿// \file f9omstw/OmsRcServer_UT.cpp
+//
+// - 測試 Server 端載入 OmsRc API 設定檔: "../../forms/ApiAll.cfg"
+// - 使用 TestDevice2 對接, Server/Client 正常登入.
+// - 要測試的 class:
+//   - OmsRcServerAgent/Note;
+//   - OmsRcClientAgent/Note;
+//   - OmsRcClientSession;
+// - 測試項目:
+//   - Config 查詢.
+//   - TDayChanged/Confirm: 瞬間多次.
+//   - 下單/回報.
+//
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
 #include "apps/f9omstw/UnitTestCore.hpp"
@@ -14,8 +26,7 @@
 #include "fon9/auth/SaslScramSha256Server.hpp"
 #include "fon9/DefaultThreadPool.hpp"
 //--------------------------------------------------------------------------//
-fon9_WARN_DISABLE_PADDING;
-struct RcFuncMgr : public fon9::intrusive_ref_counter<RcFuncMgr>, public fon9::rc::RcFunctionMgr {
+struct RcFuncMgr : public fon9::rc::RcFunctionMgrRefCounter {
    fon9_NON_COPY_NON_MOVE(RcFuncMgr);
    RcFuncMgr(f9omstw::ApiSesCfgSP sesCfg, fon9::auth::AuthMgrSP authMgr) {
       this->Add(fon9::rc::RcFunctionAgentSP{new fon9::rc::RcFuncConnServer("f9rcServer.0", "fon9 RcServer", authMgr)});
@@ -27,52 +38,38 @@ struct RcFuncMgr : public fon9::intrusive_ref_counter<RcFuncMgr>, public fon9::r
       this->Add(fon9::rc::RcFunctionAgentSP{new fon9::rc::RcFuncSaslClient{}});
       this->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::OmsRcClientAgent{}});
    }
-   unsigned AddRef() override {
-      return intrusive_ptr_add_ref(static_cast<fon9::intrusive_ref_counter<RcFuncMgr>*>(this));
-   }
-   unsigned Release() override {
-      return intrusive_ptr_release(static_cast<fon9::intrusive_ref_counter<RcFuncMgr>*>(this));
-   }
 };
-fon9_WARN_POP;
 //--------------------------------------------------------------------------//
-f9OmsRc_ClientConfig ClientConfig_;
-f9OmsRc_SNO          LastSNO_;
-fon9::CharVector     LastClOrdId_;
+f9OmsRc_CoreTDay  CoreTDay_;
+f9OmsRc_SNO       LastSNO_;
+fon9::CharVector  LastClOrdId_;
+void OnClientLinkEv(f9OmsRc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
+   (void)ses; (void)st; (void)info;
+}
 void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
-   if (ClientConfig_.HostId_ != cfg->HostId_
-       || ClientConfig_.YYYYMMDD_ != cfg->YYYYMMDD_
-       || ClientConfig_.UpdatedCount_ != cfg->UpdatedCount_) {
+   if (f9OmsRc_IsCoreTDayChanged(&CoreTDay_, &cfg->CoreTDay_)) {
       LastSNO_ = 0;
-      ClientConfig_ = *cfg;
+      CoreTDay_ = cfg->CoreTDay_;
    }
-   f9OmsRc_SubscribeReport(ses, &ClientConfig_, LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
+   f9OmsRc_SubscribeReport(ses, cfg, LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 }
 void OnClientReport(f9OmsRc_ClientSession*, const f9OmsRc_ClientReport* rpt) {
    LastSNO_ = rpt->ReportSNO_;
-   if (rpt->Layout_->ClOrdId_ >= 0) {
-      const auto& val = rpt->FieldArray_[rpt->Layout_->ClOrdId_];
+   if (rpt->Layout_ && rpt->Layout_->IdxClOrdId_ >= 0) {
+      const auto& val = rpt->FieldArray_[rpt->Layout_->IdxClOrdId_];
       LastClOrdId_.assign(val.Begin_, val.End_);
    }
 }
 //--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
-   f9OmsRc_ClientSession clicfg;
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
       //_CrtSetBreakAlloc(176);
       SetConsoleCP(CP_UTF8);
       SetConsoleOutputCP(CP_UTF8);
       // setvbuf(stdout, nullptr, _IOFBF, 10000); // for std::cout + UTF8;
-      clicfg.LogFlags_ = f9OmsRc_ClientLogFlag_All;
-   #else
-      clicfg.LogFlags_ = f9OmsRc_ClientLogFlag_Config;
    #endif
    fon9::AutoPrintTestInfo utinfo{"OmsRcServer"};
-   //---------------------------------------------
-   fon9::StrView arg = fon9::GetCmdArg(argc, argv, "l", "log");
-   if (!arg.empty())
-      clicfg.LogFlags_ = static_cast<f9OmsRc_ClientLogFlag>(fon9::HIntStrTo(arg, 0u));
    //---------------------------------------------
    auto  core = TestCore::MakeCoreMgr(argc, argv);
    auto  coreMgr = core->Owner_;
@@ -161,13 +158,27 @@ int main(int argc, char* argv[]) {
    devSvr->WaitGetDeviceId();
    //---------------------------------------------
    // Client 登入.
-   f9OmsRc_ClientHandler cliHandler{ &OnClientConfig, &OnClientReport };
+   using CliSessionSP = fon9::intrusive_ptr<f9omstw::OmsRcClientSession>;
+   f9OmsRc_ClientHandler         cliHandler = {&OnClientLinkEv, &OnClientConfig, &OnClientReport, nullptr};
+   f9OmsRc_ClientSessionParams   sesParams;
+   sesParams.Handler_   = &cliHandler;
+   sesParams.UserId_    = kUSERID;
+   sesParams.Password_  = kPASSWD;
+   sesParams.DevName_   = "";
+   sesParams.DevParams_ = "";
+   sesParams.UserData_  = nullptr;
+   fon9::StrView  arg = fon9::GetCmdArg(argc, argv, "l", "log");
+   if (!arg.empty())
+      sesParams.LogFlags_ = static_cast<f9OmsRc_ClientLogFlag>(fon9::HIntStrTo(arg, 0u));
+   else
+      sesParams.LogFlags_ = f9OmsRc_ClientLogFlag_Config;
+
    RcFuncMgrSP    rcFuncMgrCli{new RcFuncMgr};
-   ApiSessionSP   sesCli{new f9omstw::OmsRcClientSession(rcFuncMgrCli, kUSERID, kPASSWD, cliHandler, clicfg)};
+   CliSessionSP   sesCli{new f9omstw::OmsRcClientSession(rcFuncMgrCli, &sesParams)};
    TestDevSP      devCli{new fon9::io::TestDevice2(sesCli, iomgr)};
    devCli->Initialize();
-   devCli->SetPeer(devSvr);
    devCli->AsyncOpen("dev.client");
+   devCli->SetPeer(devSvr);
    // 等候 Client 登入完成.
    while (sesCli->GetSessionSt() != fon9::rc::RcSessionSt::ApReady
        || sesSvr->GetSessionSt() != fon9::rc::RcSessionSt::ApReady) {
@@ -209,7 +220,7 @@ int main(int argc, char* argv[]) {
       std::this_thread::yield();
    }
    if (cliNote->Config().LayoutsStr_ != sesCfg->ApiSesCfgStr_
-       || cliNote->Config().HostId_ != fon9::LocalHostId_
+       || cliNote->Config().CoreTDay_.HostId_ != fon9::LocalHostId_
        || cliNote->Config().OmsSeedPath_ != core->SeedPath_) {
       fon9_LOG_FATAL("OmsRcClientConfig error");
       abort();
@@ -247,31 +258,34 @@ int main(int argc, char* argv[]) {
    f9omstw::OmsRcLayout*      layout = reqLayouts.Get("TwsNew");
    std::vector<fon9::StrView> fldValues(layout->Fields_.size());
    size_t                     clOrdId = core->GetResource().Backend_.LastSNO();
-   PUT_FIELD_VAL(fldValues, layout->Kind_,       "");
-   PUT_FIELD_VAL(fldValues, layout->Market_,     "T");
-   PUT_FIELD_VAL(fldValues, layout->SessionId_,  "N");
-   PUT_FIELD_VAL(fldValues, layout->BrkId_,      "8610");
-   PUT_FIELD_VAL(fldValues, layout->IvacNo_,     "10");
-   PUT_FIELD_VAL(fldValues, layout->SubacNo_,    "");
-   PUT_FIELD_VAL(fldValues, layout->IvacNoFlag_, "");
-   PUT_FIELD_VAL(fldValues, layout->UsrDef_,     "UD001");
-   PUT_FIELD_VAL(fldValues, layout->ClOrdId_,    "CL123");
-   PUT_FIELD_VAL(fldValues, layout->Side_,       "B");
-   PUT_FIELD_VAL(fldValues, layout->OType_,      "0");
-   PUT_FIELD_VAL(fldValues, layout->Symbol_,     "2317");
-   PUT_FIELD_VAL(fldValues, layout->PriType_,    "L");
-   PUT_FIELD_VAL(fldValues, layout->Pri_,        "200");
-   PUT_FIELD_VAL(fldValues, layout->Qty_,        "8000");
-   PUT_FIELD_VAL(fldValues, layout->OrdNo_,      "");
-   PUT_FIELD_VAL(fldValues, layout->PosEff_,     "");
-   PUT_FIELD_VAL(fldValues, layout->TIF_,        "");
-   PUT_FIELD_VAL(fldValues, layout->IniSNO_,     "");
+   PUT_FIELD_VAL(fldValues, layout->IdxKind_,       "");
+   PUT_FIELD_VAL(fldValues, layout->IdxMarket_,     "T");
+   PUT_FIELD_VAL(fldValues, layout->IdxSessionId_,  "N");
+   PUT_FIELD_VAL(fldValues, layout->IdxBrkId_,      "8610");
+   PUT_FIELD_VAL(fldValues, layout->IdxIvacNo_,     "10");
+   PUT_FIELD_VAL(fldValues, layout->IdxSubacNo_,    "");
+   PUT_FIELD_VAL(fldValues, layout->IdxIvacNoFlag_, "");
+   PUT_FIELD_VAL(fldValues, layout->IdxUsrDef_,     "UD001");
+   PUT_FIELD_VAL(fldValues, layout->IdxClOrdId_,    "CL123");
+   PUT_FIELD_VAL(fldValues, layout->IdxSide_,       "B");
+   PUT_FIELD_VAL(fldValues, layout->IdxOType_,      "0");
+   PUT_FIELD_VAL(fldValues, layout->IdxSymbol_,     "2317");
+   PUT_FIELD_VAL(fldValues, layout->IdxPriType_,    "L");
+   PUT_FIELD_VAL(fldValues, layout->IdxPri_,        "200");
+   PUT_FIELD_VAL(fldValues, layout->IdxQty_,        "8000");
+   PUT_FIELD_VAL(fldValues, layout->IdxOrdNo_,      "");
+   PUT_FIELD_VAL(fldValues, layout->IdxPosEff_,     "");
+   PUT_FIELD_VAL(fldValues, layout->IdxTIF_,        "");
 
    fon9::NumOutBuf bufClOrdId;
    auto fnSendReq = [&fldValues, sesCli, layout, &clOrdId, &bufClOrdId]() {
-      fldValues[static_cast<unsigned>(layout->ClOrdId_)]
+      fldValues[static_cast<unsigned>(layout->IdxClOrdId_)]
          .Reset(fon9::UIntToStrRev(bufClOrdId.end(), ++clOrdId), bufClOrdId.end());
-
+      f9OmsRc_SendRequestFields(sesCli.get(), layout, &fldValues[0].ToCStrView());
+   };
+   auto fnMakeSendReqStr = [&fldValues, layout, &clOrdId, &bufClOrdId]() {
+      fldValues[static_cast<unsigned>(layout->IdxClOrdId_)]
+         .Reset(fon9::UIntToStrRev(bufClOrdId.end(), ++clOrdId), bufClOrdId.end());
       fon9::RevBufferList rbuf{128};
       auto ifldEnd = fldValues.cend();
       auto ifldBeg = fldValues.cbegin();
@@ -281,9 +295,7 @@ int main(int argc, char* argv[]) {
             break;
          fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL);
       }
-      fon9::ByteArraySizeToBitvT(rbuf, fon9::CalcDataSize(rbuf.cfront()));
-      fon9::ToBitv(rbuf, static_cast<unsigned>(layout->GetIndex()) + 1u);
-      sesCli->Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
+      return fon9::BufferTo<std::string>(rbuf.MoveOut());
    };
    auto fnWaitSendReq = [&lastRxItem, layout, &fldValues]() {
       // 等候全部測試結束: 「訂閱 or 回補」到最後一筆.
@@ -293,7 +305,7 @@ int main(int argc, char* argv[]) {
             if (const auto* ord = dynamic_cast<const f9omstw::OmsOrderRaw*>(lastRxItem))
                req = dynamic_cast<const f9omstw::OmsRequestTrade*>(ord->Request_);
          }
-         if (req && fon9::ToStrView(req->ClOrdId_) == fldValues[static_cast<unsigned>(layout->ClOrdId_)])
+         if (req && fon9::ToStrView(req->ClOrdId_) == fldValues[static_cast<unsigned>(layout->IdxClOrdId_)])
             break;
          std::this_thread::yield();
       }
@@ -323,17 +335,20 @@ int main(int argc, char* argv[]) {
 
    fon9::RevPrint(rbuf, "----- Test Abandon -----\n");
    // 在 user thread 的失敗: ErrCode=OmsErrCode_OrdNoMustEmpty#203, RxSNO()==0;
-   PUT_FIELD_VAL(fldValues, layout->OrdNo_, "A");
+   PUT_FIELD_VAL(fldValues, layout->IdxOrdNo_, "A");
    fnSendReq();
    // 在 core thread 的失敗: ErrCode=OmsErrCode_Bad_BrkId#100
-   PUT_FIELD_VAL(fldValues, layout->OrdNo_, "");
-   PUT_FIELD_VAL(fldValues, layout->BrkId_, "9999");
+   PUT_FIELD_VAL(fldValues, layout->IdxOrdNo_, "");
+   PUT_FIELD_VAL(fldValues, layout->IdxBrkId_, "9999");
    fnSendReq();
    fnWaitSendReq();
    //---------------------------------------------
+   std::string reqStr = fnMakeSendReqStr();
+   f9OmsRc_SendRequestString(sesCli.get(), layout, fon9_ToCStrView(reqStr));
+
    // 等 Client 收完回報.
-   fon9_LOG_INFO("Waiting Client|LastClOrdId=", LastClOrdId_, "|LastSNO=", lastRxItem->RxSNO());
-   while (fon9::ToStrView(LastClOrdId_) != fldValues[static_cast<unsigned>(layout->ClOrdId_)])
+   fon9_LOG_INFO("Waiting Client|LastClOrdId=", LastClOrdId_, "|LastSNO=", lastRxItem->RxSNO(), "|WaitFor.ClOrdId=", clOrdId);
+   while (fon9::ToStrView(LastClOrdId_) != fldValues[static_cast<unsigned>(layout->IdxClOrdId_)])
       std::this_thread::yield();
    //---------------------------------------------
    fon9_LOG_INFO("Test END      |LastClOrdId=", LastClOrdId_);

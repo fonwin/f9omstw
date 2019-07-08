@@ -31,4 +31,7 @@ else()
 endif()
 
 add_subdirectory(f9omstw)
-add_subdirectory(apps/f9omstw)
+add_subdirectory(f9omstws)
+#add_subdirectory(f9omstwf)
+add_subdirectory(f9omsrc)
+add_subdirectory(f9utws)

@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omstw/OmsCore.hpp"
-#include "f9omstw/OmsOrderTws.hpp"
+#include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
 #include "fon9/ThreadId.hpp"
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
       using base = f9omstw::OmsOrderFactory;
 
       f9omstw::OmsOrderRaw* MakeOrderRawImpl() override {
-         return new f9omstw::OmsOrderTwsRaw;
+         return new f9omstw::OmsTwsOrderRaw;
       }
       f9omstw::OmsOrder* MakeOrderImpl() override {
          return new f9omstw::OmsOrder;
@@ -77,9 +77,9 @@ int main(int argc, char* argv[]) {
    };
    OrderFactory   ordFactory;
 
-   struct RequestNew : public f9omstw::OmsRequestTwsIni {
+   struct RequestNew : public f9omstw::OmsTwsRequestIni {
       fon9_NON_COPY_NON_MOVE(RequestNew);
-      using base = f9omstw::OmsRequestTwsIni;
+      using base = f9omstw::OmsTwsRequestIni;
       using base::base;
       void NoReadyLineReject(fon9::StrView) override {
       }

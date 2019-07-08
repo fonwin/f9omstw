@@ -9,57 +9,10 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Header Files\utws">
-      <UniqueIdentifier>{64060080-3f4a-4326-97d5-96c9c61f0aad}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\utws">
-      <UniqueIdentifier>{d300e069-d7de-49ab-9601-497abfd5a5fa}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade_UT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsBrk.cpp">
-      <Filter>Source Files\utws</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvac.cpp">
-      <Filter>Source Files\utws</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSc.cpp">
-      <Filter>Source Files\utws</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.cpp">
-      <Filter>Source Files\utws</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSubac.cpp">
-      <Filter>Source Files\utws</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSymb.cpp">
-      <Filter>Source Files\utws</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsBrk.hpp">
-      <Filter>Header Files\utws</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvac.hpp">
-      <Filter>Header Files\utws</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvSc.hpp">
-      <Filter>Header Files\utws</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.hpp">
-      <Filter>Header Files\utws</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsSubac.hpp">
-      <Filter>Header Files\utws</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsSymb.hpp">
-      <Filter>Header Files\utws</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\apps\f9omstw\UnitTestCore.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

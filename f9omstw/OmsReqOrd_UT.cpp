@@ -4,7 +4,7 @@
 //
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "apps/f9omstw/UnitTestCore.hpp"
+#include "f9utws/UnitTestCore.hpp"
 //--------------------------------------------------------------------------//
 void TestCase(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP policy, fon9::StrView reqstr) {
    auto req = MakeOmsRequestRunner(core.Owner_->RequestFactoryPark(), reqstr);
@@ -23,11 +23,11 @@ int main(int argc, char* argv[]) {
    TestCore testCore(argc, argv);
    auto&    coreResource = testCore.GetResource();
    testCore.Owner_->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
-      new OmsRequestTwsIniFactory("TwsNew", testCore.Owner_->OrderFactoryPark().GetFactory("TwsOrd"),
+      new OmsTwsRequestIniFactory("TwsNew", testCore.Owner_->OrderFactoryPark().GetFactory("TwsOrd"),
                                             f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                              f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
-      new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsRequestTwsFilledFactory("TwsFilled", nullptr)
+      new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
+      new OmsTwsRequestFilledFactory("TwsFilled", nullptr)
    ));
    testCore.OpenReload(argc, argv, "OmsReqOrd_UT.log");
    std::this_thread::sleep_for(std::chrono::milliseconds{100});

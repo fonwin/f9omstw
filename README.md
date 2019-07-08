@@ -10,10 +10,10 @@ libf9omstw: 台灣環境的委託管理系統.
     * 不需要 ExLogForUpd_, 只需要 ExLogForReq_
     * 增加 struct OmsRequestRptDat; 暫時性的記錄回報內容, 回報處理完畢後就刪除.
       ```
-      struct OmsRequestRptTwsOrd : public OmsRequestRptDat, public OmsRequestTwsIniDat {
+      struct OmsRequestRptTwsOrd : public OmsRequestRptDat, public OmsTwsRequestIniDat {
          ExgTime_; BeforeQty; AfterQty;...
       };
-      struct OmsRequestRptTwsFilled : public OmsRequestRptDat, public OmsRequestTwsIniDat {
+      struct OmsRequestRptTwsFilled : public OmsRequestRptDat, public OmsTwsRequestIniDat {
          ExgTime_; Qty; Pri;...
       };
       ```
@@ -36,6 +36,32 @@ libf9omstw: 台灣環境的委託管理系統.
     * 相同委託書號對應到不同的委託書?
     * 發生原因: 外部回報異常(例如: 送出昨天的回報檔), OMS 沒有清檔...
     * 如何決定哪筆委託才是正確的?
+
+## 預設路徑結構
+```
+~/devel/                我的開發環境根目錄
+  |-- external/         third-party libraries
+  |
+  |-- output/fon9/
+  |-- output/f9omstw/
+  |   |-- 64/Release/      預設 Windows 的 fon9.sln 輸出路徑
+  |   \-- release/f9omstw/ 預設 Linux 輸出路徑
+  |
+  |-- fon9/             libfon9 基礎建設
+  |
+  \-- f9omstw/          適用於台灣市場的 OMS, 為了便於開發, 底下所有的 namespace 都使用 f9omstw
+      |-- f9omstw/      header(.hpp & .h) & source(.cpp & .c) 放在一起，更容易找到所需的檔案。
+      |-- f9omstws/     適用於台灣證券市場 OMS 擴充, 例如: OmsTwsRequest.cpp
+      |-- f9omstwf/     適用於台灣期貨市場 OMS 擴充, 例如: OmsTwfRequest.cpp
+      |-- f9omsrc/      使用 fon9 rc protocol 的「client 端 C API」及「server 端: RcServerAgent, RcServerNote」
+      |   \-- forms/    API 表單 Layout 設定範例.
+      |
+      |-- f9utws/       台灣證券市場 OMS 範例程式.
+      |
+      \-- build/
+          |-- cmake/    build shell for cmake
+          \-- vs2015/   VS2015 project & solution files
+```
 
 ---------------------------------------
 
@@ -86,7 +112,7 @@ libf9omstw: 台灣環境的委託管理系統.
 
 ### OmsRequestIni
 * 可初始化委託書的下單要求, 但不一定是新單要求, 也有可能是遺失單的補單「查詢、刪單」之類的操作。
-* 須包含交易所需要的所有欄位(由衍生者提供, 例如: OmsRequestTwsIni)
+* 須包含交易所需要的所有欄位(由衍生者提供, 例如: OmsTwsRequestIni)
 * 所以下單要求執行步驟需判斷 RequestKind 來決定是否為新單(或: 刪、改、查...).
 
 ---------------------------------------

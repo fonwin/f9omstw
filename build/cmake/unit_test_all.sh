@@ -16,35 +16,35 @@ ulimit -c unlimited
 set -x
 set -e
 
-OUTPUT_DIR=${OUTPUT_DIR:-${BUILD_DIR}/${BUILD_TYPE}/f9omstw}
+OUTPUT_DIR=${OUTPUT_DIR:-${BUILD_DIR}/${BUILD_TYPE}}
 
 rm -f *.log
 
-$OUTPUT_DIR/OmsOrdNoMap_UT
-$OUTPUT_DIR/OmsRequestPolicy_UT
+$OUTPUT_DIR/f9omstw/OmsOrdNoMap_UT
+$OUTPUT_DIR/f9omstw/OmsRequestPolicy_UT
 
 # -------------------------------
 # 測試 2 次, 第2次會載入前次資料.
-$OUTPUT_DIR/OmsRequestTrade_UT
-$OUTPUT_DIR/OmsRequestTrade_UT
+$OUTPUT_DIR/f9omstw/OmsRequestTrade_UT
+$OUTPUT_DIR/f9omstw/OmsRequestTrade_UT
 
 # -------------------------------
-$OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 0
-$OUTPUT_DIR/OmsReqOrd_UT -o /dev/null -f 1
+$OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o /dev/null -f 0
+$OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o /dev/null -f 1
 
-$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
-$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
+$OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
+$OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0
 
 rm -f OmsReqOrd_UT.log
-$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
-$OUTPUT_DIR/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
+$OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
+$OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o OmsReqOrd_UT.log -f 1
 
 # -------------------------------
-$OUTPUT_DIR/OmsRcAgents_UT --log=0
+$OUTPUT_DIR/f9omsrc/OmsRcAgents_UT --log=0
 
 # -------------------------------
-$OUTPUT_DIR/OmsRcFramework_UT
-$OUTPUT_DIR/OmsRcFramework_UT
+$OUTPUT_DIR/f9omsrc/OmsRcFramework_UT
+$OUTPUT_DIR/f9omsrc/OmsRcFramework_UT
 
 # -------------------------------
 rm -f *.f9dbf

@@ -62,7 +62,7 @@ using OmsIvSymbSP = fon9::intrusive_ptr<OmsIvSymb>;
 //                   ↑    ↑                  ↑
 //        OmsRequestIni  OmsRequestUpd       ↑
 //                   ↑    ↑                  ↑
-//     OmsRequestTwsIni  OmsRequestTwsChg  OmsRequestTwsFilled  (類推 Twf)
+//     OmsTwsRequestIni  OmsTwsRequestChg  OmsTwsRequestFilled  (類推 Twf)
 //
 class OmsRequestBase;
 class OmsRequestTrade;

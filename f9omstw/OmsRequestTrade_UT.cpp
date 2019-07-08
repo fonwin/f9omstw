@@ -8,7 +8,7 @@
 //   - 包含 Policy 的驗證.
 //
 // \author fonwinz@gmail.com
-#include "apps/f9omstw/UnitTestCore.hpp"
+#include "f9utws/UnitTestCore.hpp"
 //--------------------------------------------------------------------------//
 unsigned gRxHistoryCount = 0;
 
@@ -103,8 +103,8 @@ int main(int argc, char* argv[]) {
    TestCore testCore(argc, argv);
    auto&    coreResource = testCore.GetResource();
    testCore.Owner_->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
-      new OmsRequestTwsIniFactory("TwsNew", testCore.Owner_->OrderFactoryPark().GetFactory("TwsOrd"), f9omstw::OmsRequestRunStepSP{new TwsNewChecker}),
-      new OmsRequestTwsChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new TwsChgChecker})
+      new OmsTwsRequestIniFactory("TwsNew", testCore.Owner_->OrderFactoryPark().GetFactory("TwsOrd"), f9omstw::OmsRequestRunStepSP{new TwsNewChecker}),
+      new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new TwsChgChecker})
    ));
    testCore.OpenReload(argc, argv, "OmsRequestTrade_UT.log");
    const auto snoStart = coreResource.Backend_.LastSNO();

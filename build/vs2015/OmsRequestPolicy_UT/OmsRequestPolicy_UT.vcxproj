@@ -78,11 +78,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsBrk.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvac.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSc.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.cpp" />
-    <ClCompile Include="..\..\..\apps\f9omstw\utws\UtwsSubac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestPolicy_UT.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -92,13 +87,9 @@
     <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
       <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsBrk.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvac.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvSc.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsIvSymb.hpp" />
-    <ClInclude Include="..\..\..\apps\f9omstw\utws\UtwsSubac.hpp" />
+    <ProjectReference Include="..\libf9utws\libf9utws.vcxproj">
+      <Project>{44cf3194-49b5-4061-acb1-6a566339a82b}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

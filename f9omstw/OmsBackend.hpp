@@ -122,7 +122,12 @@ public:
    using OpenResult = fon9::File::Result;
    OpenResult OpenReload(std::string logFileName, OmsResource& resource);
    void StartThread(std::string thrName, fon9::TimeInterval flushInterval = fon9::TimeInterval_Millisecond(1));
-   void WaitForEndNow();
+   /// 通知並等候 thread 結束.
+   void WaitThreadEnd();
+   /// 通知並等候 thread 結束, 然後儲存剩餘的資料.
+   /// 呼叫時機: 在 OmsCore 解構, 且必須在 OmsCoreMgr 死亡之前.
+   /// 因為儲存剩餘資料時需要用到 OrderFactory, RequestFactory...
+   void OnBeforeDestroy();
 
    const OmsRxItem* GetItem(OmsRxSNO sno) const {
       Items::ConstLocker items{this->Items_};

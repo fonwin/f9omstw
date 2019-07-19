@@ -11,9 +11,12 @@ namespace f9omstw {
 
 OmsBackend::~OmsBackend() {
 }
-void OmsBackend::WaitForEndNow() {
+void OmsBackend::WaitThreadEnd() {
    this->Items_.WaitForEndNow();
    fon9::JoinThread(this->Thread_);
+}
+void OmsBackend::OnBeforeDestroy() {
+   this->WaitThreadEnd();
 
    Locker items{this->Items_};
    if (this->LastSNO_ == 0 && !this->RecorderFd_.IsOpened())

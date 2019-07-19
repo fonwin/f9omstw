@@ -4,7 +4,9 @@
 #define __f9omstw_OmsRequestBase_hpp__
 #include "f9omstw/OmsRequestId.hpp"
 #include "f9omstw/OmsErrCode.h"
+#include "f9omstw/OmsReporter.hpp"
 #include "fon9/seed/Tab.hpp"
+#include "fon9/TimeStamp.hpp"
 
 namespace f9omstw {
 
@@ -15,6 +17,8 @@ enum OmsRequestFlag : uint8_t {
    OmsRequestFlag_External = 0x02,
    /// 無法進入委託流程: 無法建立 OmsOrder, 或找不到對應的 OmsOrder.
    OmsRequestFlag_Abandon = 0x04,
+   /// 回報用的 request, 此時 OmsRequestBase::Reporter_ 有效.
+   OmsRequestFlag_Reporter = 0x08,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsRequestFlag);
 
@@ -31,6 +35,22 @@ struct OmsOrdKey {
 };
 
 /// 「新、刪、改、查、成交」的共同基底.
+/// \code
+///
+///                           f9fmkt::TradingRxItem
+///                            ↑                 ↑
+/// TradingLineMgr             ↑                 ↑
+///   ::SendRequest(f9fmkt::TradingRequest);     ↑
+///                           ↑                  ↑
+///                    OmsRequestBase           OmsOrderRaw
+///                       ↑       ↑                      ↑
+///           OmsRequestTrade   OmsRequestFilled         ↑
+///               ↑    ↑                  ↑              +-----+
+///    OmsRequestIni  OmsRequestUpd       ↑                    ↑
+///               ↑    ↑                  ↑                    ↑
+/// OmsTwsRequestIni  OmsTwsRequestChg  OmsTwsRequestFilled   OmsTwsOrderRaw  (類推 Twf)
+///
+/// \endcode
 class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, public OmsOrdKey {
    fon9_NON_COPY_NON_MOVE(OmsRequestBase);
    using base = fon9::fmkt::TradingRequest;
@@ -44,6 +64,9 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
       /// 當 IsEnumContains(this->RequestFlags(), OmsRequestFlag_Abandon) 則沒有 LastUpdated_;
       /// 此時 AbandonReason_ 說明中斷要求的原因.
       std::string*   AbandonReason_;
+      /// 當 IsEnumContains(this->RequestFlags(), OmsRequestFlag_Reporter) 則沒有 LastUpdated_;
+      /// 此時 Reporter_ 暫時儲存回報處理物件, OmsCore 會透過 MoveOutReporter() 取出, 然後處理回報.
+      OmsReporter*   Reporter_;
    };
    fon9::TimeStamp   CrTime_;
 
@@ -132,6 +155,19 @@ public:
 
    /// 透過 this->OrdKey(BrkId+Market+SessionId+OrdNo)取出此筆要求要操作的原始新單要求.
    const OmsRequestIni* GetOrderInitiatorByOrdKey(OmsResource& res) const;
+
+   /// 取出回報處理物件.
+   /// 接下來 OmsCore 會透過 retval->RunReport(OmsRequestRunnerInCore&& runner); 處理回報.
+   std::unique_ptr<OmsReporter> MoveOutReporter() {
+      assert(IsEnumContains(this->RequestFlags(), OmsRequestFlag_Reporter) && this->Reporter_);
+      if (IsEnumContains(this->RequestFlags(), OmsRequestFlag_Reporter)) {
+         this->RxItemFlags_ = static_cast<decltype(this->RxItemFlags_)>(this->RxItemFlags_ & ~OmsRequestFlag_Reporter);
+         OmsReporter* rpt = this->Reporter_;
+         this->Reporter_ = nullptr;
+         return std::unique_ptr<OmsReporter>(rpt);
+      }
+      return nullptr;
+   }
 };
 
 } // namespaces

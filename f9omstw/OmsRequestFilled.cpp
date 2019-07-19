@@ -10,8 +10,6 @@ void OmsRequestFilled::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestFilled, MatchKey));
    base::MakeFields<OmsRequestFilled>(flds);
 }
-void OmsRequestFilled::NoReadyLineReject(fon9::StrView) {
-}
 const OmsRequestFilled* OmsRequestFilled::Insert(const OmsRequestFilled** ppHead,
                                                  const OmsRequestFilled** ppLast,
                                                  const OmsRequestFilled* curr) {

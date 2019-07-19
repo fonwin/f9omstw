@@ -7,8 +7,9 @@
 namespace f9omstw {
 
 OmsCore::~OmsCore() {
-   /// 在 OmsCore 死亡前, 通知 Backend_.WaitForEndNow() 結束, 並做最後的存檔.
-   this->Backend_.WaitForEndNow();
+   /// 在 Owner_ 死亡前, 通知 Backend 結束, 並做最後的存檔.
+   /// 因為存檔時會用到 Owner_ 的 OrderFactory, RequestFactory...
+   this->Backend_.OnBeforeDestroy();
 }
 
 bool OmsCore::IsThisThread() const {

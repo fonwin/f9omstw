@@ -20,9 +20,6 @@ class OmsRequestFilled : public OmsRequestBase {
 
    const OmsRequestFilled mutable* Next_{nullptr};
 
-   /// 成交回報要求與下單線路無關, 所以這裡 do nothing.
-   void NoReadyLineReject(fon9::StrView) override;
-
    /// 將 curr 插入 this 與 this->Next_ 之間;
    void InsertAfter(const OmsRequestFilled* curr) const {
       assert(curr->Next_ == nullptr && this->MatchKey_ < curr->MatchKey_);

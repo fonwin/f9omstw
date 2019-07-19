@@ -11,7 +11,7 @@ OmsThreadTaskHandler::OmsThreadTaskHandler(OmsThread& owner)
 }
 void OmsThreadTaskHandler::OnThreadEnd(const std::string& threadName) {
    (void)threadName;
-   this->Owner_->Backend_.WaitForEndNow();
+   this->Owner_->Backend_.WaitThreadEnd();
 }
 //--------------------------------------------------------------------------//
 void OmsThreadTaskHandler::OnAfterWakeup(OmsThread::Locker& queue) {

@@ -4,7 +4,7 @@
 #define __f9omstw_OmsEventFactory_hpp__
 #include "f9omstw/OmsBase.hpp"
 #include "f9omstw/OmsFactoryPark.hpp"
-#include "fon9/fmkt/Trading.hpp"
+#include "fon9/TimeStamp.hpp"
 
 namespace f9omstw {
 

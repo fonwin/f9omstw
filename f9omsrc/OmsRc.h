@@ -196,9 +196,9 @@ typedef struct {
 fon9_ENUM(f9OmsRc_ClientLogFlag, uint8_t) {
    f9OmsRc_ClientLogFlag_None = 0,
    f9OmsRc_ClientLogFlag_All = 0xff,
-   /// 記錄下單訊息.
+   /// 記錄下單訊息 & Config.
    f9OmsRc_ClientLogFlag_Request = 0x01,
-   /// 記錄回報訊息.
+   /// 記錄回報訊息 & Config.
    f9OmsRc_ClientLogFlag_Report = 0x02,
    /// 登入成功後, TDayChanged, Config 相關事件.
    f9OmsRc_ClientLogFlag_Config = 0x04,
@@ -371,6 +371,13 @@ f9OmsRc_CreateSession(f9OmsRc_ClientSession** result,
 /// isWait = 0 表示在返回後仍可能收到事件, 如果您是在事件通知時呼叫, 則不能等候銷毀(會造成死結).
 f9OmsRc_API_FN(void)
 f9OmsRc_DestroySession(f9OmsRc_ClientSession* ses, int isWait);
+
+inline void f9OmsRc_DestroySession_Wait(f9OmsRc_ClientSession* ses) {
+   f9OmsRc_DestroySession(ses, 1);
+}
+inline void f9OmsRc_DestroySession_NoWait(f9OmsRc_ClientSession* ses) {
+   f9OmsRc_DestroySession(ses, 0);
+}
 
 /// 用指定名稱取得「下單表單格式」.
 /// - cfg 必須是在 FnOnConfig_ 事件裡面提供的那個;

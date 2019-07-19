@@ -17,12 +17,27 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsRequest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFix.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFixSend.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsOrder.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsRequest.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineFix.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

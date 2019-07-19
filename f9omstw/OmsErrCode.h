@@ -32,6 +32,18 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_MarketId_SymbNotFound = 103,
    /// 新單沒有填 Market, 且商品資料的 MarketId 為 f9fmkt_TradingMarket_Unknown.
    OmsErrCode_Bad_SymbMarketId = 104,
+   /// 不認識的 MarketId, 無法決定下單要求要送到何處.
+   OmsErrCode_Bad_MarketId = 105,
+
+   /// RxKind 有誤.
+   OmsErrCode_Bad_RxKind = 110,
+   /// 買賣別問題.
+   OmsErrCode_Bad_Side = 111,
+   /// 新單: 新單數量問題, 超過上限? 非整股數量?
+   /// 改單: 期望的改後數量有誤: 不可增量, 或期望的改後數量與現在(LeavesQty+CumQty)相同.
+   OmsErrCode_Bad_Qty = 112,
+   /// 下單價格問題.
+   OmsErrCode_Bad_Pri = 113,
 
    /// OmsRequestIni::PreCheck_IvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 120,

@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsBase_hpp__
 #define __f9omstw_OmsBase_hpp__
-#include "fon9/fmkt/Trading.hpp"
+#include "fon9/fmkt/TradingRequest.hpp"
 #include "fon9/CharAryL.hpp"
 #include <memory>
 
@@ -29,13 +29,6 @@ using OmsBrkId = fon9::CharAryL<7>;
 /// 台灣證券、期權, 委託書號 5 碼.
 using OmsOrdNo = fon9::CharAry<5>;
 
-//
-//    +-----------------+
-//    |    OmsIvBase    |
-//    +-----------------+
-//      ↑      ↑      ↑
-// OmsBrkc  OmsIvac  OmsSubac
-//
 class OmsIvBase;
 using OmsIvBaseSP = fon9::intrusive_ptr<OmsIvBase>;
 
@@ -55,15 +48,6 @@ using OmsSubacSP = fon9::intrusive_ptr<OmsSubac>;
 class OmsIvSymb;
 using OmsIvSymbSP = fon9::intrusive_ptr<OmsIvSymb>;
 
-//
-//                        OmsRequestBase
-//                           ↑       ↑
-//               OmsRequestTrade   OmsRequestFilled
-//                   ↑    ↑                  ↑
-//        OmsRequestIni  OmsRequestUpd       ↑
-//                   ↑    ↑                  ↑
-//     OmsTwsRequestIni  OmsTwsRequestChg  OmsTwsRequestFilled  (類推 Twf)
-//
 class OmsRequestBase;
 class OmsRequestTrade;
 class OmsRequestIni;
@@ -92,6 +76,8 @@ struct OmsScResource;
 
 class OmsEventFactory;
 using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
+
+class OmsReporter;
 
 } // namespaces
 #endif//__f9omstw_OmsBase_hpp__

@@ -14,6 +14,13 @@ enum class OmsIvKind {
 };
 
 /// OmsIvBase 衍生出:「子帳」、「投資人帳號」、「券商」.
+/// \code
+///    +-----------------+
+///    |    OmsIvBase    |
+///    +-----------------+
+///      ↑      ↑      ↑
+/// OmsBrkc  OmsIvac  OmsSubac
+/// \endcode
 class OmsIvBase : public fon9::intrusive_ref_counter<OmsIvBase> {
    fon9_NON_COPY_NON_MOVE(OmsIvBase);
 public:

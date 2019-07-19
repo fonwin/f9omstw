@@ -143,6 +143,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.h">
       <Filter>Header Files\_policy</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsReporter.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -240,6 +243,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp">
       <Filter>Source Files\_request_order_event</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsReporter.cpp">
+      <Filter>Source Files\_core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -357,5 +357,5 @@ int main(int argc, char* argv[]) {
    devSvr->AsyncClose("dev.server.close");
    authMgr->Storage_->Close();
    coreMgr->OnParentSeedClear();
-   core->Backend_WaitForEndNow();
+   core->Backend_OnBeforeDestroy();
 }

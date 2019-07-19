@@ -31,7 +31,24 @@ libf9omstw: 台灣環境的委託管理系統.
     * 新單尚未成功, 先收到其他回報(刪、改、成交):   
       由於台灣證交所可能會主動減少新單的委託量, 所以新單尚未成功前, 不能確定新單成功數量。
     * 刪單成功回報, 但刪減數量無法讓 LeavesQty 為 0, 可能有「在途成交」或「遺漏減量回報」。
-    * 可考慮在 OmsOrder 增加一個容器儲存「等待處理的回報」。
+      * 例如: 現在 LeavesQty=10, 刪單成功回報 BeforeQty=3, AfterQty=0, 遺失 7
+    * 可考慮在 OmsOrder 儲存「等待處理的回報」。
+
+    * 收到回報時, 如何判斷該回報是否為其他 f9oms 的下單結果?
+      * 是否要等其他 f9oms 的下單要求來對應?
+      * 如何判斷不同來源的重複回報?
+        * 如果沒有 f9oms 的 ReqUID, 則使用「OrdKey + 交易所的AfterQty」?
+        * 思考底下的下單階段, 如果有亂序, 要怎麼處理呢?
+          * f9oms.X.Request(SNO=A), Queuing(SNO=B), Sending(SNO=C).
+          * 此筆的「SNO=A的外部回報(SNO=D) 結果(SNO=E)」: 一般回報只有最後結果.
+          * f9oms.X.Result(SNO=F).
+          * 如果 f9oms.Y 先收到了「券商主機送來的 D & E」, 那 f9oms.Y 要怎麼處理呢?
+            * 如果券商主機的回報格式, 可以辨別下單要求來源是否為 f9oms, 則可將其過濾, 只處理「非 f9oms」的回報.
+            * 如果無法辨別, 則 f9oms 之間 **不可互傳** 回報.
+      * 如果 f9oms 啟用當日已於其他主機用過的線路, 而收到「交易所回報」的回補:
+        * 應在設定時告知此線路原本是否為 f9oms 使用.
+        * 如果原本是 f9oms 使用, 則可用 OrdKey 找到委託, 再循序尋找 ReqUID=ClOrdID 的 request.
+        * 如果不是 f9oms, 則應使用 OrdKey + AfterQty 尋找是否為重複回報, 或建立新的 request.
   * 委託書號對照表異常
     * 相同委託書號對應到不同的委託書?
     * 發生原因: 外部回報異常(例如: 送出昨天的回報檔), OMS 沒有清檔...
@@ -164,6 +181,16 @@ libf9omstw: 台灣環境的委託管理系統.
 
 ---------------------------------------
 
+## Report
+* Report Recover
+* Report Subscribe:
+  * (Request/Order/Event) Report
+  * Market event Report
+    * Preopen/Open/Close
+    * Line broken
+
+---------------------------------------
+
 ## 風控資料表
 底下是「f9omstw:台灣環境OMS」所需的資料表, 不同的OMS實作、不同的風控需求, 所需的表格、及表格元素所需的欄位不盡相同。
 * Symb
@@ -211,16 +238,6 @@ libf9omstw: 台灣環境的委託管理系統.
   * 所以收到新交易日開始事件時, 應重新取得相關資料.
 * 舊的 OmsCore 則在適當時機刪除.
 * 這樣就沒有 OmsCore 每日清檔的問題!
-
----------------------------------------
-
-## Report
-* Report Recover
-* Report Subscribe
-* (Request/Order) Report
-* Market event Report
-  * Preopen/Open/Close
-  * Line broken
 
 ---------------------------------------
 

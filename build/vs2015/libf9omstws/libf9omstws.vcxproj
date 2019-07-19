@@ -76,10 +76,15 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstws\OmsTwsOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsRequest.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFix.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFixSend.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsOrder.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsRequest.hpp" />
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineFix.hpp" />
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

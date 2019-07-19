@@ -63,14 +63,7 @@ class OmsRequestFactoryT : public f9omstw::OmsRequestFactory {
    fon9_NON_COPY_NON_MOVE(OmsRequestFactoryT);
    using base = f9omstw::OmsRequestFactory;
 
-   struct OmsRequestT : public OmsRequestBaseT {
-      fon9_NON_COPY_NON_MOVE(OmsRequestT);
-      using base = OmsRequestBaseT;
-      using base::base;
-      OmsRequestT() = default;
-      void NoReadyLineReject(fon9::StrView) override {
-      }
-   };
+   using OmsRequestT = OmsRequestBaseT;
    using RequestSupplier = fon9::ObjSupplier<OmsRequestT, kPoolObjCount>;
    typename RequestSupplier::ThisSP RequestTape_{RequestSupplier::Make()};
    f9omstw::OmsRequestSP MakeRequestImpl() override {
@@ -215,7 +208,7 @@ struct TestCore : public f9omstw::OmsCore {
    }
 
    ~TestCore() {
-      this->Backend_WaitForEndNow();
+      this->Backend_OnBeforeDestroy();
       this->Brks_->InThr_OnParentSeedClear();
       if (this->IsWaitQuit_) {
          // 要查看資源用量(時間、記憶體...), 可透過 `/usr/bin/time` 指令:
@@ -227,9 +220,9 @@ struct TestCore : public f9omstw::OmsCore {
          getchar();
       }
    }
-   void Backend_WaitForEndNow() {
+   void Backend_OnBeforeDestroy() {
       auto lastSNO = this->Backend_.LastSNO();
-      this->Backend_.WaitForEndNow();
+      this->Backend_.OnBeforeDestroy();
       if (lastSNO > 0)
          std::cout << this->Name_ << ".LastSNO = " << lastSNO << std::endl;
    }

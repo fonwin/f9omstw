@@ -77,13 +77,7 @@ int main(int argc, char* argv[]) {
    };
    OrderFactory   ordFactory;
 
-   struct RequestNew : public f9omstw::OmsTwsRequestIni {
-      fon9_NON_COPY_NON_MOVE(RequestNew);
-      using base = f9omstw::OmsTwsRequestIni;
-      using base::base;
-      void NoReadyLineReject(fon9::StrView) override {
-      }
-   };
+   using RequestNew = f9omstw::OmsTwsRequestIni;
    struct RequestFactory : public f9omstw::OmsRequestFactory {
       fon9_NON_COPY_NON_MOVE(RequestFactory);
       using base = f9omstw::OmsRequestFactory;

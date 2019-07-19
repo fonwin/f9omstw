@@ -58,6 +58,8 @@ const OmsOrderRaw* OmsOrderRaw::CastToOrder() const {
 void OmsOrderRaw::Initialize(OmsOrder& order) {
    *const_cast<OmsOrder**>(&this->Order_) = &order;
    *const_cast<const OmsRequestBase**>(&this->Request_) = order.Initiator_;
+   this->Market_ = order.Initiator_->Market();
+   this->SessionId_ = order.Initiator_->SessionId();
 }
 OmsOrderRaw::OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req)
    : Order_(prev->Order_)
@@ -68,10 +70,14 @@ OmsOrderRaw::OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req)
    assert(prev->Next_ == nullptr && prev->Order_->Last_ == prev);
    prev->Next_ = prev->Order_->Last_ = this;
    this->RxKind_ = f9fmkt_RxKind_Order;
+   this->Market_ = req.Market();
+   this->SessionId_ = req.SessionId();
 }
 void OmsOrderRaw::Initialize(const OmsOrderRaw* prev, const OmsRequestBase& req) {
    assert(prev != nullptr && prev->Next_ == nullptr && prev->Order_->Last_ == prev);
    prev->Next_ = prev->Order_->Last_ = this;
+   this->Market_ = req.Market();
+   this->SessionId_ = req.SessionId();
 
    *const_cast<OmsOrder**>            (&this->Order_)   = prev->Order_;
    *const_cast<const OmsRequestBase**>(&this->Request_) = &req;

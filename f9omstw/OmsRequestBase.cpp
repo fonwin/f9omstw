@@ -14,6 +14,9 @@ OmsRequestBase::~OmsRequestBase() {
       assert(this->LastUpdated() != nullptr);
       this->LastUpdated()->Order_->FreeThis();
    }
+   else if (this->RxItemFlags_ & OmsRequestFlag_Reporter) {
+      this->MoveOutReporter();
+   }
 }
 const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;

@@ -41,6 +41,9 @@
     <ClCompile Include="..\..\..\f9utws\UtwsSymb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9utws\UtwsExgSenderStep.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9utws\UtwsBrk.hpp">
@@ -59,6 +62,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9utws\UtwsSymb.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9utws\UtwsExgSenderStep.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

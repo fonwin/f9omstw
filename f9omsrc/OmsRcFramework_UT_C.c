@@ -96,7 +96,6 @@ void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg)
    OmsRcMyself* ud = (OmsRcMyself*)(ses->UserData_);
    ud->Config_ = cfg;
    ud->State_ = OmsRcCliSt_Recovering;
-   f9OmsRc_SubscribeReport(ses, ud->Config_, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 
    if (f9OmsRc_IsCoreTDayChanged(&ud->CoreTDay_, &cfg->CoreTDay_)) {
       ud->LastSNO_ = 0;
@@ -109,6 +108,7 @@ void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg)
          ud->ReqNewValues_ = calloc(lyTwsNew->FieldCount_, sizeof(fon9_CStrView));
       }
    }
+   f9OmsRc_SubscribeReport(ses, ud->Config_, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 
    // 印出解析前的原始字串.
    puts(cfg->TablesStrView_.Begin_);

@@ -41,6 +41,7 @@ public:
 /// - 變動中的委託: this->OrderRaw_
 ///   - this->OrderRaw_.Order_->Last() == &this->OrderRaw_;
 ///   - this->OrderRaw_.Request_->LastUpdated_ 尚未設定成 &this->OrderRaw_;
+///     所以 this->OrderRaw_.Request_->LastUpdated_ 有可能仍是 nullptr;
 /// - 解構時: ~OmsRequestRunnerInCore()
 ///   - this->Resource_.Backend_.OnAfterOrderUpdated(*this);
 ///     - 設定 this->OrderRaw_.Request_->LastUpdated_ = &this->OrderRaw_;
@@ -74,9 +75,18 @@ public:
 
    ~OmsRequestRunnerInCore();
 
+   void Reject(f9fmkt_TradingRequestSt reqst, OmsErrCode ec, fon9::StrView cause);
+   void Update(f9fmkt_TradingRequestSt reqst, fon9::StrView cause);
+
    /// 使用 this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
+   ///
+   /// \retval true  已填妥 OrdNo.
+   /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo(OmsOrdNo reqOrdNo);
    /// 使用 tgId 的櫃號設定, 不考慮 Request policy.
+   ///
+   /// \retval true  已填妥 OrdNo.
+   /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo(OmsOrdTeamGroupId tgId);
 
    /// 在 this->OrderRaw_.OrdNo_.empty1st() 時, 分配委託書號.
@@ -85,6 +95,9 @@ public:
    ///   也就是下單時有指定櫃號, 或 Policy 有指定櫃號群組.
    ///   則使用 this->AllocOrdNo(this->OrderRaw_.Order_->Initiator_->OrdNo_).
    /// - 否則使用 this->AllocOrdNo(tgId);
+   ///
+   /// \retval true  已填妥 OrdNo.
+   /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId) {
       if (!this->OrderRaw_.OrdNo_.empty1st()) // 已編號.
          return true;

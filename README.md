@@ -6,49 +6,11 @@ libf9omstw: 台灣環境的委託管理系統.
   * 執行時的速度可加快一點點。
   * 僅需提供單一執行檔(減少額外的 dll), 可讓執行環境更單純。
 * TODO:
-  * 外來回報進入 OMS 使用 OmsRequestRptStep, OmsRequestRptInCore;
-    * 不需要 ExLogForUpd_, 只需要 ExLogForReq_
-    * 增加 struct OmsRequestRptDat; 暫時性的記錄回報內容, 回報處理完畢後就刪除.
-      ```
-      struct OmsRequestRptTwsOrd : public OmsRequestRptDat, public OmsTwsRequestIniDat {
-         ExgTime_; BeforeQty; AfterQty;...
-      };
-      struct OmsRequestRptTwsFilled : public OmsRequestRptDat, public OmsTwsRequestIniDat {
-         ExgTime_; Qty; Pri;...
-      };
-      ```
-    * 或是 OmsRequestRptDat, OmsRequestRptInCore, OmsRequestRptStep 合併成一個「自主回報處理」的類別.
-      「自主回報處理」物件: 丟到 OmsCore, 取得 OmsResource 之後, 開始自主處理回報:
-      * 「建立 or 取得 or 等候」 Initiator request.
-      * 判斷是否重複回報.
-      * 建立回報內容 OmsRequestXXX; 然後開始更新 OrderRaw;
   * OmsBackend
     * 各類事件(開收盤、斷線...)通知.
     * 重新載入後, 重算風控資料.
+    * 回報訂閱(回補) Filter: 排除「非本機收單」的回報.
 * 一些特殊狀況的思考:
-  * 收到的回報順序問題:
-    * 沒有新單資料, 先收到其他回報(刪、改、成交)。
-    * 新單尚未成功, 先收到其他回報(刪、改、成交):   
-      由於台灣證交所可能會主動減少新單的委託量, 所以新單尚未成功前, 不能確定新單成功數量。
-    * 刪單成功回報, 但刪減數量無法讓 LeavesQty 為 0, 可能有「在途成交」或「遺漏減量回報」。
-      * 例如: 現在 LeavesQty=10, 刪單成功回報 BeforeQty=3, AfterQty=0, 遺失 7
-    * 可考慮在 OmsOrder 儲存「等待處理的回報」。
-
-    * 收到回報時, 如何判斷該回報是否為其他 f9oms 的下單結果?
-      * 是否要等其他 f9oms 的下單要求來對應?
-      * 如何判斷不同來源的重複回報?
-        * 如果沒有 f9oms 的 ReqUID, 則使用「OrdKey + 交易所的AfterQty」?
-        * 思考底下的下單階段, 如果有亂序, 要怎麼處理呢?
-          * f9oms.X.Request(SNO=A), Queuing(SNO=B), Sending(SNO=C).
-          * 此筆的「SNO=A的外部回報(SNO=D) 結果(SNO=E)」: 一般回報只有最後結果.
-          * f9oms.X.Result(SNO=F).
-          * 如果 f9oms.Y 先收到了「券商主機送來的 D & E」, 那 f9oms.Y 要怎麼處理呢?
-            * 如果券商主機的回報格式, 可以辨別下單要求來源是否為 f9oms, 則可將其過濾, 只處理「非 f9oms」的回報.
-            * 如果無法辨別, 則 f9oms 之間 **不可互傳** 回報.
-      * 如果 f9oms 啟用當日已於其他主機用過的線路, 而收到「交易所回報」的回補:
-        * 應在設定時告知此線路原本是否為 f9oms 使用.
-        * 如果原本是 f9oms 使用, 則可用 OrdKey 找到委託, 再循序尋找 ReqUID=ClOrdID 的 request.
-        * 如果不是 f9oms, 則應使用 OrdKey + AfterQty 尋找是否為重複回報, 或建立新的 request.
   * 委託書號對照表異常
     * 相同委託書號對應到不同的委託書?
     * 發生原因: 外部回報異常(例如: 送出昨天的回報檔), OMS 沒有清檔...
@@ -181,7 +143,10 @@ libf9omstw: 台灣環境的委託管理系統.
 
 ---------------------------------------
 
-## Report
+## Report output(subscribe)
+
+由 Backend 提供回報「回補/訂閱」的服務.
+
 * Report Recover
 * Report Subscribe:
   * (Request/Order/Event) Report
@@ -276,7 +241,7 @@ libf9omstw: 台灣環境的委託管理系統.
 1. 前置作業: req->BeforeRunInCore();
    * 此時仍允許修改 req 內容.
    * 若有失敗則 req 進入 Abandon 狀態: 此時透過 OmsBackend 回報機制, 回報給 user(session)
-   * 先將下單要求編號: OmsResource.PutRequestId(req);
+   * 先將下單要求編號: OmsResource.FetchRequestId(req);
    * 聯繫 OmsOrder;
      * 新單要求: 建立新委託
        * PreCheck_OrdKey():  檢查 OrdKey 是否正確.
@@ -298,13 +263,15 @@ libf9omstw: 台灣環境的委託管理系統.
 3. 排隊、送出、或 NoReadyLine.
    * 若有失敗則 req 進入 Reject 狀態.
 
-#### 成交回報
-* 透過 OrdKey(BrkId-Market-SessionId-OrdNo) 找回委託, 然後填入 req.IniSNO_;
-* 檢查 MatchKey 是否重複.
-* 直接處理成交回報作業: 建立新的 OmsOrderRaw 處理成交更新, 然後結束異動.
-
 #### 異動結束
 * 將 OmsRequest 或 委託異動資料(OmsOrderRaw) 丟到 OmsBackend.
 * 定時(例:1 ms), 或有空時通知, 或資料累積太多: 通知有新增的 OmsRxItem.
   * OmsBackend 將新增的 OmsRxItem 寫入檔案, 及回報通知.
 
+---------------------------------------
+
+## 回報匯入(交易所回報)
+依序回報是理想的世界, 但現實是殘酷的,
+所以「回報匯入」亂序, 是 OMS 必須解決的難題.
+
+請參閱專章說明: [回報匯入機制](ReportIn.md)

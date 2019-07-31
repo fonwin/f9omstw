@@ -95,7 +95,6 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp" />
-    <ClInclude Include="..\..\..\f9omstw\OmsReporter.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp" />
@@ -131,7 +130,6 @@
     <ClCompile Include="..\..\..\f9omstw\OmsPoIvListAgent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp" />
-    <ClCompile Include="..\..\..\f9omstw\OmsReporter.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestBase.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp" />

@@ -77,7 +77,5 @@ struct OmsScResource;
 class OmsEventFactory;
 using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
 
-class OmsReporter;
-
 } // namespaces
 #endif//__f9omstw_OmsBase_hpp__

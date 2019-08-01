@@ -26,8 +26,7 @@ int main(int argc, char* argv[]) {
       new OmsTwsRequestIniFactory("TwsNew", testCore.Owner_->OrderFactoryPark().GetFactory("TwsOrd"),
                                             f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                              f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
-      new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsTwsRequestFilledFactory("TwsFilled", nullptr)
+      new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})
    ));
    testCore.OpenReload(argc, argv, "OmsReqOrd_UT.log");
    std::this_thread::sleep_for(std::chrono::milliseconds{100});

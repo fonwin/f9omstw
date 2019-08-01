@@ -74,6 +74,11 @@ struct OmsBackend::Loader {
    const char* MakeRequest(fon9::StrView ln, const FieldsRec& flds) {
       OmsRequestFactory* reqfac = static_cast<OmsRequestFactory*>(flds.Factory_);
       auto  req = reqfac->MakeRequest(fon9::TimeStamp{});
+      if (req.get() == nullptr) {
+         req = reqfac->MakeReport(f9fmkt_RxKind_Unknown, fon9::TimeStamp{});
+         if (req.get() == nullptr)
+            return "MakeRequest:Cannot make request or report.";
+      }
       req->RxSNO_ = this->LastSNO_;
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*req}, ln);
       if (ln.size() >= sizeof(f9omstw_kCSTR_RequestAbandonHeader)
@@ -89,30 +94,37 @@ struct OmsBackend::Loader {
       return nullptr;
    }
    const char* MakeOrder(fon9::StrView ln, const FieldsRec& flds) {
-      using namespace fon9; // for memrchr();
+      using namespace fon9; // for memrchr(); 取出最後一個 value = 委託異動來源的 RxSNO(ReqFrom = Request).
       const char* pReqFrom = reinterpret_cast<const char*>(memrchr(ln.begin(), *fon9_kCSTR_CELLSPL, ln.size()));
       if (pReqFrom == nullptr)
-         return "MakeOrder:ReqFrom tag not found.";
+         return "Loader.MakeOrder: ReqFrom tag not found.";
       OmsRxSNO    snoReqFrom = fon9::StrTo(fon9::StrView{pReqFrom + 1, ln.end()}, OmsRxSNO{0});
       const auto* reqFrom = this->Items_.GetRequest(snoReqFrom);
       if (reqFrom == nullptr)
-         return "MakeOrder:Request not found.";
-      OmsOrderRaw*       ord = nullptr;
+         return "Loader.MakeOrder: Request not found.";
+      // ln 讀入的可能是 reqFrom 的首次或後續異動.
+      OmsOrderRaw*       ordraw = nullptr;
       const OmsOrderRaw* lastupd = reqFrom->LastUpdated();
-      if (lastupd == nullptr) {
+      if (lastupd == nullptr) { // ln = reqFrom 的首次異動內容.
          if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
             auto iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
+            if (iniSNO == 0) {
+               if (0); // 可能因回報亂序, 尚未收到 Initiator 之前的刪改查.
+            }
             const auto* reqIni = this->Items_.GetRequest(iniSNO);
             if (reqIni == nullptr)
-               return "MakeOrder:Ini request not found.";
+               return "Loader.MakeOrder: Ini request not found.";
             if ((lastupd = reqIni->LastUpdated()) == nullptr)
-               return "MakeOrder:Ini request no updated.";
+               return "Loader.MakeOrder: Ini request no updated.";
          }
          else if (const auto* reqIni = dynamic_cast<const OmsRequestIni*>(reqFrom)) {
+            // reqFrom 沒有 IniSNO: 表示 reqFrom 可能本身就是 Initiator, 或是過 RequestIni 的刪改查.
+            // 此時要透過 OrdKey 來找 Initiator.
             if (reqFrom->RxKind() == f9fmkt_RxKind_RequestNew
             || (reqIni = reqFrom->GetOrderInitiatorByOrdKey(this->Resource_)) == nullptr)
                // reqFrom = 新單 or 「補單的刪改查」.
-               ord = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(*const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
+               ordraw = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(
+                  *const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
             else {
                // reqFrom = 使用 OmsRequestIni 的「一般刪改查」.
                // 是否有必要檢查欄位是否正確? reqIni->IsIniFieldEqual(reqFrom);
@@ -120,25 +132,27 @@ struct OmsBackend::Loader {
             }
          }
          else
-            return "MakeOrder:ReqFrom is not RequestIni.";
+            return "Loader.MakeOrder: ReqFrom is not RequestIni.";
       }
-      if (ord == nullptr) {
+      if (ordraw == nullptr) {
          assert(lastupd != nullptr);
-         if (lastupd->Order_->Creator_ != flds.Factory_)
-            return "MakeOrder:Unknown order factory.";
-         ord = lastupd->Order_->BeginUpdate(*reqFrom);
+         if (&lastupd->Order_->Creator() != flds.Factory_)
+            return "Loader.MakeOrder: Unknown order factory.";
+         ordraw = lastupd->Order_->BeginUpdate(*reqFrom);
       }
-      ord->SetRxSNO(this->LastSNO_);
-      reqFrom->LastUpdated_ = ord;
-      StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ord}, ln);
-      this->Items_.AppendHistory(*ord);
-      if (!ord->OrdNo_.empty1st() && (ord->Prev_ == nullptr || ord->Prev_->OrdNo_ != ord->OrdNo_)) {
-         if (OmsBrk* brk = ord->Order_->GetBrk(this->Resource_))
-            if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*ord->Order_->Initiator_))
-               if (!ordNoMap->EmplaceOrder(*ord)) {
-                  return "MakeOrder:OrdNo exists.";
+      OmsOrder* order = ordraw->Order_;
+      ordraw->SetRxSNO(this->LastSNO_);
+      reqFrom->LastUpdated_ = ordraw;
+      StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ordraw}, ln);
+      this->Items_.AppendHistory(*ordraw);
+      if (!ordraw->OrdNo_.empty1st() && (order->Head() == ordraw || order->LastNotPending()->OrdNo_ != ordraw->OrdNo_)) {
+         if (OmsBrk* brk = order->GetBrk(this->Resource_))
+            if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*order->Initiator()))
+               if (!ordNoMap->EmplaceOrder(*ordraw)) {
+                  return "Loader.MakeOrder: OrdNo exists.";
                }
       }
+      order->EndUpdate(*ordraw, nullptr);
       return nullptr;
    }
 
@@ -285,15 +299,42 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
       for (OmsRxSNO sno = loader.LastSNO_; sno > 0; --sno) {
          auto* icur = items->RxHistory_[sno];
-         if (icur->RxKind() != f9fmkt_RxKind_Order)
+         if (icur == nullptr)
             continue;
-         auto ord = static_cast<const OmsOrderRaw*>(icur)->Order_;
-         OmsScResource& scResource = ord->ScResource();
+         const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
+         if (req == nullptr)
+            continue;
+         const OmsOrderRaw* ordraw = req->LastUpdated();
+         if (ordraw == nullptr)
+            continue;
+         OmsOrder* order = ordraw->Order_;
+         if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
+            if (auto filled = dynamic_cast<const OmsReportFilled*>(req)) {
+               if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
+                  continue;
+               fon9_LOG_ERROR("OmsBackend.InsertFilled|filled.SNO=", sno);
+            }
+            fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
+            continue;
+         }
+         auto* inireq = order->Initiator();
+         if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing)) {
+            // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
+            // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
+            // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
+            //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
+            items.unlock();
+            if (OmsOrderRaw* ordupd = order->BeginUpdate(*req)) {
+               OmsRequestRunnerInCore runner{resource, *ordupd, 0u};
+               runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "System restart.");
+            }
+            items.lock();
+         }
+         OmsScResource& scResource = order->ScResource();
          if (scResource.Ivr_.get() != nullptr)
             continue;
-         if (0); // 重建 Order 的 ScResource; 及重算風控資料.
-         auto* inireq = ord->Initiator_;
          scResource.Ivr_ = resource.Brks_->FetchIvr(ToStrView(inireq->BrkId_), inireq->IvacNo_, ToStrView(inireq->SubacNo_));
+         if (0); // 重建 Order 的 ScResource; 及重算風控資料.
       }
    }
    fon9::RevBufferList rbuf{128};

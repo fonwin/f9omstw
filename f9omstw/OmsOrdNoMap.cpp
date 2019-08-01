@@ -9,7 +9,7 @@ namespace f9omstw {
 OmsOrdNoMap::~OmsOrdNoMap() {
 }
 
-bool OmsOrdNoMap::AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team) {
+bool OmsOrdNoMap::GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out) {
    assert(team.size() > 0);
    // 尋找 team 的最後號.
    struct OrdNoStr : public fon9::CharAryL<OmsOrdNo::size()> {
@@ -37,10 +37,17 @@ bool OmsOrdNoMap::AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam t
    else if (fon9_UNLIKELY(!ordno.IncOrdNo(team.size()))) {
       return false;
    }
-   ordno.PutOrdNo(runner.OrderRaw_.OrdNo_);
-   auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.begin() + ordno.max_size()}, runner.OrderRaw_.Order_);
-   (void)ires; assert(ires.second == true);
+   ordno.PutOrdNo(out);
    return true;
+}
+bool OmsOrdNoMap::AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team) {
+   OmsOrdNo& ordno = runner.OrderRaw_.OrdNo_;
+   if (fon9_LIKELY(this->GetNextOrdNo(team, ordno))) {
+      auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, runner.OrderRaw_.Order_);
+      (void)ires; assert(ires.second == true);
+      return true;
+   }
+   return false;
 }
 bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId tgId) {
    auto tgCfg = runner.Resource_.OrdTeamGroupMgr_.GetTeamGroupCfg(tgId);
@@ -57,7 +64,7 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
 }
 bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo req) {
    OmsOrdTeamGroupId tgId;
-   if (const auto* reqPolicy = runner.OrderRaw_.Order_->Initiator_->Policy())
+   if (const auto* reqPolicy = runner.OrderRaw_.Order_->Initiator()->Policy())
       if ((tgId = reqPolicy->OrdTeamGroupId()) != 0)
          goto __READY_GroupId;
 __ERROR_OrdTeamGroupId:
@@ -91,10 +98,10 @@ bool OmsOrdNoMap::Reject(OmsRequestRunnerInCore& runner, OmsErrCode errc) {
    return false;
 }
 
-bool OmsOrdNoMap::EmplaceOrder(const OmsOrderRaw& ord) {
-   assert(!ord.OrdNo_.empty1st());
-   const auto ires = this->emplace(fon9::StrView{ord.OrdNo_.begin(), ord.OrdNo_.end()}, ord.Order_);
-   return(ires.second || ord.Order_ == ires.first->value());
+bool OmsOrdNoMap::EmplaceOrder(OmsOrdNo ordno, OmsOrder* order) {
+   assert(!ordno.empty1st() && order != nullptr);
+   const auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, order);
+   return(ires.second || order == ires.first->value());
 }
 OmsOrder* OmsOrdNoMap::GetOrder(OmsOrdNo ordno) const {
    auto ifind = this->find(ToStrView(ordno));

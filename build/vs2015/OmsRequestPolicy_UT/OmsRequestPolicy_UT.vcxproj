@@ -56,7 +56,7 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -69,7 +69,7 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
     </ClCompile>
     <Link>

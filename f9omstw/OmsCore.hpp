@@ -49,13 +49,15 @@ protected:
    /// 由衍生者實作將 runner 移到 core 執行.
    virtual bool MoveToCoreImpl(OmsRequestRunner&& runner) = 0;
 
-   /// 先執行一些前置作業後, 透過 runner.Request_->Creator_->RunStep_ 執行下單步驟.
-   /// - this->PutRequestId(*runner.Request_);
-   /// - runner.BeforeRunInCore(*this);
-   /// - 若 runner.OrderRaw_ 還沒編委託書號, 但 runner.OrderRaw_.Request_ 有填完整委託書號,
-   ///   則在 step->RunRequest() 之前, 會先建立委託書號對照.
-   /// - step->RunRequest(OmsRequestRunnerInCore{...});
-   void RunInCore(f9omstw::OmsRequestRunner&& runner);
+   /// - 回報, IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn)):
+   ///   runner.Request_->RunReportInCore(OmsReportRunner{std::move(runner)}, *this);
+   /// - 下單要求,  先執行一些前置作業後, 透過 runner.Request_->Creator_->RunStep_ 執行下單步驟.
+   ///   - this->FetchRequestId(*runner.Request_);
+   ///   - runner.BeforeRunInCore(*this);
+   ///   - 若 runner.OrderRaw_ 還沒編委託書號, 但 runner.OrderRaw_.Request_ 有填完整委託書號,
+   ///     則在 step->RunRequest() 之前, 會先建立委託書號對照.
+   ///   - step->RunRequest(OmsRequestRunnerInCore{...});
+   void RunInCore(OmsRequestRunner&& runner);
 
 public:
    const OmsCoreMgrSP   Owner_;

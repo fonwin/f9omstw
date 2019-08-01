@@ -193,14 +193,14 @@ int main(int argc, char* argv[]) {
    //---------------------------------------------
    std::cout << "[TEST ] admin.RequestIni(Query Z0000)";
    TestCase(testCore, poAdmin, OmsErrCode_NoError,
-            "TwsNew|Kind=u|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
+            "TwsNew|Kind=Q|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
    std::cout << "[TEST ] user.RequestIni(Query Z0000)";
    TestCase(testCore, poUser, OmsErrCode_NoError,
-            "TwsNew|Kind=u|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
+            "TwsNew|Kind=Q|Market=T|SessionId=N|OrdNo=Z0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] user.RequestIni(Query Z0001)";
    TestCase(testCore, poUser, OmsErrCode_DenyRequestIni,
-            "TwsNew|Kind=u|Market=T|SessionId=N|OrdNo=Z0001|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
+            "TwsNew|Kind=Q|Market=T|SessionId=N|OrdNo=Z0001|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] user.RequestIni(ChgPri Z0000)";
    TestCase(testCore, poUser, OmsErrCode_IvNoPermission,

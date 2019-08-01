@@ -518,13 +518,13 @@ bool ApiSesCfg::MakeReport(fon9::RevBufferList& rbuf, const OmsRxItem& item) con
       break;
    case f9fmkt_RxKind_Order:
       refSNO = static_cast<const OmsOrderRaw*>(&item)->Request_->RxSNO();
-      rptcfg = this->ApiRptCfgs_.GetRptCfgOrder(*static_cast<const OmsOrderRaw*>(&item)->Order_->Creator_,
-                                                *static_cast<const OmsOrderRaw*>(&item)->Request_->Creator_);
+      rptcfg = this->ApiRptCfgs_.GetRptCfgOrder(static_cast<const OmsOrderRaw*>(&item)->Order_->Creator(),
+                                                static_cast<const OmsOrderRaw*>(&item)->Request_->Creator());
       break;
    default:
       const OmsOrderRaw* ord = static_cast<const OmsRequestBase*>(&item)->LastUpdated();
-      refSNO = ord ? ord->Order_->Initiator_->RxSNO() : 0;
-      rptcfg = this->ApiRptCfgs_.GetRptCfgRequest(*static_cast<const OmsRequestBase*>(&item)->Creator_,
+      refSNO = ord ? ord->Order_->Initiator()->RxSNO() : 0;
+      rptcfg = this->ApiRptCfgs_.GetRptCfgRequest(static_cast<const OmsRequestBase*>(&item)->Creator(),
                                                   ord == nullptr ? ApiRptCfgs::RequestE_Abandon : ApiRptCfgs::RequestE_Normal);
       assert(ord != nullptr || static_cast<const OmsRequestBase*>(&item)->IsAbandoned());
       break;

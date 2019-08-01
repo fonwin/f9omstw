@@ -25,7 +25,7 @@ public:
    /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 Order 的初始化.
    OmsOrderRaw* MakeOrder(OmsRequestIni& initiator, OmsScResource* scRes);
 
-   /// 建立時須注意, 若此時 order.Last()==nullptr
+   /// 建立時須注意, 若此時 order.Tail()==nullptr
    /// - 表示要建立的是 order 第一次異動.
    /// - 包含 order.Head_ 及之後的 data members、衍生類別, 都處在尚未初始化的狀態.
    OmsOrderRaw* MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req);

@@ -4,6 +4,7 @@
 #define __f9omstw_OmsOrder_hpp__
 #include "f9omstw/OmsOrderFactory.hpp"
 #include "f9omstw/OmsRequestTrade.hpp"
+#include "f9omstw/OmsReportFilled.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
 #include "fon9/fmkt/Symb.hpp"
 
@@ -33,27 +34,36 @@ fon9_WARN_POP;
 ///   所以當 OmsOrder::Initiator_ 死亡時, 會呼叫 OmsOrder::FreeThis();
 class OmsOrder {
    fon9_NON_COPY_NON_MOVE(OmsOrder);
-   friend class OmsOrderRaw; // 建構時更新 OmsOrder::Last_;
-   OmsRequestFilled* FilledHead_{nullptr};
-   OmsRequestFilled* FilledLast_{nullptr};
-   OmsOrderRaw*      Last_{nullptr};
-   OmsScResource     ScResource_;
+   const OmsReportFilled*  FilledHead_{nullptr};
+   const OmsReportFilled*  FilledLast_{nullptr};
+
+   const OmsOrderRaw*      FirstPending_{nullptr};
+   const OmsOrderRaw*      LastNotPending_{nullptr};
+   f9fmkt_OrderSt          OrderSt_{};
+   char                    padding___[7];
+
+   friend class OmsOrderRaw; // 建構時更新 OmsOrder::Tail_;
+   OmsOrderRaw*            Tail_{nullptr};
+   OmsScResource           ScResource_;
+
+   const OmsRequestIni*    Initiator_{nullptr};
+   OmsOrderFactory*        Creator_{nullptr};
+
+   /// 在建構時透過 creator 建立 Head_;
+   /// 而建立 OmsOrderRaw 會參考到 this->Initiator_;
+   /// 所以 Head_ 必須是 OmsOrder 最後的 data member.
+   const OmsOrderRaw*      Head_{nullptr};
+
+   void ProcessPendingReport(OmsResource& res);
 
 protected:
    virtual ~OmsOrder();
 
 public:
-   const OmsRequestIni* const Initiator_;
-   OmsOrderFactory* const     Creator_;
-
-   /// 在建構時透過 creator 建立 Head_;
-   /// 而建立 OmsOrderRaw 會參考到 this->Initiator_;
-   /// 所以 Head_ 必須是 OmsOrder 最後的 data member.
-   const OmsOrderRaw* const   Head_;
-
    OmsOrder(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource&& scRes);
 
-   /// 實際使用前需配合 Initialize(OmsRequestIni& initiator, OmsScResource* scRes) 初始化;
+   /// 若透過類似 ObjSupplier 的機制, 無法提供建構時參數.
+   /// 實際使用前再配合 Initialize(OmsRequestIni& initiator, OmsScResource* scRes) 初始化;
    OmsOrder();
    /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 this->ScResource_ 的初始化.
    virtual void Initialize(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource* scRes);
@@ -62,8 +72,23 @@ public:
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;
    virtual void FreeThis();
 
-   const OmsOrderRaw* Last() const {
-      return this->Last_;
+   OmsOrderFactory& Creator() const {
+      assert(this->Creator_ != nullptr);
+      return *this->Creator_;
+   }
+
+   /// 初始此筆委託的:「新單要求」或「回報」.
+   /// - 若尚未收到新單回報, 而先收到「刪改查成交」, 會先建立 Order,
+   ///   此時 Initiator() 會是 nullptr.
+   /// - 等收到新單回報時才填入, 此時也會調整 Head_;
+   const OmsRequestIni* Initiator() const { return this->Initiator_; }
+   f9fmkt_OrderSt       OrderSt() const { return this->OrderSt_; }
+
+   const OmsOrderRaw*   Head() const      { return this->Head_; }
+   const OmsOrderRaw*   Tail() const      { return this->Tail_; }
+   /// 在 EndUpdate() 或建構時設定此值.
+   const OmsOrderRaw* LastNotPending() const {
+      return this->LastNotPending_;
    }
 
    const OmsScResource& ScResource() const {
@@ -77,10 +102,20 @@ public:
 
    /// 透過 this->Creator_->MakeOrderRaw() 建立委託異動資料.
    /// - 通常配合 OmsRequestRunnerInCore 建立 runner; 然後執行下單(或回報)步驟.
+   /// - 或是 Backend.Reload 時.
    OmsOrderRaw* BeginUpdate(const OmsRequestBase& req) {
       return this->Creator_->MakeOrderRaw(*this, req);
    }
+   /// last 必定是 this->BeginUpdate() 的返回值.
+   /// - 如果 res == nullptr 則不考慮 ProcessPendingReport(); 用在 Backend.Reload 時.
+   void EndUpdate(const OmsOrderRaw& last, OmsResource* res);
+
+   const OmsReportFilled* InsertFilled(const OmsReportFilled* currFilled) {
+      return OmsReportFilled::Insert(&this->FilledHead_, &this->FilledLast_, currFilled);
+   }
 };
+
+//--------------------------------------------------------------------------//
 
 /// 每次委託異動增加一個 OmsOrderRaw;
 /// - 從檔案重新載入.
@@ -100,9 +135,9 @@ class OmsOrderRaw : public OmsRxItem {
    /// - 為了速度, 此處應盡可能的簡化, 必要的初值應在「預設建構」裡面處理.
    virtual void Initialize(OmsOrder& order);
 
-   /// - 設定 this->Order_; this->Request_; this->Prev_; this->UpdSeq_; ...
+   /// - 設定 this->Order_; this->Request_; this->UpdSeq_; ...
    /// - 呼叫 this->ContinuePrevUpdate(); 設定初始化內容.
-   virtual void Initialize(const OmsOrderRaw* prev, const OmsRequestBase& req);
+   virtual void Initialize(const OmsOrderRaw* tail, const OmsRequestBase& req);
 
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
@@ -125,7 +160,6 @@ protected:
 public:
    OmsOrder* const             Order_;
    const OmsRequestBase* const Request_;
-   const OmsOrderRaw* const    Prev_{nullptr};
    const uint32_t              UpdSeq_{0};
 
    f9fmkt_OrderSt              OrderSt_;
@@ -142,13 +176,13 @@ public:
 
    /// 請注意: 此時的 order 還在建構階段.
    /// 此處返回後才會設定 order.Head_;
-   OmsOrderRaw(OmsOrder& order) : Order_(&order), Request_(order.Initiator_), OrdNo_{""} {
+   OmsOrderRaw(OmsOrder& order) : Order_(&order), Request_(order.Initiator()), OrdNo_{""} {
       this->RxKind_ = f9fmkt_RxKind_Order;
    }
    /// 使用此方式建構, 在使用前必須自行呼叫 ContinuePrevUpdate();
-   OmsOrderRaw(const OmsOrderRaw* prev, const OmsRequestBase& req);
+   OmsOrderRaw(const OmsOrderRaw* tail, const OmsRequestBase& req);
 
-   /// 必須透過 FreeThis() 來刪除, 預設 delete this; 不處理 this->Next_; this->Prev_;
+   /// 必須透過 FreeThis() 來刪除, 預設 delete this; 不處理 this->Next_;
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;
    virtual void FreeThis();
 
@@ -158,11 +192,14 @@ public:
       return this->Next_;
    }
 
-   /// 延續 this->Prev_ 之後的異動.
-   /// - 從 this->Prev_ 複製必要的內容: this->OrderSt_ = this->Prev_->OrderSt_;
+   /// 延續 this->Order_->LastNoPending() 之後的異動.
+   /// - 從 this->Order_->LastNoPending() 複製必要的內容, 例如: OrderSt_;
    /// - 設定(清除)部分欄位, 例如: this->ErrCode_ = OmsErrCode_NoError;
    /// - 不設定 this->UpdateTime_ = fon9::UtcNow(); 等到結束異動 ~OmsRequestRunnerInCore() 時設定.
    virtual void ContinuePrevUpdate();
+   /// 新單被拒絕, 應清除 AfterQty, LeavesQty.
+   /// 預設: do nothing.
+   virtual void OnOrderReject();
 };
 
 //--------------------------------------------------------------------------//
@@ -170,7 +207,23 @@ public:
 inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestIni& initiator, OmsScResource* scRes) {
    OmsOrder* ord = this->MakeOrderImpl();
    ord->Initialize(initiator, *this, scRes);
-   return const_cast<OmsOrderRaw*>(ord->Last());
+   return const_cast<OmsOrderRaw*>(ord->Tail());
+}
+
+inline void OmsOrder::EndUpdate(const OmsOrderRaw& last, OmsResource* res) {
+   assert(this->Tail_ == &last);
+   if (fon9_UNLIKELY(last.OrderSt_ == f9fmkt_OrderSt_ReportPending)) {
+      if (this->FirstPending_ == nullptr)
+         this->FirstPending_ = &last;
+   }
+   else {
+      this->LastNotPending_ = &last;
+      if (last.OrderSt_ > f9fmkt_OrderSt_LastForReport)
+         this->OrderSt_ = last.OrderSt_;
+      if (fon9_UNLIKELY(res && this->FirstPending_ != nullptr
+                        && last.RequestSt_ > f9fmkt_TradingRequestSt_LastRunStep))
+         this->ProcessPendingReport(*res);
+   }
 }
 
 } // namespaces

@@ -52,7 +52,8 @@ class OmsRequestBase;
 class OmsRequestTrade;
 class OmsRequestIni;
 class OmsRequestUpd;
-class OmsRequestFilled;
+class OmsReportFilled;
+
 using OmsRequestSP = fon9::intrusive_ptr<OmsRequestBase>;
 using OmsRequestTradeSP = fon9::intrusive_ptr<OmsRequestTrade>;
 
@@ -66,6 +67,7 @@ using OmsRequestRptStepSP = std::unique_ptr<OmsRequestRptStep>;
 
 class OmsRequestRunner;
 class OmsRequestRunnerInCore;
+class OmsReportRunner;
 
 class OmsOrderRaw;
 class OmsOrder;

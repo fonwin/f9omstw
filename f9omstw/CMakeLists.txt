@@ -22,12 +22,13 @@ set(f9omstw_src
  OmsRequestId.cpp
  OmsRequestBase.cpp
  OmsRequestTrade.cpp
- OmsRequestFilled.cpp
  OmsRequestFactory.cpp
  OmsRequestRunner.cpp
  OmsOrder.cpp
  OmsOrderFactory.cpp
  OmsEventFactory.cpp
+
+ OmsReportFilled.cpp
 
  OmsRequestPolicy.cpp
  OmsPoIvList.cpp

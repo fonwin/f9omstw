@@ -22,5 +22,8 @@ void OmsReqUID_Builder::MakeReqUID(OmsRequestId& reqid, OmsRxSNO sno) {
       memcpy(reqid.ReqUID_.data(), fon9::UIntToStrRev(this->RevStart(), sno), sizeof(reqid.ReqUID_));
    }
 }
+OmsRxSNO OmsReqUID_Builder::ParseRequestId(const OmsRequestId& reqId) {
+   return fon9::StrTo(fon9::StrView{reqId.ReqUID_.begin(), reqId.ReqUID_.end()}, OmsRxSNO{});
+}
 
 } // namespaces

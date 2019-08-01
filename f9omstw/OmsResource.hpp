@@ -28,9 +28,13 @@ public:
    OmsBackend           Backend_;
    OmsOrdTeamGroupMgr   OrdTeamGroupMgr_;
 
-   void PutRequestId(OmsRequestBase& req) {
+   void FetchRequestId(OmsRequestBase& req) {
       this->ReqUID_Builder_.MakeReqUID(req, this->Backend_.FetchSNO(req));
    }
+   OmsRxSNO ParseRequestId(const OmsRequestId& reqId) const {
+      return this->ReqUID_Builder_.ParseRequestId(reqId);
+   }
+
    const OmsRequestBase* GetRequest(OmsRxSNO sno) const {
       if (auto item = this->Backend_.GetItem(sno))
          return static_cast<const OmsRequestBase*>(item->CastToRequest());
@@ -78,6 +82,7 @@ protected:
 
 inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
    this->Resource_.Backend_.OnAfterOrderUpdated(*this);
+   this->OrderRaw_.Order_->EndUpdate(this->OrderRaw_, &this->Resource_);
 }
 
 } // namespaces

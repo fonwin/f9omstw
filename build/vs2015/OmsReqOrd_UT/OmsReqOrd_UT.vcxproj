@@ -55,7 +55,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -66,7 +66,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

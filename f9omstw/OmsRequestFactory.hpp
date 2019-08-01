@@ -5,6 +5,7 @@
 #include "f9omstw/OmsRequestRunner.hpp"
 #include "fon9/seed/Tab.hpp"
 #include "fon9/TimeStamp.hpp"
+#include "fon9/ObjSupplier.hpp"
 
 namespace f9omstw {
 
@@ -14,7 +15,8 @@ class OmsRequestFactory : public fon9::seed::Tab {
    fon9_NON_COPY_NON_MOVE(OmsRequestFactory);
    using base = fon9::seed::Tab;
 
-   virtual OmsRequestSP MakeRequestImpl() = 0;
+   virtual OmsRequestSP MakeRequestImpl();
+   virtual OmsRequestSP MakeReportImpl(f9fmkt_RxKind reqKind);
 
 public:
    /// 如果 this 建立的 request 屬於 OmsRequestIni,
@@ -38,10 +40,41 @@ public:
 
    virtual ~OmsRequestFactory();
 
+   /// 預設傳回 nullptr, 表示此 factory 不支援下單.
    OmsRequestSP MakeRequest(fon9::TimeStamp now = fon9::UtcNow()) {
       OmsRequestSP retval = this->MakeRequestImpl();
-      retval->Initialize(*this, now);
+      if (retval)
+         retval->Initialize(*this, now);
       return retval;
+   }
+
+   /// 預設傳回 nullptr, 表示此 factory 不支援回報.
+   virtual OmsRequestSP MakeReport(f9fmkt_RxKind reqKind, fon9::TimeStamp now = fon9::UtcNow()) {
+      OmsRequestSP retval = this->MakeReportImpl(reqKind);
+      if (retval)
+         retval->Initialize(*this, now);
+      return retval;
+   }
+};
+
+template <class RequestBaseT, unsigned kPoolObjCount>
+class OmsRequestFactoryT : public OmsRequestFactory {
+   fon9_NON_COPY_NON_MOVE(OmsRequestFactoryT);
+   using base = OmsRequestFactory;
+
+protected:
+   using RequestSupplier = fon9::ObjSupplier<RequestBaseT, kPoolObjCount>;
+   typename RequestSupplier::ThisSP RequestTape_{RequestSupplier::Make()};
+   OmsRequestSP MakeRequestImpl() override {
+      return this->RequestTape_->Alloc();
+   }
+
+public:
+   OmsRequestFactoryT(std::string name, OmsRequestRunStepSP runStepList)
+      : base(std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<RequestBaseT>()) {
+   }
+   OmsRequestFactoryT(std::string name, OmsOrderFactorySP ordFactory, OmsRequestRunStepSP runStepList)
+      : base(std::move(ordFactory), std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<RequestBaseT>()) {
    }
 };
 

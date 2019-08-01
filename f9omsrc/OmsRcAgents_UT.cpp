@@ -78,7 +78,8 @@ int main(int argc, char* argv[]) {
                                   f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                      f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
       new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsTwsRequestFilledFactory("TwsFilled", nullptr)
+      new OmsTwsFilledFactory("TwsFilled"),
+      new OmsTwsReportFactory("TwsRpt")
    ));
    const std::string fnDefault = "OmsRcServer.log";
    core->OpenReload(argc, argv, fnDefault);

@@ -16,13 +16,14 @@ void OmsTwsRequestIni::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwsRequestIni, PriType));
    flds.Add(fon9_MakeField2(OmsTwsRequestIni, IvacNoFlag));
    flds.Add(fon9_MakeField2(OmsTwsRequestIni, OType));
+   flds.Add(fon9_MakeField2(OmsTwsRequestIni, TimeInForce));
 }
 const char* OmsTwsRequestIni::IsIniFieldEqual(const OmsRequestBase& req) const {
    if (auto r = dynamic_cast<const OmsTwsRequestIni*>(&req)) {
       #define CHECK_IniFieldEqual(fldName)   do { if(this->fldName##_ != r->fldName##_) return #fldName; } while(0)
       CHECK_IniFieldEqual(Side);
       CHECK_IniFieldEqual(Symbol);
-      if (r->OType_ != TwsOType{})
+      if (r->OType_ != f9tws::TwsOType{})
          CHECK_IniFieldEqual(OType);
       return base::IsIniFieldEqualImpl(*r);
    }
@@ -50,18 +51,25 @@ const OmsRequestIni* OmsTwsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner,
 void OmsTwsRequestChg::MakeFields(fon9::seed::Fields& flds) {
    base::MakeFields<OmsTwsRequestChg>(flds);
    flds.Add(fon9_MakeField2(OmsTwsRequestChg, Qty));
+   flds.Add(fon9_MakeField2(OmsTwsRequestChg, PriType));
+   flds.Add(fon9_MakeField2(OmsTwsRequestChg, Pri));
 }
 bool OmsTwsRequestChg::ValidateInUser(OmsRequestRunner& reqRunner) {
-   if (this->RxKind_ == f9fmkt_RxKind_Unknown)
-      this->RxKind_ = (this->Qty_ == 0 ? f9fmkt_RxKind_RequestDelete : f9fmkt_RxKind_RequestChgQty);
+   if (fon9_UNLIKELY(this->RxKind_ == f9fmkt_RxKind_Unknown)) {
+      if (this->Qty_ == 0) {
+         if (this->PriType_ == f9fmkt_PriType{} && this->Pri_.IsNull())
+            this->RxKind_ = f9fmkt_RxKind_RequestDelete;
+         else
+            this->RxKind_ = f9fmkt_RxKind_RequestChgPri;
+      }
+      else {
+         if (this->PriType_ == f9fmkt_PriType{} && this->Pri_.IsNull())
+            this->RxKind_ = f9fmkt_RxKind_RequestChgQty;
+         else // 不能同時「改價 & 改量」.
+            reqRunner.RequestAbandon(nullptr, OmsErrCode_Bad_RxKind, nullptr);
+      }
+   }
    return base::ValidateInUser(reqRunner);
-}
-//--------------------------------------------------------------------------//
-void OmsTwsRequestFilled::MakeFields(fon9::seed::Fields& flds) {
-   base::MakeFields<OmsTwsRequestFilled>(flds);
-   flds.Add(fon9_MakeField2(OmsTwsRequestFilled, Time));
-   flds.Add(fon9_MakeField2(OmsTwsRequestFilled, Pri));
-   flds.Add(fon9_MakeField2(OmsTwsRequestFilled, Qty));
 }
 
 } // namespaces

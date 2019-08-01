@@ -88,7 +88,7 @@ const OmsRequestIni* OmsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, Om
    }
    if (const auto* ordNoMap = brk->GetOrdNoMap(*this)) {
       if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_))
-         return ord->Initiator_;
+         return ord->Initiator();
       // 找不到「初始委託要求」, 則有可能是「補單的刪改查」, 此時必須要有 OmsIvRight::AllowRequestIni 權限.
    }
    return this;
@@ -115,7 +115,9 @@ bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res,
       return false;
    if (fon9_LIKELY(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew))
       return true;
-   // runner 使用 OmsRequestIni 但不是新單(而是: 刪、改、查...).
+   // runner 使用 OmsRequestIni 但不是新單(而是: 刪、查...).
+   if (0);// 不用考慮從 OmsRequestIni 送出「刪改查」的補單操作.
+   // 應使用回報(例:TwsRpt)補單, 然後再透過 OmsRequestUpd 操作刪改查.
    if (runner.Request_.get() != this) {
       // 若委託已存在, 則欄位(Ivr,Side,Symbol,...)必須正確.
       if (const char* pErrField = this->IsIniFieldEqual(*runner.Request_)) {
@@ -124,9 +126,19 @@ bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res,
       }
       return true;
    }
-   // 若委託不存在(用 OrdKey 找不到委託)
-   // => 此 this 為「委託遺失」的補單操作.
+   // 若委託不存在(用 OrdKey 找不到委託):
+   // => 此 this 為「委託遺失」的補單操作: 僅允許「刪、查」
    // => 必須有 AllowRequestIni 權限.
+   fon9_WARN_DISABLE_SWITCH;
+   switch (runner.Request_->RxKind()) {
+   case f9fmkt_RxKind_RequestDelete:
+   case f9fmkt_RxKind_RequestQuery:
+      break;
+   default:
+      runner.RequestAbandon(&res, OmsErrCode_Bad_RxKind, nullptr);
+      return false;
+   }
+   fon9_WARN_POP;
    if (IsEnumContains(ivrRights, OmsIvRight::AllowRequestIni))
       return true;
    runner.RequestAbandon(&res, OmsErrCode_DenyRequestIni);
@@ -144,7 +156,7 @@ OmsOrderRaw* OmsRequestIni::BeforeRunInCore(OmsRequestRunner& runner, OmsResourc
    if (const OmsRequestIni* iniReq = this->PreCheck_OrdKey(runner, res, scRes)) {
       if (iniReq == runner.Request_.get()) {
          if (iniReq->PreCheck_IvRight(runner, res, scRes))
-            return iniReq->Creator_->OrderFactory_->MakeOrder(*this, &scRes);
+            return iniReq->Creator().OrderFactory_->MakeOrder(*this, &scRes);
       }
       else {
          OmsOrder*      ord = iniReq->LastUpdated()->Order_;
@@ -160,6 +172,13 @@ OmsOrderRaw* OmsRequestIni::BeforeRunInCore(OmsRequestRunner& runner, OmsResourc
 //--------------------------------------------------------------------------//
 
 void OmsRequestUpd::MakeFieldsImpl(fon9::seed::Fields& flds) {
+   if (0);// 是否要將 IniSNO 放在 OmsRequestBase?
+          // 因為除了「新單、補單」用不到 IniSNO, 其他的「刪改查成交」都需要 IniSNO;
+          //    => 放在底層, 可以有更一致的處理方式.
+          //    => IniSNO==0 的可能原因:
+          //       - 「新單、補單」
+          //       - 「刪改查成交」回報, 但尚未收到新單回報.
+          // OmsRequestBase 是否要增加 Initiator pointer?
    flds.Add(fon9_MakeField2(OmsRequestUpd, IniSNO));
    base::MakeFields<OmsRequestUpd>(flds);
 }
@@ -167,7 +186,7 @@ OmsOrderRaw* OmsRequestUpd::BeforeRunInCore(OmsRequestRunner& runner, OmsResourc
    assert(this == runner.Request_.get());
    if (const OmsRequestBase* iniReq = this->PreCheck_GetRequestInitiator(runner, res)) {
       OmsOrder* ord = iniReq->LastUpdated()->Order_;
-      if (ord->Initiator_->PreCheck_IvRight(runner, res))
+      if (ord->Initiator()->PreCheck_IvRight(runner, res))
          return ord->BeginUpdate(*runner.Request_);
    }
    return nullptr;

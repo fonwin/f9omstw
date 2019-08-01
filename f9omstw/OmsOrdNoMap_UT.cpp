@@ -9,7 +9,7 @@
 #include "fon9/TestTools.hpp"
 //--------------------------------------------------------------------------//
 void VerifyAllocError(f9omstw::OmsOrderRaw& ord, bool allocResult, OmsErrCode errc) {
-   std::cout << "|TeamGroupId=" << ord.Order_->Initiator_->Policy()->OrdTeamGroupId()
+   std::cout << "|TeamGroupId=" << ord.Order_->Initiator()->Policy()->OrdTeamGroupId()
              << "|expected.ErrCode=" << errc;
    if (allocResult == true) {
       std::cout << "|err=expect AllocOrdNo() fail, but it success."
@@ -35,7 +35,7 @@ void VerifyAllocError(f9omstw::OmsOrderRaw& ord, bool allocResult, OmsErrCode er
    abort();
 }
 void VerifyAllocOK(f9omstw::OmsOrderRaw& ord, bool allocResult, f9omstw::OmsOrdNo expected) {
-   std::cout << "|TeamGroupId=" << ord.Order_->Initiator_->Policy()->OrdTeamGroupId();
+   std::cout << "|TeamGroupId=" << ord.Order_->Initiator()->Policy()->OrdTeamGroupId();
    if (allocResult == false) {
       std::cout << "|err=expect AllocOrdNo() OK, but it fail."
          "|ErrCode=" << ord.ErrCode_
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
    f9omstw::OmsRequestRunnerInCore  runner{testCore.GetResource(),
       *ordFactory.MakeOrder(*newReq, nullptr),
       256u};
-   testCore.GetResource().PutRequestId(*newReq);
+   testCore.GetResource().FetchRequestId(*newReq);
 
    f9omstw::OmsRequestPolicy* reqPolicy{new f9omstw::OmsRequestPolicy{}};
    newReq->SetPolicy(reqPolicy);
@@ -140,14 +140,14 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ] SetTeamGroup('a00,b00').    ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "a0000");
    std::cout << "[TEST ]  AllocOrdNo(OrdTeamGroupId).";
-   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId()), "a0001");
+   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator()->Policy()->OrdTeamGroupId()), "a0001");
    std::cout << "[TEST ]  reqOrdNo='X':     MustEmpty";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, "X"), OmsErrCode_OrdNoMustEmpty);
 
    // 把 a00, b00 用完, 測試是否會 OmsErrCode_OrdTeamUsedUp
    std::cout << "[TEST ]  Alloc: a00*,b00*           ";
    for (unsigned L = 2; L < fon9::kSeq2AlphaSize * fon9::kSeq2AlphaSize * 2; ++L)
-      ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId());
+      ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator()->Policy()->OrdTeamGroupId());
    std::cout << "|LastOrdNo=" << std::string{runner.OrderRaw_.OrdNo_.begin(), runner.OrderRaw_.OrdNo_.end()};
    if (runner.OrderRaw_.OrdNo_ != f9omstw::OmsOrdNo{"b00zz"}) {
       std::cout << "|expected=b00zz" "\r[ERROR]" << std::endl;
@@ -156,10 +156,10 @@ int main(int argc, char* argv[]) {
    std::cout << "\r[OK   ]" << std::endl;
 
    std::cout << "[TEST ]  AllocOrdNo() again:  UsedUp";
-   VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId()), OmsErrCode_OrdTeamUsedUp);
+   VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator()->Policy()->OrdTeamGroupId()), OmsErrCode_OrdTeamUsedUp);
    std::cout << "[TEST ]  SetTeamGroup('..,c01')     ";
    testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00,c01");
-   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId()), "c0100");
+   VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, runner.OrderRaw_.Order_->Initiator()->Policy()->OrdTeamGroupId()), "c0100");
    // -----------------------------
    reqPolicy->SetOrdTeamGroupCfg(nullptr);
    std::cout << "[TEST ] OrdTeamGroupId=0, 2 groups. ";

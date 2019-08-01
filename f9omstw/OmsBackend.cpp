@@ -171,7 +171,7 @@ void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
 void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
    assert(runner.Resource_.Core_.IsThisThread());
-   assert(runner.OrderRaw_.Order_->Last() == &runner.OrderRaw_);
+   assert(runner.OrderRaw_.Order_->Tail() == &runner.OrderRaw_);
 
    // 如果 isNeedsReqAppend == true: req 進入 core, 首次與 order 連結之後的異動.
    const bool  isNeedsReqAppend = (runner.OrderRaw_.Request_->LastUpdated_ == nullptr);

@@ -54,7 +54,7 @@
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -65,7 +65,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw;..\..\..\..\f9omstw\apps\f9omstw</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
     </ClCompile>
     <Link>

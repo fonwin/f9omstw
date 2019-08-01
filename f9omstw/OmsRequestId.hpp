@@ -9,8 +9,9 @@ namespace f9omstw {
 /// Request 在多主機環境下的唯一編號.
 /// - f9omstw 的下單要求: ReqUID 透過 OmsReqUID_Builder 填入(與 LocalHostId, RxSNO 相關).
 /// - 外部單: 由外部單(回報)提供者, 提供編碼規則, 例如:
-///   - Market + SessionId + BrkId[2尾碼] + OrdNo + 外部單Seq(或AfQty).
-///   - Market + SessionId + BrkId[2尾碼] + OrdNo + 成交序號.
+///   - Market + SessionId + BrkId[2尾碼] + OrdNo + 外部單唯一序號(或BeforeQty, 或AfterQty).
+///   - Market + SessionId + BrkId[2尾碼] + 成交市場序號.
+///   - Market + SessionId + BrkId[2尾碼] + 線路Id + 回報序號. (期交所成交)
 struct OmsRequestId {
    fon9::CharAry<16> ReqUID_;
 
@@ -34,6 +35,9 @@ public:
 
    /// 此時若 req.ReqUID_.empty1st(); 則會編製 req.ReqUID_;
    void MakeReqUID(OmsRequestId& req, OmsRxSNO sno);
+
+   /// 從 reqId 解析出 OmsRxSNO;
+   static OmsRxSNO ParseRequestId(const OmsRequestId& reqId);
 };
 
 } // namespaces

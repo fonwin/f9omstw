@@ -73,7 +73,7 @@ public:
 
    /// 執行下單步驟的前置作業:
    /// - assert(runner.Request_.get() == this);
-   /// - res.PutRequestId(*this);
+   /// - res.FetchRequestId(*this);
    /// - OmsRequestIni
    ///   - iniReq = this->PreCheck_OrdKey();
    ///   - iniReq->PreCheck_IvRight();
@@ -100,7 +100,8 @@ struct OmsRequestIniDat {
    }
 };
 
-/// OmsRequestIni: 一般而言是新單要求, 但也有可能是遺失單的補單「查詢、刪單」之類的操作。
+/// OmsRequestIni: 一般而言是新單要求.
+/// 也有可能是遺失單的補單「刪單(不允許改單)、查詢」之類的操作, 此時「數量、價格」欄位應填「原始新單」的值。
 class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
    fon9_NON_COPY_NON_MOVE(OmsRequestIni);
    using base = OmsRequestTrade;
@@ -136,7 +137,7 @@ public:
    /// 檢查: 若 OrdNo_.begin() != '\0'; 則必須有 Policy()->IsAllowAnyOrdNo() 權限.
    bool ValidateInUser(OmsRequestRunner& reqRunner) override;
 
-   /// \retval "RequestIni"   iniReq 不是 OmsRequestIni;
+   /// \retval "RequestIni"   req 不是 OmsRequestIni;
    /// \retval "BrkId"        BrkId 不相同.
    /// \retval "IvacNo"       IvacNo 不相同.
    /// \retval "SubacNo"      SubacNo 不相同.

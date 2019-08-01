@@ -5,14 +5,13 @@
 #include "f9utws/UtwsBrk.hpp"
 #include "f9utws/UtwsExgSenderStep.hpp"
 
-#include "fon9/seed/Plugins.hpp"
-#include "fon9/seed/SysEnv.hpp"
-
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
-#include "f9omstw/OmsRequestFactory.hpp"
+#include "f9omstws/OmsTwsReport.hpp"
+#include "f9omstw/OmsReportFactory.hpp"
 
-#include "fon9/ObjSupplier.hpp"
+#include "fon9/seed/Plugins.hpp"
+#include "fon9/seed/SysEnv.hpp"
 const unsigned    kPoolObjCount = 1000 * 100;
 
 namespace f9omstw {
@@ -41,30 +40,11 @@ public:
    }
 };
 //--------------------------------------------------------------------------//
-template <class OmsRequestBaseT>
-class UomsRequestFactoryT : public OmsRequestFactory {
-   fon9_NON_COPY_NON_MOVE(UomsRequestFactoryT);
-   using base = OmsRequestFactory;
-
-   using OmsRequestT = OmsRequestBaseT;
-   using RequestSupplier = fon9::ObjSupplier<OmsRequestT, kPoolObjCount>;
-   typename RequestSupplier::ThisSP RequestTape_{RequestSupplier::Make()};
-   OmsRequestSP MakeRequestImpl() override {
-      return this->RequestTape_->Alloc();
-   }
-public:
-   UomsRequestFactoryT(std::string name, OmsRequestRunStepSP runStepList)
-      : base(std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<OmsRequestT>()) {
-   }
-   UomsRequestFactoryT(std::string name, OmsOrderFactorySP ordFactory, OmsRequestRunStepSP runStepList)
-      : base(std::move(ordFactory), std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<OmsRequestT>()) {
-   }
-   ~UomsRequestFactoryT() {
-   }
-};
-using OmsTwsRequestIniFactory = UomsRequestFactoryT<OmsTwsRequestIni>;
-using OmsTwsRequestChgFactory = UomsRequestFactoryT<OmsTwsRequestChg>;
-using OmsTwsRequestFilledFactory = UomsRequestFactoryT<OmsTwsRequestFilled>;
+using OmsTwsRequestIniFactory = OmsRequestFactoryT<OmsTwsRequestIni, kPoolObjCount>;
+using OmsTwsRequestChgFactory = OmsRequestFactoryT<OmsTwsRequestChg, kPoolObjCount>;
+//--------------------------------------------------------------------------//
+using OmsTwsReportFactory = OmsReportFactoryT<OmsTwsReport>;
+using OmsTwsFilledFactory = OmsReportFactoryT<OmsTwsFilled>;
 //--------------------------------------------------------------------------//
 struct UomsTwsIniRiskCheck : public OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(UomsTwsIniRiskCheck);
@@ -73,11 +53,18 @@ struct UomsTwsIniRiskCheck : public OmsRequestRunStep {
 
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
       // TODO: 風控檢查.
-      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator_) != nullptr);
-      const auto* inidat = static_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator_);
-      if (static_cast<OmsTwsOrderRaw*>(&runner.OrderRaw_)->OType_ == TwsOType{})
-         static_cast<OmsTwsOrderRaw*>(&runner.OrderRaw_)->OType_ = inidat->OType_;
-      // 風控成功, 執行下一步驟.
+      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator()) != nullptr);
+      auto& ordraw = *static_cast<OmsTwsOrderRaw*>(&runner.OrderRaw_);
+      auto* inireq = static_cast<const OmsTwsRequestIni*>(ordraw.Order_->Initiator());
+      if (ordraw.OType_ == f9tws::TwsOType{})
+         ordraw.OType_ = inireq->OType_;
+      // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
+      if (ordraw.Request_ == inireq) {
+         ordraw.LastPri_ = inireq->Pri_;
+         ordraw.LastPriType_ = inireq->PriType_;
+         if (inireq->RxKind() == f9fmkt_RxKind_RequestNew)
+            ordraw.AfterQty_ = ordraw.LeavesQty_ = inireq->Qty_;
+      }
       this->ToNextStep(std::move(runner));
    }
 };
@@ -152,7 +139,8 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
                                         OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}})}),
          new OmsTwsRequestChgFactory("TwsChg",
                                      OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}}),
-         new OmsTwsRequestFilledFactory("TwsFilled", nullptr)
+         new OmsTwsFilledFactory("TwsFilled"),
+         new OmsTwsReportFactory("TwsRpt")
       ));
       coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
    }

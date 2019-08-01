@@ -95,12 +95,13 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsReportFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsBackend.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestId.hpp" />
-    <ClInclude Include="..\..\..\f9omstw\OmsRequestFilled.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsReportFilled.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestPolicy.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
@@ -135,7 +136,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsBackend.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestId.cpp" />
-    <ClCompile Include="..\..\..\f9omstw\OmsRequestFilled.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsReportFilled.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestPolicy.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp" />
@@ -147,6 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\README.md" />
+    <None Include="..\..\..\ReportIn.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj">

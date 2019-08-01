@@ -15,12 +15,14 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_NoError = 0,
 
    /// OmsRequestBase::PreCheck_GetRequestInitiator();
-   /// 刪改查要求, 但找不到對應的委託書.
+   /// 刪改查要求, 但找不到對應的委託書(或該委託書沒有收到過 Initiator 回報).
    /// 通常是提供的 IniSNO 或 OrdKey(BrkId or Market or SessionId or OrdNo) 不正確.
    OmsErrCode_OrderNotFound = 1,
    /// OmsCore::RunInCore();
    /// Request_->Creator_->RunStep_ 沒定義.
    OmsErrCode_RequestStepNotFound = 2,
+   /// 無法將 req 轉成適當的 OmsRequest(例如: OmsTwsRequestChg);
+   OmsErrCode_UnknownRequestType = 3,
 
    /// OmsRequestIni::PreCheck_OrdKey();
    /// 下單要求的 BrkId 找不到對應的券商資料.
@@ -44,6 +46,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_Qty = 112,
    /// 下單價格問題.
    OmsErrCode_Bad_Pri = 113,
+   OmsErrCode_Bad_PriType = 114,
+   OmsErrCode_Bad_TimeInForce = 115,
 
    /// OmsRequestIni::PreCheck_IvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 120,
@@ -72,12 +76,14 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_OrdNoMapNotFound = 205,
 
    /// 無可用的下單連線.
-   OmsErrCode_NoReadyLine = 1000,
+   OmsErrCode_NoReadyLine = 900,
 
    /// 來自風控管制的錯誤碼.
    OmsErrCode_FromRisk = 10000,
-   /// 來自交易所的錯誤碼 = OrderErr::FromExg + 交易所錯誤代號.
-   OmsErrCode_FromExg = 20000,
+   /// 來自證交所的錯誤碼 = OrderErr::FromTwSEC + 交易所錯誤代號.
+   OmsErrCode_FromTwSEC = 20000,
+   OmsErrCode_FromTwOTC = 30000,
+   OmsErrCode_FromTwFEX = 40000,
 };
 
 #ifdef __cplusplus

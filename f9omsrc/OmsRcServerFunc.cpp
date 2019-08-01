@@ -322,7 +322,7 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          return nullptr;
       }
    }
-   if (ToStrView(ord->Order_->Initiator_->UserId_) == sesUserId)
+   if (ToStrView(ord->Order_->Initiator()->UserId_) == sesUserId)
       return ses;
    // 如果有重啟過, Ivr_ 會在 Backend 載入時建立.
    auto rights = this->RequestPolicy_->GetIvRights(ord->Order_->ScResource().Ivr_.get());

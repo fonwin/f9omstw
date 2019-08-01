@@ -29,17 +29,65 @@ public:
       return this->Request_->ValidateInUser(*this);
    }
    OmsOrderRaw* BeforeRunInCore(OmsResource& res) {
+      assert(!IsEnumContains(this->Request_->RequestFlags(), OmsRequestFlag_ReportIn));
       return this->Request_->BeforeRunInCore(*this, res);
    }
-
    void RequestAbandon(OmsResource* res, OmsErrCode errCode);
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
 };
+//--------------------------------------------------------------------------//
+fon9_WARN_DISABLE_PADDING;
+enum class OmsReportRunnerSt {
+   Checking,
+   /// OmsReportRunner::ReportAbandon(); 之後的狀態.
+   Abandoned,
+   /// 已收過的重複回報, e.g. 改量結果的 BeforeQty 相同.
+   Duplicated,
+   /// e.g. 已收到 Sending 回報, 再收到 Queuing 回報; 此時的 Queuing 回報狀態.
+   Obsolete,
+   /// e.g. 改價1(成功於09:01:01) => 改價2(成功於09:01:02);
+   /// 先收到改價2回報, 再收到改價1回報; 此時的改價1回報狀態.
+   Expired,
+   /// 確定沒收過的回報(已經不可能是 Duplicated), 但仍需檢查是否為 Expired?
+   /// 這類回報必定會在 Order 留下記錄.
+   NotReceived,
+};
 
+class OmsReportRunner {
+   fon9_NON_COPYABLE(OmsReportRunner);
+public:
+   OmsResource&         Resource_;
+   OmsRequestTradeSP    Report_;
+   fon9::RevBufferList  ExLog_;
+   OmsReportRunnerSt    RunnerSt_{};
+
+   OmsReportRunner(OmsResource& res, OmsRequestRunner&& src)
+      : Resource_(res)
+      , Report_{std::move(src.Request_)}
+      , ExLog_{std::move(src.ExLog_)} {
+   }
+
+   /// 如果傳回 nullptr, 則必定已經呼叫過 this->ReportAbandon();
+   OmsOrdNoMap* GetOrdNoMap();
+
+   /// 用 this->Report_->ReqUID_ 尋找原始下單要求.
+   /// \retval !nullptr 表示找到了原本的 Request;
+   ///   - this->RunnerSt_ == OmsReportRunnerSt::NotReceived; 找到了 Req, 但此筆 Rpt 確定沒收到過.
+   ///   - this->RunnerSt_ 與呼叫前相同(預設為 OmsReportRunnerSt::Checking)
+   /// \retval nullptr  表示沒找到原本的 Request;
+   ///   - this->RunnerSt_ == OmsReportRunnerSt::Abandoned;
+   ///   - this->RunnerSt_ 與呼叫前相同(預設為 OmsReportRunnerSt::Checking)
+   const OmsRequestBase* SearchOrigRequestId();
+
+   /// 拋棄此次回報, 僅使用 ExInfo 方式記錄 log.
+   void ReportAbandon(fon9::StrView reason);
+};
+fon9_WARN_POP;
+//--------------------------------------------------------------------------//
 /// - 禁止使用 new 的方式建立 OmsRequestRunnerInCore;
 ///   只能用「堆疊變數」的方式, 並在解構時自動結束更新.
 /// - 變動中的委託: this->OrderRaw_
-///   - this->OrderRaw_.Order_->Last() == &this->OrderRaw_;
+///   - this->OrderRaw_.Order_->Tail() == &this->OrderRaw_;
 ///   - this->OrderRaw_.Request_->LastUpdated_ 尚未設定成 &this->OrderRaw_;
 ///     所以 this->OrderRaw_.Request_->LastUpdated_ 有可能仍是 nullptr;
 /// - 解構時: ~OmsRequestRunnerInCore()
@@ -72,11 +120,32 @@ public:
       , ExLogForUpd_{std::forward<ExLogForUpdArg>(exLogForUpdArg)}
       , ExLogForReq_{0} {
    }
+   OmsRequestRunnerInCore(OmsReportRunner&& src, OmsOrderRaw& ordRaw)
+      : Resource_(src.Resource_)
+      , OrderRaw_(ordRaw)
+      , ExLogForUpd_{std::move(src.ExLog_)}
+      , ExLogForReq_{0} {
+      if (src.Report_.get() == ordRaw.Request_)
+         this->ExLogForReq_ = std::move(this->ExLogForUpd_);
+   }
+   OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw)
+      : Resource_(resource)
+      , OrderRaw_(ordRaw)
+      , ExLogForUpd_{0}
+      , ExLogForReq_{0} {
+   }
 
    ~OmsRequestRunnerInCore();
 
-   void Reject(f9fmkt_TradingRequestSt reqst, OmsErrCode ec, fon9::StrView cause);
-   void Update(f9fmkt_TradingRequestSt reqst, fon9::StrView cause);
+   void Update(f9fmkt_TradingRequestSt reqst);
+   void Update(f9fmkt_TradingRequestSt reqst, fon9::StrView cause) {
+      this->OrderRaw_.Message_.assign(cause);
+      this->Update(reqst);
+   }
+   void Reject(f9fmkt_TradingRequestSt reqst, OmsErrCode ec, fon9::StrView cause) {
+      this->OrderRaw_.ErrCode_ = ec;
+      this->Update(reqst, cause);
+   }
 
    /// 使用 this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
    ///
@@ -102,14 +171,14 @@ public:
       if (!this->OrderRaw_.OrdNo_.empty1st()) // 已編號.
          return true;
       assert(this->OrderRaw_.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
-      assert(this->OrderRaw_.Order_->Initiator_ == this->OrderRaw_.Request_);
-      auto iniReq = this->OrderRaw_.Order_->Initiator_;
+      assert(this->OrderRaw_.Order_->Initiator() == this->OrderRaw_.Request_);
+      auto iniReq = this->OrderRaw_.Order_->Initiator();
       if (!iniReq->OrdNo_.empty1st() || iniReq->Policy()->OrdTeamGroupId() != 0)
          return this->AllocOrdNo(iniReq->OrdNo_);
       return this->AllocOrdNo(tgId);
    }
 };
-
+//--------------------------------------------------------------------------//
 class OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(OmsRequestRunStep);
    OmsRequestRunStepSP  NextStep_;

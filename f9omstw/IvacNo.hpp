@@ -12,7 +12,8 @@ enum {
    kIvacNoWidth = 7
 };
 
-/// 台灣投資人帳號(7碼數字) = 6碼序號 + 1檢查碼
+/// IvacNC = 6碼序號, 不含檢查碼.
+/// 台灣投資人帳號(7碼數字) = 6碼序號 + 1檢查碼.
 enum class IvacNC : IvacNo {
    Min = 0,
    Max = 999999,

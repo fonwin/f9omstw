@@ -17,12 +17,20 @@ void OmsTwsOrderRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwsOrderRaw, LastFilledTime));
    flds.Add(fon9_MakeField2(OmsTwsOrderRaw, CumQty));
    flds.Add(fon9_MakeField2(OmsTwsOrderRaw, CumAmt));
+
+   flds.Add(fon9_MakeField2(OmsTwsOrderRaw, LastPriTime));
+   flds.Add(fon9_MakeField2(OmsTwsOrderRaw, LastPriType));
+   flds.Add(fon9_MakeField2(OmsTwsOrderRaw, LastPri));
 }
 
 void OmsTwsOrderRaw::ContinuePrevUpdate() {
    base::ContinuePrevUpdate();
-   assert(dynamic_cast<const OmsTwsOrderRaw*>(this->Prev_) != nullptr);
-   OmsTwsOrderRawDat::ContinuePrevUpdate(*static_cast<const OmsTwsOrderRaw*>(this->Prev_));
+   OmsTwsOrderRawDat::ContinuePrevUpdate(*static_cast<const OmsTwsOrderRaw*>(this->Order_->LastNotPending()));
+}
+void OmsTwsOrderRaw::OnOrderReject() {
+   assert(f9fmkt_OrderSt_IsRejected(this->OrderSt_));
+   this->AfterQty_ = 0;
+   this->LeavesQty_ = 0;
 }
 
 } // namespaces

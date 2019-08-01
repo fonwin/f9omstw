@@ -9,8 +9,8 @@ OmsOrderFactory::~OmsOrderFactory() {
 }
 OmsOrderRaw* OmsOrderFactory::MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req) {
    OmsOrderRaw* raw = this->MakeOrderRawImpl();
-   if (auto last = order.Last())
-      raw->Initialize(last, req);
+   if (auto tail = order.Tail())
+      raw->Initialize(tail, req);
    else
       raw->Initialize(order);
    return raw;

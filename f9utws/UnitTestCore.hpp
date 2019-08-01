@@ -4,9 +4,10 @@
 #define __f9utws_UnitTestCore_hpp__
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omstw/OmsCore.hpp"
-#include "f9omstw/OmsRequestFactory.hpp"
+#include "f9omstw/OmsReportFactory.hpp"
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
+#include "f9omstws/OmsTwsReport.hpp"
 #include "f9utws/UtwsBrk.hpp"
 #include "f9utws/UtwsSymb.hpp"
 
@@ -59,71 +60,76 @@ public:
 };
 //--------------------------------------------------------------------------//
 template <class OmsRequestBaseT>
-class OmsRequestFactoryT : public f9omstw::OmsRequestFactory {
+class OmsRequestFactoryT : public f9omstw::OmsRequestFactoryT<OmsRequestBaseT, kPoolObjCount> {
    fon9_NON_COPY_NON_MOVE(OmsRequestFactoryT);
-   using base = f9omstw::OmsRequestFactory;
+   using base = f9omstw::OmsRequestFactoryT<OmsRequestBaseT, kPoolObjCount>;
 
-   using OmsRequestT = OmsRequestBaseT;
-   using RequestSupplier = fon9::ObjSupplier<OmsRequestT, kPoolObjCount>;
-   typename RequestSupplier::ThisSP RequestTape_{RequestSupplier::Make()};
    f9omstw::OmsRequestSP MakeRequestImpl() override {
       if (gAllocFrom == AllocFrom::Supplier)
          return this->RequestTape_->Alloc();
-      return new OmsRequestT{};
+      return new OmsRequestBaseT{};
    }
 public:
-   OmsRequestFactoryT(std::string name, f9omstw::OmsRequestRunStepSP runStepList)
-      : base(std::move(runStepList),
-             fon9::Named(std::move(name)),
-             f9omstw::MakeFieldsT<OmsRequestT>()) {
-   }
-   OmsRequestFactoryT(std::string name, f9omstw::OmsOrderFactorySP ordFactory, f9omstw::OmsRequestRunStepSP runStepList)
-      : base(std::move(ordFactory), std::move(runStepList),
-             fon9::Named(std::move(name)),
-             f9omstw::MakeFieldsT<OmsRequestT>()) {
-   }
-
-   ~OmsRequestFactoryT() {
-   }
+   using base::base;
 };
-using OmsTwsRequestIniFactory = OmsRequestFactoryT<f9omstw::OmsTwsRequestIni>;
 using OmsTwsRequestChgFactory = OmsRequestFactoryT<f9omstw::OmsTwsRequestChg>;
-using OmsTwsRequestFilledFactory = OmsRequestFactoryT<f9omstw::OmsTwsRequestFilled>;
+using OmsTwsRequestIniFactory = OmsRequestFactoryT<f9omstw::OmsTwsRequestIni>;
 //--------------------------------------------------------------------------//
+using OmsTwsFilledFactory = f9omstw::OmsReportFactoryT<f9omstw::OmsTwsFilled>;
+using OmsTwsReportFactory  = f9omstw::OmsReportFactoryT<f9omstw::OmsTwsReport>;
+//--------------------------------------------------------------------------//
+bool ParseRequestFields(f9omstw::OmsRequestFactory& fac, f9omstw::OmsRequestBase& req, fon9::StrView reqstr) {
+   fon9::seed::SimpleRawWr wr{req};
+   fon9::StrView           tag, value;
+   while (fon9::StrFetchTagValue(reqstr, tag, value)) {
+      auto* fld = fac.Fields_.Get(tag);
+      if (fld == nullptr) {
+         fon9_LOG_ERROR("ParseRequestFields|err=Unknown field|reqfac=", fac.Name_, "|fld=", tag);
+         return false;
+      }
+      fld->StrToCell(wr, value);
+   }
+   return true;
+}
+
 f9omstw::OmsRequestRunner MakeOmsRequestRunner(const f9omstw::OmsRequestFactoryPark& facPark, fon9::StrView reqstr) {
    f9omstw::OmsRequestRunner retval{reqstr};
    fon9::StrView tag = fon9::StrFetchNoTrim(reqstr, '|');
    if (auto* fac = facPark.GetFactory(tag)) {
-      auto req = fac->MakeRequest();
-      if (dynamic_cast<f9omstw::OmsRequestTrade*>(req.get()) == nullptr) {
-         fon9_LOG_ERROR("MakeOmsRequestRunner|err=It's not a trading request factory|reqfac=", tag);
-         return retval;
-      }
-      fon9::seed::SimpleRawWr wr{*req};
-      fon9::StrView value;
-      while(fon9::StrFetchTagValue(reqstr, tag, value)) {
-         auto* fld = fac->Fields_.Get(tag);
-         if (fld == nullptr) {
-            fon9_LOG_ERROR("MakeOmsRequestRunner|err=Unknown field|reqfac=", fac->Name_, "|fld=", tag);
-            return retval;
-         }
-         fld->StrToCell(wr, value);
-      }
-      retval.Request_ = std::move(fon9::static_pointer_cast<f9omstw::OmsRequestTrade>(req));
+      auto req = fac->MakeRequest(fon9::UtcNow());
+      if (req.get() == nullptr)
+         fon9_LOG_ERROR("MakeOmsRequestRunner|err=MakeRequest return nullptr|reqfac=", tag);
+      else if (ParseRequestFields(*fac, *req, reqstr))
+         retval.Request_ = std::move(fon9::static_pointer_cast<f9omstw::OmsRequestTrade>(req));
       return retval;
    }
    fon9_LOG_ERROR("MakeOmsRequestRunner|err=Unknown request factory|reqfac=", tag);
    return retval;
 }
+f9omstw::OmsRequestRunner MakeOmsReportRunner(const f9omstw::OmsRequestFactoryPark& facPark,
+                                              fon9::StrView reqstr, f9fmkt_RxKind reqKind) {
+   f9omstw::OmsRequestRunner retval{reqstr};
+   fon9::StrView tag = fon9::StrFetchNoTrim(reqstr, '|');
+   if (auto* fac = facPark.GetFactory(tag)) {
+      auto req = fac->MakeReport(reqKind, fon9::UtcNow());
+      if (req.get() == nullptr)
+         fon9_LOG_ERROR("MakeOmsReportRunner|err=MakeReport() return nullptr|reqfac=", tag);
+      else if (ParseRequestFields(*fac, *req, reqstr))
+         retval.Request_ = std::move(fon9::static_pointer_cast<f9omstw::OmsRequestTrade>(req));
+      return retval;
+   }
+   fon9_LOG_ERROR("MakeOmsReportRunner|err=Unknown request factory|reqfac=", tag);
+   return retval;
+}
 void PrintOmsRequest(f9omstw::OmsRequestBase& req) {
    fon9::RevBufferList     rbuf{128};
    fon9::seed::SimpleRawRd rd{req};
-   for (size_t fidx = req.Creator_->Fields_.size(); fidx > 0;) {
-      auto fld = req.Creator_->Fields_.Get(--fidx);
+   for (size_t fidx = req.Creator().Fields_.size(); fidx > 0;) {
+      auto fld = req.Creator().Fields_.Get(--fidx);
       fld->CellRevPrint(rd, nullptr, rbuf);
       fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, fld->Name_, '=');
    }
-   fon9::RevPrint(rbuf, req.Creator_->Name_);
+   fon9::RevPrint(rbuf, req.Creator().Name_);
    puts(fon9::BufferTo<std::string>(rbuf.MoveOut()).c_str());
 }
 //--------------------------------------------------------------------------//
@@ -133,11 +139,19 @@ struct UomsTwsIniRiskCheck : public f9omstw::OmsRequestRunStep {
    using base::base;
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       // TODO: 風控檢查.
-      assert(dynamic_cast<const f9omstw::OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator_) != nullptr);
-      const auto* inidat = static_cast<const f9omstw::OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator_);
-      if (static_cast<f9omstw::OmsTwsOrderRaw*>(&runner.OrderRaw_)->OType_ == f9omstw::TwsOType{})
-         static_cast<f9omstw::OmsTwsOrderRaw*>(&runner.OrderRaw_)->OType_ = inidat->OType_;
-      // 風控成功, 執行下一步驟.
+      using namespace f9omstw;
+      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator()) != nullptr);
+      auto& ordraw = *static_cast<OmsTwsOrderRaw*>(&runner.OrderRaw_);
+      auto* inireq = static_cast<const OmsTwsRequestIni*>(ordraw.Order_->Initiator());
+      if (ordraw.OType_ == f9tws::TwsOType{})
+         ordraw.OType_ = inireq->OType_;
+      // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
+      if (ordraw.Request_ == inireq) {
+         ordraw.LastPri_ = inireq->Pri_;
+         ordraw.LastPriType_ = inireq->PriType_;
+         if (inireq->RxKind() == f9fmkt_RxKind_RequestNew)
+            ordraw.AfterQty_ = ordraw.LeavesQty_ = inireq->Qty_;
+      }
       this->ToNextStep(std::move(runner));
    }
 };

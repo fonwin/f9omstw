@@ -10,13 +10,25 @@
 namespace f9omstw {
 
 static void OnFixReject(const f9fix::FixRecvEvArgs& rxargs, const f9fix::FixOrigArgs& orig) {
-   // SessionReject or BusinessReject: 從 orig 取回 req. 然後處理 reject.
    fon9_LOG_INFO("OnFixReject|orig=", orig.MsgStr_, "|rx=", rxargs.MsgStr_);
+   // SessionReject or BusinessReject:
+   // 這種失敗比較單純, 因為是針對下單要求的內容不正確:
+   // 所以用 orig 找原始下單要求, 如果找不到, 就拋棄此筆回報.
 }
 static void OnFixReport(const f9fix::FixRecvEvArgs& rxargs) {
    //
+   // - 必須回到 OmsCore 取得 OmsResource 之後才能處理.
+   //   - 可先解析必要欄位.
+   // - 尋找對應的 OmsRequest
+   //   - 沒找到對應的 OmsRequest:
+   //     - OrdKey 有對應的委託, 但必要欄位(IvacNo,Symbol,Side...)不正確: 拋棄此筆回報, 並記錄在 Backend log.
+   //     - OrdKey 有對應的委託, 且必要欄位正確
+   //     - OrdKey 沒對應的委託
+   //       - OmsRequest 為新單
+   //   - 
+   //
    // 回報處理機制:
-   // => 建立一個對應的 req: OmsTwsRequestIni、OmsTwsRequestFilled...
+   // => 建立一個對應的 req: OmsTwsRequestIni、OmsTwsReportFilled...
    //    => 新增一個 RequestFactory::MakeRequestForReport();
    //    => 不應該使用 RequestFactory.MakeRequest() 的 ObjSupplier 機制.
    //       因為若在 OmsCore 有找到「原始req」, 則此處建立的 req 會被銷毀, 此為經常狀況,
@@ -32,7 +44,7 @@ static void OnFixReport(const f9fix::FixRecvEvArgs& rxargs) {
    //    => 成交沒有 BeforeQty, AfterQty, 只有 MatchKey(用來判斷是否重複).
    //       => 但仍需要 IvacNo, Symbol, OType, Side... 來判斷是否為同一筆委託.
    // => 建立 Reporter 保留必要的欄位位置: 使用 StrVref(對應到 ExLog 裡面的 FixMsgStr 的位置).
-   //    => 全部儲存在 OmsTwsRequestIni 或 OmsTwsRequestFilled, 不需要保留額外欄位?
+   //    => 全部儲存在 OmsTwsRequestIni 或 OmsTwsReportFilled, 不需要保留額外欄位?
    // => 上述資料都準備好之後, 就可以進入 OmsCore 處理回報了.
    //    => OmsRequestBase 的 union 裡面增加一個 Reporter, OmsRequestFlag_Reporter
    //    => 當來到 InCore 時, 將 Reporter 取出, 移除 OmsRequestFlag_Reporter 旗標.
@@ -97,16 +109,21 @@ static void OnFixExecutionReport(const f9fix::FixRecvEvArgs& rxargs) {
    OnFixReport(rxargs);
 }
 static void OnFixCancelReject(const f9fix::FixRecvEvArgs& rxargs) {
+   // 必要欄位僅提供 Account, 沒有提供 Symbol, Side, OType...
+   // 所以, 如果沒找到原下單要求, 就直接拋棄此「刪改失敗回報」?
    OnFixReport(rxargs);
 }
 //--------------------------------------------------------------------------//
 TwsTradingLineFixFactory::TwsTradingLineFixFactory(OmsCoreMgr& coreMgr, std::string fixLogPathFmt, Named&& name)
    : base(std::move(fixLogPathFmt), std::move(name))
    , CoreMgr_(coreMgr) {
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_SessionReject).FixRejectHandler_ = &OnFixReject;
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_BusinessReject).FixRejectHandler_ = &OnFixReject;
    this->FixConfig_.Fetch(f9fix_kMSGTYPE_ExecutionReport).FixMsgHandler_ = &OnFixExecutionReport;
    this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderCancelReject).FixMsgHandler_ = &OnFixCancelReject;
+
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_NewOrderSingle).FixRejectHandler_ = &OnFixReject;
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderReplaceRequest).FixRejectHandler_ = &OnFixReject;
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderCancelRequest).FixRejectHandler_ = &OnFixReject;
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderStatusRequest).FixRejectHandler_ = &OnFixReject;
 }
 fon9::TimeStamp TwsTradingLineFixFactory::GetTDay() {
    if (auto core = this->CoreMgr_.CurrentCore())

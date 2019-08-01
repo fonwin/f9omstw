@@ -19,7 +19,6 @@ void OmsCore::SetThisThreadId() {
    assert(this->ThreadId_ == fon9::ThreadId::IdType{});
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 }
-
 OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileName, uint32_t forceTDay) {
    assert(forceTDay < fon9::kOneDaySeconds);
    this->TDay_ = fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay);
@@ -30,14 +29,20 @@ OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileNam
    this->Plant();
    return res;
 }
+//--------------------------------------------------------------------------//
 bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
-   if (runner.ValidateInUser())
+   if (IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn)
+       || runner.ValidateInUser())
       return this->MoveToCoreImpl(std::move(runner));
    return false;
 }
 void OmsCore::RunInCore(OmsRequestRunner&& runner) {
-   this->PutRequestId(*runner.Request_);
-   if (auto* step = runner.Request_->Creator_->RunStep_.get()) {
+   if (fon9_UNLIKELY(IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn))) {
+      runner.Request_->RunReportInCore(OmsReportRunner{*this, std::move(runner)});
+      return;
+   }
+   this->FetchRequestId(*runner.Request_);
+   if (auto* step = runner.Request_->Creator().RunStep_.get()) {
       if (OmsOrderRaw* ordraw = runner.BeforeRunInCore(*this)) {
          OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
          if (ordraw->OrdNo_.empty1st() && *(ordraw->Request_->OrdNo_.end() - 1) != '\0') {

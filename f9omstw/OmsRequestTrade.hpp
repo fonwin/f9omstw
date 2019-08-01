@@ -56,6 +56,14 @@ public:
       : base{reqKind} {
    }
 
+   /// 請參閱「下單流程」文件.
+   /// 在建立好 req 之後的 req 驗證程序, 此時還在 user thread, 尚未進入 OmsCore.
+   /// 只有「下單要求」會呼叫此處, 「回報」不會呼叫此處.
+   /// 預設: 傳回 true;
+   virtual bool ValidateInUser(OmsRequestRunner&) {
+      return true;
+   }
+
    void SetPolicy(OmsRequestPolicySP policy) {
       assert(this->Policy_.get() == nullptr);
       this->Policy_ = std::move(policy);
@@ -64,21 +72,14 @@ public:
       return this->Policy_.get();
    }
 
-   /// 請參閱「下單流程」文件.
-   /// 在建立好 req 之後的 req 驗證程序, 此時還在 user thread, 尚未進入 OmsCore.
-   /// 預設傳回 true;
-   virtual bool ValidateInUser(OmsRequestRunner&) {
-      return true;
-   }
-
    /// 執行下單步驟的前置作業:
    /// - assert(runner.Request_.get() == this);
    /// - res.FetchRequestId(*this);
    /// - OmsRequestIni
    ///   - iniReq = this->PreCheck_OrdKey();
    ///   - iniReq->PreCheck_IvRight();
-   ///   - 新單 or 補單操作: this->Creator_->OrderFactory_->MakeOrder();
-   ///   - 一般刪改查, 返回: iniReq->LastUpdated()->Order_->BeginUpdate(*this);
+   ///   - 新單,   返回: this->Creator_->OrderFactory_->MakeOrder();
+   ///   - 刪改查, 返回: iniReq->LastUpdated()->Order_->BeginUpdate(*this);
    /// - OmsRequestUpd 一般刪改查:
    ///   - iniReq = this->PreCheck_GetRequestInitiator();
    ///   - iniReq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight();
@@ -100,8 +101,8 @@ struct OmsRequestIniDat {
    }
 };
 
-/// OmsRequestIni: 一般而言是新單要求.
-/// 也有可能是遺失單的補單「刪單(不允許改單)、查詢」之類的操作, 此時「數量、價格」欄位應填「原始新單」的值。
+/// 當需要提供全部欄位時(例:新單要求、回報匯入), 使用此基底.
+/// 也可用於「提供全部欄位」的「刪改查」, 但此時委託必須有 Initiator();
 class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
    fon9_NON_COPY_NON_MOVE(OmsRequestIni);
    using base = OmsRequestTrade;
@@ -113,6 +114,11 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 
    OmsIvRight CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
+   /// - 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
+   /// - 應在 inireq = runner.Request_->PreCheck_OrdKey() 之後執行: inireq->PreCheck_IvRight(runner...);
+   /// - 若委託已存在(this 為刪改查要求), 則欄位(Ivr,Side,Symbol,...)必須正確.
+   /// - 如果允許, 且不是因 admin 權限, 則會設定 scRes.Ivr_;
+   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
 
 protected:
    template <class Derived>
@@ -149,23 +155,18 @@ public:
    ///   - 證券: 根據「數量 or 價格」判斷.
    ///   - 期權: 根據「期交所的 FlowGroup」判斷.
    ///
-   /// \retval nullptr 表示失敗, 已呼叫 runner.RequestAbandon();
-   /// \retval this    表示此筆為「新單要求」 or 「補單的刪改查」.
+   /// \retval nullptr 表示失敗, 返回前已呼叫 runner.RequestAbandon();
+   /// \retval this    表示此筆為「新單要求」.
    /// \retval else    表示此筆為「刪改查要求」, 傳回要操作的「初始委託要求」.
    virtual const OmsRequestIni* PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes);
 
-   /// this 為「初始委託要求」, 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
-   /// - 應在 inireq = runner.Request_->PreCheck_OrdKey() 之後執行: inireq->PreCheck_IvRight(runner...);
-   /// - this 有可能等於 runner.Request_:「新單要求」 or 「補單的刪改查(必須要有額外的 OmsIvRight::AllowRequestIni 權限)」
-   /// - 如果允許, 且不是因 admin 權限, 則會設定 scRes.Ivr_;
-   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
-
-   /// this 為「初始委託要求」, 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
-   /// - 應在 inireq = runner.Request_->PreCheck_GetRequestInitiator() 之後執行:
-   ///   inireq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight(runner);
-   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const;
-
    OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) override;
+
+   /// - 通常是從 OmsRequestUpd::BeforeRunInCore(), 在找到 inireq 之後呼叫.
+   /// - 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
+   /// - 應在 inireq = runner.Request_->PreCheck_GetRequestInitiator() 之後執行:
+   ///   inireq->LastUpdated()->Order_->Initiator()->PreCheck_IvRight(runner);
+   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const;
 };
 
 class OmsRequestUpd : public OmsRequestTrade {

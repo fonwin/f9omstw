@@ -31,6 +31,7 @@ del OmsReqOrd_UT.log
 %EXEDIR%\OmsRcFramework_UT
 
 @REM -----------------------
+del *.f9gv
 del *.f9dbf
 del *.log
 @echo '#####################################################'

@@ -120,11 +120,11 @@ struct OmsBackend::Loader {
          else if (const auto* reqIni = dynamic_cast<const OmsRequestIni*>(reqFrom)) {
             // reqFrom 沒有 IniSNO: 表示 reqFrom 可能本身就是 Initiator, 或是過 RequestIni 的刪改查.
             // 此時要透過 OrdKey 來找 Initiator.
-            if (reqFrom->RxKind() == f9fmkt_RxKind_RequestNew
-            || (reqIni = reqFrom->GetOrderInitiatorByOrdKey(this->Resource_)) == nullptr)
-               // reqFrom = 新單 or 「補單的刪改查」.
+            if ((reqIni = reqFrom->GetOrderInitiatorByOrdKey(this->Resource_)) == nullptr) {
+               assert(reqFrom->RxKind() == f9fmkt_RxKind_RequestNew);
                ordraw = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(
                   *const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
+            }
             else {
                // reqFrom = 使用 OmsRequestIni 的「一般刪改查」.
                // 是否有必要檢查欄位是否正確? reqIni->IsIniFieldEqual(reqFrom);

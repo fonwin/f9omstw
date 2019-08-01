@@ -31,8 +31,8 @@ OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileNam
 }
 //--------------------------------------------------------------------------//
 bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
-   if (IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn)
-       || runner.ValidateInUser())
+   if (fon9_LIKELY(IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn)
+                   || runner.ValidateInUser()))
       return this->MoveToCoreImpl(std::move(runner));
    return false;
 }
@@ -46,9 +46,10 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
       if (OmsOrderRaw* ordraw = runner.BeforeRunInCore(*this)) {
          OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
          if (ordraw->OrdNo_.empty1st() && *(ordraw->Request_->OrdNo_.end() - 1) != '\0') {
-            // 委託還沒填委託書號, 但下單要求有填委託書號.
-            // => 「新單」或「補單」.
+            assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
+            // 新單委託還沒填委託書號, 但下單要求有填委託書號.
             // => 執行下單步驟前, 應先設定委託書號對照.
+            // => AllocOrdNo() 會檢查櫃號權限.
             if (!inCoreRunner.AllocOrdNo(ordraw->Request_->OrdNo_))
                return;
          }

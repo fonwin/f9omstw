@@ -16,16 +16,16 @@ fon9_ENUM(f9oms_IvRight, uint8_t) {
    f9oms_IvRight_DenyTradingQuery = 0x08,
    f9oms_IvRight_DenyTradingAll = 0x0f,
 
-   /// 允許使用 OmsRequestIni 建立「刪、改、查」下單要求.
+   /// 允許使用者建立「回報」補單.
    /// 通常用於「委託遺失(例如:新單尚未寫檔,但系統crash,重啟後委託遺失)」的補單操作。
-   f9oms_IvRight_AllowRequestIni = 0x10,
-   f9oms_IvRight_AllowTradingAll = f9oms_IvRight_AllowRequestIni,
+   f9oms_IvRight_AllowAddReport = 0x10,
 
+   f9oms_IvRight_AllowAll = f9oms_IvRight_AllowAddReport,
    f9oms_IvRight_DenyAll = f9oms_IvRight_DenyTradingAll,
 
    /// 只有在 DenyTradingAll 的情況下才需要判斷此旗標.
    /// 因為只要允許任一種交易, 就必定允許訂閱回報.
-   f9oms_IvRight_AllowReport = 0x10,
+   f9oms_IvRight_AllowSubscribeReport = 0x10,
 
    f9oms_IvRight_IsAdmin = 0x80,
 };

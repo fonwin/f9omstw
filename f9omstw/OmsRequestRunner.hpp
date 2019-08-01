@@ -24,7 +24,7 @@ public:
    OmsRequestRunner(OmsRequestRunner&&) = default;
    OmsRequestRunner& operator=(OmsRequestRunner&&) = default;
 
-   /// \copydoc bool OmsRequestTrade::ValidateInUser(OmsRequestRunner&);
+   /// \copydoc bool OmsRequestBase::ValidateInUser(OmsRequestRunner&);
    bool ValidateInUser() {
       return this->Request_->ValidateInUser(*this);
    }
@@ -34,6 +34,11 @@ public:
    }
    void RequestAbandon(OmsResource* res, OmsErrCode errCode);
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
+
+   /// 檢查是否有回報權限, 由收到回報的人自主檢查.
+   /// 檢查方式: IsEnumContains(pol.GetIvrAdminRights(), OmsIvRight::AllowAddReport);
+   /// 若無權限, 返回前會先呼叫 this->RequestAbandon(nullptr, OmsErrCode_DenyAddReport);
+   bool CheckReportRights(const OmsRequestPolicy& pol);
 };
 //--------------------------------------------------------------------------//
 fon9_WARN_DISABLE_PADDING;
@@ -197,6 +202,13 @@ public:
 
    virtual void RunRequest(OmsRequestRunnerInCore&&) = 0;
 };
+//--------------------------------------------------------------------------//
+inline bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const {
+   assert(runner.Request_.get() != this);
+   assert(this->LastUpdated() != nullptr);
+   return this->CheckIvRight(runner, res, this->LastUpdated()->Order_->ScResource())
+      != OmsIvRight::DenyAll;
+}
 
 } // namespaces
 #endif//__f9omstw_OmsRequestRunner_hpp__

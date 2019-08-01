@@ -16,16 +16,18 @@ enum class OmsIvRight : fon9::underlying_type_t<f9oms_IvRight> {
    DenyTradingQuery  = f9oms_IvRight_DenyTradingQuery,
    DenyTradingAll    = f9oms_IvRight_DenyTradingAll,
 
-   /// 允許使用 OmsRequestIni 建立「刪、改、查」下單要求.
+   /// 允許使用者建立「回報」補單.
    /// 通常用於「委託遺失(例如:新單尚未寫檔,但系統crash,重啟後委託遺失)」的補單操作。
-   AllowRequestIni = f9oms_IvRight_AllowRequestIni,
-   AllowTradingAll = AllowRequestIni,
+   /// 僅允許 Admin 設定此欄, 檢查方式:
+   /// IsEnumContains(pol.GetIvrAdminRights(), OmsIvRight::AllowAddReport);
+   AllowAddReport = f9oms_IvRight_AllowAddReport,
 
-   DenyAll = DenyTradingAll,
+   AllowAll = f9oms_IvRight_AllowAll,
+   DenyAll = f9oms_IvRight_DenyAll,
 
    /// 只有在 DenyTradingAll 的情況下才需要判斷此旗標.
    /// 因為只要允許任一種交易, 就必定允許回報.
-   AllowReport = f9oms_IvRight_AllowReport,
+   AllowSubscribeReport = f9oms_IvRight_AllowSubscribeReport,
 
    IsAdmin = f9oms_IvRight_IsAdmin,
 };

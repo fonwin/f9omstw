@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
    f9omstw::OmsRequestPolicy*    reqPolicy;
    f9omstw::OmsRequestPolicySP   reqPolicySP{reqPolicy = new f9omstw::OmsRequestPolicy{}};
    reqPolicy->SetOrdTeamGroupCfg(coreResource.OrdTeamGroupMgr_.SetTeamGroup("admin", "*"));
-   reqPolicy->AddIvRights(nullptr, nullptr, f9omstw::OmsIvRight::AllowTradingAll);
+   reqPolicy->AddIvRights(nullptr, nullptr, f9omstw::OmsIvRight::AllowAll);
    //---------------------------------------------
    stopWatch.ResetTimer();
    for (unsigned L = 0; L < testCore.TestCount_; ++L) {

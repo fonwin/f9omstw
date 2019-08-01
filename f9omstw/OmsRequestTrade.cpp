@@ -67,6 +67,7 @@ const OmsRequestIni* OmsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, Om
       return nullptr;
    }
    if (fon9_LIKELY(this->RxKind_ == f9fmkt_RxKind_RequestNew)) {
+      // 新單的委託書號是否重複?
       // 在 OmsOrdNoMap::AllocOrdNo() 使用 Reject 方式處理.
       // => 有權限「自訂委託號」的案例不多, 再加上「自編卻重複」的情況應該更少.
       //    且在 OmsOrdNoMap::AllocOrdNo() 已有使用 Reject 方式處理.
@@ -89,9 +90,8 @@ const OmsRequestIni* OmsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, Om
    if (const auto* ordNoMap = brk->GetOrdNoMap(*this)) {
       if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_))
          return ord->Initiator();
-      // 找不到「初始委託要求」, 則有可能是「補單的刪改查」, 此時必須要有 OmsIvRight::AllowRequestIni 權限.
    }
-   return this;
+   return nullptr;
 }
 OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
    if (const OmsRequestPolicy* pol = runner.Request_->Policy()) {
@@ -111,44 +111,17 @@ OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& re
 }
 bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
    OmsIvRight  ivrRights = this->CheckIvRight(runner, res, scRes);
-   if (ivrRights == OmsIvRight::DenyAll)
+   if (fon9_UNLIKELY(ivrRights == OmsIvRight::DenyAll))
       return false;
    if (fon9_LIKELY(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew))
       return true;
-   // runner 使用 OmsRequestIni 但不是新單(而是: 刪、查...).
-   if (0);// 不用考慮從 OmsRequestIni 送出「刪改查」的補單操作.
-   // 應使用回報(例:TwsRpt)補單, 然後再透過 OmsRequestUpd 操作刪改查.
-   if (runner.Request_.get() != this) {
-      // 若委託已存在, 則欄位(Ivr,Side,Symbol,...)必須正確.
-      if (const char* pErrField = this->IsIniFieldEqual(*runner.Request_)) {
-         runner.RequestAbandon(&res, OmsErrCode_FieldNotMatch, fon9::RevPrintTo<std::string>('\'', pErrField, "' not equal."));
-         return false;
-      }
-      return true;
-   }
-   // 若委託不存在(用 OrdKey 找不到委託):
-   // => 此 this 為「委託遺失」的補單操作: 僅允許「刪、查」
-   // => 必須有 AllowRequestIni 權限.
-   fon9_WARN_DISABLE_SWITCH;
-   switch (runner.Request_->RxKind()) {
-   case f9fmkt_RxKind_RequestDelete:
-   case f9fmkt_RxKind_RequestQuery:
-      break;
-   default:
-      runner.RequestAbandon(&res, OmsErrCode_Bad_RxKind, nullptr);
+   assert(runner.Request_.get() != this);
+   // 委託已存在, 則欄位(Ivr,Side,Symbol,...)必須正確.
+   if (const char* pErrField = this->IsIniFieldEqual(*runner.Request_)) {
+      runner.RequestAbandon(&res, OmsErrCode_FieldNotMatch, fon9::RevPrintTo<std::string>('\'', pErrField, "' not equal."));
       return false;
    }
-   fon9_WARN_POP;
-   if (IsEnumContains(ivrRights, OmsIvRight::AllowRequestIni))
-      return true;
-   runner.RequestAbandon(&res, OmsErrCode_DenyRequestIni);
-   return false;
-}
-bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const {
-   assert(runner.Request_.get() != this);
-   assert(this->LastUpdated() != nullptr);
-   return this->CheckIvRight(runner, res, this->LastUpdated()->Order_->ScResource())
-      != OmsIvRight::DenyAll;
+   return true;
 }
 OmsOrderRaw* OmsRequestIni::BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) {
    assert(this == runner.Request_.get());

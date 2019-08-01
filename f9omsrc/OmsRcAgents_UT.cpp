@@ -73,13 +73,14 @@ int main(int argc, char* argv[]) {
    //---------------------------------------------
    auto  core = TestCore::MakeCoreMgr(argc, argv);
    auto  coreMgr = core->Owner_;
+   auto  ordfac = coreMgr->OrderFactoryPark().GetFactory("TwsOrd");
    coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
-      new OmsTwsRequestIniFactory("TwsNew", coreMgr->OrderFactoryPark().GetFactory("TwsOrd"),
+      new OmsTwsRequestIniFactory("TwsNew", ordfac,
                                   f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                      f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
       new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsTwsFilledFactory("TwsFilled"),
-      new OmsTwsReportFactory("TwsRpt")
+      new OmsTwsFilledFactory("TwsFilled", ordfac),
+      new OmsTwsReportFactory("TwsRpt", ordfac)
    ));
    const std::string fnDefault = "OmsRcServer.log";
    core->OpenReload(argc, argv, fnDefault);
@@ -127,7 +128,7 @@ int main(int argc, char* argv[]) {
             auto fnSetIvRights = [](const fon9::seed::PodOpResult& resItem, fon9::seed::PodOp* opItem) {
                auto tabItem = resItem.Sender_->LayoutSP_->GetTab(0);
                opItem->BeginWrite(*tabItem, [](const fon9::seed::SeedOpResult& res, const fon9::seed::RawWr* wr) {
-                  f9omstw::OmsIvRight rights = (res.KeyText_ == "*" ? f9omstw::OmsIvRight::AllowTradingAll : f9omstw::OmsIvRight{});
+                  f9omstw::OmsIvRight rights = (res.KeyText_ == "*" ? f9omstw::OmsIvRight::AllowAll : f9omstw::OmsIvRight{});
                   res.Tab_->Fields_.Get("Rights")->PutNumber(*wr, static_cast<uint8_t>(rights), 0);
                });
             };

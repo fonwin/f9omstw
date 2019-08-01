@@ -51,7 +51,7 @@ void MakePoIvacList(f9omstw::OmsPoIvListAgent& poIvListAgent, const UserDef& use
             auto fnSetIvRights = [&userdef](const fon9::seed::PodOpResult& resItem, fon9::seed::PodOp* opItem) {
                auto tabItem = resItem.Sender_->LayoutSP_->GetTab(0);
                opItem->BeginWrite(*tabItem, [](const fon9::seed::SeedOpResult& res, const fon9::seed::RawWr* wr) {
-                  f9omstw::OmsIvRight rights = (res.KeyText_ == "*" ? f9omstw::OmsIvRight::AllowTradingAll : f9omstw::OmsIvRight{});
+                  f9omstw::OmsIvRight rights = (res.KeyText_ == "*" ? f9omstw::OmsIvRight::AllowAll : f9omstw::OmsIvRight{});
                   res.Tab_->Fields_.Get("Rights")->PutNumber(*wr, static_cast<uint8_t>(rights), 0);
                });
             };

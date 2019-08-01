@@ -139,8 +139,8 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
                                         OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}})}),
          new OmsTwsRequestChgFactory("TwsChg",
                                      OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}}),
-         new OmsTwsFilledFactory("TwsFilled"),
-         new OmsTwsReportFactory("TwsRpt")
+         new OmsTwsFilledFactory("TwsFilled", ordfac),
+         new OmsTwsReportFactory("TwsRpt", ordfac)
       ));
       coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
    }

@@ -15,6 +15,13 @@ void OmsRequestRunner::RequestAbandon(OmsResource* res, OmsErrCode errCode, std:
    if (res)
       res->Backend_.Append(*this->Request_, std::move(this->ExLog_));
 }
+bool OmsRequestRunner::CheckReportRights(const OmsRequestPolicy& pol) {
+   assert(IsEnumContains(this->Request_->RequestFlags(), OmsRequestFlag_ReportIn));
+   if (IsEnumContains(pol.GetIvrAdminRights(), OmsIvRight::AllowAddReport))
+      return true;
+   this->RequestAbandon(nullptr, OmsErrCode_DenyAddReport);
+   return false;
+}
 //--------------------------------------------------------------------------//
 bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdNo reqOrdNo) {
    if (OmsBrk* brk = this->OrderRaw_.Order_->GetBrk(this->Resource_)) {

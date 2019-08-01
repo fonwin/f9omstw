@@ -326,7 +326,7 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
       return ses;
    // 如果有重啟過, Ivr_ 會在 Backend 載入時建立.
    auto rights = this->RequestPolicy_->GetIvRights(ord->Order_->ScResource().Ivr_.get());
-   if (IsEnumContains(rights, OmsIvRight::AllowReport)
+   if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
        || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
       return ses;
    return nullptr;

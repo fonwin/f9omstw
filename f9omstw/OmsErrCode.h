@@ -54,8 +54,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// OmsRequestIni::PreCheck_IvRight(); 必要欄位不正確(例如: IvacNo, Side, Symbol...)
    OmsErrCode_FieldNotMatch = 121,
    /// OmsRequestIni::PreCheck_IvRight(); Order not found, or RequestIni not allowed.
-   /// 若委託不存在(用 OrdKey 找不到委託) => 「委託遺失」的補單操作, 必須有 AllowRequestIni 權限.
-   OmsErrCode_DenyRequestIni = 122,
+   /// 補單操作, 必須有 AllowAddReport 權限.
+   OmsErrCode_DenyAddReport = 122,
 
    /// 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
    OmsErrCode_OverFlowControl = 130,

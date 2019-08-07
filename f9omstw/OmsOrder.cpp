@@ -7,65 +7,54 @@
 
 namespace f9omstw {
 
-fon9_MSC_WARN_DISABLE(4355); /* 'this': used in base member initializer list */
-OmsOrder::OmsOrder(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource&& scRes)
-   : ScResource_(std::move(scRes))
-   , Initiator_{&initiator}
-   , Creator_(&creator)
-   , Head_{creator.MakeOrderRaw(*this, initiator)} {
-   this->LastNotPending_ = this->Tail_ = const_cast<OmsOrderRaw*>(this->Head_);
-
-   assert(initiator.LastUpdated() == nullptr && !initiator.IsAbandoned());
-   initiator.SetInitiatorFlag();
-
-   if (0);// 應移除: LastNotPending_, Initiator_?
-   // - Initiator() = if (auto* ini = this->Head_) return ini->IsInitiator();
-   //   如何決定 rpt 是否為新的 Initiator 呢?
-   //    - (BeforeQty==0 && AfterQty!=0)?
-   // - LastNotPending() => 直接使用 Tail() 即可?
-   //   即使是 Pending(OrderSt_ReportPending), OrderRaw 也是從上次取得?
-   //   => 但是 OrderSt_ 怎麼辦?
-   // - 移除 OrderRaw.ExgLastTime? LastPriTime? 改成 SNO?
-   //    => 不行 => 因為本機送出的 req 收到的回報不會留下記錄, 如果不把時間記錄在 OrderRaw, 那就會遺失了!
-   // - 移除 OrderRaw.LastFilledTime
-   //    => 因為 FilledLast_(而且即使亂序也會是 MatchKey 最大的那筆) 就有時間了?
-}
-fon9_MSC_WARN_POP;
-
 OmsOrder::OmsOrder() {
 }
-void OmsOrder::Initialize(OmsRequestIni& initiator, OmsOrderFactory& creator, OmsScResource* scRes) {
-   assert(this->Initiator_ == nullptr && this->Head_ == nullptr);
-   this->Creator_ = &creator;
-   this->Initiator_ = &initiator;
-   this->Head_ = creator.MakeOrderRaw(*this, initiator);
-   this->LastNotPending_ = this->Tail_ = const_cast<OmsOrderRaw*>(this->Head_);
-   if (scRes)
-      this->ScResource_ = std::move(*scRes);
-   assert(initiator.LastUpdated() == nullptr && !initiator.IsAbandoned());
-   initiator.SetInitiatorFlag();
-}
-
 OmsOrder::~OmsOrder() {
 }
 void OmsOrder::FreeThis() {
    delete this;
 }
+
 OmsBrk* OmsOrder::GetBrk(OmsResource& res) const {
    if (auto* ivr = this->ScResource_.Ivr_.get())
       return f9omstw::GetBrk(ivr);
-   return res.Brks_->GetBrkRec(ToStrView(this->Initiator_->BrkId_));
+   return res.Brks_->GetBrkRec(ToStrView(this->Head_->Request_->BrkId_));
+}
+
+OmsOrderRaw* OmsOrder::InitializeByStarter(OmsOrderFactory& creator, OmsRequestBase& starter, OmsScResource* scRes) {
+   assert(this->Head_ == nullptr && this->Tail_ == nullptr && this->Creator_ == nullptr
+          && starter.LastUpdated() == nullptr);
+   this->Creator_ = &creator;
+   if (scRes)
+      this->ScResource_ = std::move(*scRes);
+
+   OmsOrderRaw* retval = creator.MakeOrderRawImpl();
+   retval->InitializeByStarter(*this, starter);
+   this->Head_ = this->Tail_ = retval;
+   return retval;
+}
+OmsOrderRaw* OmsOrder::BeginUpdate(const OmsRequestBase& req) {
+   OmsOrderRaw* retval = this->Creator_->MakeOrderRawImpl();
+   retval->InitializeByTail(*this->Tail_, req);
+   if (req.LastUpdated() == nullptr && req.RxKind() == f9fmkt_RxKind_RequestNew) {
+      // req 是新單回報補單 => 必須重設 this->Head_;
+      // 後續透過 this->FirstPending_ 往後處理, 最後總是會更新成正確的序列.
+      this->Head_ = this->Tail_ = retval;
+   }
+   else
+      this->Tail_ = retval;
+   return retval;
 }
 void OmsOrder::ProcessPendingReport(OmsResource& res) {
-   assert(this->LastNotPending_ == this->Tail_);
    assert(this->FirstPending_ != nullptr);
+   const OmsOrderRaw* afFirstPending;
    const OmsOrderRaw* pord = this->FirstPending_;
-   const OmsOrderRaw* afFirstPending = nullptr;
    this->FirstPending_ = nullptr;
-   for (;;) {
-      const OmsOrderRaw* bfNotPending = this->LastNotPending_;
+   do {
+      afFirstPending = nullptr;
+      const OmsOrderRaw* bfTail = this->Tail_;
       while (pord) {
-         if (pord->OrderSt_ == f9fmkt_OrderSt_ReportPending) {
+         if (pord->UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending) {
             if (pord->Request_->LastUpdated() == pord) {
                pord->Request_->ProcessPendingReport(res);
                if (afFirstPending == nullptr && pord->Request_->LastUpdated() == pord)
@@ -74,10 +63,10 @@ void OmsOrder::ProcessPendingReport(OmsResource& res) {
          }
          pord = pord->Next();
       }
-      if (bfNotPending == this->LastNotPending_)
+      if (bfTail == this->Tail_)
          break;
       pord = afFirstPending;
-   }
+   } while (pord);
    this->FirstPending_ = afFirstPending;
 }
 
@@ -92,37 +81,27 @@ const OmsOrderRaw* OmsOrderRaw::CastToOrder() const {
    return this;
 }
 
-void OmsOrderRaw::Initialize(OmsOrder& order) {
-   *const_cast<OmsOrder**>(&this->Order_) = &order;
-   *const_cast<const OmsRequestBase**>(&this->Request_) = order.Initiator_;
-   this->Market_ = order.Initiator_->Market();
-   this->SessionId_ = order.Initiator_->SessionId();
+void OmsOrderRaw::InitializeByStarter(OmsOrder& order, const OmsRequestBase& starter) {
+   assert(order.Head() == nullptr && order.Tail() == nullptr);
+   this->Market_ = starter.Market();
+   this->SessionId_ = starter.SessionId();
+   this->Request_ = &starter;
+   this->Order_ = &order;
 }
-OmsOrderRaw::OmsOrderRaw(const OmsOrderRaw* tail, const OmsRequestBase& req)
-   : Order_(tail->Order_)
-   , Request_(&req)
-   , UpdSeq_{tail->UpdSeq_ + 1}
-   , OrdNo_{""} {
-   assert(tail->Next_ == nullptr && tail->Order_->Tail_ == tail);
-   tail->Next_ = tail->Order_->Tail_ = this;
-   this->RxKind_ = f9fmkt_RxKind_Order;
+void OmsOrderRaw::InitializeByTail(const OmsOrderRaw& tail, const OmsRequestBase& req) {
+   assert(tail.Next_ == nullptr && tail.Order_->Tail() == &tail);
+   tail.Next_ = this;
    this->Market_ = req.Market();
    this->SessionId_ = req.SessionId();
+   this->Request_ = &req;
+   this->Order_ = tail.Order_;
+   this->UpdSeq_ = tail.UpdSeq_ + 1;
+   this->ContinuePrevUpdate(tail);
 }
-void OmsOrderRaw::Initialize(const OmsOrderRaw* tail, const OmsRequestBase& req) {
-   assert(tail != nullptr && tail->Next_ == nullptr && tail->Order_->Tail_ == tail);
-   tail->Next_ = tail->Order_->Tail_ = this;
-   this->Market_ = req.Market();
-   this->SessionId_ = req.SessionId();
-
-   *const_cast<OmsOrder**>            (&this->Order_)   = tail->Order_;
-   *const_cast<const OmsRequestBase**>(&this->Request_) = &req;
-   *const_cast<uint32_t*>             (&this->UpdSeq_)  = tail->UpdSeq_ + 1;
-   this->ContinuePrevUpdate();
-}
-void OmsOrderRaw::ContinuePrevUpdate() {
-   this->OrderSt_ = this->Order_->OrderSt();
-   this->OrdNo_   = this->Order_->LastNotPending()->OrdNo_;
+void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
+   assert(this->Order_ == prev.Order_);
+   this->UpdateOrderSt_ = this->Order_->LastOrderSt();
+   this->OrdNo_ = prev.OrdNo_;
    this->ErrCode_ = OmsErrCode_NoError;
 }
 void OmsOrderRaw::OnOrderReject() {
@@ -131,7 +110,7 @@ void OmsOrderRaw::OnOrderReject() {
 void OmsOrderRaw::MakeFieldsImpl(fon9::seed::Fields& flds) {
    using namespace fon9;
    using namespace fon9::seed;
-   flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, OrderSt_))});
+   flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, UpdateOrderSt_))});
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReqSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, RequestSt_))});
    flds.Add(fon9_MakeField2(OmsOrderRaw, ErrCode));
    flds.Add(fon9_MakeField2(OmsOrderRaw, OrdNo));

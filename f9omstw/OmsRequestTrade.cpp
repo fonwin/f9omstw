@@ -50,9 +50,11 @@ const char* OmsRequestIni::IsIniFieldEqualImpl(const OmsRequestIni& req) const {
       return "SubacNo";
    return nullptr;
 }
-const OmsRequestIni* OmsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
+const OmsRequestIni* OmsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
    if (this->Market_ == f9fmkt_TradingMarket_Unknown) {
       if (!scRes.Symb_) {
+         // 因為 this 沒有 SymbolId, 所以應由衍生者先取得 scRes.Symb_;
+         // 如果衍生者沒先取得 scRes.Symb_, 就拒絕此次要求.
          runner.RequestAbandon(&res, OmsErrCode_Bad_MarketId_SymbNotFound);
          return nullptr;
       }
@@ -77,7 +79,7 @@ const OmsRequestIni* OmsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, Om
       //    if (const auto* ordNoMap = brk->GetOrdNoMap(*this))
       //       if (ordNoMap->GetOrder(this->OrdNo_) != nullptr) {
       //          runner.RequestAbandon(&res, OmsErrCode_OrderAlreadyExists);
-      //          return false;
+      //          return nullptr;
       //       }
       // }
       return this;
@@ -88,13 +90,23 @@ const OmsRequestIni* OmsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, Om
       return nullptr;
    }
    if (const auto* ordNoMap = brk->GetOrdNoMap(*this)) {
-      if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_))
-         return ord->Initiator();
+      if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_)) {
+         if (auto ini = ord->Initiator())
+            return ini;
+         runner.RequestAbandon(&res, OmsErrCode_OrderInitiatorNotFound);
+      }
+      else {
+         runner.RequestAbandon(&res, OmsErrCode_OrderNotFound);
+      }
+   }
+   else {
+      runner.RequestAbandon(&res, OmsErrCode_OrdNoMapNotFound);
    }
    return nullptr;
 }
 OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
-   if (const OmsRequestPolicy* pol = runner.Request_->Policy()) {
+   assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
+   if (const OmsRequestPolicy* pol = static_cast<OmsRequestTrade*>(runner.Request_.get())->Policy()) {
       OmsIvRight  ivrRights = pol->GetIvrAdminRights();
       if (!IsEnumContains(ivrRights, OmsIvRight::IsAdmin)) {
          // 不是 admin 權限, 則必須是可用帳號.
@@ -109,7 +121,7 @@ OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& re
    runner.RequestAbandon(&res, OmsErrCode_IvNoPermission);
    return OmsIvRight::DenyAll;
 }
-bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
+bool OmsRequestIni::BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
    OmsIvRight  ivrRights = this->CheckIvRight(runner, res, scRes);
    if (fon9_UNLIKELY(ivrRights == OmsIvRight::DenyAll))
       return false;
@@ -123,20 +135,23 @@ bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res,
    }
    return true;
 }
-OmsOrderRaw* OmsRequestIni::BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) {
+OmsOrderRaw* OmsRequestIni::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
    assert(this == runner.Request_.get());
    OmsScResource  scRes;
-   if (const OmsRequestIni* iniReq = this->PreCheck_OrdKey(runner, res, scRes)) {
-      if (iniReq == runner.Request_.get()) {
-         if (iniReq->PreCheck_IvRight(runner, res, scRes))
-            return iniReq->Creator().OrderFactory_->MakeOrder(*this, &scRes);
+   if (const OmsRequestIni* iniReq = this->BeforeReq_CheckOrdKey(runner, res, scRes)) {
+      if (iniReq == this) {
+         if (this->BeforeReq_CheckIvRight(runner, res, scRes)) {
+            OmsOrderRaw* retval = this->Creator().OrderFactory_->MakeOrder(*this, &scRes);
+            retval->UpdateOrderSt_ = f9fmkt_OrderSt_NewStarting;
+            return retval;
+         }
       }
       else {
-         OmsOrder*      ord = iniReq->LastUpdated()->Order_;
-         OmsScResource& ordScRes = ord->ScResource();
+         OmsOrder&      order = iniReq->LastUpdated()->Order();
+         OmsScResource& ordScRes = order.ScResource();
          ordScRes.CheckMoveFrom(std::move(scRes));
-         if (iniReq->PreCheck_IvRight(runner, res, ordScRes))
-            return ord->BeginUpdate(*this);
+         if (iniReq->BeforeReq_CheckIvRight(runner, res, ordScRes))
+            return order.BeginUpdate(*this);
       }
    }
    return nullptr;
@@ -145,22 +160,15 @@ OmsOrderRaw* OmsRequestIni::BeforeRunInCore(OmsRequestRunner& runner, OmsResourc
 //--------------------------------------------------------------------------//
 
 void OmsRequestUpd::MakeFieldsImpl(fon9::seed::Fields& flds) {
-   if (0);// 是否要將 IniSNO 放在 OmsRequestBase?
-          // 因為除了「新單、補單」用不到 IniSNO, 其他的「刪改查成交」都需要 IniSNO;
-          //    => 放在底層, 可以有更一致的處理方式.
-          //    => IniSNO==0 的可能原因:
-          //       - 「新單、補單」
-          //       - 「刪改查成交」回報, 但尚未收到新單回報.
-          // OmsRequestBase 是否要增加 Initiator pointer?
    flds.Add(fon9_MakeField2(OmsRequestUpd, IniSNO));
    base::MakeFields<OmsRequestUpd>(flds);
 }
-OmsOrderRaw* OmsRequestUpd::BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) {
+OmsOrderRaw* OmsRequestUpd::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
    assert(this == runner.Request_.get());
-   if (const OmsRequestBase* iniReq = this->PreCheck_GetRequestInitiator(runner, res)) {
-      OmsOrder* ord = iniReq->LastUpdated()->Order_;
-      if (ord->Initiator()->PreCheck_IvRight(runner, res))
-         return ord->BeginUpdate(*runner.Request_);
+   if (const OmsRequestIni* iniReq = this->BeforeReq_GetInitiator(runner, res)) {
+      OmsOrder& order = iniReq->LastUpdated()->Order();
+      if (order.Initiator()->BeforeReq_CheckIvRight(runner, res))
+         return order.BeginUpdate(*runner.Request_);
    }
    return nullptr;
 }

@@ -36,7 +36,7 @@ public:
    /// - 您必須先確定 ord.OrdNo_ 必須不是空的, 此函式不檢查.
    /// - 通常用在重新載入, 或是外部新單回報.
    bool EmplaceOrder(const OmsOrderRaw& ord) {
-      return this->EmplaceOrder(ord.OrdNo_, ord.Order_);
+      return this->EmplaceOrder(ord.OrdNo_, &ord.Order());
    }
    bool EmplaceOrder(OmsOrdNo ordno, OmsOrder* order);
 

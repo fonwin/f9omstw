@@ -191,8 +191,9 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    runner.ExLog_.SetPrefixUsed(pout);
    param.RecvBuffer_.Read(pout, byteCount);
 
-   runner.Request_ = static_cast<OmsRequestTrade*>(cfg.Factory_->MakeRequest(param.RecvTime_).get());
-   ApiReqFieldArg arg{*runner.Request_.get(), ses};
+   if (0); // Rc client 端使用 TwsRpt 補回報?
+   runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
+   ApiReqFieldArg arg{*runner.Request_, ses};
    for (const auto& fldcfg : cfg.ApiFields_) {
       arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
       if (fldcfg.Field_)
@@ -207,7 +208,7 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    }
    const char* cstrForceLogout;
    if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
-      runner.Request_->SetPolicy(this->Handler_->RequestPolicy_);
+      static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(this->Handler_->RequestPolicy_);
       if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner))))
          return;
       cstrForceLogout = nullptr;
@@ -227,7 +228,7 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    // request abandon, 立即回報失敗.
    assert(runner.Request_->IsAbandoned());
    runner.ExLog_.MoveOut();
-   if (this->ApiSesCfg_->MakeReport(runner.ExLog_, *runner.Request_))
+   if (this->ApiSesCfg_->MakeReportMessage(runner.ExLog_, *runner.Request_))
       ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(runner.ExLog_));
    if (cstrForceLogout)
       ses.ForceLogout(cstrForceLogout);
@@ -253,8 +254,8 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
       return 0;
    if (item) {
       if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverLastSt) {
-         if (const OmsOrderRaw* ord = static_cast<const OmsOrderRaw*>(item->CastToOrder())) {
-            if (ord->Request_->LastUpdated() != ord)
+         if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(item->CastToOrder())) {
+            if (ordraw->Request().LastUpdated() != ordraw)
                return item->RxSNO() + 1;
          }
       }
@@ -281,7 +282,7 @@ void OmsRcServerNote::Handler::OnReport(OmsCore&, const OmsRxItem& item) {
 void OmsRcServerNote::Handler::SendReport(const OmsRxItem& item) {
    if (auto* ses = this->IsNeedReport(item)) {
       fon9::RevBufferList rbuf{128};
-      if (this->ApiSesCfg_->MakeReport(rbuf, item))
+      if (this->ApiSesCfg_->MakeReportMessage(rbuf, item))
          ses->Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
    }
 }
@@ -289,10 +290,10 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());
    // 檢查 UserId, 可用帳號.
    fon9::StrView      sesUserId = ToStrView(ses->GetUserId());
-   const OmsOrderRaw* ord = static_cast<const OmsOrderRaw*>(item.CastToOrder());
-   if (ord) {
+   const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(item.CastToOrder());
+   if (ordraw) {
       fon9_WARN_DISABLE_SWITCH;
-      switch (ord->RequestSt_) {
+      switch (ordraw->RequestSt_) {
       case f9fmkt_TradingRequestSt_Queuing:
          if (this->RptFilter_ & f9OmsRc_RptFilter_NoQueuing)
             return nullptr;
@@ -312,7 +313,7 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          // event report: 直接回報, 不檢查 UserId、可用帳號.
          return ses;
       }
-      if ((ord = reqb->LastUpdated()) == nullptr) { // abandon?
+      if ((ordraw = reqb->LastUpdated()) == nullptr) { // abandon?
          const OmsRequestTrade* reqt = static_cast<const OmsRequestTrade*>(reqb);
          if (!reqt)
             return nullptr;
@@ -322,10 +323,11 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          return nullptr;
       }
    }
-   if (ToStrView(ord->Order_->Initiator()->UserId_) == sesUserId)
-      return ses;
+   if (auto ini = ordraw->Order().Initiator())
+      if (ToStrView(ini->UserId_) == sesUserId)
+         return ses;
    // 如果有重啟過, Ivr_ 會在 Backend 載入時建立.
-   auto rights = this->RequestPolicy_->GetIvRights(ord->Order_->ScResource().Ivr_.get());
+   auto rights = this->RequestPolicy_->GetIvRights(ordraw->Order().ScResource().Ivr_.get());
    if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
        || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
       return ses;

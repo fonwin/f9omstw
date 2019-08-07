@@ -8,6 +8,7 @@
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
+#include "f9omstws/OmsTwsFilled.hpp"
 #include "f9utws/UtwsBrk.hpp"
 #include "f9utws/UtwsSymb.hpp"
 
@@ -100,7 +101,7 @@ f9omstw::OmsRequestRunner MakeOmsRequestRunner(const f9omstw::OmsRequestFactoryP
       if (req.get() == nullptr)
          fon9_LOG_ERROR("MakeOmsRequestRunner|err=MakeRequest return nullptr|reqfac=", tag);
       else if (ParseRequestFields(*fac, *req, reqstr))
-         retval.Request_ = std::move(fon9::static_pointer_cast<f9omstw::OmsRequestTrade>(req));
+         retval.Request_ = std::move(req);
       return retval;
    }
    fon9_LOG_ERROR("MakeOmsRequestRunner|err=Unknown request factory|reqfac=", tag);
@@ -111,11 +112,11 @@ f9omstw::OmsRequestRunner MakeOmsReportRunner(const f9omstw::OmsRequestFactoryPa
    f9omstw::OmsRequestRunner retval{reqstr};
    fon9::StrView tag = fon9::StrFetchNoTrim(reqstr, '|');
    if (auto* fac = facPark.GetFactory(tag)) {
-      auto req = fac->MakeReport(reqKind, fon9::UtcNow());
+      auto req = fac->MakeReportIn(reqKind, fon9::UtcNow());
       if (req.get() == nullptr)
-         fon9_LOG_ERROR("MakeOmsReportRunner|err=MakeReport() return nullptr|reqfac=", tag);
+         fon9_LOG_ERROR("MakeOmsReportRunner|err=MakeReportIn() return nullptr|reqfac=", tag);
       else if (ParseRequestFields(*fac, *req, reqstr))
-         retval.Request_ = std::move(fon9::static_pointer_cast<f9omstw::OmsRequestTrade>(req));
+         retval.Request_ = std::move(req);
       return retval;
    }
    fon9_LOG_ERROR("MakeOmsReportRunner|err=Unknown request factory|reqfac=", tag);
@@ -140,13 +141,13 @@ struct UomsTwsIniRiskCheck : public f9omstw::OmsRequestRunStep {
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       // TODO: 風控檢查.
       using namespace f9omstw;
-      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator()) != nullptr);
+      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order().Initiator()) != nullptr);
       auto& ordraw = *static_cast<OmsTwsOrderRaw*>(&runner.OrderRaw_);
-      auto* inireq = static_cast<const OmsTwsRequestIni*>(ordraw.Order_->Initiator());
-      if (ordraw.OType_ == f9tws::TwsOType{})
+      auto* inireq = static_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator());
+      if (ordraw.OType_ == OmsTwsOType{})
          ordraw.OType_ = inireq->OType_;
       // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
-      if (ordraw.Request_ == inireq) {
+      if (&ordraw.Request() == inireq) {
          ordraw.LastPri_ = inireq->Pri_;
          ordraw.LastPriType_ = inireq->PriType_;
          if (inireq->RxKind() == f9fmkt_RxKind_RequestNew)
@@ -169,8 +170,8 @@ struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
       // 最遲在下單要求送出(交易所)前, 必須編製委託書號.
       if (!runner.AllocOrdNo_IniOrTgid(this->TgId_))
          return;
-      if (runner.OrderRaw_.Request_->RxKind() == f9fmkt_RxKind_RequestNew)
-         runner.OrderRaw_.OrderSt_ = f9fmkt_OrderSt_NewSending;
+      if (runner.OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew)
+         runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewSending;
       runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
       runner.OrderRaw_.Message_.assign("Sending by 8610T1");
       // TODO: Test 送單狀態, 1 ms 之後 Accepted.

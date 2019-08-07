@@ -50,9 +50,11 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    }
    fon9_WARN_POP;
 
-   OmsOrder*               order  = runner->OrderRaw_.Order_;
-   const OmsTwsRequestIni* iniReq = static_cast<const OmsTwsRequestIni*>(order->Initiator());
-   f9fix::FixBuilder       fixb;
+   OmsOrder&               order  = runner->OrderRaw_.Order();
+   const OmsTwsRequestIni* iniReq = static_cast<const OmsTwsRequestIni*>(order.Initiator());
+   assert(iniReq != nullptr);
+
+   f9fix::FixBuilder fixb;
    //                   NewSingle   Replace  Cancel   Status
    // OrigClOrdID                      v        v
    // ClOrdID              v           v        v        v
@@ -105,7 +107,7 @@ __REQUEST_DELETE:
          msgType = f9fix_SPLFLDMSGTYPE(OrderCancelRequest);
       }
       else {
-         const auto* lastOrd = static_cast<const OmsTwsOrderRaw*>(order->LastNotPending());
+         const auto* lastOrd = static_cast<const OmsTwsOrderRaw*>(order.Tail());
          // OmsTwsOrderRaw.OType_ 必須在風控檢查階段填入, 這裡不檢查, 如果有錯就讓交易所退單吧!
          *--pout = static_cast<char>(lastOrd->OType_);
          pout = RevPutStr(pout, f9fix_SPLTAGEQ(TwseOrdType));
@@ -228,7 +230,7 @@ __REQUEST_DELETE:
          }
 
          if (fon9_LIKELY(twseApCode != TwseApCode_OddLot))
-            fixQty /= order->ScResource().GetTwsSymbShUnit();
+            fixQty /= order.ScResource().GetTwsSymbShUnit();
          // if (fon9_UNLIKELY(fixQty > 999)) {
          //    runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
          //    return SendResult::RejectRequest;

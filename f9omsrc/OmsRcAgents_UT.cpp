@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
                                   f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                      f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
       new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsTwsFilledFactory("TwsFilled", ordfac),
+      new OmsTwsFilledFactory("TwsFil", ordfac),
       new OmsTwsReportFactory("TwsRpt", ordfac)
    ));
    const std::string fnDefault = "OmsRcServer.log";
@@ -304,8 +304,8 @@ int main(int argc, char* argv[]) {
       for (;;) {
          const f9omstw::OmsRequestTrade* req = dynamic_cast<const f9omstw::OmsRequestTrade*>(lastRxItem);
          if (req == nullptr) {
-            if (const auto* ord = dynamic_cast<const f9omstw::OmsOrderRaw*>(lastRxItem))
-               req = dynamic_cast<const f9omstw::OmsRequestTrade*>(ord->Request_);
+            if (const auto* ordraw = dynamic_cast<const f9omstw::OmsOrderRaw*>(lastRxItem))
+               req = dynamic_cast<const f9omstw::OmsRequestTrade*>(&ordraw->Request());
          }
          if (req && fon9::ToStrView(req->ClOrdId_) == fldValues[static_cast<unsigned>(layout->IdxClOrdId_)])
             break;

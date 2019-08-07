@@ -46,9 +46,11 @@ public:
 
    OmsReportFilled(OmsRequestFactory& creator)
       : base{creator, f9fmkt_RxKind_Filled} {
+      this->InitializeForReportIn();
    }
    OmsReportFilled()
       : base{f9fmkt_RxKind_Filled} {
+      this->InitializeForReportIn();
    }
 
    /// 將 curr 依照 MatchKey_ 的順序(小到大), 加入到「成交串列」.

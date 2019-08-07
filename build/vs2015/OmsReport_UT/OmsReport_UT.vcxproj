@@ -11,19 +11,19 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{C8A7D05E-E4A0-40E4-9343-FB3366D84CE3}</ProjectGuid>
-    <RootNamespace>libf9omsrc</RootNamespace>
+    <ProjectGuid>{E8953FA1-5BFB-4963-A09E-AD6FB77BD41C}</ProjectGuid>
+    <RootNamespace>OmsReport_UT</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -41,11 +41,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
     <IntDir>$(OutDir)$(ProjectName)\</IntDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
     <IntDir>$(OutDir)$(ProjectName)\</IntDir>
   </PropertyGroup>
@@ -74,29 +74,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\f9omsrc\OmsGvTable.cpp" />
-    <ClCompile Include="..\..\..\f9omsrc\OmsRcClient.cpp" />
-    <ClCompile Include="..\..\..\f9omsrc\OmsRcClientApi.cpp" />
-    <ClCompile Include="..\..\..\f9omsrc\OmsRcServer.cpp" />
-    <ClCompile Include="..\..\..\f9omsrc\OmsRcServerFunc.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsReport_UT.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\f9omsrc\OmsGvTable.h" />
-    <ClInclude Include="..\..\..\f9omsrc\OmsGvTable.hpp" />
-    <ClInclude Include="..\..\..\f9omsrc\OmsRc.h" />
-    <ClInclude Include="..\..\..\f9omsrc\OmsRcClient.hpp" />
-    <ClInclude Include="..\..\..\f9omsrc\OmsRcServer.hpp" />
-    <ClInclude Include="..\..\..\f9omsrc\OmsRcServerFunc.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\..\f9omsrc\forms\ApiAll.cfg" />
-    <None Include="..\..\..\f9omsrc\forms\ApiBase.cfg" />
-    <None Include="..\..\..\f9omsrc\forms\ApiTwsReq.cfg" />
-    <None Include="..\..\..\f9omsrc\forms\ApiTwsRpt.cfg" />
-    <None Include="..\..\..\f9omsrc\forms\Api_zh.cfg" />
-    <None Include="..\..\..\f9omsrc\forms\CommonValues.cfg" />
-    <None Include="..\..\..\f9omsrc\forms\README.md" />
-    <None Include="..\..\..\f9omsrc\README.md" />
+    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
+      <Project>{6b9031a7-02e1-4171-8ca5-9f780be21806}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libf9omstws\libf9omstws.vcxproj">
+      <Project>{0e4240bd-7908-4238-9dd7-e9029dca47fa}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
+      <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libf9utws\libf9utws.vcxproj">
+      <Project>{44cf3194-49b5-4061-acb1-6a566339a82b}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

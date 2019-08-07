@@ -11,8 +11,8 @@ class OmsReportFactoryT : public OmsFactoryBase {
    fon9_NON_COPY_NON_MOVE(OmsReportFactoryT);
    using base = OmsFactoryBase;
 
-   OmsRequestSP MakeReportImpl(f9fmkt_RxKind reqKind) override {
-      return ReportBaseT::MakeReport(*this, reqKind);
+   OmsRequestSP MakeReportInImpl(f9fmkt_RxKind reqKind) override {
+      return ReportBaseT::MakeReportIn(*this, reqKind);
    }
 
 public:

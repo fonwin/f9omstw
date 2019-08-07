@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="forms">
+      <UniqueIdentifier>{8af3ea93-6f1a-4d54-87a3-b2128e2db623}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omsrc\OmsGvTable.cpp">
@@ -49,5 +52,26 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\f9omsrc\README.md" />
+    <None Include="..\..\..\f9omsrc\forms\Api_zh.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiAll.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiBase.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwsReq.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwsRpt.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\CommonValues.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\README.md">
+      <Filter>forms</Filter>
+    </None>
   </ItemGroup>
 </Project>

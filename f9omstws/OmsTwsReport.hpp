@@ -12,7 +12,10 @@ class OmsTwsReport : public OmsTwsRequestIni {
    fon9_NON_COPY_NON_MOVE(OmsTwsReport);
    using base = OmsTwsRequestIni;
 
+   /// origReq 的後續回報.
+   void RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestBase& origReq);
 public:
+   /// 如果有跨日交易(夜盤), 則跨日的回報 ExgTime_ 應加上 TimeInterval_Day(1);
    fon9::DayTime     ExgTime_{fon9::DayTime::Null()};
    fon9::CharVector  Message_;
    OmsTwsQty         BeforeQty_{};
@@ -23,32 +26,10 @@ public:
    void RunReportInCore(OmsReportRunner&& runner) override;
    void ProcessPendingReport(OmsResource& res) const override;
 
-   static OmsRequestSP MakeReport(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
+   static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwsReport{creator, reqKind};
-      retval->InitializeForReport();
+      retval->InitializeForReportIn();
       return retval;
-   }
-
-   static void MakeFields(fon9::seed::Fields& flds);
-};
-
-class OmsTwsFilled : public OmsReportFilled {
-   fon9_NON_COPY_NON_MOVE(OmsTwsFilled);
-   using base = OmsReportFilled;
-
-public:
-   fon9::DayTime  Time_;
-   OmsTwsPri      Pri_;
-   OmsTwsQty      Qty_;
-
-   using base::base;
-
-   void RunReportInCore(OmsReportRunner&& runner) override;
-   void ProcessPendingReport(OmsResource& res) const override;
-
-   static OmsRequestSP MakeReport(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
-      (void)reqKind; assert(reqKind == f9fmkt_RxKind_Filled || reqKind == f9fmkt_RxKind_Unknown);
-      return new OmsTwsFilled{creator};
    }
 
    static void MakeFields(fon9::seed::Fields& flds);

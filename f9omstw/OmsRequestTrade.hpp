@@ -76,17 +76,17 @@ public:
    /// - assert(runner.Request_.get() == this);
    /// - res.FetchRequestId(*this);
    /// - OmsRequestIni
-   ///   - iniReq = this->PreCheck_OrdKey();
-   ///   - iniReq->PreCheck_IvRight();
+   ///   - iniReq = this->BeforeReq_CheckOrdKey();
+   ///   - iniReq->BeforeReq_CheckIvRight();
    ///   - 新單,   返回: this->Creator_->OrderFactory_->MakeOrder();
    ///   - 刪改查, 返回: iniReq->LastUpdated()->Order_->BeginUpdate(*this);
    /// - OmsRequestUpd 一般刪改查:
-   ///   - iniReq = this->PreCheck_GetRequestInitiator();
-   ///   - iniReq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight();
-   ///   - 返回: iniReq->LastUpdated()->Order_->BeginUpdate(*this);
+   ///   - iniReq = this->BeforeReq_GetInitiator();
+   ///   - iniReq->BeforeReq_CheckIvRight();
+   ///   - 返回: iniReq->LastUpdated()->Order().BeginUpdate(*this);
    /// - 如果返回 nullptr, 表示已呼叫 runner.RequestAbandon();
    /// - 返回後 request 不應再有異動.
-   virtual OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) = 0;
+   virtual OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) = 0;
 };
 
 //--------------------------------------------------------------------------//
@@ -113,12 +113,15 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
    }
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 
+   /// 使用 runner.Request_.Policy()  檢查 runner.Request_ 是否有「this->IvacNo_、this->SubacNo_」的交易權限.
    OmsIvRight CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
+
    /// - 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
-   /// - 應在 inireq = runner.Request_->PreCheck_OrdKey() 之後執行: inireq->PreCheck_IvRight(runner...);
+   /// - 應在 inireq = runner.Request_->BeforeReq_CheckOrdKey() 之後執行:
+   ///   inireq->BeforeReq_CheckIvRight(runner...);
    /// - 若委託已存在(this 為刪改查要求), 則欄位(Ivr,Side,Symbol,...)必須正確.
    /// - 如果允許, 且不是因 admin 權限, 則會設定 scRes.Ivr_;
-   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
+   bool BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
 
 protected:
    template <class Derived>
@@ -158,15 +161,15 @@ public:
    /// \retval nullptr 表示失敗, 返回前已呼叫 runner.RequestAbandon();
    /// \retval this    表示此筆為「新單要求」.
    /// \retval else    表示此筆為「刪改查要求」, 傳回要操作的「初始委託要求」.
-   virtual const OmsRequestIni* PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes);
+   virtual const OmsRequestIni* BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes);
 
-   OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) override;
+   OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override;
 
-   /// - 通常是從 OmsRequestUpd::BeforeRunInCore(), 在找到 inireq 之後呼叫.
+   /// - 通常是從 OmsRequestUpd::BeforeReqInCore(), 在找到 inireq 之後呼叫.
    /// - 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
-   /// - 應在 inireq = runner.Request_->PreCheck_GetRequestInitiator() 之後執行:
-   ///   inireq->LastUpdated()->Order_->Initiator()->PreCheck_IvRight(runner);
-   bool PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const;
+   /// - 應在 iniReq = runner.Request_->BeforeReq_GetInitiator() 之後執行:
+   ///   iniReq->BeforeReq_CheckIvRight(runner);
+   bool BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res) const;
 };
 
 class OmsRequestUpd : public OmsRequestTrade {
@@ -192,11 +195,11 @@ public:
       return this->IniSNO_;
    }
 
-   const OmsRequestBase* PreCheck_GetRequestInitiator(OmsRequestRunner& runner, OmsResource& res) {
-      return base::PreCheck_GetRequestInitiator(runner, &this->IniSNO_, res);
+   const OmsRequestIni* BeforeReq_GetInitiator(OmsRequestRunner& runner, OmsResource& res) {
+      return base::BeforeReq_GetInitiator(runner, &this->IniSNO_, res);
    }
 
-   OmsOrderRaw* BeforeRunInCore(OmsRequestRunner& runner, OmsResource& res) override;
+   OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override;
 };
 
 } // namespaces

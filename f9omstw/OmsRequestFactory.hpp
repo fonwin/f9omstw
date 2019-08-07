@@ -16,10 +16,10 @@ class OmsRequestFactory : public fon9::seed::Tab {
    using base = fon9::seed::Tab;
 
    virtual OmsRequestSP MakeRequestImpl();
-   virtual OmsRequestSP MakeReportImpl(f9fmkt_RxKind reqKind);
+   virtual OmsRequestSP MakeReportInImpl(f9fmkt_RxKind reqKind);
 
 public:
-   /// 如果 this 建立的 request 屬於 OmsRequestIni,
+   /// 如果 this 建立的 request 屬於 OmsRequestIni 或 回報(包含成交回報),
    /// 則必須提供此類 request, 對應的 OrderFactory;
    const OmsOrderFactorySP    OrderFactory_;
    const OmsRequestRunStepSP  RunStep_;
@@ -49,8 +49,8 @@ public:
    }
 
    /// 預設傳回 nullptr, 表示此 factory 不支援回報.
-   virtual OmsRequestSP MakeReport(f9fmkt_RxKind reqKind, fon9::TimeStamp now = fon9::UtcNow()) {
-      OmsRequestSP retval = this->MakeReportImpl(reqKind);
+   virtual OmsRequestSP MakeReportIn(f9fmkt_RxKind reqKind, fon9::TimeStamp now = fon9::UtcNow()) {
+      OmsRequestSP retval = this->MakeReportInImpl(reqKind);
       if (retval)
          retval->Initialize(*this, now);
       return retval;

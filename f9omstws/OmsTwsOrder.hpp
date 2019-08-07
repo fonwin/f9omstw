@@ -7,10 +7,12 @@
 
 namespace f9omstw {
 
-/// - 這裡面的 BeforeQty_, AfterQty_
+/// - BeforeQty_, AfterQty_
 ///   - 不含 CumQty_
 ///   - 與交易所相同: 直接填入交易所的刪改結果.
-///   - 此欄僅提供刪改結果參考.
+///   - 此欄僅提供參考.
+///     - 若 OrderRaw.UpdateOrderSt_ < f9fmkt_OrderSt_NewStarting
+///       則此次異動不影響 LeavesQty, 不必重算風控.
 ///     - 可能會因為漏回報, 造成 LeavesQty_ 不等於 AfterQty_;
 ///       - 但是如果刪改結果是 (BeforeQty_ != 0  &&  AfterQty_ == 0) 或 (刪改失敗:已無剩餘量)
 ///         則會等回報補齊後才處理.
@@ -31,12 +33,13 @@ struct OmsTwsOrderRawDat {
    OmsTwsQty      CumQty_;
    /// 總成價金, 成交均價 = CumAmt_ / CumQty_;
    OmsTwsAmt      CumAmt_;
-   /// 最後交易所成交時間.
+   /// 最後一次收到的成交, 的交易所時間.
+   /// 若成交回報有亂序, 則這裡不一定是最後成交時間.
    fon9::DayTime  LastFilledTime_;
 
    /// 實際送交易所的 OType, 應在新單的風控流程填妥.
-   f9tws::TwsOType   OType_;
-   char              padding_____[2];
+   OmsTwsOType    OType_;
+   char           padding_____[2];
 
    /// 20200323支援改價, 所以 Order 必須記錄最後成功的價格.
    /// - 新增委託時, 使用 OmsTwsRequestIni;
@@ -44,7 +47,11 @@ struct OmsTwsOrderRawDat {
    /// - 改價不支援修改 TIF, 所以委託欄位不用包含 TIF.
    f9fmkt_PriType LastPriType_;
    OmsTwsPri      LastPri_;
-   /// 最後改價成功的時間.
+   /// 最後價格異動的時間:
+   /// - 改價成功
+   /// - 刪改查回報若有提供價格, 且價格與 LastPri 不同,
+   ///   且「刪改查回報」的「交易所時間」 > LastPriTime_,
+   ///   則會異動 LastPri*
    fon9::DayTime  LastPriTime_;
 
    /// 全部內容清為 '\0' 或 Null()
@@ -73,9 +80,9 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 
-   /// - base::ContinuePrevUpdate();
-   /// - OmsTwsOrderRawDat::ContinuePrevUpdate(*static_cast<const OmsTwsOrderRaw*>(this->Prev_));
-   void ContinuePrevUpdate() override;
+   /// - base::ContinuePrevUpdate(prev);
+   /// - OmsTwsOrderRawDat::ContinuePrevUpdate(*static_cast<const OmsTwsOrderRaw*>(&prev));
+   void ContinuePrevUpdate(const OmsOrderRaw& prev) override;
 
    void OnOrderReject() override;
 };

@@ -14,6 +14,7 @@ class OmsOrderFactory : public fon9::seed::Tab {
    fon9_NON_COPY_NON_MOVE(OmsOrderFactory);
    using base = fon9::seed::Tab;
 
+   friend class OmsOrder; // MakeOrderRawImpl() 開放給 OmsOrder::BeginUpdate(); 使用;
    virtual OmsOrderRaw* MakeOrderRawImpl() = 0;
    virtual OmsOrder* MakeOrderImpl() = 0;
 public:
@@ -21,14 +22,9 @@ public:
 
    virtual ~OmsOrderFactory();
 
-   /// 新單要求, 建立一個新的委託與其對應, 然後返回 OmsOrderRaw 開始首次更新.
-   /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 Order 的初始化.
-   OmsOrderRaw* MakeOrder(OmsRequestIni& initiator, OmsScResource* scRes);
-
-   /// 建立時須注意, 若此時 order.Tail()==nullptr
-   /// - 表示要建立的是 order 第一次異動.
-   /// - 包含 order.Head_ 及之後的 data members、衍生類別, 都處在尚未初始化的狀態.
-   OmsOrderRaw* MakeOrderRaw(OmsOrder& order, const OmsRequestBase& req);
+   /// 建立一個 OmsOrder, 並呼叫 OmsOrder.BeginUpdate() 開始異動.
+   /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 OmsOrder 的初始化.
+   OmsOrderRaw* MakeOrder(OmsRequestBase& starter, OmsScResource* scRes);
 };
 
 } // namespaces

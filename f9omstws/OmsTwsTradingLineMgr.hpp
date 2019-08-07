@@ -43,14 +43,14 @@ public:
                                       unsigned exLogForUpdArg) {
       if (fon9_LIKELY(this->CurrRunner_)) {
          // 從上一個步驟(例:風控檢查)而來的, 會來到這, 使用相同的 runner 繼續處理.
-         assert(this->CurrRunner_->OrderRaw_.Request_ == &req);
+         assert(&this->CurrRunner_->OrderRaw_.Request() == &req);
          return this->CurrRunner_;
       }
       // 來到這裡, 建立新的 runner:
       // 從 OnNewTradingLineReady() 進入 OmsCore 之後, 從 Queue 取出送單.
       assert(tmpRunner.get() == nullptr && this->CurrOmsResource_ != nullptr);
       return tmpRunner.emplace(*this->CurrOmsResource_,
-                               *req.LastUpdated()->Order_->BeginUpdate(req),
+                               *req.LastUpdated()->Order().BeginUpdate(req),
                                exLogForUpdArg);
    }
    /// \retval true  已填妥 OrdNo.

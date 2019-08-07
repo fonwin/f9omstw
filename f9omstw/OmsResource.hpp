@@ -82,7 +82,7 @@ protected:
 
 inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
    this->Resource_.Backend_.OnAfterOrderUpdated(*this);
-   this->OrderRaw_.Order_->EndUpdate(this->OrderRaw_, &this->Resource_);
+   this->OrderRaw_.Order().EndUpdate(this->OrderRaw_, &this->Resource_);
 }
 
 } // namespaces

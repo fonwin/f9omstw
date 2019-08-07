@@ -11,9 +11,11 @@ del *.log
 %EXEDIR%\OmsRequestPolicy_UT
 
 @REM -----------------------
-@REM test twice.
+@REM Test twice, 2nd test for reload prev log.
 %EXEDIR%\OmsRequestTrade_UT
 %EXEDIR%\OmsRequestTrade_UT
+
+%EXEDIR%\OmsReport_UT
 
 @REM -----------------------
 %EXEDIR%\OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0

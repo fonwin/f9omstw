@@ -35,7 +35,7 @@ static void FnRptApiField_FixedValue(fon9::RevBuffer& rbuf, const ApiRptFieldCfg
 static void FnRptApiField_AbandonErrCode(fon9::RevBuffer& rbuf, const ApiRptFieldCfg&, const ApiRptFieldArg* arg) {
    if (fon9_LIKELY(arg)) {
       if (const OmsRequestBase* req = static_cast<const OmsRequestBase*>(arg->Item_.CastToRequest()))
-         fon9::RevPrint(rbuf, req->AbandonErrCode());
+         fon9::RevPrint(rbuf, req->ErrCode());
    }
    else
       fon9::RevPrint(rbuf, fon9::seed::GetFieldIntTypeId<OmsErrCode>());
@@ -51,7 +51,7 @@ static void FnRptApiField_AbandonReason(fon9::RevBuffer& rbuf, const ApiRptField
 }
 static FnRptApiField_Register regFnRptApiField_Abandon{
    "AbandonErrCode", &FnRptApiField_AbandonErrCode,
-   "AbandonReason", &FnRptApiField_AbandonReason
+   "AbandonReason",  &FnRptApiField_AbandonReason
 };
 
 //--------------------------------------------------------------------------//
@@ -363,8 +363,12 @@ void ApiRptCfgs::Parser::MoveTo(fon9::RevBuffer& rbuf, ApiRptCfgs& cfgs) {
          if (imap < this->ToIndex_.OrderTableIdOffset_) {
             if ((imap % RequestE_Size) == RequestE_Abandon)
                exInfo = fon9::StrView{"abandon"};
-            else if (static_cast<OmsRequestFactory*>(cfg->Factory_)->OrderFactory_.get() != nullptr)
-               exInfo = fon9::StrView{"ini"};
+            else if (static_cast<OmsRequestFactory*>(cfg->Factory_)->OrderFactory_.get() != nullptr) {
+               if (static_cast<OmsRequestFactory*>(cfg->Factory_)->RunStep_.get() != nullptr)
+                  exInfo = fon9::StrView{"ini"};
+               else
+                  exInfo = fon9::StrView{"rpt"};
+            }
          }
          else if (imap >= this->ToIndex_.EventTableIdOffset_)
             exInfo = fon9::StrView{"event"};
@@ -503,7 +507,7 @@ void ApiSesCfg::SubscribeRpt(OmsCore& core) {
    using namespace std::placeholders;
    core.ReportSubject().Subscribe(&this->SubrRpt_, std::bind(&ApiSesCfg::OnReport, this, _1, _2));
 }
-bool ApiSesCfg::MakeReport(fon9::RevBufferList& rbuf, const OmsRxItem& item) const {
+bool ApiSesCfg::MakeReportMessage(fon9::RevBufferList& rbuf, const OmsRxItem& item) const {
    if (this->ReportMessageFor_ == &item) {
       fon9::RevPrint(rbuf, this->ReportMessage_);
       return true;
@@ -517,16 +521,21 @@ bool ApiSesCfg::MakeReport(fon9::RevBufferList& rbuf, const OmsRxItem& item) con
       rptcfg = this->ApiRptCfgs_.GetRptCfgEvent(*static_cast<const OmsEvent*>(&item)->Creator_);
       break;
    case f9fmkt_RxKind_Order:
-      refSNO = static_cast<const OmsOrderRaw*>(&item)->Request_->RxSNO();
-      rptcfg = this->ApiRptCfgs_.GetRptCfgOrder(static_cast<const OmsOrderRaw*>(&item)->Order_->Creator(),
-                                                static_cast<const OmsOrderRaw*>(&item)->Request_->Creator());
+      refSNO = static_cast<const OmsOrderRaw*>(&item)->Request().RxSNO();
+      rptcfg = this->ApiRptCfgs_.GetRptCfgOrder(static_cast<const OmsOrderRaw*>(&item)->Order().Creator(),
+                                                static_cast<const OmsOrderRaw*>(&item)->Request().Creator());
       break;
    default:
-      const OmsOrderRaw* ord = static_cast<const OmsRequestBase*>(&item)->LastUpdated();
-      refSNO = ord ? ord->Order_->Initiator()->RxSNO() : 0;
+      const OmsOrderRaw* ordraw = static_cast<const OmsRequestBase*>(&item)->LastUpdated();
+      assert(ordraw != nullptr || static_cast<const OmsRequestBase*>(&item)->IsAbandoned());
+      if (ordraw == nullptr)
+         refSNO = 0;
+      else if(const auto* inireq = ordraw->Order().Initiator())
+         refSNO = inireq->RxSNO();
+      else
+         refSNO = 0;
       rptcfg = this->ApiRptCfgs_.GetRptCfgRequest(static_cast<const OmsRequestBase*>(&item)->Creator(),
-                                                  ord == nullptr ? ApiRptCfgs::RequestE_Abandon : ApiRptCfgs::RequestE_Normal);
-      assert(ord != nullptr || static_cast<const OmsRequestBase*>(&item)->IsAbandoned());
+                                                  ordraw == nullptr ? ApiRptCfgs::RequestE_Abandon : ApiRptCfgs::RequestE_Normal);
       break;
    }
    fon9_WARN_POP;
@@ -560,7 +569,7 @@ void ApiSesCfg::OnReport(OmsCore& core, const OmsRxItem& item) {
    if (this->CurrentCore_.get() != &core)
       return;
    fon9::RevBufferList  rbuf{128};
-   if (this->MakeReport(rbuf, item)) {
+   if (this->MakeReportMessage(rbuf, item)) {
       this->ReportMessage_.clear();
       fon9::BufferAppendTo(rbuf.MoveOut(), this->ReportMessage_);
       this->ReportMessageFor_ = &item;

@@ -18,7 +18,7 @@ void TwsTradingLineMgr::RunRequest(OmsRequestRunnerInCore&& runner) {
    assert(this->CurrRunner_ == nullptr);
    assert(this->OmsCore_.get() == &runner.Resource_.Core_);
    this->CurrRunner_ = &runner;
-   if (this->SendRequest(*const_cast<OmsRequestBase*>(runner.OrderRaw_.Request_), tsvr)
+   if (this->SendRequest(*const_cast<OmsRequestBase*>(&runner.OrderRaw_.Request()), tsvr)
        == f9fmkt::SendRequestResult::Queuing) {
       runner.Update(f9fmkt_TradingRequestSt_Queuing, ToStrView(StrQueuingIn_));
    }
@@ -26,7 +26,7 @@ void TwsTradingLineMgr::RunRequest(OmsRequestRunnerInCore&& runner) {
 }
 f9fmkt::SendRequestResult TwsTradingLineMgr::NoReadyLineReject(f9fmkt::TradingRequest& req, fon9::StrView cause) {
    (void)req; // 必定是從 RunRequest() => SendRequest(); 來到這裡, 所以直接使用 this->CurrRunner_ 處理.
-   assert(this->CurrRunner_ != nullptr && this->CurrRunner_->OrderRaw_.Request_ == &req);
+   assert(this->CurrRunner_ != nullptr && &this->CurrRunner_->OrderRaw_.Request() == &req);
    this->CurrRunner_->Reject(f9fmkt_TradingRequestSt_LineRejected, OmsErrCode_NoReadyLine, cause);
    return f9fmkt::SendRequestResult::NoReadyLine;
 }
@@ -79,7 +79,7 @@ void TwsTradingLineMgr::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, OmsCor
          RejInCore* pthis = this->get();
          for (f9fmkt::TradingRequestSP& reqL : pthis->Reqs_) {
             const OmsRequestBase*  req = static_cast<OmsRequestBase*>(reqL.get());
-            if (OmsOrderRaw* ord = req->LastUpdated()->Order_->BeginUpdate(*req)) {
+            if (OmsOrderRaw* ord = req->LastUpdated()->Order().BeginUpdate(*req)) {
                OmsRequestRunnerInCore runner{resource, *ord, 0u};
                runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, ToStrView(pthis->Cause_));
             }

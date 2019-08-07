@@ -238,23 +238,23 @@ libf9omstw: 台灣環境的委託管理系統.
 * 在安全的取得 OmsResource 之後(可能在 OmsCore thread, 或透過 locker), 才能進行底下步驟。
 
 #### 下單(交易)要求
-1. 前置作業: req->BeforeRunInCore();
+1. 前置作業: req->BeforeReqInCore();
    * 此時仍允許修改 req 內容.
    * 若有失敗則 req 進入 Abandon 狀態: 此時透過 OmsBackend 回報機制, 回報給 user(session)
    * 先將下單要求編號: OmsResource.FetchRequestId(req);
    * 聯繫 OmsOrder;
      * 新單要求: 建立新委託
-       * PreCheck_OrdKey():  檢查 OrdKey 是否正確.
-       * PreCheck_IvRight(): 檢查是否為可用帳號? 透過 OmsRequestPolicy;
+       * BeforeReq_CheckOrdKey():  檢查 OrdKey 是否正確, 若沒設定, 則嘗試填入正確值.
+       * BeforeReq_CheckIvRight(): 檢查是否為可用帳號? 透過 OmsRequestPolicy;
        * 建立新的 OmsOrder: 設定 OmsOrder.ScResource_;
        * 分配委託書號, 此動作也可能在其他地方處理, 例如: 送出前 or 風控成功後 or...
          分配好之後, 應立即加入委託書對照表.
        * 結束 req 的異動, 進入委託異動狀態.
      * 改單(或查單)要求: 取得舊委託;
-       * PreCheck_GetRequestInitiator()
+       * BeforeReq_GetInitiator()
          * 如果有提供 IniSNO: 透過 IniSNO 找回委託, 如果有提供 OrdKey(BrkId-Market-SessionId-OrdNo), 則檢查是否正確.
          * 如果沒提供 IniSNO: 透過 OrdKey 找回委託, 然後填入 req.IniSNO_;
-       * 取得舊委託後, 檢查是否為可用帳號? 透過 inireq->LastUpdated()->Order_->Initiator_->PreCheck_IvRight(reqr, res);
+       * 取得舊委託後, 檢查是否為可用帳號? 透過 inireq->LastUpdated()->Order().Initiator()->BeforeReq_CheckIvRight(reqr, res);
        * 結束 req 的異動, 建立新的 OmsOrderRaw, 進入委託異動狀態.
 
 2. 風控檢查.

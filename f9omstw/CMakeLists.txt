@@ -67,3 +67,6 @@ target_link_libraries(OmsRequestTrade_UT f9omstw_s f9utws_s)
 
 add_executable(OmsReqOrd_UT ../f9omstw/OmsReqOrd_UT.cpp)
 target_link_libraries(OmsReqOrd_UT f9omstw_s f9utws_s)
+
+add_executable(OmsReport_UT ../f9omstw/OmsReport_UT.cpp)
+target_link_libraries(OmsReport_UT f9omstw_s f9utws_s)

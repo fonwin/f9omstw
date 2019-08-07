@@ -14,17 +14,19 @@ extern "C" {
 fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_NoError = 0,
 
-   /// OmsRequestBase::PreCheck_GetRequestInitiator();
-   /// 刪改查要求, 但找不到對應的委託書(或該委託書沒有收到過 Initiator 回報).
+   /// 刪改查要求, 但找不到對應的委託書.
    /// 通常是提供的 IniSNO 或 OrdKey(BrkId or Market or SessionId or OrdNo) 不正確.
    OmsErrCode_OrderNotFound = 1,
+   /// 委託書號已存在, 但遺漏新單回報.
+   OmsErrCode_OrderInitiatorNotFound = 2,
+
    /// OmsCore::RunInCore();
    /// Request_->Creator_->RunStep_ 沒定義.
-   OmsErrCode_RequestStepNotFound = 2,
+   OmsErrCode_RequestStepNotFound = 10,
    /// 無法將 req 轉成適當的 OmsRequest(例如: OmsTwsRequestChg);
-   OmsErrCode_UnknownRequestType = 3,
+   OmsErrCode_UnknownRequestType = 11,
 
-   /// OmsRequestIni::PreCheck_OrdKey();
+   /// OmsRequestIni::BeforeReq_CheckOrdKey();
    /// 下單要求的 BrkId 找不到對應的券商資料.
    OmsErrCode_Bad_BrkId = 100,
    /// 不是新單要求, 則必須提供 OrdNo.
@@ -49,11 +51,11 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_PriType = 114,
    OmsErrCode_Bad_TimeInForce = 115,
 
-   /// OmsRequestIni::PreCheck_IvRight(); Ivr not found, or no permission.
+   /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 120,
-   /// OmsRequestIni::PreCheck_IvRight(); 必要欄位不正確(例如: IvacNo, Side, Symbol...)
+   /// OmsRequestIni::BeforeReq_CheckIvRight(); 必要欄位不正確(例如: IvacNo, Side, Symbol...)
    OmsErrCode_FieldNotMatch = 121,
-   /// OmsRequestIni::PreCheck_IvRight(); Order not found, or RequestIni not allowed.
+   /// OmsRequestIni::BeforeReq_CheckIvRight(); Order not found, or RequestIni not allowed.
    /// 補單操作, 必須有 AllowAddReport 權限.
    OmsErrCode_DenyAddReport = 122,
 
@@ -63,7 +65,7 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// OmsOrdNoMap::AllocOrdNo(); 下單的 OrdTeamGroupId 有問題.
    OmsErrCode_OrdTeamGroupId = 200,
    /// OmsOrdNoMap::AllocOrdNo(); 自編委託書號, 但委託書已存在.
-   /// OmsRequestIni::PreCheck_OrdKey() 新單自編委託書, 但委託書已存在.
+   /// OmsRequestIni::BeforeReq_CheckOrdKey() 新單自編委託書, 但委託書已存在.
    OmsErrCode_OrderAlreadyExists = 201,
    /// OmsOrdNoMap::AllocOrdNo(); 自訂委託櫃號, 但委託書號已用完.
    OmsErrCode_OrdNoOverflow = 202,

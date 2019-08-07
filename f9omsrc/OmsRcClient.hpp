@@ -84,7 +84,7 @@ class OmsRcRptLayout : public OmsRcLayout {
    fon9_NON_COPY_NON_MOVE(OmsRcRptLayout);
    using base = OmsRcLayout;
 public:
-   /// "abandon", "event", "TwsNew", "TwsChg", "TwsFilled"
+   /// "abandon", "event", "TwsNew", "TwsChg", "TwsFil"
    const fon9::CharVector  ExParam_;
 
    using RptValues = std::vector<fon9_CStrView>;

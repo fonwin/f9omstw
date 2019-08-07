@@ -11,7 +11,7 @@ OmsRequestFactory::~OmsRequestFactory() {
 OmsRequestSP OmsRequestFactory::MakeRequestImpl() {
    return nullptr;
 }
-OmsRequestSP OmsRequestFactory::MakeReportImpl(f9fmkt_RxKind reqKind) {
+OmsRequestSP OmsRequestFactory::MakeReportInImpl(f9fmkt_RxKind reqKind) {
    (void)reqKind;
    return nullptr;
 }

@@ -8,6 +8,7 @@
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
+#include "f9omstws/OmsTwsFilled.hpp"
 #include "f9omstw/OmsReportFactory.hpp"
 
 #include "fon9/seed/Plugins.hpp"
@@ -53,13 +54,13 @@ struct UomsTwsIniRiskCheck : public OmsRequestRunStep {
 
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
       // TODO: 風控檢查.
-      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order_->Initiator()) != nullptr);
+      assert(dynamic_cast<const OmsTwsRequestIni*>(runner.OrderRaw_.Order().Initiator()) != nullptr);
       auto& ordraw = *static_cast<OmsTwsOrderRaw*>(&runner.OrderRaw_);
-      auto* inireq = static_cast<const OmsTwsRequestIni*>(ordraw.Order_->Initiator());
-      if (ordraw.OType_ == f9tws::TwsOType{})
+      auto* inireq = static_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator());
+      if (ordraw.OType_ == OmsTwsOType{})
          ordraw.OType_ = inireq->OType_;
       // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
-      if (ordraw.Request_ == inireq) {
+      if (&ordraw.Request() == inireq) {
          ordraw.LastPri_ = inireq->Pri_;
          ordraw.LastPriType_ = inireq->PriType_;
          if (inireq->RxKind() == f9fmkt_RxKind_RequestNew)
@@ -139,7 +140,7 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
                                         OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}})}),
          new OmsTwsRequestChgFactory("TwsChg",
                                      OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}}),
-         new OmsTwsFilledFactory("TwsFilled", ordfac),
+         new OmsTwsFilledFactory("TwsFil", ordfac),
          new OmsTwsReportFactory("TwsRpt", ordfac)
       ));
       coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});

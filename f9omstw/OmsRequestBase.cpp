@@ -7,14 +7,33 @@
 
 namespace f9omstw {
 
+void OmsRequestBase::MakeFieldsImpl(fon9::seed::Fields& flds) {
+   flds.Add(fon9_MakeField(OmsRequestBase, RxKind_, "Kind"));
+   flds.Add(fon9_MakeField2(OmsRequestBase, Market));
+   flds.Add(fon9_MakeField2(OmsRequestBase, SessionId));
+   flds.Add(fon9_MakeField2(OmsRequestBase, BrkId));
+   flds.Add(fon9_MakeField2(OmsRequestBase, OrdNo));
+   flds.Add(fon9_MakeField2(OmsRequestBase, ReqUID));
+   flds.Add(fon9_MakeField2(OmsRequestBase, CrTime));
+}
+void OmsRequestBase::AddFieldsForReport(fon9::seed::Fields& flds) {
+   using namespace fon9;
+   using namespace fon9::seed;
+   flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReportSt"}, fon9_OffsetOfRawPointer(OmsRequestBase, ReportSt_))});
+   flds.Add(fon9_MakeField(OmsRequestBase, ErrCode_, "ErrCode"));
+}
+fon9::seed::FieldSP OmsRequestBase::MakeField_RxSNO() {
+   return fon9_MakeField2_const(OmsRequestBase, RxSNO);
+}
+//--------------------------------------------------------------------------//
 OmsRequestBase::~OmsRequestBase() {
    if (this->RxItemFlags_ & OmsRequestFlag_Abandon)
       delete this->AbandonReason_;
    //-----------------------------
    else if (auto ordraw = this->LastUpdated()) {
       // 何時才是刪除 Order 的適當時機?
-      if (ordraw == ordraw->Order_->Tail())
-         ordraw->Order_->FreeThis();
+      if (ordraw == ordraw->Order().Tail())
+         ordraw->Order().FreeThis();
       // 或是在 ~OrderRaw() { if (this->Order_ && this == this->Order_->Tail())
       //                         this->Order_->FreeThis(); }
       // => 一般而言, OrderRaw 會比 Request 多, 例如:
@@ -27,81 +46,63 @@ OmsRequestBase::~OmsRequestBase() {
 const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
 }
-const OmsRequestIni* OmsRequestBase::GetOrderInitiatorByOrdKey(OmsResource& res) const {
+//--------------------------------------------------------------------------//
+OmsOrder* OmsRequestBase::SearchOrderByOrdKey(OmsResource& res) const {
    if (const OmsBrk* brk = res.Brks_->GetBrkRec(ToStrView(this->BrkId_))) {
-      if (const OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this)) {
-         if (OmsOrder* ord = ordNoMap->GetOrder(this->OrdNo_)) {
-            assert(ord->Initiator() != nullptr && ord->Initiator()->LastUpdated() != nullptr);
-            return ord->Initiator();
-         }
-      }
+      if (const OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this))
+         return ordNoMap->GetOrder(this->OrdNo_);
    }
    return nullptr;
 }
-const OmsRequestBase* OmsRequestBase::GetRequestInitiator(OmsRxSNO* pIniSNO, OmsResource& res) {
-   const OmsRequestBase* inireq;
-   if (pIniSNO == nullptr || *pIniSNO == 0) {
-      if ((inireq = this->GetOrderInitiatorByOrdKey(res)) == nullptr)
-         return nullptr;
-      if (inireq->LastUpdated() == nullptr)
-         return nullptr;
-   }
-   else {
-      if ((inireq = res.GetRequest(*pIniSNO)) == nullptr)
-         return nullptr;
-      const OmsOrderRaw* lastUpdated = inireq->LastUpdated();
-      if (lastUpdated == nullptr)
-         return nullptr;
+OmsOrder* OmsRequestBase::SearchOrderByKey(OmsRxSNO srcSNO, OmsResource& res) {
+   if (srcSNO == 0)
+      return this->SearchOrderByOrdKey(res);
 
-      if (this->BrkId_.empty())
-         this->BrkId_ = inireq->BrkId_;
-      else if (this->BrkId_ != inireq->BrkId_)
-         return nullptr;
+   const OmsRequestBase* srcReq = res.GetRequest(srcSNO);
+   if (srcReq == nullptr)
+      return nullptr;
+   const OmsOrderRaw* lastUpdated = srcReq->LastUpdated();
+   if (lastUpdated == nullptr)
+      return nullptr;
 
-      lastUpdated = lastUpdated->Order_->Tail();
-      if (this->OrdNo_.empty1st())
-         this->OrdNo_ = lastUpdated->OrdNo_;
-      else if (this->OrdNo_ != lastUpdated->OrdNo_)
-         return nullptr;
+   if (this->BrkId_.empty())
+      this->BrkId_ = srcReq->BrkId_;
+   else if (this->BrkId_ != srcReq->BrkId_)
+      return nullptr;
 
-      if (this->Market_ == f9fmkt_TradingMarket_Unknown)
-         this->Market_ = inireq->Market_;
-      else if (this->Market_ != inireq->Market_)
-         return nullptr;
+   lastUpdated = lastUpdated->Order().Tail();
+   if (this->OrdNo_.empty1st())
+      this->OrdNo_ = lastUpdated->OrdNo_;
+   else if (this->OrdNo_ != lastUpdated->OrdNo_)
+      return nullptr;
 
-      if (this->SessionId_ == f9fmkt_TradingSessionId_Unknown)
-         this->SessionId_ = inireq->SessionId_;
-      else if (this->SessionId_ != inireq->SessionId_)
-         return nullptr;
-   }
-   if (pIniSNO && *pIniSNO == 0)
-      *pIniSNO = inireq->RxSNO();
-   return inireq;
+   if (this->Market_ == f9fmkt_TradingMarket_Unknown)
+      this->Market_ = srcReq->Market_;
+   else if (this->Market_ != srcReq->Market_)
+      return nullptr;
+
+   if (this->SessionId_ == f9fmkt_TradingSessionId_Unknown)
+      this->SessionId_ = srcReq->SessionId_;
+   else if (this->SessionId_ != srcReq->SessionId_)
+      return nullptr;
+
+   return &lastUpdated->Order();
 }
-const OmsRequestBase* OmsRequestBase::PreCheck_GetRequestInitiator(OmsRequestRunner& runner, OmsRxSNO* pIniSNO, OmsResource& res) {
+const OmsRequestIni* OmsRequestBase::BeforeReq_GetInitiator(OmsRequestRunner& runner, OmsRxSNO* pIniSNO, OmsResource& res) {
    assert(this->LastUpdated_ == nullptr && this->AbandonReason_ == nullptr);
-   if (const OmsRequestBase* inireq = this->GetRequestInitiator(pIniSNO, res))
-      return inireq;
+   if (OmsOrder* order = this->SearchOrderByKey(pIniSNO ? *pIniSNO : 0, res)) {
+      if (const OmsRequestIni* iniReq = order->Initiator()) {
+         if (pIniSNO && *pIniSNO == 0)
+            *pIniSNO = iniReq->RxSNO();
+         return iniReq;
+      }
+      runner.RequestAbandon(&res, OmsErrCode_OrderInitiatorNotFound);
+      return nullptr;
+   }
    runner.RequestAbandon(&res, OmsErrCode_OrderNotFound);
    return nullptr;
 }
-
-void OmsRequestBase::MakeFieldsImpl(fon9::seed::Fields& flds) {
-   flds.Add(fon9_MakeField(OmsRequestBase,  RxKind_, "Kind"));
-   flds.Add(fon9_MakeField2(OmsRequestBase, Market));
-   flds.Add(fon9_MakeField2(OmsRequestBase, SessionId));
-   flds.Add(fon9_MakeField2(OmsRequestBase, BrkId));
-   flds.Add(fon9_MakeField2(OmsRequestBase, OrdNo));
-   flds.Add(fon9_MakeField2(OmsRequestBase, ReqUID));
-   flds.Add(fon9_MakeField2(OmsRequestBase, CrTime));
-}
-void OmsRequestBase::AddFieldsForReport(fon9::seed::Fields& flds) {
-   flds.Add(fon9_MakeField2(OmsRequestBase, ReportSt));
-   flds.Add(fon9_MakeField(OmsRequestBase, AbandonErrCode_, "ErrCode"));
-}
-fon9::seed::FieldSP OmsRequestBase::MakeField_RxSNO() {
-   return fon9_MakeField2_const(OmsRequestBase, RxSNO);
-}
+//--------------------------------------------------------------------------//
 void OmsRequestBase::RunReportInCore(OmsReportRunner&& runner) {
    assert(this == runner.Report_.get() && !"Not support RunReportInCore()");
    runner.ReportAbandon("Not support RunReportInCore");

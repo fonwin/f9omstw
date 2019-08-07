@@ -30,40 +30,6 @@ OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileNam
    return res;
 }
 //--------------------------------------------------------------------------//
-bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
-   if (fon9_LIKELY(IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn)
-                   || runner.ValidateInUser()))
-      return this->MoveToCoreImpl(std::move(runner));
-   return false;
-}
-void OmsCore::RunInCore(OmsRequestRunner&& runner) {
-   if (fon9_UNLIKELY(IsEnumContains(runner.Request_->RequestFlags(), OmsRequestFlag_ReportIn))) {
-      runner.Request_->RunReportInCore(OmsReportRunner{*this, std::move(runner)});
-      return;
-   }
-   this->FetchRequestId(*runner.Request_);
-   if (auto* step = runner.Request_->Creator().RunStep_.get()) {
-      if (OmsOrderRaw* ordraw = runner.BeforeRunInCore(*this)) {
-         OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
-         if (ordraw->OrdNo_.empty1st() && *(ordraw->Request_->OrdNo_.end() - 1) != '\0') {
-            assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
-            // 新單委託還沒填委託書號, 但下單要求有填委託書號.
-            // => 執行下單步驟前, 應先設定委託書號對照.
-            // => AllocOrdNo() 會檢查櫃號權限.
-            if (!inCoreRunner.AllocOrdNo(ordraw->Request_->OrdNo_))
-               return;
-         }
-         step->RunRequest(std::move(inCoreRunner));
-      }
-      else {
-         assert(runner.Request_->IsAbandoned());
-      }
-   }
-   else {
-      runner.RequestAbandon(this, OmsErrCode_RequestStepNotFound);
-   }
-}
-//--------------------------------------------------------------------------//
 void OmsCoreMgr::OnMaTree_AfterClear() {
    ConstLocker locker{this->Container_};
    this->CurrentCore_.reset();
@@ -101,6 +67,39 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
       old = std::move(cur);
    }
    this->IsTDayChanging_ = false;
+}
+//--------------------------------------------------------------------------//
+bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
+   if (fon9_LIKELY(runner.Request_->IsReportIn() || runner.ValidateInUser()))
+      return this->MoveToCoreImpl(std::move(runner));
+   return false;
+}
+void OmsCore::RunInCore(OmsRequestRunner&& runner) {
+   if (fon9_UNLIKELY(runner.Request_->IsReportIn())) {
+      runner.Request_->RunReportInCore(OmsReportRunner{*this, std::move(runner)});
+      return;
+   }
+   this->FetchRequestId(*runner.Request_);
+   if (auto* step = runner.Request_->Creator().RunStep_.get()) {
+      if (OmsOrderRaw* ordraw = runner.BeforeReqInCore(*this)) {
+         OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
+         if (ordraw->OrdNo_.empty1st() && *(ordraw->Request().OrdNo_.end() - 1) != '\0') {
+            assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
+            // 新單委託還沒填委託書號, 但下單要求有填委託書號.
+            // => 執行下單步驟前, 應先設定委託書號對照.
+            // => AllocOrdNo() 會檢查櫃號權限.
+            if (!inCoreRunner.AllocOrdNo(ordraw->Request().OrdNo_))
+               return;
+         }
+         step->RunRequest(std::move(inCoreRunner));
+      }
+      else { // runner.BeforeReqInCore() 失敗, 必定已經呼叫過 Request.Abandon();
+         assert(runner.Request_->IsAbandoned());
+      }
+   }
+   else { // 沒有下單要求!
+      runner.RequestAbandon(this, OmsErrCode_RequestStepNotFound);
+   }
 }
 
 } // namespaces

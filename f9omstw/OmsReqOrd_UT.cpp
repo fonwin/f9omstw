@@ -8,7 +8,7 @@
 //--------------------------------------------------------------------------//
 void TestCase(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP policy, fon9::StrView reqstr) {
    auto req = MakeOmsRequestRunner(core.Owner_->RequestFactoryPark(), reqstr);
-   req.Request_->SetPolicy(std::move(policy));
+   static_cast<f9omstw::OmsRequestTrade*>(req.Request_.get())->SetPolicy(std::move(policy));
    core.MoveToCore(std::move(req));
 }
 //--------------------------------------------------------------------------//

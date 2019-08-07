@@ -43,7 +43,7 @@ bool OmsOrdNoMap::GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out) {
 bool OmsOrdNoMap::AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team) {
    OmsOrdNo& ordno = runner.OrderRaw_.OrdNo_;
    if (fon9_LIKELY(this->GetNextOrdNo(team, ordno))) {
-      auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, runner.OrderRaw_.Order_);
+      auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, &runner.OrderRaw_.Order());
       (void)ires; assert(ires.second == true);
       return true;
    }
@@ -64,9 +64,10 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
 }
 bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo req) {
    OmsOrdTeamGroupId tgId;
-   if (const auto* reqPolicy = runner.OrderRaw_.Order_->Initiator()->Policy())
+   if (const auto* reqPolicy = runner.OrderRaw_.Order().Initiator()->Policy()) {
       if ((tgId = reqPolicy->OrdTeamGroupId()) != 0)
          goto __READY_GroupId;
+   }
 __ERROR_OrdTeamGroupId:
    return this->Reject(runner, OmsErrCode_OrdTeamGroupId);
 
@@ -80,7 +81,7 @@ __READY_GroupId:
       return this->Reject(runner, OmsErrCode_OrdNoMustEmpty);
    const char* peos = reinterpret_cast<const char*>(memchr(req.begin(), '\0', req.size()));
    if (peos == nullptr) { // req = 完整委託書號.
-      auto ires = this->emplace(fon9::StrView{req.begin(), req.end()}, runner.OrderRaw_.Order_);
+      auto ires = this->emplace(fon9::StrView{req.begin(), req.end()}, &runner.OrderRaw_.Order());
       if (ires.second) {  // 成功將 order 設定在指定的委託書號.
          runner.OrderRaw_.OrdNo_ = req;
          return true;
@@ -93,7 +94,7 @@ __READY_GroupId:
 }
 bool OmsOrdNoMap::Reject(OmsRequestRunnerInCore& runner, OmsErrCode errc) {
    runner.OrderRaw_.ErrCode_ = errc;
-   runner.OrderRaw_.OrderSt_ = f9fmkt_OrderSt_NewOrdNoRejected;
+   runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewOrdNoRejected;
    runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_OrdNoRejected;
    return false;
 }

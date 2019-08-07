@@ -16,11 +16,11 @@ class ApiReqFieldArg : public fon9::seed::SimpleRawWr {
    fon9_NON_COPY_NON_MOVE(ApiReqFieldArg);
    using base = fon9::seed::SimpleRawWr;
 public:
-   OmsRequestTrade&  Request_;
+   OmsRequestBase&   Request_;
    ApiSession&       ApiSession_;
    fon9::StrView     ClientFieldValue_;
 
-   ApiReqFieldArg(OmsRequestTrade& req, ApiSession& ses)
+   ApiReqFieldArg(OmsRequestBase& req, ApiSession& ses)
       : base{req}
       , Request_(req)
       , ApiSession_(ses) {
@@ -282,7 +282,7 @@ public:
    /// 建立 item 的回報訊息.
    /// 包含開頭的 rptTableId、reportSNO、referenceSNO (Bitv格式);
    /// \retval false 此 item 不用回報(沒設定 RPT);
-   bool MakeReport(fon9::RevBufferList& rbuf, const OmsRxItem& item) const;
+   bool MakeReportMessage(fon9::RevBufferList& rbuf, const OmsRxItem& item) const;
 };
 using ApiSesCfgSP = fon9::intrusive_ptr<const ApiSesCfg>;
 fon9_WARN_POP;

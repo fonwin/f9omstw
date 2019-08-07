@@ -1,6 +1,7 @@
 set(f9omstws_src
  OmsTwsRequest.cpp
  OmsTwsReport.cpp
+ OmsTwsFilled.cpp
  OmsTwsOrder.cpp
  OmsTwsTradingLineMgr.cpp
  OmsTwsTradingLineFix.cpp

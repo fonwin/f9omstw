@@ -12,7 +12,7 @@ namespace f9omstw {
 class OmsRequestRunner {
    fon9_NON_COPYABLE(OmsRequestRunner);
 public:
-   OmsRequestTradeSP    Request_;
+   OmsRequestSP         Request_;
    fon9::RevBufferList  ExLog_;
 
    OmsRequestRunner() : ExLog_{256} {
@@ -26,11 +26,14 @@ public:
 
    /// \copydoc bool OmsRequestBase::ValidateInUser(OmsRequestRunner&);
    bool ValidateInUser() {
-      return this->Request_->ValidateInUser(*this);
+      assert(!this->Request_->IsReportIn());
+      assert(dynamic_cast<OmsRequestTrade*>(this->Request_.get()) != nullptr);
+      return static_cast<OmsRequestTrade*>(this->Request_.get())->ValidateInUser(*this);
    }
-   OmsOrderRaw* BeforeRunInCore(OmsResource& res) {
-      assert(!IsEnumContains(this->Request_->RequestFlags(), OmsRequestFlag_ReportIn));
-      return this->Request_->BeforeRunInCore(*this, res);
+   OmsOrderRaw* BeforeReqInCore(OmsResource& res) {
+      assert(!this->Request_->IsReportIn());
+      assert(dynamic_cast<OmsRequestTrade*>(this->Request_.get()) != nullptr);
+      return static_cast<OmsRequestTrade*>(this->Request_.get())->BeforeReqInCore(*this, res);
    }
    void RequestAbandon(OmsResource* res, OmsErrCode errCode);
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
@@ -62,7 +65,7 @@ class OmsReportRunner {
    fon9_NON_COPYABLE(OmsReportRunner);
 public:
    OmsResource&         Resource_;
-   OmsRequestTradeSP    Report_;
+   OmsRequestSP         Report_;
    fon9::RevBufferList  ExLog_;
    OmsReportRunnerSt    RunnerSt_{};
 
@@ -93,12 +96,13 @@ fon9_WARN_POP;
 ///   只能用「堆疊變數」的方式, 並在解構時自動結束更新.
 /// - 變動中的委託: this->OrderRaw_
 ///   - this->OrderRaw_.Order_->Tail() == &this->OrderRaw_;
-///   - this->OrderRaw_.Request_->LastUpdated_ 尚未設定成 &this->OrderRaw_;
-///     所以 this->OrderRaw_.Request_->LastUpdated_ 有可能仍是 nullptr;
+///   - this->OrderRaw_.Request_->LastUpdated() 尚未設定成 &this->OrderRaw_;
+///     所以 this->OrderRaw_.Request_->LastUpdated() 有可能仍是 nullptr;
 /// - 解構時: ~OmsRequestRunnerInCore()
 ///   - this->Resource_.Backend_.OnAfterOrderUpdated(*this);
-///     - 設定 this->OrderRaw_.Request_->LastUpdated_ = &this->OrderRaw_;
 ///     - 將 req, this->OrderRaw_ 加入 backend;
+///     - 設定 this->OrderRaw_.Request_->SetLastUpdated(&this->OrderRaw_);
+///   - this->OrderRaw_.Order().EndUpdate(this->OrderRaw_, &this->Resource_);
 class OmsRequestRunnerInCore {
    fon9_NON_COPY_NON_MOVE(OmsRequestRunnerInCore);
 public:
@@ -130,7 +134,7 @@ public:
       , OrderRaw_(ordRaw)
       , ExLogForUpd_{std::move(src.ExLog_)}
       , ExLogForReq_{0} {
-      if (src.Report_.get() == ordRaw.Request_)
+      if (src.Report_.get() == &ordRaw.Request())
          this->ExLogForReq_ = std::move(this->ExLogForUpd_);
    }
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw)
@@ -175,9 +179,9 @@ public:
    bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId) {
       if (!this->OrderRaw_.OrdNo_.empty1st()) // 已編號.
          return true;
-      assert(this->OrderRaw_.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
-      assert(this->OrderRaw_.Order_->Initiator() == this->OrderRaw_.Request_);
-      auto iniReq = this->OrderRaw_.Order_->Initiator();
+      assert(this->OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew);
+      assert(this->OrderRaw_.Order().Initiator() == &this->OrderRaw_.Request());
+      auto iniReq = this->OrderRaw_.Order().Initiator();
       if (!iniReq->OrdNo_.empty1st() || iniReq->Policy()->OrdTeamGroupId() != 0)
          return this->AllocOrdNo(iniReq->OrdNo_);
       return this->AllocOrdNo(tgId);
@@ -203,10 +207,10 @@ public:
    virtual void RunRequest(OmsRequestRunnerInCore&&) = 0;
 };
 //--------------------------------------------------------------------------//
-inline bool OmsRequestIni::PreCheck_IvRight(OmsRequestRunner& runner, OmsResource& res) const {
+inline bool OmsRequestIni::BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res) const {
    assert(runner.Request_.get() != this);
    assert(this->LastUpdated() != nullptr);
-   return this->CheckIvRight(runner, res, this->LastUpdated()->Order_->ScResource())
+   return this->CheckIvRight(runner, res, this->LastUpdated()->Order().ScResource())
       != OmsIvRight::DenyAll;
 }
 

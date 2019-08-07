@@ -171,25 +171,25 @@ void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
 void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
    assert(runner.Resource_.Core_.IsThisThread());
-   assert(runner.OrderRaw_.Order_->Tail() == &runner.OrderRaw_);
+   assert(runner.OrderRaw_.Order().Tail() == &runner.OrderRaw_);
 
    // 如果 isNeedsReqAppend == true: req 進入 core, 首次與 order 連結之後的異動.
-   const bool  isNeedsReqAppend = (runner.OrderRaw_.Request_->LastUpdated_ == nullptr);
+   const bool  isNeedsReqAppend = (runner.OrderRaw_.Request().LastUpdated() == nullptr);
    // req 有可能因為需要編製 RequestId 而先呼叫了 FetchSNO(),
    // 等流程告一段落時才會來到這裡, 所以此時 req 的 SNO 必定等於 LastSNO_;
-   assert(!isNeedsReqAppend || runner.OrderRaw_.Request_->RxSNO() == this->LastSNO_);
+   assert(!isNeedsReqAppend || runner.OrderRaw_.Request().RxSNO() == this->LastSNO_);
    assert(runner.OrderRaw_.RxSNO() == 0);
 
    runner.OrderRaw_.SetRxSNO(++this->LastSNO_);
-   runner.OrderRaw_.Request_->LastUpdated_ = &runner.OrderRaw_;
+   runner.OrderRaw_.Request().SetLastUpdated(runner.OrderRaw_);
    runner.OrderRaw_.UpdateTime_ = fon9::UtcNow();
 
    Items::Locker  items{this->Items_};
    if (isNeedsReqAppend) {
       // req 首次異動, 應先將 req 加入 backend.
-      assert(!runner.OrderRaw_.Request_->IsAbandoned()); // 必定沒有 Abandon.
-      assert(runner.OrderRaw_.Request_->RxSNO() != 0);   // 必定已經編過號.
-      items->Append(*runner.OrderRaw_.Request_, std::move(runner.ExLogForReq_));
+      assert(!runner.OrderRaw_.Request().IsAbandoned()); // 必定沒有 Abandon.
+      assert(runner.OrderRaw_.Request().RxSNO() != 0);   // 必定已經編過號.
+      items->Append(runner.OrderRaw_.Request(), std::move(runner.ExLogForReq_));
    }
    items->Append(runner.OrderRaw_, std::move(runner.ExLogForUpd_));
    if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {

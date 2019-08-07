@@ -12,6 +12,7 @@ using OmsTwsPri = fon9::Decimal<uint32_t, 2>;
 using OmsTwsQty = uint32_t;
 using OmsTwsAmt = fon9::Decimal<uint64_t, 2>;
 using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
+using OmsTwsOType = f9tws::TwsOType;
 
 struct OmsTwsRequestIniDat {
    OmsTwsSymbol         Symbol_;
@@ -20,7 +21,7 @@ struct OmsTwsRequestIniDat {
    /// 投資人下單類別: ' '=一般, 'A'=自動化設備, 'D'=DMA, 'I'=Internet, 'V'=Voice, 'P'=API;
    fon9::CharAry<1>     IvacNoFlag_;
    f9fmkt_Side          Side_;
-   f9tws::TwsOType      OType_;
+   OmsTwsOType          OType_;
    f9fmkt_TimeInForce   TimeInForce_;
    f9fmkt_PriType       PriType_;
    OmsTwsPri            Pri_;
@@ -28,6 +29,7 @@ struct OmsTwsRequestIniDat {
 
    OmsTwsRequestIniDat() {
       memset(this, 0, sizeof(*this));
+      this->Pri_.AssignNull();
    }
 };
 
@@ -47,7 +49,7 @@ public:
    ///   - f9fmkt_PriType_Limit && Pri.IsNull() 使用:  f9fmkt_TradingSessionId_FixedPrice;
    ///   - Qty < scRes.Symb_->ShUnit_ 使用:            f9fmkt_TradingSessionId_OddLot;
    ///   - 其他:                                       f9fmkt_TradingSessionId_Normal;
-   const OmsRequestIni* PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) override;
+   const OmsRequestIni* BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) override;
 };
 
 class OmsTwsRequestChg : public OmsRequestUpd {

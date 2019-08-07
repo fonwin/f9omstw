@@ -23,13 +23,13 @@ const char* OmsTwsRequestIni::IsIniFieldEqual(const OmsRequestBase& req) const {
       #define CHECK_IniFieldEqual(fldName)   do { if(this->fldName##_ != r->fldName##_) return #fldName; } while(0)
       CHECK_IniFieldEqual(Side);
       CHECK_IniFieldEqual(Symbol);
-      if (r->OType_ != f9tws::TwsOType{})
+      if (r->OType_ != OmsTwsOType{})
          CHECK_IniFieldEqual(OType);
       return base::IsIniFieldEqualImpl(*r);
    }
    return "RequestTwsIni";
 }
-const OmsRequestIni* OmsTwsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
+const OmsRequestIni* OmsTwsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
    if (this->Market_ == f9fmkt_TradingMarket_Unknown || this->SessionId_ == f9fmkt_TradingSessionId_Unknown) {
       if (!scRes.Symb_)
          scRes.Symb_ = res.Symbs_->GetSymb(ToStrView(this->Symbol_));
@@ -45,7 +45,7 @@ const OmsRequestIni* OmsTwsRequestIni::PreCheck_OrdKey(OmsRequestRunner& runner,
          }
       }
    }
-   return base::PreCheck_OrdKey(runner, res, scRes);
+   return base::BeforeReq_CheckOrdKey(runner, res, scRes);
 }
 //--------------------------------------------------------------------------//
 void OmsTwsRequestChg::MakeFields(fon9::seed::Fields& flds) {

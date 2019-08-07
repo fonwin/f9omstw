@@ -75,15 +75,17 @@
     * 回報名稱可能重複, 表示應歸入同一種回報項目, 但回報的欄位不同.
       例如: 對於 TwsOrd 可能有數種回報格式, 針對同一筆回報,
            如果回報格式無某些欄位, 則表示那些欄位不變動.
-    * 下單要求回報, 可能會有額外參數: `abandon`、`ini`
+    * 下單要求回報, 可能會有額外參數: `abandon`、`ini`、`rpt`
       * `RPT.TwsNew : abandon`   表示此格式用來回報「無對應 order 的下單要求失敗」
       * `RPT.TwsNew : ini`       表示 TwsNew 可當作「初始下單要求」
       * `RPT.TwsChg : abandon`   表示此格式用來回報「無對應 order 的下單要求失敗」
       * `RPT.TwsChg`             沒有額外參數的下單要求回報
+      * `RPT.TwsFil : rpt`
+      * `RPT.TwsRpt : rpt`
     * 委託異動回報, 額外參數 = 下單要求來源格式, 表示是因為該類的下單要求造成的異動
       * `RPT.TwsOrd : TwsNew`
       * `RPT.TwsOrd : TwsChg`
-      * `RPT.TwsOrd : TwsFilled`
+      * `RPT.TwsOrd : TwsFil`
     * 事件回報, 額外參數 = `event`
       * `RPT.MktSes : event`
       * `RPT.LineSt : event`

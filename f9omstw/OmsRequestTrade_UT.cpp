@@ -16,17 +16,17 @@ void CheckExpectedAbandon(f9omstw::OmsRequestBase* req, OmsErrCode abandonErrCod
    if (const std::string* abres = req->AbandonReason())
       std::cout << "|msg=" << *abres;
    if (abandonErrCode == OmsErrCode_NoError) {
-      if (req->AbandonErrCode() == abandonErrCode && !req->IsAbandoned()) {
+      if (req->ErrCode() == abandonErrCode && !req->IsAbandoned()) {
       __TEST_OK:
          std::cout << "\r[OK   ]" << std::endl;
          return;
       }
    }
-   else if (req->AbandonErrCode() == abandonErrCode && req->IsAbandoned())
+   else if (req->ErrCode() == abandonErrCode && req->IsAbandoned())
       goto __TEST_OK;
 
    std::cout << "|err=Unexpected abandon"
-      << "|req.AbandonErrCode()=" << req->AbandonErrCode()
+      << "|req.ErrCode()=" << req->ErrCode()
       << "|req.IsAbandon()= " << req->IsAbandoned();
    std::cout << "\r[ERROR]" << std::endl;
    abort();
@@ -37,14 +37,16 @@ void TestRun(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP pol,
    if (abandonErrCode != OmsErrCode_NoError)
       std::cout << "|expected.ErrCode=" << abandonErrCode;
    auto req = runner.Request_;
-   runner.Request_->SetPolicy(pol);
-   bool isReport = IsEnumContains(runner.Request_->RequestFlags(), f9omstw::OmsRequestFlag_ReportIn);
+   bool isReport = req->IsReportIn();
    if (isReport) {
       // 回報權限需要自主檢查.
       if (!runner.CheckReportRights(*pol)) {
          CheckExpectedAbandon(req.get(), abandonErrCode);
          return;
       }
+   }
+   else {
+      static_cast<f9omstw::OmsRequestTrade*>(req.get())->SetPolicy(pol);
    }
    if (core.MoveToCore(std::move(runner))) {
       ++gRxHistoryCount;
@@ -90,7 +92,7 @@ struct TwsChgChecker : public f9omstw::OmsRequestRunStep {
    }
 };
 //--------------------------------------------------------------------------//
-// 檢查 req->PreCheck_OrdKey(); 是否有補填正確的 Market, SessionId.
+// 檢查 req->BeforeReq_CheckOrdKey(); 是否有補填正確的 Market, SessionId.
 void TestMarketSessionId(f9omstw::OmsResource& coreResource, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesid, fon9::StrView reqstr) {
    std::cout << "[TEST ] auto.Market.SessionId."
              << "|expected.Market=" << static_cast<char>(mkt)
@@ -98,7 +100,7 @@ void TestMarketSessionId(f9omstw::OmsResource& coreResource, f9fmkt_TradingMarke
 
    f9omstw::OmsScResource    scRes;
    f9omstw::OmsRequestRunner runner = MakeOmsRequestRunner(coreResource.Core_.Owner_->RequestFactoryPark(), reqstr);
-   static_cast<f9omstw::OmsRequestIni*>(runner.Request_.get())->PreCheck_OrdKey(runner, coreResource, scRes);
+   static_cast<f9omstw::OmsRequestIni*>(runner.Request_.get())->BeforeReq_CheckOrdKey(runner, coreResource, scRes);
 
    if (runner.Request_->Market() != mkt)
       std::cout << "|err=Invalid Market|request.Market=" << static_cast<char>(runner.Request_->Market());
@@ -149,22 +151,22 @@ int main(int argc, char* argv[]) {
    symb->TradingMarket_ = f9fmkt_TradingMarket_TwSEC;
    symb->ShUnit_ = 1000;
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_FixedPrice,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000|Pri=");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000"); // 沒填價格=定價.
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_Normal,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=8000|PriType=M");
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_OddLot,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800|Pri=35");
    symb->ShUnit_ = 200;
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_Normal,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=200");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=200|PriType=M");
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_OddLot,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=100");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=100|Pri=35");
    symb->TradingMarket_ = f9fmkt_TradingMarket_TwOTC;
    symb->ShUnit_ = 0; // symb 沒提供 ShUnit_; 測試預設 1張 = 1000股.
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwOTC, f9fmkt_TradingSessionId_OddLot,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=800|Pri=35");
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwOTC, f9fmkt_TradingSessionId_Normal,
-                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=1000");
+                       "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=1000|Pri=35");
    //---------------------------------------------
    std::cout << "[TEST ] admin.RequestNew";
    TestCase(testCore, poAdmin, OmsErrCode_NoError,
@@ -223,7 +225,7 @@ int main(int argc, char* argv[]) {
 
    std::cout << "[TEST ] admin.Report " << strOrdNo;
    std::string reqstr = "TwsRpt|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0"
-                        "|OrdNo=" + strOrdNo;
+      "|ReportSt=10|OrdNo=" + strOrdNo;
    TestReport(testCore, poAdmin, OmsErrCode_NoError, &reqstr, f9fmkt_RxKind_RequestNew);
    std::cout << "[TEST ] user.RequestIni:Query " << strOrdNo;
    reqstr = "TwsNew|Kind=Q|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0"

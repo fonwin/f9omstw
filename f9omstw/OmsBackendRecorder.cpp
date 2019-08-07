@@ -24,16 +24,16 @@ void OmsRequestBase::RevPrint(fon9::RevBuffer& rbuf) const {
    if (fon9_UNLIKELY(this->IsAbandoned())) {
       if (this->AbandonReason_)
          fon9::RevPrint(rbuf, ':', *this->AbandonReason_);
-      fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL f9omstw_kCSTR_RequestAbandonHeader, this->AbandonErrCode_);
+      fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL f9omstw_kCSTR_RequestAbandonHeader, this->ErrCode_);
    }
    RevPrintFields(rbuf, *this->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
    fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->Request_->RxSNO());
 #ifdef _DEBUG
-   fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->UpdSeq_);
+   fon9::RevPrint(rbuf, *fon9_kCSTR_CELLSPL, this->UpdSeq());
 #endif
-   RevPrintFields(rbuf, *this->Order_->Creator_, fon9::seed::SimpleRawRd{*this});
+   RevPrintFields(rbuf, this->Order_->Creator(), fon9::seed::SimpleRawRd{*this});
 }
 //--------------------------------------------------------------------------//
 void OmsBackend::SaveQuItems(QuItems& quItems) {
@@ -75,7 +75,7 @@ struct OmsBackend::Loader {
       OmsRequestFactory* reqfac = static_cast<OmsRequestFactory*>(flds.Factory_);
       auto  req = reqfac->MakeRequest(fon9::TimeStamp{});
       if (req.get() == nullptr) {
-         req = reqfac->MakeReport(f9fmkt_RxKind_Unknown, fon9::TimeStamp{});
+         req = reqfac->MakeReportIn(f9fmkt_RxKind_Unknown, fon9::TimeStamp{});
          if (req.get() == nullptr)
             return "MakeRequest:Cannot make request or report.";
       }
@@ -98,56 +98,49 @@ struct OmsBackend::Loader {
       const char* pReqFrom = reinterpret_cast<const char*>(memrchr(ln.begin(), *fon9_kCSTR_CELLSPL, ln.size()));
       if (pReqFrom == nullptr)
          return "Loader.MakeOrder: ReqFrom tag not found.";
-      OmsRxSNO    snoReqFrom = fon9::StrTo(fon9::StrView{pReqFrom + 1, ln.end()}, OmsRxSNO{0});
-      const auto* reqFrom = this->Items_.GetRequest(snoReqFrom);
+      OmsRxSNO snoReqFrom = fon9::StrTo(fon9::StrView{pReqFrom + 1, ln.end()}, OmsRxSNO{0});
+      auto*    reqFrom = const_cast<OmsRequestBase*>(this->Items_.GetRequest(snoReqFrom));
       if (reqFrom == nullptr)
          return "Loader.MakeOrder: Request not found.";
       // ln 讀入的可能是 reqFrom 的首次或後續異動.
-      OmsOrderRaw*       ordraw = nullptr;
-      const OmsOrderRaw* lastupd = reqFrom->LastUpdated();
-      if (lastupd == nullptr) { // ln = reqFrom 的首次異動內容.
+      OmsOrderRaw* ordraw = nullptr;
+      OmsOrder*    order;
+      if (const OmsOrderRaw* lastupd = reqFrom->LastUpdated())
+         order = &lastupd->Order();
+      else { // ln = reqFrom 的首次異動 => order 的首次異動? 或後續異動?
          if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
             auto iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
-            if (iniSNO == 0) {
-               if (0); // 可能因回報亂序, 尚未收到 Initiator 之前的刪改查.
-            }
+            if (iniSNO == 0)
+               // 有 IniSNO 欄位, 但 IniSNO=0:
+               // 可能因回報亂序, 尚未收到 Initiator 之前的刪改查成交.
+               goto __GET_ORDER_BY_ORDKEY;
             const auto* reqIni = this->Items_.GetRequest(iniSNO);
             if (reqIni == nullptr)
                return "Loader.MakeOrder: Ini request not found.";
             if ((lastupd = reqIni->LastUpdated()) == nullptr)
                return "Loader.MakeOrder: Ini request no updated.";
+            order = &lastupd->Order();
          }
-         else if (const auto* reqIni = dynamic_cast<const OmsRequestIni*>(reqFrom)) {
-            // reqFrom 沒有 IniSNO: 表示 reqFrom 可能本身就是 Initiator, 或是過 RequestIni 的刪改查.
-            // 此時要透過 OrdKey 來找 Initiator.
-            if ((reqIni = reqFrom->GetOrderInitiatorByOrdKey(this->Resource_)) == nullptr) {
-               assert(reqFrom->RxKind() == f9fmkt_RxKind_RequestNew);
-               ordraw = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(
-                  *const_cast<OmsRequestIni*>(static_cast<const OmsRequestIni*>(reqFrom)), nullptr);
-            }
-            else {
-               // reqFrom = 使用 OmsRequestIni 的「一般刪改查」.
-               // 是否有必要檢查欄位是否正確? reqIni->IsIniFieldEqual(reqFrom);
-               lastupd = reqIni->LastUpdated();
+         else {
+      __GET_ORDER_BY_ORDKEY:
+            if ((order = reqFrom->SearchOrderByOrdKey(this->Resource_)) == nullptr) {
+               ordraw = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(*reqFrom, nullptr);
+               order = &ordraw->Order();
             }
          }
-         else
-            return "Loader.MakeOrder: ReqFrom is not RequestIni.";
       }
       if (ordraw == nullptr) {
-         assert(lastupd != nullptr);
-         if (&lastupd->Order_->Creator() != flds.Factory_)
-            return "Loader.MakeOrder: Unknown order factory.";
-         ordraw = lastupd->Order_->BeginUpdate(*reqFrom);
+         assert(order != nullptr);
+         ordraw = order->BeginUpdate(*reqFrom);
+         order = &ordraw->Order();
       }
-      OmsOrder* order = ordraw->Order_;
       ordraw->SetRxSNO(this->LastSNO_);
-      reqFrom->LastUpdated_ = ordraw;
+      reqFrom->SetLastUpdated(*ordraw);
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ordraw}, ln);
       this->Items_.AppendHistory(*ordraw);
-      if (!ordraw->OrdNo_.empty1st() && (order->Head() == ordraw || order->LastNotPending()->OrdNo_ != ordraw->OrdNo_)) {
+      if (!ordraw->OrdNo_.empty1st() && (order->Head() == ordraw || order->Tail()->OrdNo_ != ordraw->OrdNo_)) {
          if (OmsBrk* brk = order->GetBrk(this->Resource_))
-            if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*order->Initiator()))
+            if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*reqFrom))
                if (!ordNoMap->EmplaceOrder(*ordraw)) {
                   return "Loader.MakeOrder: OrdNo exists.";
                }
@@ -214,7 +207,53 @@ struct OmsBackend::Loader {
          }
       }
    }
+   fon9::File::Result ReloadAll(fon9::File& fd, const fon9::File::SizeType fsize) {
+      fon9::LinePeeker     lnPeeker;
+      fon9::DcQueueList    rxbuf;
+      fon9::File::SizeType fpos = 0, lnpos = 0;
 
+      for (;;) {
+         fon9::FwdBufferNode* node = fon9::FwdBufferNode::Alloc(32 * 1024);
+         auto res = fd.Read(fpos, node->GetDataEnd(), node->GetRemainSize());
+         if (res.IsError()) {
+            FreeNode(node);
+            fon9_LOG_FATAL("OmsBackend.OpenReload.Read|pos=", fpos);
+            return res;
+         }
+         if (res.GetResult() <= 0)
+            return res;
+         fpos += res.GetResult();
+         node->SetDataEnd(node->GetDataEnd() + res.GetResult());
+         rxbuf.push_back(node);
+         size_t exsz = 0;
+         while (const char* pln = lnPeeker.PeekUntil(rxbuf, *fon9_kCSTR_ROWSPL)) {
+            fon9::StrView ln{pln, lnPeeker.LineSize_ - 1}; // -1 移除 *fon9_kCSTR_ROWSPL;
+            if (*pln != *fon9_kCSTR_CELLSPL) {
+               this->FeedLine(ln, lnpos);
+               lnpos += lnPeeker.LineSize_;
+               lnPeeker.PopConsumed(rxbuf);
+            }
+            else {
+               ln.SetBegin(pln + 1);
+               exsz = fon9::StrTo(&ln, 0u);
+               exsz += ln.begin() - pln;
+               lnpos += exsz;
+               exsz -= lnPeeker.TmpBuf_.size();
+               lnPeeker.Clear();
+               size_t cursz = rxbuf.CalcSize();
+               if (cursz <= exsz) {
+                  rxbuf.PopConsumed(cursz);
+                  exsz -= cursz;
+                  break;
+               }
+               rxbuf.PopConsumed(exsz);
+               exsz = 0;
+            }
+         } // while lnPeeker
+         if ((fpos += exsz) >= fsize)
+            return fon9::File::Result{fsize};
+      } // for() read block.
+   }
    void MakeLayout(fon9::RevBufferList& rbuf, const fon9::seed::Layout& layout) {
       size_t idx = layout.GetTabCount();
       while (idx > 0) {
@@ -250,51 +289,9 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
    Loader      loader{resource, *items};
    const auto  fsize = res.GetResult();
    if (fsize > 0) {
-      fon9::LinePeeker     lnPeeker;
-      fon9::DcQueueList    rxbuf;
-      fon9::File::SizeType fpos = 0, lnpos = 0;
-
-      for (;;) {
-         fon9::FwdBufferNode* node = fon9::FwdBufferNode::Alloc(32 * 1024);
-         res = this->RecorderFd_.Read(fpos, node->GetDataEnd(), node->GetRemainSize());
-         if (res.IsError()) {
-            FreeNode(node);
-            fon9_LOG_FATAL("OmsBackend.OpenReload.Read|pos=", fpos);
-            goto __OPEN_ERROR;
-         }
-         if (res.GetResult() <= 0)
-            break;
-         fpos += res.GetResult();
-         node->SetDataEnd(node->GetDataEnd() + res.GetResult());
-         rxbuf.push_back(node);
-         size_t exsz = 0;
-         while (const char* pln = lnPeeker.PeekUntil(rxbuf, *fon9_kCSTR_ROWSPL)) {
-            fon9::StrView ln{pln, lnPeeker.LineSize_ - 1}; // -1 移除 *fon9_kCSTR_ROWSPL;
-            if (*pln != *fon9_kCSTR_CELLSPL) {
-               loader.FeedLine(ln, lnpos);
-               lnpos += lnPeeker.LineSize_;
-               lnPeeker.PopConsumed(rxbuf);
-            }
-            else {
-               ln.SetBegin(pln + 1);
-               exsz = fon9::StrTo(&ln, 0u);
-               exsz += ln.begin() - pln;
-               lnpos += exsz;
-               exsz -= lnPeeker.TmpBuf_.size();
-               lnPeeker.Clear();
-               size_t cursz = rxbuf.CalcSize();
-               if (cursz <= exsz) {
-                  rxbuf.PopConsumed(cursz);
-                  exsz -= cursz;
-                  break;
-               }
-               rxbuf.PopConsumed(exsz);
-               exsz = 0;
-            }
-         } // while lnPeeker
-         if ((fpos += exsz) >= fsize)
-            break;
-      } // for() read block.
+      res = loader.ReloadAll(this->RecorderFd_, fsize);
+      if (res.IsError())
+         goto __OPEN_ERROR;
 
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
       for (OmsRxSNO sno = loader.LastSNO_; sno > 0; --sno) {
@@ -307,33 +304,33 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          const OmsOrderRaw* ordraw = req->LastUpdated();
          if (ordraw == nullptr)
             continue;
-         OmsOrder* order = ordraw->Order_;
+         OmsOrder& order = ordraw->Order();
          if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
             if (auto filled = dynamic_cast<const OmsReportFilled*>(req)) {
-               if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
+               if (fon9_LIKELY(order.InsertFilled(filled) == nullptr))
                   continue;
                fon9_LOG_ERROR("OmsBackend.InsertFilled|filled.SNO=", sno);
             }
             fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
             continue;
          }
-         auto* inireq = order->Initiator();
          if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing)) {
             // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
             // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
             // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
             //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
             items.unlock();
-            if (OmsOrderRaw* ordupd = order->BeginUpdate(*req)) {
+            if (OmsOrderRaw* ordupd = order.BeginUpdate(*req)) {
                OmsRequestRunnerInCore runner{resource, *ordupd, 0u};
                runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "System restart.");
             }
             items.lock();
          }
-         OmsScResource& scResource = order->ScResource();
+         OmsScResource& scResource = order.ScResource();
          if (scResource.Ivr_.get() != nullptr)
             continue;
-         scResource.Ivr_ = resource.Brks_->FetchIvr(ToStrView(inireq->BrkId_), inireq->IvacNo_, ToStrView(inireq->SubacNo_));
+         if (auto* inireq = order.Initiator())
+            scResource.Ivr_ = resource.Brks_->FetchIvr(ToStrView(inireq->BrkId_), inireq->IvacNo_, ToStrView(inireq->SubacNo_));
          if (0); // 重建 Order 的 ScResource; 及重算風控資料.
       }
    }

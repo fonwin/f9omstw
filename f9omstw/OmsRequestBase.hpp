@@ -99,6 +99,7 @@ protected:
    void InitializeForReportIn() {
       this->RxItemFlags_ |= OmsRequestFlag_ReportIn;
    }
+   void MakeReportReqUID(fon9::DayTime exgTime, uint32_t beforeQty);
 
    /// 執行「刪改查」下單步驟前, 取出此筆要求要操作的原始新單要求.
    /// - 如果有提供 pIniSNO 且 *pIniSNO != 0, 則 this.OrdKey 如果有填則必須正確, 如果沒填則自動填入正確值.

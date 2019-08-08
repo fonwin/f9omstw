@@ -111,5 +111,41 @@ void OmsRequestBase::ProcessPendingReport(OmsResource& res) const {
    (void)res;
    assert(!"Derived must override ProcessPendingReport()");
 }
+void OmsRequestBase::MakeReportReqUID(fon9::DayTime exgTime, uint32_t beforeQty) {
+   if (!this->ReqUID_.empty1st())
+      return;
+   this->ReqUID_.Chars_[0] = this->Market();
+   this->ReqUID_.Chars_[1] = this->SessionId();
+   size_t      szBrkId = this->BrkId_.size();
+   const char* pBrkIdEnd = this->BrkId_.begin() + szBrkId;
+   this->ReqUID_.Chars_[2] = szBrkId >= 2 ? *(pBrkIdEnd - 2) : '-';
+   this->ReqUID_.Chars_[3] = szBrkId >= 1 ? *(pBrkIdEnd - 1) : '-';
+   memcpy(this->ReqUID_.Chars_ + 4, this->OrdNo_.Chars_, sizeof(this->OrdNo_));
+   if (this->RxKind() == f9fmkt_RxKind_RequestNew)
+      return;
+   // Kind[1] + Time[9(HHMMSSuuu)] + Bf[6(499000)]
+   // => ReqUID 相同 => 視為重複
+   // => (1) 機率極低 (2) 反正也難以分辨, 哪個才是交易所的最後結果.
+   // => 同一個瞬間(相同時間)的多次改價.
+   // => 同一個瞬間的刪改失敗(Bf=0).
+   this->ReqUID_.Chars_[4 + sizeof(this->OrdNo_)] = this->RxKind();
+   char   buf[sizeof(OmsRequestId) * 2];
+   char*  pout = buf + sizeof(OmsRequestId);
+   memset(pout, 0, sizeof(OmsRequestId));
+   pout = fon9::ToStrRev(pout, beforeQty);
+   if (exgTime.IsNull())
+      *--pout = ':';
+   else {
+      auto tms = fon9::unsigned_cast(exgTime.ShiftUnit<3>());
+      auto sec = (tms / 1000);
+      tms = (tms % 1000)
+         + ((sec % 60)
+            + ((sec / 60) % 60) * 100
+            + ((sec / 60 / 60) % 24) * 10000) * 1000;
+      pout = fon9::Pic9ToStrRev<9>(pout, tms);
+   }
+   memcpy(this->ReqUID_.Chars_ + 4 + sizeof(this->OrdNo_) + 1, pout,
+          sizeof(this->ReqUID_) - (4 + sizeof(this->OrdNo_) + 1));
+}
 
 } // namespaces

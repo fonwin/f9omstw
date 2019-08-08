@@ -31,6 +31,8 @@ void OmsTwsFilled::RunReportInCore(OmsReportRunner&& runner) {
    char*           pout = nbuf.end();
    memset(pout -= sizeof(this->ReqUID_), 0, sizeof(this->ReqUID_));
    pout = fon9::ToStrRev(pout, this->MatchKey_);
+   if (this->Side_ != f9fmkt_Side{})
+      *--pout = this->Side_;
    this->ReqUID_.Chars_[0] = this->Market();
    this->ReqUID_.Chars_[1] = this->SessionId();
    this->ReqUID_.Chars_[2] = this->BrkId_[sizeof(f9tws::BrkId) - 2];
@@ -38,7 +40,7 @@ void OmsTwsFilled::RunReportInCore(OmsReportRunner&& runner) {
    memcpy(this->ReqUID_.Chars_ + 4, pout, sizeof(this->ReqUID_) - 4);
 
    OmsOrder* order;
-   if ((order = ordnoMap->GetOrder(this->OrdNo_)) == nullptr) {
+   if (fon9_UNLIKELY((order = ordnoMap->GetOrder(this->OrdNo_)) == nullptr)) {
       // 成交找不到 order: 等候新單回報.
       assert(this->Creator().OrderFactory_.get() != nullptr);
       OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get();
@@ -46,25 +48,19 @@ void OmsTwsFilled::RunReportInCore(OmsReportRunner&& runner) {
          runner.ReportAbandon("OmsTwsFilled: No OrderFactory.");
          return;
       }
-      runner.ReportAbandon("OmsTwsFilled: Order not found.");
-      // OmsRequestRunnerInCore inCoreRunner{std::move(runner), *ordfac->MakeOrder(*this, nullptr)};
-      // assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
-      // runner.Resource_.Backend_.FetchSNO(*this);
-      // OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
-      // ordraw.OrdNo_ = this->OrdNo_;
-      // ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
-      // ordraw.LastPri_ = this->Pri_;
-      // ordraw.LastPriType_ = this->PriType_;
-      // ordraw.OType_ = this->OType_;
-      // ordraw.LastExgTime_ = ordraw.LastPriTime_ = this->ExgTime_;
-      // ordraw.ErrCode_ = this->ErrCode();
-      // ordraw.Message_ = this->Message_;
-      // inCoreRunner.Update(this->ReportSt());
-      // ordnoMap->EmplaceOrder(ordraw);
+      OmsRequestRunnerInCore inCoreRunner{std::move(runner), *ordfac->MakeOrder(*this, nullptr)};
+      assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
+      runner.Resource_.Backend_.FetchSNO(*this);
+      inCoreRunner.OrderRaw_.Order().InsertFilled(this);
+      OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
+      ordraw.OrdNo_ = this->OrdNo_;
+      ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+      inCoreRunner.Update(f9fmkt_TradingRequestSt_Filled);
+      ordnoMap->EmplaceOrder(ordraw);
       return;
    }
    const OmsTwsRequestIni* iniReq = static_cast<const OmsTwsRequestIni*>(order->Initiator());
-   if (!this->CheckFields(*iniReq)) {
+   if (iniReq && !this->CheckFields(*iniReq)) {
       runner.ReportAbandon("TwsFilled field not match.");
       return;
    }
@@ -76,7 +72,8 @@ void OmsTwsFilled::RunReportInCore(OmsReportRunner&& runner) {
    // 更新 order.
    OmsRequestRunnerInCore inCoreRunner{std::move(runner), *order->BeginUpdate(*this)};
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
-   this->IniSNO_ = iniReq->RxSNO();
+   if (iniReq)
+      this->IniSNO_ = iniReq->RxSNO();
 
    if (fon9_LIKELY(order->LastOrderSt() >= f9fmkt_OrderSt_NewDone))
       this->UpdateCum(std::move(inCoreRunner));

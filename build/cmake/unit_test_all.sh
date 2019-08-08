@@ -28,7 +28,7 @@ $OUTPUT_DIR/f9omstw/OmsRequestPolicy_UT
 $OUTPUT_DIR/f9omstw/OmsRequestTrade_UT
 $OUTPUT_DIR/f9omstw/OmsRequestTrade_UT
 
-$OUTPUT_DIR/f9omstw/OmsReport_UT
+$OUTPUT_DIR/f9omstw/OmsReport_UT -r
 
 # -------------------------------
 $OUTPUT_DIR/f9omstw/OmsReqOrd_UT -o /dev/null -f 0

@@ -12,8 +12,9 @@ class OmsTwsReport : public OmsTwsRequestIni {
    fon9_NON_COPY_NON_MOVE(OmsTwsReport);
    using base = OmsTwsRequestIni;
 
-   /// origReq 的後續回報.
    void RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestBase& origReq);
+   void RunReportNew(OmsRequestRunnerInCore&& inCoreRunner);
+   void RunReportOrder(OmsRequestRunnerInCore&& inCoreRunner);
 public:
    /// 如果有跨日交易(夜盤), 則跨日的回報 ExgTime_ 應加上 TimeInterval_Day(1);
    fon9::DayTime     ExgTime_{fon9::DayTime::Null()};

@@ -5,7 +5,7 @@
 namespace f9omstw {
 
 TwsTradingLineMgr::TwsTradingLineMgr(const fon9::IoManagerArgs& ioargs, f9fmkt_TradingMarket mkt)
-   : base{ioargs, mkt}
+   : base{ioargs, fon9::TimeInterval::Null(), mkt} // 建構時不應啟動 device, 必須在 OnOmsCoreChanged(); 啟動.
    , StrQueuingIn_{fon9::RevPrintTo<fon9::CharVector>("Queuing in ", ioargs.Name_)} {
 }
 void TwsTradingLineMgr::OnBeforeDestroy() {
@@ -50,6 +50,11 @@ void TwsTradingLineMgr::OnOmsCoreChanged(OmsResource& coreResource) {
    } // tsvr unlock.
    // 交易日改變了, 交易線路應該要刪除後重建, 因為 FIX log 必須換日.
    this->DisposeAndReopen("OmsCore.TDayChanged");
+   // 如果在 tsvr unlock 之後, IoManagerTree::DisposeAndReopen() 之前.
+   // IoManagerTree 進入 EmitOnTimer() 開啟了 devices;
+   // 在進入 IoManagerTree::DisposeAndReopen() 時, 會立即關閉!
+   // => 程式啟動初期, 先不啟動 Timer, 等首次設定 OmsCore 時啟動.
+   // => 程式運行後的換日, 如果真的發生上述情況, 那就讓 device 關閉後再開吧.
 }
 void TwsTradingLineMgr::ClearReqQueue(Locker&& tsvr, fon9::StrView cause) {
    this->ClearReqQueue(std::move(tsvr), cause, this->OmsCore_);

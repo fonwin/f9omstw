@@ -191,7 +191,7 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    runner.ExLog_.SetPrefixUsed(pout);
    param.RecvBuffer_.Read(pout, byteCount);
 
-   if (0); // Rc client 端使用 TwsRpt 補回報?
+   if (0); // Rc client 端使用 TwsRpt 補登回報(補單)?
    runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
    ApiReqFieldArg arg{*runner.Request_, ses};
    for (const auto& fldcfg : cfg.ApiFields_) {

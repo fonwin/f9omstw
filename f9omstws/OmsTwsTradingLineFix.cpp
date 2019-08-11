@@ -2,128 +2,223 @@
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
-
+#include "f9omstws/OmsTwsReport.hpp"
+#include "f9omstws/OmsTwsReportTools.hpp"
+#include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/fix/FixBusinessReject.hpp"
-#include "fon9/fix/FixAdminDef.hpp"
-#include "fon9/fix/FixApDef.hpp"
 
 namespace f9omstw {
 
-static void OnFixReject(const f9fix::FixRecvEvArgs& rxargs, const f9fix::FixOrigArgs& orig) {
-   fon9_LOG_INFO("OnFixReject|orig=", orig.MsgStr_, "|rx=", rxargs.MsgStr_);
+//--------------------------------------------------------------------------//
+void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, const f9fix::FixOrigArgs& orig) {
    // SessionReject or BusinessReject:
    // 這種失敗比較單純, 因為是針對下單要求的內容不正確:
    // 所以用 orig 找原始下單要求, 如果找不到, 就拋棄此筆回報.
-}
-static void OnFixReport(const f9fix::FixRecvEvArgs& rxargs) {
-   //
-   // - 必須回到 OmsCore 取得 OmsResource 之後才能處理.
-   //   - 可先解析必要欄位.
-   // - 尋找對應的 OmsRequest
-   //   - 沒找到對應的 OmsRequest:
-   //     - OrdKey 有對應的委託, 但必要欄位(IvacNo,Symbol,Side...)不正確: 拋棄此筆回報, 並記錄在 Backend log.
-   //     - OrdKey 有對應的委託, 且必要欄位正確
-   //     - OrdKey 沒對應的委託
-   //       - OmsRequest 為新單
-   //   - 
-   //
-   // 回報處理機制:
-   // => 建立一個對應的 req: OmsTwsRequestIni、OmsTwsReportFilled...
-   //    => 新增一個 RequestFactory::MakeRequestForReport();
-   //    => 不應該使用 RequestFactory.MakeRequest() 的 ObjSupplier 機制.
-   //       因為若在 OmsCore 有找到「原始req」, 則此處建立的 req 會被銷毀, 此為經常狀況,
-   //       反而不常發生「沒找到原始req」的情況 => 因此此處建立的 req 通常會被銷毀.
-   //       => 若使用 ObjSupplier 則可能會等到 OmsCore 解構時才釋放整塊記憶體 => 會浪費大量記憶體.
-   //    => 新刪改: 為了可以在 Reload 時還原「被保留的回報」, 所以這裡應使用 OmsTwsRequestIni 儲存全部欄位.
-   //       且需額外增加: BeforeQty, AfterQty.
-   //       => 如果來到 InCore 時, 確定 OmsTwsRequestIni 已存在對應的 req, 則 OmsTwsRequestIni 會被刪除.
-   //          直接使用 req 處理後續的 OrderRaw.
-   //       => 如果來到 InCore 時, 委託存在, 但沒有對應的 req (例如: 外部回報 or 尚未收到的其他 f9oms 下單要求)
-   //          => 直接使用 OmsTwsRequestIni 處理委託異動? 或是建立新的 OmsTwsRequestChg 處理?
-   //    => 查單: 沒有「保留回報」的需求? 所以只要能確認是同一筆委託即可?
-   //    => 成交沒有 BeforeQty, AfterQty, 只有 MatchKey(用來判斷是否重複).
-   //       => 但仍需要 IvacNo, Symbol, OType, Side... 來判斷是否為同一筆委託.
-   // => 建立 Reporter 保留必要的欄位位置: 使用 StrVref(對應到 ExLog 裡面的 FixMsgStr 的位置).
-   //    => 全部儲存在 OmsTwsRequestIni 或 OmsTwsReportFilled, 不需要保留額外欄位?
-   // => 上述資料都準備好之後, 就可以進入 OmsCore 處理回報了.
-   //    => OmsRequestBase 的 union 裡面增加一個 Reporter, OmsRequestFlag_Reporter
-   //    => 當來到 InCore 時, 將 Reporter 取出, 移除 OmsRequestFlag_Reporter 旗標.
-   //    => 然後透過 Reporter 處理回報.
-   //
-   OmsRequestRunner runner{rxargs.MsgStr_};
-   fon9::StrView    fixMsgStr{runner.ExLog_.GetCurrent(), rxargs.MsgStr_.size()};
+   if (const auto* fixfld = orig.Msg_.GetField(f9fix_kTAG_ClOrdID)) {
+      OmsRequestRunner runner{rxargs.MsgStr_};
+      fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL);
+      runner.Request_ = this->RptFac_.MakeReportIn(f9fmkt_RxKind_Unknown);
+      assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
 
-   // 為了可以在 Reload 時還原「被保留的回報」,
-   // 所以這裡應使用 OmsTwsRequestIni 儲存全部欄位.
-   //struct TwsFixReporter : public OmsReporter {
-   //   fon9_NON_COPY_NON_MOVE(TwsFixReporter);
-   //   IvacNo         IvacNo_;
-   //   OmsTwsSymbol   StkNo_;
-   //   f9fmkt_Side    Side_;
-   //   TwsOType       OType_;
-   //   OmsTwsQty      BeforeQty_;
-   //   OmsTwsQty      AfterQty_;
-   //   void RunReport(OmsRequestRunnerInCore&& runner) override {
-   //   }
-   //};
-
-
-   //
-   // ClOrdID = RxSNO => 取得 request.
-   // => 檢查: OrigClOrdID == ReqUID 且 OrdKey 一致.
-   //    => 找到 request
-   //    => 處理 request 的後續異動.
-   // => 否則: 沒找到 request, 使用 OrdKey 找 order
-   //    => 若為成交回報:
-   //       => 若有找到 order: 建立成交回報.
-   //       => 若沒找到 order:
-   //          => 保留此次筆成交, 等候 order?
-   //          => 拋棄此次筆成交?
-   //    => 新刪改查回報:
-   //       => 保留此次回報, 等 request?
-   //       => 建立 request 處理此次回報?
-   //       => 拋棄此次回報?
-   //
-
-#if 0
-   unsigned stcode = fon9::StrTo(fldText->Value_, 0u);
-   switch (stcode) {
-   case 4: // 0004:WAIT FOR MATCH: 需要重送(刪改查)?
-      isNeedsResend = true;
-      break;
-   case 5: // 0005:ORDER NOT FOUND
-           // 是否需要再送一次刪單? 因為可能新單還在路上(尚未送達交易所), 就已送出刪單要求,
-           // 若刪單要求比新單要求早送達交易所, 就會有 "0005:ORDER NOT FOUND" 的錯誤訊息.
-      switch (req->OrderSt_) {
-      case TOrderSt_NewSending:
-      case TOrderSt_OtherNewSending:
-         // 超過 n 次就不要再送了.
-         isNeedsResend = (++req->ResendCount_ < 5);
-         break;
-      }
-      break;
+      OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+      rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
+      AssignReportReqUID(rpt, *fixfld);
+      if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_OrderID)) != nullptr)
+         rpt.OrdNo_.AssignFrom(fixfld->Value_);
+      if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderSubID)) != nullptr)
+         rpt.BrkId_.CopyFrom(fixfld->Value_);
+      rpt.SetSessionId(GetFixSessionId(orig.Msg_.GetField(f9fix_kTAG_TargetSubID)));
+      rpt.SetMarket(static_cast<f9tws::ExgTradingLineFix*>(rxargs.FixSession_)->LineArgs_.Market_);
+      assert((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderCompID)) != nullptr
+             && fixfld->Value_.Get1st() == rpt.Market());
+      AssignTwsReportMessage(rpt, rxargs.Msg_);
+      this->CoreMgr_.CurrentCore()->MoveToCore(std::move(runner));
    }
-#endif
 }
-static void OnFixExecutionReport(const f9fix::FixRecvEvArgs& rxargs) {
-   OnFixReport(rxargs);
-}
-static void OnFixCancelReject(const f9fix::FixRecvEvArgs& rxargs) {
-   // 必要欄位僅提供 Account, 沒有提供 Symbol, Side, OType...
+void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxargs) {
+   // 如果是 CancelReject: 必要欄位僅提供 Account, 沒有提供 Symbol, Side, OType...
    // 所以, 如果沒找到原下單要求, 就直接拋棄此「刪改失敗回報」?
-   OnFixReport(rxargs);
+   //const auto* fixfld = rxargs.Msg_.GetField(f9fix_kTAG_CxlRejResponseTo);
+   //if (fixfld == nullptr)
+   //   return;
+   f9fmkt_RxKind  rptKind = f9fmkt_RxKind_Unknown;
+   // f9fmkt_RxKind_Unknown: 由 OmsTwsReport::RunReportFromOrig() 自動設定.
+   // switch (fixfld->Value_.Get1st()) {
+   // case *f9fix_kVAL_CxlRejResponseTo_Cancel:
+   //    rptKind = f9fmkt_RxKind_Unknown;// f9fmkt_RxKind_RequestDelete;
+   //    break;
+   // case *f9fix_kVAL_CxlRejResponseTo_Replace:
+   //    rptKind = f9fmkt_RxKind_Unknown;// (? f9fmkt_RxKind_RequestChgPri : f9fmkt_RxKind_RequestChgQty);
+   //    break;
+   // default:
+   //    return;
+   // }
+
+   auto             core = this->CoreMgr_.CurrentCore();
+   OmsRequestRunner runner{rxargs.MsgStr_};
+   runner.Request_ = this->RptFac_.MakeReportIn(rptKind);
+   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
+
+   OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+   rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
+   AssignTwsReportBase(rpt, rxargs, core->TDay());
+   core->MoveToCore(std::move(runner));
+}
+void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxargs) {
+   const auto* fixfld = rxargs.Msg_.GetField(f9fix_kTAG_ExecType);
+   if (fixfld == nullptr)
+      return;
+   auto chExecType = fixfld->Value_.Get1st();
+   switch (chExecType) {
+   case *f9fix_kVAL_ExecType_PartialFill_42: // "1"
+   case *f9fix_kVAL_ExecType_Fill_42:        // "2"
+   case *f9fix_kVAL_ExecType_Trade_44:       // "F" FIX.4.4: Trade (partial fill or fill)
+      this->OnFixExecFilled(rxargs);
+      return;
+   }
+   OmsTwsQty     beforeQty = GetFixFieldQty(rxargs.Msg_, f9fix_kTAG_OrderQty);
+   OmsTwsQty     afterQty  = GetFixFieldQty(rxargs.Msg_, f9fix_kTAG_LeavesQty);
+   f9fmkt_RxKind           rptKind;
+   f9fmkt_TradingRequestSt rptSt;
+   switch (chExecType) {
+   case *f9fix_kVAL_ExecType_New:            // "0" 新單成功.
+      // 可能部分委託數量有效: OrdRejReason#103=99; Text#58=0031-QUANTITY WAS CUT;
+      rptKind = f9fmkt_RxKind_RequestNew;
+      rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
+      break;
+   case *f9fix_kVAL_ExecType_Rejected:       // "8" 新單失敗.
+      rptKind = f9fmkt_RxKind_RequestNew;
+      rptSt = f9fmkt_TradingRequestSt_ExchangeRejected;
+      break;
+   case *f9fix_kVAL_ExecType_Replace:        // "5" 改單成功.
+      // 改價回覆: OrderQty#38 == LeavesQty#151，其欄位值為改價成功之委託數量。
+      rptKind = (beforeQty == afterQty ? f9fmkt_RxKind_RequestChgPri : f9fmkt_RxKind_RequestChgQty);
+      rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
+      break;
+   case *f9fix_kVAL_ExecType_Canceled:       // "4" 刪單成功.
+      rptKind = f9fmkt_RxKind_RequestDelete;
+      rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
+      break;
+   case *f9fix_kVAL_ExecType_OrderStatus:    // "I" 查詢成功 FIX.4.4: (formerly an ExecTransType <20>)
+      rptKind = f9fmkt_RxKind_RequestQuery;
+      rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
+      break;
+   case *f9fix_kVAL_ExecType_Restated:       // "D" Restated
+      // 證券進入價格穩定措施或尾盤集合競價時段，交易所主動取消留存委託簿之市價委託單資料並回報.
+      // 此時 OrderStatus(39) 則為 Canceled。
+      if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_OrdStatus)) == nullptr
+          || fixfld->Value_.Get1st() != *f9fix_kVAL_OrdStatus_Canceled)
+         return;
+      // 針對原新單要求: ExchangeCanceled;
+      rptKind = f9fmkt_RxKind_RequestNew;
+      rptSt = f9fmkt_TradingRequestSt_ExchangeCanceled;
+      if (0);// 如果是 Restated, 會提供 OrigClOrdID 嗎? ClOrdID 是最後那個? 還是新單那個?
+      break;
+   // case *f9fix_kVAL_ExecType_PendingNew:     // "A"
+   // case *f9fix_kVAL_ExecType_PendingCancel:  // "6"
+   // case *f9fix_kVAL_ExecType_PendingReplace: // "E"
+   // case *f9fix_kVAL_ExecType_Stopped:        // "7"
+   // case *f9fix_kVAL_ExecType_Suspended:      // "9"
+   // case *f9fix_kVAL_ExecType_Calculated:     // "B"
+   // case *f9fix_kVAL_ExecType_Expired:        // "C"
+   // case *f9fix_kVAL_ExecType_DoneForDay:     // "3"
+   default:
+      return;
+   }
+
+   auto             core = this->CoreMgr_.CurrentCore();
+   OmsRequestRunner runner{rxargs.MsgStr_};
+   runner.Request_ = this->RptFac_.MakeReportIn(rptKind);
+   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
+
+   OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+   rpt.SetReportSt(rptSt);
+   rpt.Qty_ = afterQty;
+   rpt.BeforeQty_ = beforeQty;
+   // 無法從 FIX 取得的 rpt 欄位:
+   // fon9::CharAry<10>    SubacNo_;
+   // fon9::CharAry<10>    SalesNo_;
+   // fon9::CharAry<16>    UsrDef_;
+   // fon9::CharAry<16>    ClOrdId_;
+   // fon9::CharAry<8>     SesName_;
+   // fon9::CharAry<12>    UserId_;
+   // fon9::CharAry<16>    FromIp_;
+   // fon9::CharAry<4>     Src_;
+   AssignReportSymbol(rpt.Symbol_, rxargs.Msg_);
+   rpt.Side_ = GetFixSide(rxargs.Msg_);
+
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_TimeInForce)) != nullptr) {
+      switch (fixfld->Value_.Get1st()) {
+      case *f9fix_kVAL_TimeInForce_IOC:   rpt.TimeInForce_ = f9fmkt_TimeInForce_IOC;   break;
+      case *f9fix_kVAL_TimeInForce_FOK:   rpt.TimeInForce_ = f9fmkt_TimeInForce_FOK;   break;
+      }
+   }
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_OrdType)) != nullptr) {
+      switch (fixfld->Value_.Get1st()) {
+      case *f9fix_kVAL_OrdType_Limit:  rpt.PriType_ = f9fmkt_PriType_Limit;   break;
+      case *f9fix_kVAL_OrdType_Market: rpt.PriType_ = f9fmkt_PriType_Market;  break;
+      }
+   }
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_Price)) != nullptr) {
+      rpt.Pri_ = fon9::StrTo(fixfld->Value_, rpt.Pri_);
+      if (rpt.Pri_.GetOrigValue() == 0)
+         rpt.Pri_.AssignNull();
+   }
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_TwseIvacnoFlag)) != nullptr)
+      rpt.IvacNoFlag_.Chars_[0] = static_cast<char>(fixfld->Value_.Get1st());
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_TwseOrdType)) != nullptr)
+      rpt.OType_ = static_cast<OmsTwsOType>(fixfld->Value_.Get1st());
+   AssignTwsReportBase(rpt, rxargs, core->TDay());
+   core->MoveToCore(std::move(runner));
+}
+void TwsTradingLineFixFactory::OnFixExecFilled(const f9fix::FixRecvEvArgs& rxargs) {
+   auto             core = this->CoreMgr_.CurrentCore();
+   OmsRequestRunner runner{rxargs.MsgStr_};
+   runner.Request_ = this->FilFac_.MakeReportIn(f9fmkt_RxKind_Filled);
+   assert(dynamic_cast<OmsTwsFilled*>(runner.Request_.get()) != nullptr);
+
+   OmsTwsFilled&  rpt = *static_cast<OmsTwsFilled*>(runner.Request_.get());
+   rpt.SetReportSt(f9fmkt_TradingRequestSt_Filled);
+   AssignRptBase(rpt, rxargs);
+   AssignReportSymbol(rpt.Symbol_, rxargs.Msg_);
+   rpt.Side_ = GetFixSide(rxargs.Msg_);
+   rpt.Time_ = GetFixTransactTime(rxargs.Msg_, core->TDay());
+   const fon9::fix::FixParser::FixField* fixfld;
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_Account)) != nullptr)
+      rpt.IvacNo_ = fon9::StrTo(fixfld->Value_, 0u);
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_LastPx)) != nullptr)
+      rpt.Pri_ = fon9::StrTo(fixfld->Value_, rpt.Pri_);
+   rpt.Qty_ = GetFixFieldQty(rxargs.Msg_, f9fix_kTAG_LastQty);
+   if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_ExecID)) != nullptr) {
+      // fixfld->Value_[0]==Side;
+      rpt.MatchKey_ = fon9::StrTo(fon9::StrView{fixfld->Value_.begin() + 1, fixfld->Value_.end()},
+                                  rpt.MatchKey_);
+   }
+   core->MoveToCore(std::move(runner));
 }
 //--------------------------------------------------------------------------//
-TwsTradingLineFixFactory::TwsTradingLineFixFactory(OmsCoreMgr& coreMgr, std::string fixLogPathFmt, Named&& name)
+TwsTradingLineFixFactory::TwsTradingLineFixFactory(
+   OmsCoreMgr&          coreMgr,
+   OmsTwsReportFactory& rptFactory,
+   OmsTwsFilledFactory& filFactory,
+   std::string          fixLogPathFmt,
+   Named&&              name)
    : base(std::move(fixLogPathFmt), std::move(name))
-   , CoreMgr_(coreMgr) {
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_ExecutionReport).FixMsgHandler_ = &OnFixExecutionReport;
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderCancelReject).FixMsgHandler_ = &OnFixCancelReject;
+   , CoreMgr_(coreMgr)
+   , RptFac_(rptFactory), FilFac_(filFactory) {
 
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_NewOrderSingle).FixRejectHandler_ = &OnFixReject;
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderReplaceRequest).FixRejectHandler_ = &OnFixReject;
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderCancelRequest).FixRejectHandler_ = &OnFixReject;
-   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderStatusRequest).FixRejectHandler_ = &OnFixReject;
+   using namespace std::placeholders;
+   auto onFixReject = std::bind(&TwsTradingLineFixFactory::OnFixReject, this, _1, _2);
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_NewOrderSingle)     .FixRejectHandler_ = onFixReject;
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderReplaceRequest).FixRejectHandler_ = onFixReject;
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderCancelRequest) .FixRejectHandler_ = onFixReject;
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderStatusRequest) .FixRejectHandler_ = onFixReject;
+
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_ExecutionReport).FixMsgHandler_
+      = std::bind(&TwsTradingLineFixFactory::OnFixExecReport, this, _1);
+
+   this->FixConfig_.Fetch(f9fix_kMSGTYPE_OrderCancelReject).FixMsgHandler_
+      = std::bind(&TwsTradingLineFixFactory::OnFixCancelReject, this, _1);
 }
 fon9::TimeStamp TwsTradingLineFixFactory::GetTDay() {
    if (auto core = this->CoreMgr_.CurrentCore())

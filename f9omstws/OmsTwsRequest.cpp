@@ -37,7 +37,7 @@ const OmsRequestIni* OmsTwsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& r
          if (this->Pri_.IsNull() && (this->PriType_ == f9fmkt_PriType_Limit || this->PriType_ == f9fmkt_PriType_Unknown))
             this->SessionId_ = f9fmkt_TradingSessionId_FixedPrice;
          else {
-            auto shUnit = scRes.GetTwsSymbShUnit();
+            auto shUnit = fon9::fmkt::GetTwsSymbShUnit(scRes.Symb_.get());
             if (this->Qty_ < shUnit)
                this->SessionId_ = f9fmkt_TradingSessionId_OddLot;
             else

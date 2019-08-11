@@ -152,6 +152,7 @@ private:
       ioMgr->LoadConfigStr(
          "Id"   _ "Enabled" _ "Sch" _ "Session" _ "SessionArgs" _ "Device"    _ "DeviceArgs\n"
          "RcSv" _ "Y"       _ ""    _ "RcSv"    _ ""            _ "TcpServer" _ "6601\n"
+         , fon9::TimeInterval_Second(1)
       );
       #undef _
    }

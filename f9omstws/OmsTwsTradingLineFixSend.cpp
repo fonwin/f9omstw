@@ -7,19 +7,32 @@
 
 namespace f9omstw {
 
-static inline char* RevPutFixed(char* pout, const size_t szFixed, fon9::StrView val) {
+// ----------
+static inline char* RevCopyFill(char* pout, const size_t szFixed, fon9::StrView val) {
    memset(pout -= szFixed, ' ', szFixed);
    const size_t szVal = val.size();
    memcpy(pout, val.begin(), szVal <= szFixed ? szVal : szFixed);
    return pout;
 }
+//template <size_t kDstSize, size_t kSrcSize>
+//static inline char* RevCopyFill(char* pout, const char* src) {
+//   static_assert(kDstSize <= kSrcSize, "kDstSize must small or equal then kSrcSize");
+//   if (void* pNul = memchr(memcpy(pout - kDstSize, src, kDstSize), '\0', kDstSize))
+//      memset(pNul, ' ', static_cast<size_t>(pout - static_cast<char*>(pNul)));
+//   return pout - kDstSize;
+//}
+//template <size_t kDstSize, size_t kSrcSize>
+//static inline char* RevCopyFill(char* pout, const fon9::CharAry<kSrcSize>& src) {
+//   return RevCopyFill<kDstSize, kSrcSize>(pout, src.begin());
+//}
+// ----------
 static inline char* RevPutStr(char* pout, const void* pstr, size_t sz) {
    return reinterpret_cast<char*>(memcpy(pout -= sz, pstr, sz));
 }
 static inline char* RevPutStr(char* pout, fon9::StrView val) {
    return RevPutStr(pout, val.begin(), val.size());
 }
-
+// ----------
 TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequest& req) {
    assert(dynamic_cast<OmsRequestTrade*>(&req) != nullptr);
    assert(dynamic_cast<TwsTradingLineMgr*>(&this->FixManager_) != nullptr);
@@ -34,16 +47,12 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    OmsRequestRunnerInCore* runner = static_cast<TwsTradingLineMgr*>(&this->FixManager_)
       ->MakeRunner(tmpRunner, *curReq, 256u);
 
-   enum TwseApCode : char {
-      TwseApCode_Regular = '0',
-      TwseApCode_FixedPrice = '7',
-      TwseApCode_OddLot = '2',
-   }  twseApCode;
+   f9tws::TwsApCode  twsApCode;
    fon9_WARN_DISABLE_SWITCH;
    switch (req.SessionId()) {
-   case f9fmkt_TradingSessionId_Normal:      twseApCode = TwseApCode_Regular;    break;
-   case f9fmkt_TradingSessionId_OddLot:      twseApCode = TwseApCode_OddLot;     break;
-   case f9fmkt_TradingSessionId_FixedPrice:  twseApCode = TwseApCode_FixedPrice; break;
+   case f9fmkt_TradingSessionId_Normal:      twsApCode = f9tws::TwsApCode::Regular;    break;
+   case f9fmkt_TradingSessionId_OddLot:      twsApCode = f9tws::TwsApCode::OddLot;     break;
+   case f9fmkt_TradingSessionId_FixedPrice:  twsApCode = f9tws::TwsApCode::FixedPrice; break;
    default:
       runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_SessionId, nullptr);
       return SendResult::RejectRequest;
@@ -141,7 +150,7 @@ __REQUEST_DELETE:
             if (auto* chgQtyReq = dynamic_cast<const OmsTwsRequestChg*>(curReq)) {
                // OrderQty = 整股:欲刪數量, 零股:剩餘數量.
                // 20200323 零股也改成:欲刪數量, 那時應將 isWantToKill 設為 true;
-               const bool isWantToKill = (twseApCode != TwseApCode_OddLot);
+               const bool isWantToKill = (twsApCode != f9tws::TwsApCode::OddLot);
                const auto reqQty = chgQtyReq->Qty_;
                if (reqQty < 0) {
                   if (fon9_LIKELY(isWantToKill)) {
@@ -229,8 +238,8 @@ __REQUEST_DELETE:
             return SendResult::RejectRequest;
          }
 
-         if (fon9_LIKELY(twseApCode != TwseApCode_OddLot))
-            fixQty /= order.ScResource().GetTwsSymbShUnit();
+         if (fon9_LIKELY(twsApCode != f9tws::TwsApCode::OddLot))
+            fixQty /= f9fmkt::GetTwsSymbShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
          // if (fon9_UNLIKELY(fixQty > 999)) {
          //    runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
          //    return SendResult::RejectRequest;
@@ -245,19 +254,20 @@ __REQUEST_DELETE:
       }
       else {
          // OrigClOrdID.
-         pout = RevPutFixed(pout, f9tws::ClOrdID::size(), ToStrView(iniReq->ReqUID_));
+         pout = RevCopyFill(pout, f9tws::ClOrdID::size(), ToStrView(iniReq->ReqUID_));
          pout = RevPutStr(pout, f9fix_SPLTAGEQ(OrigClOrdID));
       }
       // 帳號必須填滿7碼, 前方補 '0'.
       pout = fon9::Pic9ToStrRev<7>(pout, iniReq->IvacNo_);
       pout = RevPutStr(pout, f9fix_SPLTAGEQ(Account));
    }
-   pout = RevPutFixed(pout, f9tws::StkNo::size(), ToStrView(iniReq->Symbol_));
+   pout = RevCopyFill(pout, f9tws::StkNo::size(), ToStrView(iniReq->Symbol_));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(Symbol));
-   pout = RevPutStr(pout, ToStrView(runner->OrderRaw_.OrdNo_));
+   assert(ToStrView(runner->OrderRaw_.OrdNo_).size() == sizeof(OmsOrdNo));
+   pout = RevPutStr(pout, runner->OrderRaw_.OrdNo_.begin(), sizeof(OmsOrdNo));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(OrderID));
    // ClOrdID
-   pout = RevPutFixed(pout, f9tws::ClOrdID::size(), ToStrView(curReq->ReqUID_));
+   pout = RevCopyFill(pout, f9tws::ClOrdID::size(), ToStrView(curReq->ReqUID_));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(ClOrdID));
    // -----------
    // fix header:
@@ -265,7 +275,7 @@ __REQUEST_DELETE:
    pout = RevPutStr(pout, iniReq->BrkId_.begin(), iniReq->BrkId_.size());
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(SenderSubID));
    // "TargetSubID=ApCode"
-   *--pout = twseApCode;
+   *--pout = static_cast<char>(twsApCode);
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(TargetSubID));
    // -----------
    fixb.GetBuffer().SetPrefixUsed(pout);

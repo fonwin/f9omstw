@@ -19,12 +19,6 @@ struct OmsScResource {
    OmsIvBaseSP          Ivr_;
    OmsIvSymbSP          IvSymb_;
 
-   uint32_t GetTwsSymbShUnit() const {
-      if (const auto* symb = this->Symb_.get())
-         if (0 < symb->ShUnit_)
-            return symb->ShUnit_;
-      return 1000; // 台灣證券大部分的商品 1張 = 1000股.
-   }
    void CheckMoveFrom(OmsScResource&& rhs) {
       if (!this->Symb_)    this->Symb_   = std::move(rhs.Symb_);
       if (!this->Ivr_)     this->Ivr_    = std::move(rhs.Ivr_);
@@ -86,6 +80,9 @@ public:
    OmsScResource&       ScResource()         { return this->ScResource_; }
 
    OmsBrk* GetBrk(OmsResource& res) const;
+
+   template <class SymbId>
+   fon9::fmkt::Symb* GetSymb(OmsResource& res, const SymbId& symbid);
 
    /// 透過 this->Creator_->MakeOrderRawImpl() 建立委託異動資料.
    /// - 通常配合 OmsRequestRunnerInCore 建立 runner; 然後執行下單(或回報)步驟.

@@ -24,10 +24,10 @@ set(f9omstw_src
  OmsRequestTrade.cpp
  OmsRequestFactory.cpp
  OmsRequestRunner.cpp
+
  OmsOrder.cpp
  OmsOrderFactory.cpp
  OmsEventFactory.cpp
-
  OmsReportFilled.cpp
 
  OmsRequestPolicy.cpp

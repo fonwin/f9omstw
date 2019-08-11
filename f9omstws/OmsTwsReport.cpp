@@ -2,7 +2,6 @@
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
-#include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
@@ -15,6 +14,15 @@ void OmsTwsReport::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwsReport, BeforeQty));
 }
 //--------------------------------------------------------------------------//
+static void AdjustQtyUnit(OmsOrder& order, OmsResource& res, OmsTwsReport& rpt) {
+   if (rpt.SessionId() == f9fmkt_TradingSessionId_OddLot)
+      return;
+   auto shUnit = fon9::fmkt::GetTwsSymbShUnit(order.GetSymb(res, rpt.Symbol_));
+   if ((rpt.Qty_ % shUnit) != 0 || (rpt.BeforeQty_ % shUnit) != 0) {
+      rpt.Qty_ *= shUnit;
+      rpt.BeforeQty_ *= shUnit;
+   }
+}
 static void AdjustLeavesQty(OmsRequestRunnerInCore& inCoreRunner) {
    OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
    if (ordraw.BeforeQty_ == ordraw.AfterQty_)
@@ -128,10 +136,14 @@ static void AssignOrderRawSt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsReport&
 //--------------------------------------------------------------------------//
 // origReq 的後續回報.
 void OmsTwsReport::RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestBase& origReq) {
-   assert(this->RxKind_ == origReq.RxKind());
-   if (this->RxKind_ != origReq.RxKind()) {
-      runner.ReportAbandon("TwsReport: Report kind not match orig request.");
-      return;
+   if (this->RxKind_ == f9fmkt_RxKind_Unknown)
+      this->RxKind_ = origReq.RxKind();
+   else {
+      assert(this->RxKind_ == origReq.RxKind());
+      if (this->RxKind_ != origReq.RxKind()) {
+         runner.ReportAbandon("TwsReport: Report kind not match orig request.");
+         return;
+      }
    }
    if (runner.RunnerSt_ != OmsReportRunnerSt::NotReceived) {
       // 不確定是否有收過此回報: 檢查是否重複回報.
@@ -150,7 +162,9 @@ void OmsTwsReport::RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestB
       // * 如果券商主機的回報格式, 可以辨別下單要求來源是否為 f9oms, 則可將其過濾, 只處理「非 f9oms」的回報.
       // * 如果無法辨別, 則 f9oms 之間「不可以」互傳回報.
    }
-   OmsOrder&               order = origReq.LastUpdated()->Order();
+   OmsOrder& order = origReq.LastUpdated()->Order();
+   AdjustQtyUnit(order, runner.Resource_, *this);
+
    OmsRequestRunnerInCore  inCoreRunner{std::move(runner), *order.BeginUpdate(origReq)};
    // ----- 新單回報 ---------------------------------------------
    if (fon9_LIKELY(this->RxKind() == f9fmkt_RxKind_RequestNew)) {
@@ -174,6 +188,7 @@ void OmsTwsReport::RunReportNew(OmsRequestRunnerInCore&& inCoreRunner) {
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
    OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
+   AdjustQtyUnit(ordraw.Order(), inCoreRunner.Resource_, *this);
    ordraw.OType_ = this->OType_;
    ordraw.OrdNo_ = this->OrdNo_;
    ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
@@ -184,6 +199,7 @@ void OmsTwsReport::RunReportNew(OmsRequestRunnerInCore&& inCoreRunner) {
 void OmsTwsReport::RunReportOrder(OmsRequestRunnerInCore&& inCoreRunner) {
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
+   AdjustQtyUnit(inCoreRunner.OrderRaw_.Order(), inCoreRunner.Resource_, *this);
    if (!this->OrdNo_.empty1st())
       inCoreRunner.OrderRaw_.OrdNo_ = this->OrdNo_;
    if (fon9_LIKELY(this->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep))

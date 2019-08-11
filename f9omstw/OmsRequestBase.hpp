@@ -160,6 +160,9 @@ public:
    OmsErrCode ErrCode() const {
       return this->ErrCode_;
    }
+   void SetErrCode(OmsErrCode ec) {
+      this->ErrCode_ = ec;
+   }
    /// 如果 this->IsAbandoned() 則傳回失敗時提供的訊息.
    /// - 可能為 nullptr, 表示只提供 ErrCode(), 沒提供額外訊息.
    const std::string* AbandonReason() const {

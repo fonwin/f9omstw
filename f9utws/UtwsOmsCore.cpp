@@ -44,9 +44,6 @@ public:
 using OmsTwsRequestIniFactory = OmsRequestFactoryT<OmsTwsRequestIni, kPoolObjCount>;
 using OmsTwsRequestChgFactory = OmsRequestFactoryT<OmsTwsRequestChg, kPoolObjCount>;
 //--------------------------------------------------------------------------//
-using OmsTwsReportFactory = OmsReportFactoryT<OmsTwsReport>;
-using OmsTwsFilledFactory = OmsReportFactoryT<OmsTwsFilled>;
-//--------------------------------------------------------------------------//
 struct UomsTwsIniRiskCheck : public OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(UomsTwsIniRiskCheck);
    using base = OmsRequestRunStep;
@@ -109,12 +106,19 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
       , ExgLineMgr_{*static_cast<OmsCoreMgr*>(Sapling_.get())} {
       OmsCoreMgr* coreMgr = static_cast<OmsCoreMgr*>(this->Sapling_.get());
 
+      UomsOrderTwsFactory* ordfac = new UomsOrderTwsFactory;
+      coreMgr->SetOrderFactoryPark(new OmsOrderFactoryPark{ordfac});
+      OmsTwsReportFactorySP  rptFactory = new OmsTwsReportFactory("TwsRpt", ordfac);
+      OmsTwsFilledFactorySP  filFactory = new OmsTwsFilledFactory("TwsFil", ordfac);
+
       fon9::IoManagerArgs ioargs;
       ioargs.DeviceFactoryPark_ = devfp;
       ioargs.SessionFactoryPark_ = fon9::seed::FetchNamedPark<fon9::SessionFactoryPark>(*coreMgr, "FpSession");
 
       const std::string logpath = fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_);
-      ioargs.SessionFactoryPark_->Add(new TwsTradingLineFixFactory(*coreMgr, logpath, fon9::Named{"FIX44"}));
+      ioargs.SessionFactoryPark_->Add(new TwsTradingLineFixFactory(*coreMgr, *rptFactory, *filFactory,
+                                                                   logpath,
+                                                                   fon9::Named{"FIX44"}));
 
       const std::string cfgpath = fon9::seed::SysEnv_GetConfigPath(*this->Root_).ToString();
       ioargs.Name_ = "UtwSEC";
@@ -131,17 +135,13 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
       this->ExgLineMgr_.OtcTradingLineMgr_.reset(new TwsTradingLineMgr{ioargs, f9fmkt_TradingMarket_TwOTC});
       AddNamedSapling(*coreMgr, this->ExgLineMgr_.OtcTradingLineMgr_);
 
-      UomsOrderTwsFactory* ordfac = new UomsOrderTwsFactory;
-      coreMgr->SetOrderFactoryPark(new OmsOrderFactoryPark{ordfac});
-
       coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
          new OmsTwsRequestIniFactory("TwsNew", ordfac,
                                      OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                         OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}})}),
          new OmsTwsRequestChgFactory("TwsChg",
                                      OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}}),
-         new OmsTwsFilledFactory("TwsFil", ordfac),
-         new OmsTwsReportFactory("TwsRpt", ordfac)
+         rptFactory, filFactory
       ));
       coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
    }
@@ -153,8 +153,6 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
       UtwsOmsCore* core = new UtwsOmsCore(static_cast<OmsCoreMgr*>(this->Sapling_.get()),
                                           rbuf.ToStrT<std::string>(),
                                           std::move(coreName));
-      if (!static_cast<OmsCoreMgr*>(this->Sapling_.get())->Add(core))
-         return false;
       fon9::TimedFileName logfn(fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_), fon9::TimedFileName::TimeScale::Day);
       // oms log 檔名與 TDay 相關, 與 TimeZone 無關, 所以要扣除 logfn.GetTimeChecker().GetTimeZoneOffset();
       logfn.RebuildFileName(tday - logfn.GetTimeChecker().GetTimeZoneOffset());
@@ -163,7 +161,8 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
       core->SetTitle(std::move(fname));
       if (res.IsError())
          core->SetDescription(fon9::RevPrintTo<std::string>(res));
-      return true;
+      // 必須在載入完畢後再加入 CoreMgr, 否則可能造成 TDayChanged 事件處理者, 沒有取得完整的資料表.
+      return static_cast<OmsCoreMgr*>(this->Sapling_.get())->Add(core);
    }
 
    static bool Create(fon9::seed::PluginsHolder& holder, fon9::StrView args) {

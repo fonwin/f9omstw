@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstws_OmsTwsReport_hpp__
 #define __f9omstws_OmsTwsReport_hpp__
-#include "f9omstw/OmsReportFilled.hpp"
+#include "f9omstw/OmsReportFactory.hpp"
 #include "f9omstws/OmsTwsRequest.hpp"
 
 namespace f9omstw {
@@ -35,6 +35,9 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 };
+
+using OmsTwsReportFactory = OmsReportFactoryT<OmsTwsReport>;
+using OmsTwsReportFactorySP = fon9::intrusive_ptr<OmsTwsReportFactory>;
 
 } // namespaces
 #endif//__f9omstws_OmsTwsReport_hpp__

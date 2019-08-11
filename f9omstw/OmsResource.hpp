@@ -85,5 +85,12 @@ inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
    this->OrderRaw_.Order().EndUpdate(this->OrderRaw_, &this->Resource_);
 }
 
+template <class SymbId>
+inline fon9::fmkt::Symb* OmsOrder::GetSymb(OmsResource& res, const SymbId& symbid) {
+   if (!this->ScResource_.Symb_)
+      this->ScResource_.Symb_ = res.Symbs_->GetSymb(ToStrView(symbid));
+   return this->ScResource_.Symb_.get();
+}
+
 } // namespaces
 #endif//__f9omstw_OmsResource_hpp__

@@ -53,12 +53,19 @@ OmsRequestRunStep::~OmsRequestRunStep() {
 }
 //--------------------------------------------------------------------------//
 void OmsReportRunner::ReportAbandon(fon9::StrView reason) {
+   assert(this->Report_->RxSNO() == 0);
    this->RunnerSt_ = OmsReportRunnerSt::Abandoned;
-   fon9::RevPrint(this->ExLog_, fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL,
-                  reason, fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL);
-   this->Report_->RevPrint(this->ExLog_);
-   fon9::RevPrint(this->ExLog_, "ReportAbandon:");
-   this->Resource_.Backend_.LogAppend(std::move(this->ExLog_));
+   fon9::RevPrint(this->ExLog_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+   if ((this->Report_->RxItemFlags() & OmsRequestFlag_ForcePublish) == OmsRequestFlag_ForcePublish) {
+      this->Report_->Abandon(OmsErrCode_Bad_Report, reason.ToString());
+      this->Resource_.Backend_.LogAppend(*this->Report_, std::move(this->ExLog_));
+   }
+   else {
+      fon9::RevPrint(this->ExLog_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL, reason);
+      this->Report_->RevPrint(this->ExLog_);
+      fon9::RevPrint(this->ExLog_, "ReportAbandon:");
+      this->Resource_.Backend_.LogAppend(std::move(this->ExLog_));
+   }
 }
 OmsOrdNoMap* OmsReportRunner::GetOrdNoMap() {
    OmsBrk* brk = this->Resource_.Brks_->GetBrkRec(ToStrView(this->Report_->BrkId_));

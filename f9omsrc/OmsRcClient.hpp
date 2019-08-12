@@ -47,6 +47,8 @@ struct OmsRcClientConfig : public f9OmsRc_ClientConfig {
    OmsRcClientConfig() {
       fon9::ZeroStruct(static_cast<f9OmsRc_ClientConfig*>(this));
    }
+   OmsRcClientConfig(const f9OmsRc_ClientConfig* src) : f9OmsRc_ClientConfig{*src} {
+   }
    fon9::TimeStamp   TDay_;
    std::string       OmsSeedPath_;
    std::string       LayoutsStr_;

@@ -19,6 +19,9 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_OrderNotFound = 1,
    /// 委託書號已存在, 但遺漏新單回報.
    OmsErrCode_OrderInitiatorNotFound = 2,
+   /// 有問題的 Report(例如:TwsRpt): 可能是重複回報, 回報內容不正確...
+   /// 此類回報如果 RxSNO==0, 則無法回補.
+   OmsErrCode_Bad_Report = 3,
 
    /// OmsCore::RunInCore();
    /// Request_->Creator_->RunStep_ 沒定義.

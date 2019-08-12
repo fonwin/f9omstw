@@ -30,7 +30,7 @@ static void AdjustLeavesQty(OmsRequestRunnerInCore& inCoreRunner) {
    ordraw.LeavesQty_ = ordraw.LeavesQty_ + ordraw.AfterQty_ - ordraw.BeforeQty_;
    if (fon9_UNLIKELY(fon9::signed_cast(ordraw.LeavesQty_) < 0)) {
       fon9::RevPrint(inCoreRunner.ExLogForUpd_, "Bad.Leaves=", fon9::signed_cast(ordraw.LeavesQty_),
-                     fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL);
+                     fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
       ordraw.LeavesQty_ = 0;
    }
    if (ordraw.LeavesQty_ == 0)
@@ -125,7 +125,7 @@ static void AssignOrderRawSt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsReport&
    else { // ordraw 異動的是已存在的 request, this 即將被刪除, 所以使用 std::move(this->Message_)
       ordraw.Message_ = std::move(rpt.Message_);
       if (IsEnumContains(rpt.RequestFlags(), OmsRequestFlag_ReportNeedsLog)) {
-         fon9::RevPrint(inCoreRunner.ExLogForUpd_, fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL);
+         fon9::RevPrint(inCoreRunner.ExLogForUpd_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
          rpt.RevPrint(inCoreRunner.ExLogForUpd_);
       }
    }
@@ -197,6 +197,7 @@ void OmsTwsReport::RunReportNew(OmsRequestRunnerInCore&& inCoreRunner) {
 }
 // 刪改查回報.
 void OmsTwsReport::RunReportOrder(OmsRequestRunnerInCore&& inCoreRunner) {
+   assert(this->RxKind() != f9fmkt_RxKind_Unknown);
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
    AdjustQtyUnit(inCoreRunner.OrderRaw_.Order(), inCoreRunner.Resource_, *this);
@@ -241,9 +242,8 @@ void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
    if ((order = ordnoMap->GetOrder(this->OrdNo_)) != nullptr) {
       assert(order->Head() != nullptr);
       if (this->RxKind() == f9fmkt_RxKind_RequestNew) {
-         if (order->Initiator() != nullptr)
-            // 新單已存在 => 此次為重複回報.
-            runner.ReportAbandon("OmsTwsReport: Initiator already exists.");
+         if (auto origReq = order->Initiator())
+            this->RunReportFromOrig(std::move(runner), *origReq);
          else
             this->RunReportNew(OmsRequestRunnerInCore{std::move(runner), *order->BeginUpdate(*this)});
          return;
@@ -251,7 +251,7 @@ void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
       const OmsOrderRaw* ordu = order->Head();
       do {
          const OmsRequestBase& requ = ordu->Request();
-         if (requ.RxKind() == this->RxKind()
+         if ((requ.RxKind() == this->RxKind() || this->RxKind() == f9fmkt_RxKind_Unknown)
              && static_cast<const OmsTwsOrderRaw*>(ordu)->BeforeQty_ == this->BeforeQty_
              && static_cast<const OmsTwsOrderRaw*>(ordu)->AfterQty_ == this->Qty_) {
             if (static_cast<const OmsTwsOrderRaw*>(ordu)->LastExgTime_ == this->ExgTime_
@@ -263,10 +263,16 @@ void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
          }
       } while ((ordu = ordu->Next()) != nullptr);
       // order 裡面沒找到 origReq: this = 刪改查回報.
-      this->RunReportOrder(OmsRequestRunnerInCore{std::move(runner), *order->BeginUpdate(*this)});
-      return;
+      if (this->RxKind_ != f9fmkt_RxKind_Unknown) {
+         this->RunReportOrder(OmsRequestRunnerInCore{std::move(runner), *order->BeginUpdate(*this)});
+         return;
+      }
    }
    // ----- 委託不存在 --------------------------------------------------
+   if (this->RxKind_ == f9fmkt_RxKind_Unknown) {
+      runner.ReportAbandon("TwsReport: Unknown report kind.");
+      return;
+   }
    assert(this->Creator().OrderFactory_.get() != nullptr);
    OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get();
    if (fon9_UNLIKELY(ordfac == nullptr)) {
@@ -327,7 +333,7 @@ static void ProcessPendingReportFromOrderRaw(OmsResource& res, const OmsRequestB
       AdjustLeavesQty(inCoreRunner);
       break;
    default: // 「新、查」不會 ReportPending.
-      assert(!"TwsPendingReport: Unknown req.RxKind()");
+      ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
       ordraw.Message_.assign("TwsPendingReport: Unknown RxKind.");
       break;
    }

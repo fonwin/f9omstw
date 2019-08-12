@@ -54,6 +54,7 @@ void AssignTwsReportMessage(OmsTwsReport& rpt, const fon9::fix::FixParser& fixms
    case 5: // 0005:ORDER NOT FOUND
            // 是否需要再送一次刪單? 因為可能新單還在路上(尚未送達交易所), 就已送出刪單要求,
            // 若刪單要求比新單要求早送達交易所, 就會有 "0005:ORDER NOT FOUND" 的錯誤訊息.
+           // 或是重送刪單時「指定線路(送出新單的線路)」
       switch (req->OrderSt_) {
       case TOrderSt_NewSending:
       case TOrderSt_OtherNewSending:

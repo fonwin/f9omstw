@@ -280,7 +280,7 @@ static void LogConfig(fon9::LogLevel lv, f9OmsRc_ClientSession* ses, const OmsRc
    fon9::LogWrite(lv, std::move(rbuf_));
 }
 void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) {
-   OmsRcClientConfig cfg;
+   OmsRcClientConfig cfg{&this->Config_};
    fon9::BitvTo(param.RecvBuffer_, cfg.TDay_);
    fon9::BitvTo(param.RecvBuffer_, cfg.OmsSeedPath_);
    fon9::BitvTo(param.RecvBuffer_, cfg.CoreTDay_.HostId_);

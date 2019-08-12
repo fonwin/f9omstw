@@ -191,8 +191,23 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    runner.ExLog_.SetPrefixUsed(pout);
    param.RecvBuffer_.Read(pout, byteCount);
 
-   if (0); // Rc client 端使用 TwsRpt 補登回報(補單)?
    runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
+   if (fon9_UNLIKELY(!runner.Request_)) {
+      // Rc client 端使用 TwsRpt 補登回報(補單).
+      runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
+      if (!runner.Request_) {
+         ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
+         return;
+      }
+      // 回報權限需要自主檢查.
+      auto* pol = this->Handler_->RequestPolicy_.get();
+      if (pol == nullptr || !runner.CheckReportRights(*pol)) {
+         ses.ForceLogout("OmsRcServer:deny input report.");
+         return;
+      }
+      runner.Request_->SetReportNeedsLog();
+      runner.Request_->SetForcePublish();
+   }
    ApiReqFieldArg arg{*runner.Request_, ses};
    for (const auto& fldcfg : cfg.ApiFields_) {
       arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
@@ -207,8 +222,12 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
          (*fldcfg.FnPut_)(fldcfg, arg);
    }
    const char* cstrForceLogout;
+   if (fon9_UNLIKELY(runner.Request_->IsReportIn())) // 回報補單不用考慮流量, 且沒有 SetPolicy().
+      goto __RUN_REPORT;
+
    if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
       static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(this->Handler_->RequestPolicy_);
+   __RUN_REPORT:
       if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner))))
          return;
       cstrForceLogout = nullptr;

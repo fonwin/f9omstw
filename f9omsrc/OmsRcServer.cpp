@@ -569,7 +569,7 @@ void ApiSesCfg::OnReport(OmsCore& core, const OmsRxItem& item) {
    if (this->CurrentCore_.get() != &core)
       return;
    fon9::RevBufferList  rbuf{128};
-   if (this->MakeReportMessage(rbuf, item)) {
+   if (this->MakeReportMessage(rbuf, item) && item.RxSNO() != 0) {
       this->ReportMessage_.clear();
       fon9::BufferAppendTo(rbuf.MoveOut(), this->ReportMessage_);
       this->ReportMessageFor_ = &item;

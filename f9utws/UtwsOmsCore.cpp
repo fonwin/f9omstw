@@ -121,17 +121,36 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
                                                                    fon9::Named{"FIX44"}));
 
       const std::string cfgpath = fon9::seed::SysEnv_GetConfigPath(*this->Root_).ToString();
-      ioargs.Name_ = "UtwSEC";
-      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + "_io.f9gv";
+      ioargs.Name_ = "UtwSEC_io";
+      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
       this->ExgLineMgr_.TseTradingLineMgr_.reset(new TwsTradingLineMgr{ioargs, f9fmkt_TradingMarket_TwSEC});
       AddNamedSapling(*coreMgr, this->ExgLineMgr_.TseTradingLineMgr_);
 
-      if (0);//櫃號設定, 是否要共用 IoService?
-      // ioargs.IoServiceSrc_ = this->ExgLineMgr_.TseTradingLineMgr_;
-      // 設定 & 儲存設定?
+      if (0);// 櫃號設定、是否共用 IoService? OmsErrCode錯誤碼設定...
+      // - this->ExgLineMgr_.TseTradingLineMgr_、OtcTradingLineMgr_:
+      //   - 櫃號設定.
+      //   - 共用 IoService?
+      //     - ioargs.IoServiceSrc_ = this->ExgLineMgr_.TseTradingLineMgr_;
+      //     - ioargs.IoServiceSrc_ = /MaIo;
+      // - 設定 & 儲存設定?
+      // ------------------------------------------------------------------
+      // OmsErrCode: 錯誤碼設定:
+      // - ec
+      // - 行為 + 行為參數.
+      //   - Resend: N 次
+      //     - 在時間區間 beg-end
+      //     - 那些需要重送?
+      //       - 新單傳送中?
+      //       - OType+Src: 借券賣? NotDMA? 借券賣+NotDMA? 
+      //   - ExchangeLeavesQty=0;
+      //   - 新單失敗.
+      // - Memo
+      // ------------------------
+      // - Text 客戶端顯示的文字, 使用翻譯檔, f9oms核心不載入, 由 client 自行處理.
+      // ------------------------------------------------------------------
 
-      ioargs.Name_ = "UtwOTC";
-      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + "_io.f9gv";
+      ioargs.Name_ = "UtwOTC_io";
+      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
       this->ExgLineMgr_.OtcTradingLineMgr_.reset(new TwsTradingLineMgr{ioargs, f9fmkt_TradingMarket_TwOTC});
       AddNamedSapling(*coreMgr, this->ExgLineMgr_.OtcTradingLineMgr_);
 

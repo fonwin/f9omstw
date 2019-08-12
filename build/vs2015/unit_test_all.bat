@@ -3,7 +3,7 @@
 @REM
 
 @echo off
-set EXEDIR = \devel\output\f9omstw\64\Debug
+set EXEDIR=\devel\output\f9omstw\64\Debug
 
 del *.log
 
@@ -11,7 +11,7 @@ del *.log
 %EXEDIR%\OmsRequestPolicy_UT
 
 @REM -----------------------
-@REM Test twice, 2nd test for reload prev log.
+@REM 測試 2 次, 第2次會載入前次資料.
 %EXEDIR%\OmsRequestTrade_UT
 %EXEDIR%\OmsRequestTrade_UT
 

@@ -113,7 +113,7 @@ void OmsTwsFilled::UpdateCum(OmsRequestRunnerInCore&& inCoreRunner) const {
    ordraw.CumAmt_ += OmsTwsAmt{this->Pri_} *this->Qty_;
    if (fon9::signed_cast(ordraw.AfterQty_ -= this->Qty_) < 0) {
       fon9::RevPrint(inCoreRunner.ExLogForUpd_, "Bad.After=", fon9::signed_cast(ordraw.AfterQty_),
-                     fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL);
+                     fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
       ordraw.AfterQty_ = 0;
    }
    ordraw.UpdateOrderSt_ = ((ordraw.LeavesQty_ = ordraw.AfterQty_) <= 0

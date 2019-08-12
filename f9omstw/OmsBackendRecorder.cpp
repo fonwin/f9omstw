@@ -39,9 +39,13 @@ void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
 void OmsBackend::SaveQuItems(QuItems& quItems) {
    fon9::DcQueueList dcq;
    for (QuItem& qi : quItems) {
+      if (fon9_UNLIKELY(qi.Item_ && qi.Item_->RxSNO() == 0)) {
+         qi.Item_->RevPrint(qi.ExLog_);
+         fon9::RevPrint(qi.ExLog_, "NoRecover:");
+      }
       if (auto exsz = fon9::CalcDataSize(qi.ExLog_.cfront()))
          fon9::RevPrint(qi.ExLog_, *fon9_kCSTR_CELLSPL, exsz + 1, *fon9_kCSTR_CELLSPL);
-      if (qi.Item_) {
+      if (qi.Item_ && qi.Item_->RxSNO() != 0) {
          fon9::RevPrint(qi.ExLog_, *fon9_kCSTR_ROWSPL);
          qi.Item_->RevPrint(qi.ExLog_);
          fon9::RevPrint(qi.ExLog_, qi.Item_->RxSNO(), *fon9_kCSTR_CELLSPL);

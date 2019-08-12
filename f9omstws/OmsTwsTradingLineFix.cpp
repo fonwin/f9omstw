@@ -16,7 +16,7 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
    // 所以用 orig 找原始下單要求, 如果找不到, 就拋棄此筆回報.
    if (const auto* fixfld = orig.Msg_.GetField(f9fix_kTAG_ClOrdID)) {
       OmsRequestRunner runner{rxargs.MsgStr_};
-      fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL fon9_kCSTR_CELLSPL);
+      fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
       runner.Request_ = this->RptFac_.MakeReportIn(f9fmkt_RxKind_Unknown);
       assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
 

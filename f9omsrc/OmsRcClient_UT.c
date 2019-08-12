@@ -2,40 +2,38 @@
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omsrc/OmsRc.h"
+#include "fon9/ConsoleIO.h"
 
 fon9_BEFORE_INCLUDE_STD;
-#  include <stdio.h>
-#  include <inttypes.h>
-#  include <ctype.h>
-#  include <string.h>
-#  include <stdlib.h>
-#  ifdef fon9_WINDOWS
-#     define _WINSOCKAPI_ // stops Windows.h including winsock.h
-#     define NOMINMAX     // stops Windows.h #define max()
-#     include <Windows.h>
-#     include <crtdbg.h>
-#     include <thr/xtimec.h>
-      inline void SleepMS(DWORD ms) {
-         Sleep(ms);
-      }
-      inline uint64_t GetSystemUS() {
-         #define DELTA_EPOCH_IN_USEC  11644473600000000ui64
-         FILETIME  ft;
-         GetSystemTimePreciseAsFileTime(&ft);
-         return((((uint64_t)(ft.dwHighDateTime) << 32) | ft.dwLowDateTime) + 5) / 10 - DELTA_EPOCH_IN_USEC;
-      }
-#  else // fon9_WINDOWS..else
-#     include <unistd.h>
-#     include <sys/time.h>
-      inline void SleepMS(useconds_t ms) {
-         usleep(ms * 1000);
-      }
-      inline uint64_t GetSystemUS() {
-         struct timeval tv;
-         gettimeofday(&tv, (struct timezone*)NULL);
-         return tv.tv_sec * (uint64_t)1000000 + tv.tv_usec;
-      }
-   #  endif
+#include <stdio.h>
+#include <inttypes.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#ifdef fon9_WINDOWS
+#  include <crtdbg.h>
+#  include <thr/xtimec.h>
+   inline void SleepMS(DWORD ms) {
+      Sleep(ms);
+   }
+   inline uint64_t GetSystemUS() {
+      #define DELTA_EPOCH_IN_USEC  11644473600000000ui64
+      FILETIME  ft;
+      GetSystemTimePreciseAsFileTime(&ft);
+      return((((uint64_t)(ft.dwHighDateTime) << 32) | ft.dwLowDateTime) + 5) / 10 - DELTA_EPOCH_IN_USEC;
+   }
+#else // fon9_WINDOWS..else
+#  include <unistd.h>
+#  include <sys/time.h>
+   inline void SleepMS(useconds_t ms) {
+      usleep(ms * 1000);
+   }
+   inline uint64_t GetSystemUS() {
+      struct timeval tv;
+      gettimeofday(&tv, (struct timezone*)NULL);
+      return tv.tv_sec * (uint64_t)1000000 + tv.tv_usec;
+   }
+#endif
 fon9_AFTER_INCLUDE_STD;
 //--------------------------------------------------------------------------//
 char* StrTrimHead(char* pbeg) {
@@ -308,7 +306,6 @@ int main(int argc, char* argv[]) {
       }
    }
    if(sesParams.UserId_ == NULL
-   || sesParams.Password_ == NULL
    || sesParams.DevName_ == NULL
    || sesParams.DevParams_ == NULL) {
 __USAGE:
@@ -341,6 +338,11 @@ __USAGE:
            "-p Password\n");
       return 3;
    }
+   char  passwd[1024];
+   if (sesParams.Password_ == NULL) {
+      fon9_getpass(stdout, "Password: ", passwd, sizeof(passwd));
+      sesParams.Password_ = passwd;
+   }
    // ----------------------------
    f9OmsRc_Initialize(logFileFmt);
 
@@ -352,7 +354,7 @@ __USAGE:
    sesParams.UserData_ = &ud;
    f9OmsRc_CreateSession(&ud.Session_, &sesParams);
    // ----------------------------
-   char  cmdbuf[128];
+   char  cmdbuf[4096];
    for (;;) {
       printf("> ");
       if (!fgets(cmdbuf, sizeof(cmdbuf), stdin))

@@ -19,6 +19,8 @@ enum OmsRequestFlag : uint8_t {
    /// - 如果 runner.ExLog_ 已可完整記錄, 則不用此旗標.
    /// - 通常用於 Client 填入的回報補單?
    OmsRequestFlag_ReportNeedsLog = 0x04,
+   /// 如果 RxSNO=0 (例如:有問題的Report), 是否需要發行給訂閱者?
+   OmsRequestFlag_ForcePublish = 0x08,
 
    /// 無法進入委託流程: 無法建立 OmsOrder, 或找不到對應的 OmsOrder.
    OmsRequestFlag_Abandon = 0x80,
@@ -149,6 +151,15 @@ public:
    }
    bool IsReportIn() const {
       return (this->RxItemFlags_ & OmsRequestFlag_ReportIn) == OmsRequestFlag_ReportIn;
+   }
+   /// 設定 OmsRequestFlag_ReportNeedsLog 旗標.
+   void SetReportNeedsLog() {
+      assert(this->IsReportIn());
+      this->RxItemFlags_ |= OmsRequestFlag_ReportNeedsLog;
+   }
+   /// 設定 OmsRequestFlag_ForcePublish 旗標.
+   void SetForcePublish() {
+      this->RxItemFlags_ |= OmsRequestFlag_ForcePublish;
    }
    bool IsInitiator() const {
       return (this->RxItemFlags_ & OmsRequestFlag_Initiator) == OmsRequestFlag_Initiator;

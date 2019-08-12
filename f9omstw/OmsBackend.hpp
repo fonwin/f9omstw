@@ -151,6 +151,12 @@ public:
    /// - 在呼叫 Append() 之後就不應再變動 item 的內容.
    void Append(OmsRxItem& item, fon9::RevBufferList&& rbuf);
 
+   /// - assert(item.RxSNO() == 0);
+   /// - 不會將 item 加入 history. 所以不會改變 item.RxSNO();
+   /// - 將 item 內容使用 ExInfo 寫入 log.
+   /// - 訂閱者會收到 item, 訂閱者必須自行考慮 item.RxSNO()==0; 的情況.
+   void LogAppend(OmsRxItem& item, fon9::RevBufferList&& rbuf);
+
    /// 將自訂內容寫入 log.
    void LogAppend(fon9::RevBufferList&& rbuf) {
       Items::Locker{this->Items_}->QuItems_.emplace_back(nullptr, std::move(rbuf));

@@ -1,6 +1,7 @@
 set(f9omstw_src
  IvacNo.cpp
  OmsCore.cpp
+ OmsCoreMgr.cpp
  OmsCoreByThread.cpp
  OmsResource.cpp
  OmsTools.cpp
@@ -8,6 +9,7 @@ set(f9omstw_src
  OmsBackendRecorder.cpp
  OmsOrdTeam.cpp
  OmsOrdNoMap.cpp
+ OmsErrCodeAct.cpp
 
  OmsTree.cpp
  OmsIvBase.cpp
@@ -18,6 +20,7 @@ set(f9omstw_src
  OmsSubac.cpp
  OmsIvSymb.cpp
  OmsSymbTree.cpp
+ OmsErrCodeActTree.cpp
 
  OmsRequestId.cpp
  OmsRequestBase.cpp
@@ -29,6 +32,7 @@ set(f9omstw_src
  OmsOrderFactory.cpp
  OmsEventFactory.cpp
  OmsReportFilled.cpp
+ OmsReportRunner.cpp
 
  OmsRequestPolicy.cpp
  OmsPoIvList.cpp

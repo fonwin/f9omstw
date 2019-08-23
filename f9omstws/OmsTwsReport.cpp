@@ -2,7 +2,8 @@
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsReportRunner.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -23,7 +24,7 @@ static void AdjustQtyUnit(OmsOrder& order, OmsResource& res, OmsTwsReport& rpt) 
       rpt.BeforeQty_ *= shUnit;
    }
 }
-static void AdjustLeavesQty(OmsRequestRunnerInCore& inCoreRunner) {
+static void AdjustLeavesQty(OmsReportRunnerInCore& inCoreRunner) {
    OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
    if (ordraw.BeforeQty_ == ordraw.AfterQty_)
       return;
@@ -66,7 +67,7 @@ static void AssignTimeAndPri(OmsTwsOrderRaw& ordraw, const OmsTwsReport& rpt) {
    ordraw.LastPriType_ = rpt.PriType_;
    ordraw.LastPri_ = rpt.Pri_;
 }
-static void AssignOrderRawFromRpt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsReport& rpt) {
+static void AssignOrderRawFromRpt(OmsReportRunnerInCore& inCoreRunner, OmsTwsReport& rpt) {
    OmsTwsOrderRaw&   ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
    // ----- 查單回報 ---------------------------------------------
    if (rpt.RxKind() == f9fmkt_RxKind_RequestQuery) {
@@ -86,7 +87,7 @@ static void AssignOrderRawFromRpt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsRe
    else {
       // 回報的改後數量=0, 但有「在途成交」或「遺漏改量」, 應先等補齊後再處理.
       if (f9fmkt_TradingRequestSt_IsRejected(rpt.ReportSt())) {
-         if (rpt.ReportSt() == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {
+         if (ordraw.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {
             if (ordraw.LeavesQty_ > 0)
                goto __REPORT_PENDING;
          }
@@ -117,9 +118,8 @@ static void AssignOrderRawFromRpt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsRe
    // -----------------------------------------------------------
    AssignTimeAndPri(ordraw, rpt);
 }
-static void AssignOrderRawSt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsReport& rpt) {
-   OmsOrderRaw&   ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
-   ordraw.ErrCode_ = rpt.ErrCode();
+static void AssignOrderRawSt(OmsReportRunnerInCore& inCoreRunner, OmsTwsReport& rpt) {
+   OmsOrderRaw&   ordraw = inCoreRunner.OrderRaw_;
    if (&ordraw.Request() == &rpt)
       ordraw.Message_ = rpt.Message_;
    else { // ordraw 異動的是已存在的 request, this 即將被刪除, 所以使用 std::move(this->Message_)
@@ -131,24 +131,30 @@ static void AssignOrderRawSt(OmsRequestRunnerInCore& inCoreRunner, OmsTwsReport&
    }
    if (ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale)
       ordraw.Message_.append("(stale)");
-   inCoreRunner.Update(rpt.ReportSt());
+   inCoreRunner.Update(ordraw.RequestSt_);
 }
 //--------------------------------------------------------------------------//
 // origReq 的後續回報.
-void OmsTwsReport::RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestBase& origReq) {
-   if (this->RxKind_ == f9fmkt_RxKind_Unknown)
+void OmsTwsReport::RunReportFromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
+   if (this->RxKind() == f9fmkt_RxKind_Unknown)
       this->RxKind_ = origReq.RxKind();
-   else {
-      assert(this->RxKind_ == origReq.RxKind());
-      if (this->RxKind_ != origReq.RxKind()) {
-         runner.ReportAbandon("TwsReport: Report kind not match orig request.");
-         return;
+   else if (this->RxKind_ != origReq.RxKind()) {
+      if (this->RxKind_ == f9fmkt_RxKind_RequestDelete) {
+         if (origReq.RxKind() == f9fmkt_RxKind_RequestChgQty) {
+            // origReq 是改量, 但回報是刪單: 有可能發生,
+            // 因為改量要求如果會讓剩餘量為0; 則下單時可能會用「刪單訊息」.
+            goto __RX_KIND_OK;
+         }
       }
+      assert(this->RxKind_ == origReq.RxKind());
+      checker.ReportAbandon("TwsReport: Report kind not match orig request.");
+      return;
+   __RX_KIND_OK:;
    }
-   if (runner.RunnerSt_ != OmsReportRunnerSt::NotReceived) {
+   if (checker.CheckerSt_ != OmsReportCheckerSt::NotReceived) {
       // 不確定是否有收過此回報: 檢查是否重複回報.
       if (fon9_UNLIKELY(this->ReportSt() <= origReq.LastUpdated()->RequestSt_)) {
-         runner.ReportAbandon("TwsReport: Duplicate or Obsolete report.");
+         checker.ReportAbandon("TwsReport: Duplicate or Obsolete report.");
          return;
       }
       // origReq 已存在的回報, 不用考慮 BeforeQty, AfterQty 重複? 有沒有底下的可能?
@@ -163,9 +169,9 @@ void OmsTwsReport::RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestB
       // * 如果無法辨別, 則 f9oms 之間「不可以」互傳回報.
    }
    OmsOrder& order = origReq.LastUpdated()->Order();
-   AdjustQtyUnit(order, runner.Resource_, *this);
+   AdjustQtyUnit(order, checker.Resource_, *this);
 
-   OmsRequestRunnerInCore  inCoreRunner{std::move(runner), *order.BeginUpdate(origReq)};
+   OmsReportRunnerInCore  inCoreRunner{std::move(checker), *order.BeginUpdate(origReq)};
    // ----- 新單回報 ---------------------------------------------
    if (fon9_LIKELY(this->RxKind() == f9fmkt_RxKind_RequestNew)) {
       // 新單回報(已排除重複), 直接更新, 不需要考慮「保留」或 stale.
@@ -184,38 +190,40 @@ void OmsTwsReport::RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestB
    AssignOrderRawSt(inCoreRunner, *this);
 }
 // 委託不存在(或 initiator 不存在)的新單回報.
-void OmsTwsReport::RunReportNew(OmsRequestRunnerInCore&& inCoreRunner) {
+static void RunReportNew(OmsReportRunnerInCore&& inCoreRunner, OmsTwsReport& rpt) {
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
-   inCoreRunner.Resource_.Backend_.FetchSNO(*this);
+   inCoreRunner.Resource_.Backend_.FetchSNO(rpt);
    OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
-   AdjustQtyUnit(ordraw.Order(), inCoreRunner.Resource_, *this);
-   ordraw.OType_ = this->OType_;
-   ordraw.OrdNo_ = this->OrdNo_;
-   ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
-   AssignTimeAndPri(ordraw, *this);
-   AssignOrderRawSt(inCoreRunner, *this);
+   AdjustQtyUnit(ordraw.Order(), inCoreRunner.Resource_, rpt);
+   ordraw.OType_ = rpt.OType_;
+   ordraw.OrdNo_ = rpt.OrdNo_;
+   ordraw.AfterQty_ = ordraw.LeavesQty_ = rpt.Qty_;
+   AssignTimeAndPri(ordraw, rpt);
+   AssignOrderRawSt(inCoreRunner, rpt);
 }
 // 刪改查回報.
-void OmsTwsReport::RunReportOrder(OmsRequestRunnerInCore&& inCoreRunner) {
-   assert(this->RxKind() != f9fmkt_RxKind_Unknown);
+static void RunReportDCQ(OmsReportRunnerInCore&& inCoreRunner, OmsTwsReport& rpt) {
+   assert(rpt.RxKind() != f9fmkt_RxKind_Unknown);
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
-   inCoreRunner.Resource_.Backend_.FetchSNO(*this);
-   AdjustQtyUnit(inCoreRunner.OrderRaw_.Order(), inCoreRunner.Resource_, *this);
-   if (!this->OrdNo_.empty1st())
-      inCoreRunner.OrderRaw_.OrdNo_ = this->OrdNo_;
-   if (fon9_LIKELY(this->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep))
-      AssignOrderRawFromRpt(inCoreRunner, *this);
-   AssignOrderRawSt(inCoreRunner, *this);
+   inCoreRunner.Resource_.Backend_.FetchSNO(rpt);
+   AdjustQtyUnit(inCoreRunner.OrderRaw_.Order(), inCoreRunner.Resource_, rpt);
+   if (!rpt.OrdNo_.empty1st())
+      inCoreRunner.OrderRaw_.OrdNo_ = rpt.OrdNo_;
+   if (fon9_LIKELY(rpt.ReportSt() > f9fmkt_TradingRequestSt_LastRunStep))
+      AssignOrderRawFromRpt(inCoreRunner, rpt);
+   AssignOrderRawSt(inCoreRunner, rpt);
 }
-void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
-   assert(runner.Report_.get() == this);
-   if (const OmsRequestBase* origReq = runner.SearchOrigRequestId()) {
-      this->RunReportFromOrig(std::move(runner), *origReq);
+
+void OmsTwsReport::RunReportInCore(OmsReportChecker&& checker) {
+   assert(checker.Report_.get() == this);
+
+   if (const OmsRequestBase* origReq = checker.SearchOrigRequestId()) {
+      this->RunReportFromOrig(std::move(checker), *origReq);
       return;
    }
-   // runner.SearchOrigRequestId(); 失敗,
-   // 若已呼叫過 runner.ReportAbandon(), 則直接結束.
-   if (runner.RunnerSt_ == OmsReportRunnerSt::Abandoned)
+   // checker.SearchOrigRequestId(); 失敗,
+   // 若已呼叫過 checker.ReportAbandon(), 則直接結束.
+   if (checker.CheckerSt_ == OmsReportCheckerSt::Abandoned)
       return;
    // ReqUID 找不到原下單要求, 使用 OrdKey 來找.
    if (this->OrdNo_.empty1st()) {
@@ -224,15 +232,15 @@ void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
          //    - 建立 ReqUID map?
          // or - f9oms 首次異動就必須提供 OrdNo (即使是 Queuing), 那 Abandon request 呢(不匯入?)?
          //      沒有提供 OrdNo 就拋棄此次回報?
-         if (0); runner.ReportAbandon("OmsTwsReport: OrdNo is empty?");
+         if (0); checker.ReportAbandon("OmsTwsReport: OrdNo is empty?");
          return;
       }
-      runner.ReportAbandon("OmsTwsReport: OrdNo is empty, but kind isnot 'N'");
+      checker.ReportAbandon("OmsTwsReport: OrdNo is empty, but kind isnot 'N'");
       return;
    }
-   OmsOrdNoMap* ordnoMap = runner.GetOrdNoMap();
-   if (ordnoMap == nullptr) // runner.GetOrdNoMap(); 失敗.
-      return;               // 已呼叫過 runner.ReportAbandon(), 所以直接結束.
+   OmsOrdNoMap* ordnoMap = checker.GetOrdNoMap();
+   if (ordnoMap == nullptr) // checker.GetOrdNoMap(); 失敗.
+      return;               // 已呼叫過 checker.ReportAbandon(), 所以直接結束.
 
    if (this->ReqUID_.empty1st())
       this->MakeReportReqUID(this->ExgTime_, this->BeforeQty_);
@@ -243,9 +251,9 @@ void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
       assert(order->Head() != nullptr);
       if (this->RxKind() == f9fmkt_RxKind_RequestNew) {
          if (auto origReq = order->Initiator())
-            this->RunReportFromOrig(std::move(runner), *origReq);
+            this->RunReportFromOrig(std::move(checker), *origReq);
          else
-            this->RunReportNew(OmsRequestRunnerInCore{std::move(runner), *order->BeginUpdate(*this)});
+            RunReportNew(OmsReportRunnerInCore{std::move(checker), *order->BeginUpdate(*this)}, *this);
          return;
       }
       const OmsOrderRaw* ordu = order->Head();
@@ -257,37 +265,37 @@ void OmsTwsReport::RunReportInCore(OmsReportRunner&& runner) {
             if (static_cast<const OmsTwsOrderRaw*>(ordu)->LastExgTime_ == this->ExgTime_
                 || requ.RxKind() == f9fmkt_RxKind_RequestChgQty
                 || requ.RxKind() == f9fmkt_RxKind_RequestDelete) {
-               this->RunReportFromOrig(std::move(runner), requ);
+               this->RunReportFromOrig(std::move(checker), requ);
                return;
             }
          }
       } while ((ordu = ordu->Next()) != nullptr);
       // order 裡面沒找到 origReq: this = 刪改查回報.
       if (this->RxKind_ != f9fmkt_RxKind_Unknown) {
-         this->RunReportOrder(OmsRequestRunnerInCore{std::move(runner), *order->BeginUpdate(*this)});
+         RunReportDCQ(OmsReportRunnerInCore{std::move(checker), *order->BeginUpdate(*this)}, *this);
          return;
       }
    }
    // ----- 委託不存在 --------------------------------------------------
    if (this->RxKind_ == f9fmkt_RxKind_Unknown) {
-      runner.ReportAbandon("TwsReport: Unknown report kind.");
+      checker.ReportAbandon("TwsReport: Unknown report kind.");
       return;
    }
    assert(this->Creator().OrderFactory_.get() != nullptr);
    OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get();
    if (fon9_UNLIKELY(ordfac == nullptr)) {
-      runner.ReportAbandon("OmsTwsReport: No OrderFactory.");
+      checker.ReportAbandon("OmsTwsReport: No OrderFactory.");
       return;
    }
-   OmsRequestRunnerInCore inCoreRunner{std::move(runner), *ordfac->MakeOrder(*this, nullptr)};
+   OmsReportRunnerInCore inCoreRunner{std::move(checker), *ordfac->MakeOrder(*this, nullptr)};
    if (this->RxKind() == f9fmkt_RxKind_RequestNew)
-      this->RunReportNew(std::move(inCoreRunner));
+      RunReportNew(std::move(inCoreRunner), *this);
    else // 委託不存在的刪改查回報.
-      this->RunReportOrder(std::move(inCoreRunner));
+      RunReportDCQ(std::move(inCoreRunner), *this);
    ordnoMap->EmplaceOrder(inCoreRunner.OrderRaw_);
 }
 //--------------------------------------------------------------------------//
-static void ProcessPendingReportFromOrderRaw(OmsResource& res, const OmsRequestBase& rpt, const OmsTwsReport* chk) {
+static void ReportFromOrderRaw(OmsResource& res, const OmsRequestBase& rpt, const OmsTwsReport* chkFields) {
    assert(rpt.LastUpdated() && rpt.LastUpdated()->UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending);
    OmsOrder& order = rpt.LastUpdated()->Order();
    if (order.LastOrderSt() < f9fmkt_OrderSt_NewDone)
@@ -295,13 +303,25 @@ static void ProcessPendingReportFromOrderRaw(OmsResource& res, const OmsRequestB
    const OmsTwsOrderRaw&   ordlast = *static_cast<const OmsTwsOrderRaw*>(order.Tail());
    const OmsTwsOrderRaw&   rptraw = *static_cast<const OmsTwsOrderRaw*>(rpt.LastUpdated());
    // rpt 要等 Order.LeavesQty 符合要求?
-   if (rptraw.AfterQty_ == 0 && ordlast.LeavesQty_ != rptraw.BeforeQty_)
-      return;
-   OmsRequestRunnerInCore  inCoreRunner{res, *order.BeginUpdate(rpt)};
-   OmsTwsOrderRaw&         ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
-   if (chk) {
+   if (rptraw.AfterQty_ == 0) {
+      if (ordlast.LeavesQty_ != rptraw.BeforeQty_) {
+         if (rptraw.BeforeQty_ != 0)
+            return;
+         // rptraw.BeforeQty_ == rptraw.AfterQty_ == 0: rpt 為刪改失敗的回報
+         // => 可能永遠等不到 LeavesQty 符合要求! (例如: TIME IS LATE 的失敗)
+         // 如果 rpt 是 ExchangeNoLeavesQty: 則一定是有遺漏回報 => 此時需要等候 LeavesQty 符合.
+         if (rptraw.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty)
+            return;
+         // 如果 rpt 不是 ExchangeNoLeavesQty: 則是一般的刪改失敗(欄位錯誤? TIME IS LATE?...)
+         // => 此時應立即處理失敗.
+         // => 有可能需要重送.
+      }
+   }
+   OmsReportRunnerInCore  inCoreRunner{res, *order.BeginUpdate(rpt)};
+   OmsTwsOrderRaw&        ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
+   if (chkFields) {
       if (auto ini = dynamic_cast<const OmsTwsRequestIni*>(order.Initiator())) {
-         if (fon9_UNLIKELY(!CheckReportFields(*ini, *chk))) {
+         if (fon9_UNLIKELY(!CheckReportFields(*ini, *chkFields))) {
             // chk 欄位與新單回報不同.
             ordraw.ErrCode_ = OmsErrCode_FieldNotMatch;
             ordraw.RequestSt_ = f9fmkt_TradingRequestSt_InternalRejected;
@@ -312,8 +332,6 @@ static void ProcessPendingReportFromOrderRaw(OmsResource& res, const OmsRequestB
    }
    ordraw.BeforeQty_   = rptraw.BeforeQty_;
    ordraw.AfterQty_    = rptraw.AfterQty_;
-   ordraw.RequestSt_   = rptraw.RequestSt_;
-   ordraw.ErrCode_     = rptraw.ErrCode_;
    ordraw.LastExgTime_ = rptraw.LastExgTime_;
    if (!rptraw.LastPriTime_.IsNull()) { // rpt 有填價格.
       if (ordraw.LastPriTime_.IsNull()  // ord 目前沒有填價格 || rpt 為新的價格
@@ -340,10 +358,10 @@ static void ProcessPendingReportFromOrderRaw(OmsResource& res, const OmsRequestB
    fon9_WARN_POP;
 }
 void OmsTwsReport::ProcessPendingReport(OmsResource& res) const {
-   ProcessPendingReportFromOrderRaw(res, *this, this);
+   ReportFromOrderRaw(res, *this, this);
 }
 void OmsTwsRequestChg::ProcessPendingReport(OmsResource& res) const {
-   ProcessPendingReportFromOrderRaw(res, *this, nullptr);
+   ReportFromOrderRaw(res, *this, nullptr);
 }
 
 } // namespaces

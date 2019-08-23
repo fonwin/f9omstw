@@ -3,6 +3,7 @@
 #include "f9omstws/OmsTwsFilled.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsReportRunner.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -43,19 +44,19 @@ bool OmsTwsFilled::CheckFields(const OmsTwsRequestIni& ini) const {
           && this->Side_ == ini.Side_
           && this->Symbol_ == ini.Symbol_);
 }
-void OmsTwsFilled::RunOrderFilled(OmsReportRunner&& runner, OmsOrder& order) {
+void OmsTwsFilled::RunOrderFilled(OmsReportChecker&& checker, OmsOrder& order) {
    const OmsTwsRequestIni* iniReq = static_cast<const OmsTwsRequestIni*>(order.Initiator());
    if (iniReq && !this->CheckFields(*iniReq)) {
-      runner.ReportAbandon("TwsFilled field not match.");
+      checker.ReportAbandon("TwsFilled field not match.");
       return;
    }
    // 加入 order 的成交串列.
    if (order.InsertFilled(this) != nullptr) {
-      runner.ReportAbandon("Duplicate MatchKey in TwsFilled");
+      checker.ReportAbandon("Duplicate MatchKey in TwsFilled");
       return;
    }
    // 更新 order.
-   OmsRequestRunnerInCore inCoreRunner{std::move(runner), *order.BeginUpdate(*this)};
+   OmsReportRunnerInCore inCoreRunner{std::move(checker), *order.BeginUpdate(*this)};
    AdjustQtyUnit(order, inCoreRunner.Resource_, *this);
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
    if (iniReq)
@@ -68,33 +69,33 @@ void OmsTwsFilled::RunOrderFilled(OmsReportRunner&& runner, OmsOrder& order) {
       inCoreRunner.Update(f9fmkt_TradingRequestSt_Filled, nullptr);
    }
 }
-void OmsTwsFilled::RunReportInCore(OmsReportRunner&& runner) {
+void OmsTwsFilled::RunReportInCore(OmsReportChecker&& checker) {
    OmsOrder* order;
    if (!this->ReqUID_.empty1st()) {
       // 嘗試使用 ReqUID 取得 origReq.
-      if (const OmsRequestBase* origReq = runner.SearchOrigRequestId())
+      if (const OmsRequestBase* origReq = checker.SearchOrigRequestId())
          if (auto ordraw = origReq->LastUpdated()) {
             AssignFilledReqUID(*this);
-            RunOrderFilled(std::move(runner), origReq->LastUpdated()->Order());
+            RunOrderFilled(std::move(checker), ordraw->Order());
             return;
          }
    }
-   OmsOrdNoMap* ordnoMap = runner.GetOrdNoMap();
+   OmsOrdNoMap* ordnoMap = checker.GetOrdNoMap();
    if (ordnoMap == nullptr)
       return;
    AssignFilledReqUID(*this);
    if (fon9_UNLIKELY((order = ordnoMap->GetOrder(this->OrdNo_)) != nullptr)) {
-      RunOrderFilled(std::move(runner), *order);
+      RunOrderFilled(std::move(checker), *order);
       return;
    }
    // 成交找不到 order: 等候新單回報.
    assert(this->Creator().OrderFactory_.get() != nullptr);
    OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get();
    if (ordfac == nullptr) {
-      runner.ReportAbandon("OmsTwsFilled: No OrderFactory.");
+      checker.ReportAbandon("OmsTwsFilled: No OrderFactory.");
       return;
    }
-   OmsRequestRunnerInCore inCoreRunner{std::move(runner), *ordfac->MakeOrder(*this, nullptr)};
+   OmsReportRunnerInCore inCoreRunner{std::move(checker), *ordfac->MakeOrder(*this, nullptr)};
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
    OmsTwsOrderRaw& ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
@@ -105,7 +106,7 @@ void OmsTwsFilled::RunReportInCore(OmsReportRunner&& runner) {
    inCoreRunner.Update(f9fmkt_TradingRequestSt_Filled);
    ordnoMap->EmplaceOrder(ordraw);
 }
-void OmsTwsFilled::UpdateCum(OmsRequestRunnerInCore&& inCoreRunner) const {
+void OmsTwsFilled::UpdateCum(OmsReportRunnerInCore&& inCoreRunner) const {
    // 成交異動, 更新 CumQty, CumAmt, LeavesQty.
    OmsTwsOrderRaw&   ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
    ordraw.LastFilledTime_ = this->Time_;
@@ -126,7 +127,7 @@ void OmsTwsFilled::ProcessPendingReport(OmsResource& res) const {
    if (order.LastOrderSt() < f9fmkt_OrderSt_NewDone)
       return;
    const OmsTwsRequestIni* ini = dynamic_cast<const OmsTwsRequestIni*>(order.Initiator());
-   OmsRequestRunnerInCore  inCoreRunner{res, *order.BeginUpdate(*this)};
+   OmsReportRunnerInCore   inCoreRunner{res, *order.BeginUpdate(*this)};
    if (ini && this->CheckFields(*ini))
       this->UpdateCum(std::move(inCoreRunner));
    else {

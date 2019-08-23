@@ -67,7 +67,8 @@ using OmsRequestRptStepSP = std::unique_ptr<OmsRequestRptStep>;
 
 class OmsRequestRunner;
 class OmsRequestRunnerInCore;
-class OmsReportRunner;
+class OmsReportChecker;
+class OmsReportRunnerInCore;
 
 class OmsOrderRaw;
 class OmsOrder;
@@ -75,6 +76,8 @@ class OmsOrderFactory;
 using OmsOrderFactorySP = fon9::intrusive_ptr<OmsOrderFactory>;
 
 struct OmsScResource;
+struct OmsErrCodeAct;
+using OmsErrCodeActSP = fon9::intrusive_ptr<const OmsErrCodeAct>;
 
 class OmsEventFactory;
 using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;

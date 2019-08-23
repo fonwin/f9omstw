@@ -14,8 +14,8 @@ class OmsTwsFilled : public OmsReportFilled {
 
    // 檢查基本欄位是否一致.
    bool CheckFields(const OmsTwsRequestIni& ini) const;
-   void UpdateCum(OmsRequestRunnerInCore&& inCoreRunner) const;
-   void RunOrderFilled(OmsReportRunner&& runner, OmsOrder& order);
+   void UpdateCum(OmsReportRunnerInCore&& inCoreRunner) const;
+   void RunOrderFilled(OmsReportChecker&& checker, OmsOrder& order);
 
 public:
    fon9::DayTime  Time_;
@@ -29,7 +29,7 @@ public:
 
    using base::base;
 
-   void RunReportInCore(OmsReportRunner&& runner) override;
+   void RunReportInCore(OmsReportChecker&& checker) override;
    void ProcessPendingReport(OmsResource& res) const override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {

@@ -5,7 +5,7 @@
 //
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsBackend.hpp"
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsTools.hpp"

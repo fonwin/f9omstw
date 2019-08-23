@@ -80,7 +80,10 @@
     <ClInclude Include="..\..\..\f9omstw\OmsBrkTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCore.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsCoreMgr.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsErrCode.h" />
+    <ClInclude Include="..\..\..\f9omstw\OmsErrCodeAct.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsErrCodeActTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsEventFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp" />
@@ -96,6 +99,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRights.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsReportFactory.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsReportRunner.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp" />
@@ -119,6 +123,9 @@
     <ClCompile Include="..\..\..\f9omstw\OmsBrkTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCore.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsCoreMgr.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsErrCodeAct.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsErrCodeActTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp" />
@@ -131,6 +138,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsPoIvListAgent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsReportRunner.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestBase.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp" />

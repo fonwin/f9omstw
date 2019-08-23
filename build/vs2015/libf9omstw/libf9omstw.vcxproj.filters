@@ -146,13 +146,22 @@
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp">
       <Filter>Header Files\_ord_rpt_evt</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsReportBase.hpp">
-      <Filter>Header Files\_ord_rpt_evt</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsReportFilled.hpp">
       <Filter>Header Files\_ord_rpt_evt</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsReportFactory.hpp">
+      <Filter>Header Files\_ord_rpt_evt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsErrCodeAct.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsErrCodeActTree.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCoreMgr.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsReportRunner.hpp">
       <Filter>Header Files\_ord_rpt_evt</Filter>
     </ClInclude>
   </ItemGroup>
@@ -250,10 +259,19 @@
     <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp">
       <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsReportBase.cpp">
+    <ClCompile Include="..\..\..\f9omstw\OmsReportFilled.cpp">
       <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsReportFilled.cpp">
+    <ClCompile Include="..\..\..\f9omstw\OmsErrCodeAct.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsErrCodeActTree.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCoreMgr.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsReportRunner.cpp">
       <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
   </ItemGroup>

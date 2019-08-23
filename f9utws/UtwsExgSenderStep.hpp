@@ -30,6 +30,7 @@ public:
    UtwsExgTradingLineMgr&  LineMgr_;
    UtwsExgSenderStep(UtwsExgTradingLineMgr&);
    void RunRequest(OmsRequestRunnerInCore&& runner) override;
+   void RerunRequest(OmsReportRunnerInCore&& runner) override;
 };
 
 } // namespaces

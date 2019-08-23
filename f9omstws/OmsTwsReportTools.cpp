@@ -37,34 +37,10 @@ void AssignTwsReportMessage(OmsTwsReport& rpt, const fon9::fix::FixParser& fixms
       return;
    rpt.Message_.assign(fixfld->Value_);
    OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(fixfld->Value_, 0u));
-   if (ec == OmsErrCode_NoError)
-      return;
-   if (0);// 針對 OmsErrCode 設定如何處理? NeedsResend? LeavesQty=0?
-   if (ec == 50)
-      rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeNoLeavesQty);
-
-   ec = static_cast<OmsErrCode>(ec + (f9fmkt_TradingMarket_TwOTC == rpt.Market()
-                                      ? OmsErrCode_FromTwOTC : OmsErrCode_FromTwSEC));
+   if (ec != OmsErrCode_NoError)
+      ec = static_cast<OmsErrCode>(ec + (f9fmkt_TradingMarket_TwOTC == rpt.Market()
+                                         ? OmsErrCode_FromTwOTC : OmsErrCode_FromTwSEC));
    rpt.SetErrCode(ec);
-#if 0
-   switch (ec) {
-   case 4: // 0004:WAIT FOR MATCH: 需要重送(刪改查)?
-      isNeedsResend = true;
-      break;
-   case 5: // 0005:ORDER NOT FOUND
-           // 是否需要再送一次刪單? 因為可能新單還在路上(尚未送達交易所), 就已送出刪單要求,
-           // 若刪單要求比新單要求早送達交易所, 就會有 "0005:ORDER NOT FOUND" 的錯誤訊息.
-           // 或是重送刪單時「指定線路(送出新單的線路)」
-      switch (req->OrderSt_) {
-      case TOrderSt_NewSending:
-      case TOrderSt_OtherNewSending:
-         // 超過 n 次就不要再送了.
-         isNeedsResend = (++req->ResendCount_ < 5);
-         break;
-      }
-      break;
-   }
-#endif
 }
 
 } // namespaces

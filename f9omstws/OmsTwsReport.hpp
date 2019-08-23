@@ -11,10 +11,8 @@ namespace f9omstw {
 class OmsTwsReport : public OmsTwsRequestIni {
    fon9_NON_COPY_NON_MOVE(OmsTwsReport);
    using base = OmsTwsRequestIni;
+   void RunReportFromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq);
 
-   void RunReportFromOrig(OmsReportRunner&& runner, const OmsRequestBase& origReq);
-   void RunReportNew(OmsRequestRunnerInCore&& inCoreRunner);
-   void RunReportOrder(OmsRequestRunnerInCore&& inCoreRunner);
 public:
    /// 如果有跨日交易(夜盤), 則跨日的回報 ExgTime_ 應加上 TimeInterval_Day(1);
    fon9::DayTime     ExgTime_{fon9::DayTime::Null()};
@@ -24,7 +22,7 @@ public:
 
    using base::base;
 
-   void RunReportInCore(OmsReportRunner&& runner) override;
+   void RunReportInCore(OmsReportChecker&& checker) override;
    void ProcessPendingReport(OmsResource& res) const override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {

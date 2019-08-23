@@ -149,6 +149,7 @@ public:
    char                        padding___[3];
 
    /// 異動時的本機時間.
+   /// 在 OmsBackend::OnAfterOrderUpdated() 填入當時的時間.
    fon9::TimeStamp             UpdateTime_;
    /// 若訊息長度沒有超過 fon9::CharVector::kMaxBinsSize (在x64系統, 大約 23 bytes),
    /// 則可以不用分配記憶體, 一般而言常用的訊息不會超過(例如: "Sending by BBBB-SS", "Queuing"),
@@ -179,6 +180,10 @@ public:
    /// 新單被拒絕, 應清除 AfterQty, LeavesQty.
    /// 預設: do nothing.
    virtual void OnOrderReject();
+
+   /// 預設傳回 true; 表示條件符合.
+   /// 範例: OmsTwsOrderRaw 檢查 OType 是否存在於 act.OTypes_;
+   virtual bool CheckErrCodeAct(const OmsErrCodeAct& act) const;
 };
 
 //--------------------------------------------------------------------------//

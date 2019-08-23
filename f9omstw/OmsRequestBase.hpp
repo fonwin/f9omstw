@@ -12,15 +12,18 @@ namespace f9omstw {
 /// OmsRequestBase 定義 fon9::fmkt::TradingRxItem::RxItemFlags_;
 enum OmsRequestFlag : uint8_t {
    OmsRequestFlag_Initiator = 0x01,
+
    /// 回報要求, 包含成交回報、券商回報、其他 f9oms 的回報...
    OmsRequestFlag_ReportIn = 0x02,
+
    /// 由建立 Report 的人決定: 如果 rpt 的 origReq 已存在, 是否要用 ExInfo 記錄 rpt?
    /// - 因為如果 origReq 已存在, 則「回報物件」在回報處理完畢後, 會被刪除, 不會留在 history 裡面.
    /// - 如果 runner.ExLog_ 已可完整記錄, 則不用此旗標.
    /// - 通常用於 Client 填入的回報補單?
-   OmsRequestFlag_ReportNeedsLog = 0x04,
+   OmsRequestFlag_ReportNeedsLog = 0x08,
+
    /// 如果 RxSNO=0 (例如:有問題的Report), 是否需要發行給訂閱者?
-   OmsRequestFlag_ForcePublish = 0x08,
+   OmsRequestFlag_ForcePublish = 0x10,
 
    /// 無法進入委託流程: 無法建立 OmsOrder, 或找不到對應的 OmsOrder.
    OmsRequestFlag_Abandon = 0x80,
@@ -76,7 +79,6 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
       /// 當 this->IsAbandoned(): 此時這裡記錄中斷要求的原因.
       /// 可能為 nullptr, 表示只提供 ErrCode_ 沒有額外訊息.
       std::string*         AbandonReason_;
-      /// 最後一次委託異動的內容: Queuing? Sending? Accepted? Rejected?...
       OmsOrderRaw mutable* LastUpdated_{nullptr};
    };
    fon9::TimeStamp      CrTime_;
@@ -141,6 +143,9 @@ public:
       return *this->Creator_;
    }
 
+   fon9::TimeStamp CrTime() const {
+      return this->CrTime_;
+   }
    OmsRequestFlag RequestFlags() const {
       return static_cast<OmsRequestFlag>(this->RxItemFlags_);
    }
@@ -161,10 +166,14 @@ public:
    void SetForcePublish() {
       this->RxItemFlags_ |= OmsRequestFlag_ForcePublish;
    }
+
    bool IsInitiator() const {
       return (this->RxItemFlags_ & OmsRequestFlag_Initiator) == OmsRequestFlag_Initiator;
    }
 
+   /// 最後一次委託異動完畢後的內容.
+   /// 若 OmsRequestRunnerInCore 正在處理, 則此處傳回的是「上一次異動」的內容,
+   /// 若 this 為首次執行 OmsRequestRunnerInCore, 則會傳回 nullptr.
    const OmsOrderRaw* LastUpdated() const {
       return this->IsAbandoned() ? nullptr : this->LastUpdated_;
    }
@@ -199,7 +208,7 @@ public:
    /// 排除重複回報之後, 透過這裡處理回報.
    /// - assert(this == runner.Request_.get() && !"Not support RunReportInCore()");
    /// - 預設使用 ExInfo 方式寫入 log: runner.ReportAbandon("Not support RunReportInCore");
-   virtual void RunReportInCore(OmsReportRunner&& runner);
+   virtual void RunReportInCore(OmsReportChecker&& checker);
 
    /// 當委託有異動時, 在 OmsOrder::ProcessPendingReport(); 裡面:
    /// 若 this->LastUpdated()->OrderSt_ == f9fmkt_OrderSt_ReportPending;

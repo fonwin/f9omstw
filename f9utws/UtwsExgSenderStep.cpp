@@ -1,6 +1,8 @@
 ﻿// \file f9utws/UtwsExgSenderStep.cpp
 // \author fonwinz@gmail.com
 #include "f9utws/UtwsExgSenderStep.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsReportRunner.hpp"
 
 namespace f9omstw {
 
@@ -40,6 +42,10 @@ void UtwsExgSenderStep::RunRequest(OmsRequestRunnerInCore&& runner) {
       break;
    }
    fon9_WARN_POP;
+}
+void UtwsExgSenderStep::RerunRequest(OmsReportRunnerInCore&& runner) {
+   if (0);// RerunRequest(): runner.ErrCodeAct_->IsUseNewLine_?
+   this->RunRequest(std::move(runner));
 }
 
 } // namespaces

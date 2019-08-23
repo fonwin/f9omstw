@@ -106,6 +106,9 @@ void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
 }
 void OmsOrderRaw::OnOrderReject() {
 }
+bool OmsOrderRaw::CheckErrCodeAct(const OmsErrCodeAct&) const {
+   return true;
+}
 
 void OmsOrderRaw::MakeFieldsImpl(fon9::seed::Fields& flds) {
    using namespace fon9;

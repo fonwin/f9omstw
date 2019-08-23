@@ -3,9 +3,10 @@
 #ifndef __f9utws_UnitTestCore_hpp__
 #define __f9utws_UnitTestCore_hpp__
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsReportFactory.hpp"
 #include "f9omstw/OmsRequestPolicy.hpp"
+#include "f9omstw/OmsReportRunner.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsFilled.hpp"
@@ -165,16 +166,33 @@ struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
    f9omstw::OmsOrdTeamGroupId TgId_ = 0;
    char                       padding_____[4];
 
+   void TestRun(f9omstw::OmsRequestRunnerInCore& runner) {
+      if (runner.OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew)
+         runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewSending;
+      runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
+      runner.OrderRaw_.Message_.assign("Sending by 8610T1");
+   }
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       // 排隊 or 送單.
       // 最遲在下單要求送出(交易所)前, 必須編製委託書號.
       if (!runner.AllocOrdNo_IniOrTgid(this->TgId_))
          return;
-      if (runner.OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew)
-         runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewSending;
-      runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
-      runner.OrderRaw_.Message_.assign("Sending by 8610T1");
-      // TODO: Test 送單狀態, 1 ms 之後 Accepted.
+      this->TestRun(runner);
+      fon9::RevPrint(runner.ExLogForUpd_, "<<Sending packet>>\n");
+   }
+   void RerunRequest(f9omstw::OmsReportRunnerInCore&& runner) override {
+      auto& ordraw = *static_cast<f9omstw::OmsTwsOrderRaw*>(&runner.OrderRaw_);
+      if (ordraw.Request().RxKind() == f9fmkt_RxKind_RequestNew) {
+         ordraw.LeavesQty_ = ordraw.BeforeQty_;
+      }
+      else if(ordraw.LeavesQty_ <= 0) {
+         // 刪改失敗, 想要重送, 但剩餘量已為0, 沒有重送的必要.
+         return;
+      }
+      this->TestRun(runner);
+      if (runner.ExLogForUpd_.cfront() != nullptr)
+         fon9::RevPrint(runner.ExLogForUpd_, ">" fon9_kCSTR_CELLSPL);
+      fon9::RevPrint(runner.ExLogForUpd_, "<<Resending packet>>" fon9_kCSTR_ROWSPL);
    }
 };
 //--------------------------------------------------------------------------//

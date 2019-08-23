@@ -1,6 +1,7 @@
 ﻿// \file f9omstws/OmsTwsOrder.cpp
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsOrder.hpp"
+#include "f9omstw/OmsErrCodeAct.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -31,6 +32,11 @@ void OmsTwsOrderRaw::OnOrderReject() {
    assert(f9fmkt_OrderSt_IsRejected(this->UpdateOrderSt_));
    this->AfterQty_ = 0;
    this->LeavesQty_ = 0;
+}
+bool OmsTwsOrderRaw::CheckErrCodeAct(const OmsErrCodeAct& act) const {
+   if (act.OTypes_.empty())
+      return true;
+   return memchr(act.OTypes_.begin(), static_cast<char>(this->OType_), act.OTypes_.size()) != nullptr;
 }
 
 } // namespaces

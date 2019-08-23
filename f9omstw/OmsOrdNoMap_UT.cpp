@@ -1,7 +1,7 @@
 ﻿// \file f9omstw/OmsOrdNoMap_UT.cpp
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsIvSymb.hpp"

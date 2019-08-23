@@ -1,6 +1,7 @@
 ﻿// \file f9utws/UtwsOmsCore.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsCoreByThread.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "f9utws/UtwsSymb.hpp"
 #include "f9utws/UtwsBrk.hpp"
 #include "f9utws/UtwsExgSenderStep.hpp"
@@ -140,10 +141,9 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
       //   - Resend: N 次
       //     - 在時間區間 beg-end
       //     - 那些需要重送?
-      //       - 新單傳送中?
-      //       - OType+Src: 借券賣? NotDMA? 借券賣+NotDMA? 
-      //   - ExchangeLeavesQty=0;
-      //   - 新單失敗.
+      //       - NewSending(n秒內,使用新單線路?)?
+      //       - TwsOType+Src: 借券賣? NotDMA? 借券賣+NotDMA? 
+      //   - Set RequestSt(hex) = ExchangeNoLeavesQty? BeforeExchangeCancel?
       // - Memo
       // ------------------------
       // - Text 客戶端顯示的文字, 使用翻譯檔, f9oms核心不載入, 由 client 自行處理.
@@ -163,6 +163,7 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
          rptFactory, filFactory
       ));
       coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
+      coreMgr->ReloadErrCodeAct(fon9::ToStrView(cfgpath + "UtwErrCode.cfg"));
    }
    bool AddCore(fon9::TimeStamp tday) {
       fon9::RevBufferFixedSize<128> rbuf;

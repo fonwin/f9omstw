@@ -85,6 +85,7 @@ public:
    void ContinuePrevUpdate(const OmsOrderRaw& prev) override;
 
    void OnOrderReject() override;
+   bool CheckErrCodeAct(const OmsErrCodeAct& act) const override;
 };
 
 } // namespaces

@@ -62,7 +62,7 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// 補單操作, 必須有 AllowAddReport 權限.
    OmsErrCode_DenyAddReport = 122,
 
-   /// 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
+   /// 客戶端(例:RcClient) 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
    OmsErrCode_OverFlowControl = 130,
 
    /// OmsOrdNoMap::AllocOrdNo(); 下單的 OrdTeamGroupId 有問題.
@@ -80,11 +80,19 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// OmsOrdNoMap 沒找到, 可能是 Market 或 SessionId 不正確, 或系統沒設定.
    OmsErrCode_OrdNoMapNotFound = 205,
 
+   // -----------------------------------------------------------------------
    /// 無可用的下單連線.
    OmsErrCode_NoReadyLine = 900,
 
+   // -----------------------------------------------------------------------
+   /// 09xxx = FIX SessionReject.
+   OmsErrCode_FromExgSessionReject = 9000,
+
+   // -----------------------------------------------------------------------
    /// 來自風控管制的錯誤碼.
    OmsErrCode_FromRisk = 10000,
+
+   // -----------------------------------------------------------------------
    /// 來自證交所的錯誤碼 = OrderErr::FromTwSEC + 交易所錯誤代號.
    OmsErrCode_FromTwSEC = 20000,
    OmsErrCode_FromTwOTC = 30000,

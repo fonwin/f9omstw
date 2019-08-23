@@ -1,6 +1,7 @@
 ﻿// \file f9omstw/OmsRequestBase.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsRequestBase.hpp"
+#include "f9omstw/OmsReportRunner.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "f9omstw/OmsOrder.hpp"
 #include "fon9/seed/FieldMaker.hpp"
@@ -103,9 +104,9 @@ const OmsRequestIni* OmsRequestBase::BeforeReq_GetInitiator(OmsRequestRunner& ru
    return nullptr;
 }
 //--------------------------------------------------------------------------//
-void OmsRequestBase::RunReportInCore(OmsReportRunner&& runner) {
-   assert(this == runner.Report_.get() && !"Not support RunReportInCore()");
-   runner.ReportAbandon("Not support RunReportInCore");
+void OmsRequestBase::RunReportInCore(OmsReportChecker&& checker) {
+   assert(this == checker.Report_.get() && !"Not support RunReportInCore()");
+   checker.ReportAbandon("Not support RunReportInCore");
 }
 void OmsRequestBase::ProcessPendingReport(OmsResource& res) const {
    (void)res;

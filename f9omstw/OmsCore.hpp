@@ -50,7 +50,7 @@ protected:
    virtual bool MoveToCoreImpl(OmsRequestRunner&& runner) = 0;
 
    /// - 回報, runner.Request_->IsReportIn():
-   ///   runner.Request_->RunReportInCore(OmsReportRunner{std::move(runner)}, *this);
+   ///   runner.Request_->RunReportInCore(OmsReportChecker{std::move(runner)}, *this);
    /// - 下單要求,  先執行一些前置作業後, 透過 runner.Request_->Creator_->RunStep_ 執行下單步驟.
    ///   - this->FetchRequestId(*runner.Request_);
    ///   - runner.BeforeReqInCore(*this);
@@ -102,76 +102,6 @@ public:
    }
    inline friend void intrusive_ptr_release(const OmsCore* p) {
       intrusive_ptr_release(static_cast<const OmsResource*>(p));
-   }
-};
-
-//--------------------------------------------------------------------------//
-
-using OmsTDayChangedHandler = std::function<void(OmsCore&)>;
-
-using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
-using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
-
-using OmsOrderFactoryPark = OmsFactoryPark_NoKey<OmsOrderFactory, fon9::seed::TreeFlag::Unordered>;
-using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
-
-using OmsEventFactoryPark = OmsFactoryPark_NoKey<OmsEventFactory, fon9::seed::TreeFlag::Unordered>;
-using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
-
-/// 管理 OmsCore 的生死.
-/// - 每個 OmsCore 僅處理一交易日的資料, 不處理換日、清檔,
-///   交易日結束時, 由 OmsCoreMgr 在適當時機刪除過時的 OmsCore.
-/// - 新交易日開始時, 建立新的 OmsCore.
-///   - OmsCore 建立時, 轉入隔日有效單.
-///   - 匯入商品資料、投資人資料、庫存...
-class OmsCoreMgr : public fon9::seed::MaTree {
-   fon9_NON_COPY_NON_MOVE(OmsCoreMgr);
-   using base = fon9::seed::MaTree;
-   OmsCoreSP   CurrentCore_;
-   bool        IsTDayChanging_{false};
-
-protected:
-   OmsOrderFactoryParkSP   OrderFactoryPark_;
-   OmsRequestFactoryParkSP RequestFactoryPark_;
-   OmsEventFactoryParkSP   EventFactoryPark_;
-
-   void OnMaTree_AfterAdd(Locker&, fon9::seed::NamedSeed& seed) override;
-   void OnMaTree_AfterClear() override;
-
-public:
-   using base::base;
-
-   using TDayChangedEvent = fon9::Subject<OmsTDayChangedHandler>;
-   TDayChangedEvent  TDayChangedEvent_;
-
-   /// 取得 CurrentCore, 僅供參考.
-   /// - 返回前有可能會收到 TDayChanged 事件.
-   /// - 傳回 nullptr 表示目前沒有 CurrentCore.
-   OmsCoreSP CurrentCore() const {
-      ConstLocker locker{this->Container_};
-      return this->CurrentCore_;
-   }
-
-   void SetRequestFactoryPark(OmsRequestFactoryParkSP&& facPark) {
-      assert(this->RequestFactoryPark_.get() == nullptr);
-      this->RequestFactoryPark_ = std::move(facPark);
-   }
-   void SetOrderFactoryPark(OmsOrderFactoryParkSP&& facPark) {
-      assert(this->OrderFactoryPark_.get() == nullptr);
-      this->OrderFactoryPark_ = std::move(facPark);
-   }
-   void SetEventFactoryPark(OmsEventFactoryParkSP&& facPark) {
-      assert(this->EventFactoryPark_.get() == nullptr);
-      this->EventFactoryPark_ = std::move(facPark);
-   }
-   const OmsRequestFactoryPark& RequestFactoryPark() const {
-      return *this->RequestFactoryPark_;
-   }
-   const OmsOrderFactoryPark& OrderFactoryPark() const {
-      return *this->OrderFactoryPark_;
-   }
-   const OmsEventFactoryPark& EventFactoryPark() const {
-      return *this->EventFactoryPark_;
    }
 };
 fon9_WARN_POP;

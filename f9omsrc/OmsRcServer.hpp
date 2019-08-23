@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omsrc_OmsRcServer_hpp__
 #define __f9omsrc_OmsRcServer_hpp__
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/seed/RawWr.hpp"
 #include "fon9/SimpleFactory.hpp"

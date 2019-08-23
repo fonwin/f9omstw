@@ -4,8 +4,9 @@
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsReportTools.hpp"
-#include "f9omstw/OmsRequestFactory.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "fon9/fix/FixBusinessReject.hpp"
+#include "fon9/fix/FixAdminDef.hpp"
 
 namespace f9omstw {
 
@@ -14,26 +15,32 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
    // SessionReject or BusinessReject:
    // 這種失敗比較單純, 因為是針對下單要求的內容不正確:
    // 所以用 orig 找原始下單要求, 如果找不到, 就拋棄此筆回報.
-   if (const auto* fixfld = orig.Msg_.GetField(f9fix_kTAG_ClOrdID)) {
-      OmsRequestRunner runner{rxargs.MsgStr_};
-      fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
-      runner.Request_ = this->RptFac_.MakeReportIn(f9fmkt_RxKind_Unknown);
-      assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
+   const auto* fixfld = orig.Msg_.GetField(f9fix_kTAG_ClOrdID);
+   if (fixfld == nullptr)
+      return;
+   OmsRequestRunner runner{rxargs.MsgStr_};
+   fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+   runner.Request_ = this->RptFac_.MakeReportIn(f9fmkt_RxKind_Unknown);
 
-      OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
-      rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
-      AssignReportReqUID(rpt, *fixfld);
-      if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_OrderID)) != nullptr)
-         rpt.OrdNo_.AssignFrom(fixfld->Value_);
-      if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderSubID)) != nullptr)
-         rpt.BrkId_.CopyFrom(fixfld->Value_);
-      rpt.SetSessionId(GetFixSessionId(orig.Msg_.GetField(f9fix_kTAG_TargetSubID)));
-      rpt.SetMarket(static_cast<f9tws::ExgTradingLineFix*>(rxargs.FixSession_)->LineArgs_.Market_);
-      assert((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderCompID)) != nullptr
-             && fixfld->Value_.Get1st() == rpt.Market());
-      AssignTwsReportMessage(rpt, rxargs.Msg_);
-      this->CoreMgr_.CurrentCore()->MoveToCore(std::move(runner));
+   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
+   OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+   rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
+   AssignReportReqUID(rpt, *fixfld);
+   if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_OrderID)) != nullptr)
+      rpt.OrdNo_.AssignFrom(fixfld->Value_);
+   if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderSubID)) != nullptr)
+      rpt.BrkId_.CopyFrom(fixfld->Value_);
+   rpt.SetSessionId(GetFixSessionId(orig.Msg_.GetField(f9fix_kTAG_TargetSubID)));
+   rpt.SetMarket(static_cast<f9tws::ExgTradingLineFix*>(rxargs.FixSession_)->LineArgs_.Market_);
+   assert((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderCompID)) != nullptr
+          && fixfld->Value_.Get1st() == rpt.Market());
+   AssignTwsReportMessage(rpt, rxargs.Msg_);
+   if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_MsgType)) != nullptr
+       && fixfld->Value_.Get1st() == *f9fix_kMSGTYPE_SessionReject) {
+      // 09xxx = FIX SessionReject.
+      rpt.SetErrCode(static_cast<OmsErrCode>((rpt.ErrCode() % 1000) + OmsErrCode_FromExgSessionReject));
    }
+   this->CoreMgr_.CurrentCore()->MoveToCore(std::move(runner));
 }
 void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxargs) {
    // 如果是 CancelReject: 必要欄位僅提供 Account, 沒有提供 Symbol, Side, OType...
@@ -45,7 +52,7 @@ void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxa
    // f9fmkt_RxKind_Unknown: 由 OmsTwsReport::RunReportFromOrig() 自動設定.
    // switch (fixfld->Value_.Get1st()) {
    // case *f9fix_kVAL_CxlRejResponseTo_Cancel:
-   //    rptKind = f9fmkt_RxKind_Unknown;// f9fmkt_RxKind_RequestDelete;
+   //    rptKind = f9fmkt_RxKind_RequestDelete;
    //    break;
    // case *f9fix_kVAL_CxlRejResponseTo_Replace:
    //    rptKind = f9fmkt_RxKind_Unknown;// (? f9fmkt_RxKind_RequestChgPri : f9fmkt_RxKind_RequestChgQty);
@@ -57,8 +64,8 @@ void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxa
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
    runner.Request_ = this->RptFac_.MakeReportIn(rptKind);
-   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
 
+   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
    rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
    AssignTwsReportBase(rpt, rxargs, core->TDay());
@@ -104,15 +111,15 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
       break;
    case *f9fix_kVAL_ExecType_Restated:       // "D" Restated
-      // 證券進入價格穩定措施或尾盤集合競價時段，交易所主動取消留存委託簿之市價委託單資料並回報.
+      // 證券進入價格穩定措施或尾盤集合競價時段，交易所主動取消留存委託簿之「市價」委託單資料並回報.
       // 此時 OrderStatus(39) 則為 Canceled。
       if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_OrdStatus)) == nullptr
           || fixfld->Value_.Get1st() != *f9fix_kVAL_OrdStatus_Canceled)
          return;
+      // 因為只有取消「市價」, 所以只有「新單的 ClOrdID」, 不會有「OrigClOrdID」.
       // 針對原新單要求: ExchangeCanceled;
       rptKind = f9fmkt_RxKind_RequestNew;
       rptSt = f9fmkt_TradingRequestSt_ExchangeCanceled;
-      if (0);// 如果是 Restated, 會提供 OrigClOrdID 嗎? ClOrdID 是最後那個? 還是新單那個?
       break;
    // case *f9fix_kVAL_ExecType_PendingNew:     // "A"
    // case *f9fix_kVAL_ExecType_PendingCancel:  // "6"
@@ -129,8 +136,8 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
    runner.Request_ = this->RptFac_.MakeReportIn(rptKind);
-   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
 
+   assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
    rpt.SetReportSt(rptSt);
    rpt.Qty_ = afterQty;
@@ -175,8 +182,8 @@ void TwsTradingLineFixFactory::OnFixExecFilled(const f9fix::FixRecvEvArgs& rxarg
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
    runner.Request_ = this->FilFac_.MakeReportIn(f9fmkt_RxKind_Filled);
-   assert(dynamic_cast<OmsTwsFilled*>(runner.Request_.get()) != nullptr);
 
+   assert(dynamic_cast<OmsTwsFilled*>(runner.Request_.get()) != nullptr);
    OmsTwsFilled&  rpt = *static_cast<OmsTwsFilled*>(runner.Request_.get());
    rpt.SetReportSt(f9fmkt_TradingRequestSt_Filled);
    AssignRptBase(rpt, rxargs);

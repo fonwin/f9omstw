@@ -244,7 +244,10 @@ TwsTradingLineFix::TwsTradingLineFix(f9fix::IoFixManager&                mgr,
                                      const f9tws::ExgTradingLineFixArgs& lineargs,
                                      f9fix::IoFixSenderSP&&              fixSender)
    : base{mgr, fixcfg, lineargs, std::move(fixSender)}
-   , StrSendingBy_{fon9::RevPrintTo<fon9::CharVector>("Sending by ", lineargs.BrkId_, lineargs.SocketId_)} {
+   , StrSendingBy_{fon9::RevPrintTo<fon9::CharVector>("Sending.",
+                                                      lineargs.Market_,
+                                                      lineargs.BrkId_,
+                                                      lineargs.SocketId_)} {
 }
 
 } // namespaces

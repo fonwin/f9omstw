@@ -31,6 +31,31 @@ f9fmkt::SendRequestResult TwsTradingLineMgr::NoReadyLineReject(f9fmkt::TradingRe
    return f9fmkt::SendRequestResult::NoReadyLine;
 }
 //--------------------------------------------------------------------------//
+void TwsTradingLineMgr::SetOrdTeamGroupId(OmsResource& coreResource, const Locker&) {
+   if (this->OmsCore_.get() != &coreResource.Core_)
+      return;
+   if (this->Name_.empty() || this->OrdTeamConfig_.empty())
+      this->OrdTeamGroupId_ = 0;
+   else {
+      auto cfg = coreResource.OrdTeamGroupMgr_.SetTeamGroup(&this->Name_, ToStrView(this->OrdTeamConfig_));
+      this->OrdTeamGroupId_ = cfg ? cfg->TeamGroupId_ : 0;
+   }
+}
+void TwsTradingLineMgr::OnOrdTeamConfigChanged(fon9::CharVector ordTeamConfig) {
+   OmsCoreSP core;
+   {
+      Locker tsvr{this->TradingSvr_};
+      if (this->OrdTeamConfig_ == ordTeamConfig)
+         return;
+      this->OrdTeamConfig_ = std::move(ordTeamConfig);
+      if ((core = this->OmsCore_).get() == nullptr)
+         return;
+   }
+   TwsTradingLineMgrSP pthis{this};
+   core->RunCoreTask([pthis](OmsResource& coreResource) {
+      pthis->SetOrdTeamGroupId(coreResource, Locker{pthis->TradingSvr_});
+   });
+}
 void TwsTradingLineMgr::OnOmsCoreChanged(OmsResource& coreResource) {
    {
       Locker tsvr{this->TradingSvr_};
@@ -39,13 +64,8 @@ void TwsTradingLineMgr::OnOmsCoreChanged(OmsResource& coreResource) {
       OmsCoreSP oldCore = this->OmsCore_;
       if (oldCore && oldCore->TDay() > coreResource.Core_.TDay())
          return;
-      if (this->Name_.empty() || this->OrdTeamConfig_.empty())
-         this->OrdTeamGroupId_ = 0;
-      else {
-         auto cfg = coreResource.OrdTeamGroupMgr_.SetTeamGroup(&this->Name_, ToStrView(this->OrdTeamConfig_));
-         this->OrdTeamGroupId_ = cfg ? cfg->TeamGroupId_ : 0;
-      }
       this->OmsCore_.reset(&coreResource.Core_);
+      this->SetOrdTeamGroupId(coreResource, tsvr);
       this->ClearReqQueue(std::move(tsvr), "TDayChanged", oldCore);
    } // tsvr unlock.
    // 交易日改變了, 交易線路應該要刪除後重建, 因為 FIX log 必須換日.

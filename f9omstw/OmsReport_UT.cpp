@@ -710,6 +710,8 @@ int main(int argc, char* argv[]) {
 
    const auto isTestReload = fon9::GetCmdArg(argc, argv, "r", "reload");
    gIsTestReload = (isTestReload.begin() && (isTestReload.empty() || fon9::toupper(static_cast<unsigned char>(*isTestReload.begin())) == 'Y'));
+   gIsLessInfo = true;
+   fon9::LogLevel_ = fon9::LogLevel::Warn;
 
    fon9::AutoPrintTestInfo utinfo{"OmsReport"};
    TestCoreSP core;

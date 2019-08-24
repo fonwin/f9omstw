@@ -20,6 +20,8 @@ class TwsTradingLineMgr : public f9tws::ExgTradingLineMgr {
    OmsResource*            CurrOmsResource_{};
    const fon9::CharVector  StrQueuingIn_;
 
+   void SetOrdTeamGroupId(OmsResource& coreResource, const Locker&);
+
 protected:
    OmsCoreSP   OmsCore_;
 
@@ -35,6 +37,7 @@ public:
    TwsTradingLineMgr(const fon9::IoManagerArgs& ioargs, f9fmkt_TradingMarket mkt);
 
    void OnOmsCoreChanged(OmsResource& coreResource);
+   void OnOrdTeamConfigChanged(fon9::CharVector ordTeamConfig);
 
    void RunRequest(OmsRequestRunnerInCore&&);
 
@@ -60,6 +63,7 @@ public:
    }
 };
 fon9_WARN_POP;
+using TwsTradingLineMgrSP = fon9::intrusive_ptr<TwsTradingLineMgr>;
 
 } // namespaces
 #endif//__f9omstws_OmsTwsTradingLineMgr_hpp__

@@ -2,6 +2,8 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsCoreByThread.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsReportFactory.hpp"
+
 #include "f9utws/UtwsSymb.hpp"
 #include "f9utws/UtwsBrk.hpp"
 #include "f9utws/UtwsExgSenderStep.hpp"
@@ -10,7 +12,7 @@
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsFilled.hpp"
-#include "f9omstw/OmsReportFactory.hpp"
+#include "f9omstws/OmsTwsTradingLineMgrCfg.hpp"
 
 #include "fon9/seed/Plugins.hpp"
 #include "fon9/seed/SysEnv.hpp"
@@ -73,11 +75,11 @@ static void AddNamedSapling(Root& root, fon9::intrusive_ptr<NamedSapling> saplin
    root.Add(new fon9::seed::NamedSapling(sapling, sapling->Name_));
 }
 
-struct UtwsOmsCoreMgr;
+class UtwsOmsCoreMgrSeed;
 struct UtwsOmsCore : public OmsCoreByThread {
    fon9_NON_COPY_NON_MOVE(UtwsOmsCore);
    using base = OmsCoreByThread;
-   friend struct UtwsOmsCoreMgr;
+   friend class UtwsOmsCoreMgrSeed;
    UtwsOmsCore(OmsCoreMgrSP owner, std::string seedPath, std::string name)
       : base(std::move(owner), std::move(seedPath), std::move(name)) {
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
@@ -95,76 +97,44 @@ struct UtwsOmsCore : public OmsCoreByThread {
       this->OnBeforeDestroy();
    }
 };
-struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
-   fon9_NON_COPY_NON_MOVE(UtwsOmsCoreMgr);
+class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
+   fon9_NON_COPY_NON_MOVE(UtwsOmsCoreMgrSeed);
    using base = fon9::seed::NamedSapling;
    const fon9::seed::MaTreeSP Root_;
    UtwsExgTradingLineMgr      ExgLineMgr_;
 
-   UtwsOmsCoreMgr(fon9::seed::MaTreeSP owner, fon9::DeviceFactoryParkSP devfp)
-      : base(new OmsCoreMgr{"cores"}, "omstws")
+   UtwsOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
+      : base(new OmsCoreMgr{"cores"}, std::move(name))
       , Root_{std::move(owner)}
       , ExgLineMgr_{*static_cast<OmsCoreMgr*>(Sapling_.get())} {
-      OmsCoreMgr* coreMgr = static_cast<OmsCoreMgr*>(this->Sapling_.get());
-
-      UomsOrderTwsFactory* ordfac = new UomsOrderTwsFactory;
-      coreMgr->SetOrderFactoryPark(new OmsOrderFactoryPark{ordfac});
-      OmsTwsReportFactorySP  rptFactory = new OmsTwsReportFactory("TwsRpt", ordfac);
-      OmsTwsFilledFactorySP  filFactory = new OmsTwsFilledFactory("TwsFil", ordfac);
-
-      fon9::IoManagerArgs ioargs;
-      ioargs.DeviceFactoryPark_ = devfp;
-      ioargs.SessionFactoryPark_ = fon9::seed::FetchNamedPark<fon9::SessionFactoryPark>(*coreMgr, "FpSession");
-
-      const std::string logpath = fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_);
-      ioargs.SessionFactoryPark_->Add(new TwsTradingLineFixFactory(*coreMgr, *rptFactory, *filFactory,
-                                                                   logpath,
-                                                                   fon9::Named{"FIX44"}));
-
-      const std::string cfgpath = fon9::seed::SysEnv_GetConfigPath(*this->Root_).ToString();
-      ioargs.Name_ = "UtwSEC_io";
-      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
-      this->ExgLineMgr_.TseTradingLineMgr_.reset(new TwsTradingLineMgr{ioargs, f9fmkt_TradingMarket_TwSEC});
-      AddNamedSapling(*coreMgr, this->ExgLineMgr_.TseTradingLineMgr_);
-
-      if (0);// 櫃號設定、是否共用 IoService? OmsErrCode錯誤碼設定...
-      // - this->ExgLineMgr_.TseTradingLineMgr_、OtcTradingLineMgr_:
-      //   - 櫃號設定.
-      //   - 共用 IoService?
-      //     - ioargs.IoServiceSrc_ = this->ExgLineMgr_.TseTradingLineMgr_;
-      //     - ioargs.IoServiceSrc_ = /MaIo;
-      // - 設定 & 儲存設定?
-      // ------------------------------------------------------------------
-      // OmsErrCode: 錯誤碼設定:
-      // - ec
-      // - 行為 + 行為參數.
-      //   - Resend: N 次
-      //     - 在時間區間 beg-end
-      //     - 那些需要重送?
-      //       - NewSending(n秒內,使用新單線路?)?
-      //       - TwsOType+Src: 借券賣? NotDMA? 借券賣+NotDMA? 
-      //   - Set RequestSt(hex) = ExchangeNoLeavesQty? BeforeExchangeCancel?
-      // - Memo
-      // ------------------------
-      // - Text 客戶端顯示的文字, 使用翻譯檔, f9oms核心不載入, 由 client 自行處理.
-      // ------------------------------------------------------------------
-
-      ioargs.Name_ = "UtwOTC_io";
-      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
-      this->ExgLineMgr_.OtcTradingLineMgr_.reset(new TwsTradingLineMgr{ioargs, f9fmkt_TradingMarket_TwOTC});
-      AddNamedSapling(*coreMgr, this->ExgLineMgr_.OtcTradingLineMgr_);
-
-      coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
-         new OmsTwsRequestIniFactory("TwsNew", ordfac,
-                                     OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
-                                        OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}})}),
-         new OmsTwsRequestChgFactory("TwsChg",
-                                     OmsRequestRunStepSP{new UtwsExgSenderStep{this->ExgLineMgr_}}),
-         rptFactory, filFactory
-      ));
-      coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
-      coreMgr->ReloadErrCodeAct(fon9::ToStrView(cfgpath + "UtwErrCode.cfg"));
    }
+
+   static bool SetIoManager(fon9::seed::PluginsHolder& holder, fon9::IoManagerArgs& out) {
+      if (*out.IoServiceCfgstr_.c_str() == '/') {
+         fon9::StrView name{&out.IoServiceCfgstr_};
+         name.SetBegin(name.begin() + 1);
+         out.IoServiceSrc_ = holder.Root_->GetSapling<fon9::IoManager>(name);
+         if (!out.IoServiceSrc_) {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown IoManager: ", out.IoServiceCfgstr_);
+            return false;
+         }
+      }
+      return true;
+   }
+   static void CreateTradingLine(OmsCoreMgr& coreMgr,
+                                 const std::string& cfgpath,
+                                 fon9::IoManagerArgs& ioargs,
+                                 f9fmkt_TradingMarket mkt,
+                                 fon9::StrView name,
+                                 TwsTradingLineMgrSP& linemgr) {
+      ioargs.Name_ = name.ToString() + "_io";
+      ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
+      linemgr.reset(new TwsTradingLineMgr{ioargs, mkt});
+      AddNamedSapling(coreMgr, linemgr);
+      coreMgr.Add(new TwsTradingLineMgrCfgSeed(*linemgr, cfgpath, name.ToString() + "_cfg"));
+   }
+
+public:
    bool AddCore(fon9::TimeStamp tday) {
       fon9::RevBufferFixedSize<128> rbuf;
       fon9::RevPrint(rbuf, this->Name_, '_', fon9::GetYYYYMMDD(tday));
@@ -186,17 +156,79 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
    }
 
    static bool Create(fon9::seed::PluginsHolder& holder, fon9::StrView args) {
-      (void)args;
       #define kCSTR_DevFpName    "FpDevice"
       auto devfp = fon9::seed::FetchNamedPark<fon9::DeviceFactoryPark>(*holder.Root_, kCSTR_DevFpName);
       if (!devfp) { // 無法取得系統共用的 DeviceFactoryPark.
          holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=DeviceFactoryPark not found: " kCSTR_DevFpName);
          return false;
       }
-      UtwsOmsCoreMgr* coreMgr;
-      if (!holder.Root_->Add(coreMgr = new UtwsOmsCoreMgr(holder.Root_, std::move(devfp))))
+      // args:
+      // - IoTse={上市交易線路 IoService 參數} 可使用 IoTse=/MaIo 表示與 /MaIo 共用 IoService
+      // - IoOtc={上櫃交易線路 IoService 參數} 可使用 IoOtc=/MaIo 或 IoTse 表示共用 IoService
+      // - 「IoService 設定參數」請參考: IoServiceArgs.hpp
+      fon9::IoManagerArgs  ioargsTse, ioargsOtc;
+      fon9::StrView        tag, value, omsName{"omstws"};
+      while (fon9::SbrFetchTagValue(args, tag, value)) {
+         fon9::IoManagerArgs* dst;
+         if (tag == "Name") {
+            omsName = value;
+            continue;
+         }
+         if (tag == "IoTse")
+            dst = &ioargsTse;
+         else if (tag == "IoOtc")
+            dst = &ioargsOtc;
+         else {
+            holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown tag: ", tag);
+            return false;
+         }
+         if (!(tag = fon9::SbrFetchInsideNoTrim(value)).IsNull())
+            value = tag;
+         dst->IoServiceCfgstr_ = fon9::StrTrim(&value).ToString();
+         if (!SetIoManager(holder, *dst))
+            return false;
+      }
+      ioargsTse.DeviceFactoryPark_ = ioargsOtc.DeviceFactoryPark_ = devfp;
+      // ------------------------------------------------------------------
+      UtwsOmsCoreMgrSeed* coreMgrSeed = new UtwsOmsCoreMgrSeed(omsName.ToString(), holder.Root_);
+      if (!holder.Root_->Add(coreMgrSeed))
          return false;
-      coreMgr->AddCore(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset());
+
+      OmsCoreMgr*           coreMgr = static_cast<OmsCoreMgr*>(coreMgrSeed->Sapling_.get());
+      UomsOrderTwsFactory*  ordfac = new UomsOrderTwsFactory;
+      OmsTwsReportFactorySP rptFactory = new OmsTwsReportFactory("TwsRpt", ordfac);
+      OmsTwsFilledFactorySP filFactory = new OmsTwsFilledFactory("TwsFil", ordfac);
+      coreMgr->SetOrderFactoryPark(new OmsOrderFactoryPark{ordfac});
+
+      ioargsTse.SessionFactoryPark_ = ioargsOtc.SessionFactoryPark_
+         = fon9::seed::FetchNamedPark<fon9::SessionFactoryPark>(*coreMgr, "FpSession");
+      const std::string logpath = fon9::seed::SysEnv_GetLogFileFmtPath(*coreMgrSeed->Root_);
+      ioargsTse.SessionFactoryPark_->Add(
+         new TwsTradingLineFixFactory(
+            *coreMgr, *rptFactory, *filFactory,
+            logpath,
+            fon9::Named{"FIX44"}));
+      // ------------------------------------------------------------------
+      const std::string cfgpath = fon9::seed::SysEnv_GetConfigPath(*coreMgrSeed->Root_).ToString();
+      CreateTradingLine(*coreMgr, cfgpath, ioargsTse, f9fmkt_TradingMarket_TwSEC, "UtwSEC",
+                        coreMgrSeed->ExgLineMgr_.TseTradingLineMgr_);
+      // ------------------
+      if (ioargsOtc.IoServiceCfgstr_ == "IoTse")
+         ioargsOtc.IoServiceSrc_ = coreMgrSeed->ExgLineMgr_.TseTradingLineMgr_;
+      CreateTradingLine(*coreMgr, cfgpath, ioargsOtc, f9fmkt_TradingMarket_TwOTC, "UtwOTC",
+                        coreMgrSeed->ExgLineMgr_.OtcTradingLineMgr_);
+      // ------------------------------------------------------------------
+      coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
+         new OmsTwsRequestIniFactory("TwsNew", ordfac,
+                                     OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
+                                        OmsRequestRunStepSP{new UtwsExgSenderStep{coreMgrSeed->ExgLineMgr_}})}),
+         new OmsTwsRequestChgFactory("TwsChg",
+                                     OmsRequestRunStepSP{new UtwsExgSenderStep{coreMgrSeed->ExgLineMgr_}}),
+         rptFactory, filFactory
+      ));
+      coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
+      coreMgr->ReloadErrCodeAct(fon9::ToStrView(cfgpath + "UtwErrCode.cfg"));
+      coreMgrSeed->AddCore(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset());
       return true;
    }
 };
@@ -204,5 +236,5 @@ struct UtwsOmsCoreMgr : public fon9::seed::NamedSapling {
 } // namespaces
 //--------------------------------------------------------------------------//
 extern "C" fon9::seed::PluginsDesc f9p_UtwsOmsCore;
-fon9::seed::PluginsDesc f9p_UtwsOmsCore{"", &f9omstw::UtwsOmsCoreMgr::Create, nullptr, nullptr,};
+fon9::seed::PluginsDesc f9p_UtwsOmsCore{"", &f9omstw::UtwsOmsCoreMgrSeed::Create, nullptr, nullptr,};
 static fon9::seed::PluginsPark f9pRegister{"UtwsOmsCore", &f9p_UtwsOmsCore};

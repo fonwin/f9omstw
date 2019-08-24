@@ -30,6 +30,7 @@ enum class AllocFrom {
    Memory,
 };
 static AllocFrom  gAllocFrom{AllocFrom::Supplier};
+static bool       gIsLessInfo{false};
 //--------------------------------------------------------------------------//
 class OmsTwsOrderFactory : public f9omstw::OmsOrderFactory {
    fon9_NON_COPY_NON_MOVE(OmsTwsOrderFactory);
@@ -221,7 +222,8 @@ struct TestCore : public f9omstw::OmsCore {
          this->Owner_->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark(
          ));
          gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
-         std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
+         if (!gIsLessInfo)
+            std::cout << "AllocFrom = " << (gAllocFrom == AllocFrom::Supplier ? "Supplier" : "Memory") << std::endl;
       }
 
       this->TestCount_ = fon9::StrTo(fon9::GetCmdArg(argc, argv, "c", "count"), 0u);
@@ -256,7 +258,7 @@ struct TestCore : public f9omstw::OmsCore {
    void Backend_OnBeforeDestroy() {
       auto lastSNO = this->Backend_.LastSNO();
       this->Backend_.OnBeforeDestroy();
-      if (lastSNO > 0)
+      if (lastSNO > 0 && !gIsLessInfo)
          std::cout << this->Name_ << ".LastSNO = " << lastSNO << std::endl;
    }
 

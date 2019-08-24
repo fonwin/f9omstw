@@ -13,9 +13,8 @@ class UtwsExgTradingLineMgr {
    fon9::SubConn  SubrTDayChanged_{};
    void OnTDayChanged(OmsCore& core);
 public:
-   using TradingLineMgrSP = fon9::intrusive_ptr<TwsTradingLineMgr>;
-   TradingLineMgrSP  TseTradingLineMgr_;
-   TradingLineMgrSP  OtcTradingLineMgr_;
+   TwsTradingLineMgrSP  TseTradingLineMgr_;
+   TwsTradingLineMgrSP  OtcTradingLineMgr_;
 
    UtwsExgTradingLineMgr(OmsCoreMgr& coreMgr);
    ~UtwsExgTradingLineMgr();

@@ -141,7 +141,7 @@ private:
       "iDevTcps" _ "Y" _ ""         _ "TcpServer"       _ "Name=TcpServer|AddTo=FpDevice\n"
       "iMaIo"    _ "Y" _ ""         _ "NamedIoManager"  _ "Name=MaIo|DevFp=FpDevice|SesFp=FpSession|SvcCfg='ThreadCount=1|Capacity=100'\n"
       // 啟動 OmsCoreMgr=UtwsOmsCore, Name="omstws"
-      "iOmsTws"  _ "Y" _ ""         _ "UtwsOmsCore"     _ "\n"
+      "iOmsTws"  _ "Y" _ ""         _ "UtwsOmsCore"     _ "BrkId=8610\n"
       "iRcSv"    _ "Y" _ ""         _ "RcSessionServer" _ "Name=RcSv|Desp=f9OmsRc Tester|AuthMgr=AuthMgr|AddTo=FpSession\n"
       // 將 OmsRcServerAgent 加入 RcSv:
       "iRcSvOms" _ "Y" _ "" _ "OmsRcServerAgent" _ "OmsCore=omstws"

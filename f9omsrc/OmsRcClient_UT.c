@@ -164,6 +164,17 @@ const f9OmsRc_Layout* GetRequestLayout(UserDefine* ud, char** cmd) {
    printf("Unknown request name = %s\n", reqName);
    return NULL;
 }
+void MakeRequestStr(const f9OmsRc_Layout* pReqLayout, RequestRec* req) {
+   char* reqstr = req->RequestStr_;
+   for (unsigned iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
+      const char* str = req->Fields_[iFld];
+      size_t      len = strlen(str);
+      memcpy(reqstr, str, len);
+      *(reqstr += len) = '\x01';
+      ++reqstr;
+   }
+   *reqstr = '\0';
+}
 void SetRequest(UserDefine* ud, char* cmd) {
    // Req(Id or Name) fld(Index or Name)=value|fld2=val2|fld3=val3...
    const f9OmsRc_Layout* pReqLayout = GetRequestLayout(ud, &cmd);
@@ -228,26 +239,20 @@ void SetRequest(UserDefine* ud, char* cmd) {
       cmd = StrTrimHead(cmd + 1);
    }
 __BREAK_PUT_FIELDS:
-   cmd = req->RequestStr_;
-   for (iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
-      const char* str = req->Fields_[iFld];
-      size_t      len = strlen(str);
-      memcpy(cmd, str, len);
-      *(cmd += len) = '\x01';
-      ++cmd;
-   }
-   *cmd = '\0';
+   MakeRequestStr(pReqLayout, req);
    PrintRequest(pReqLayout, req);
    printf("RequestStr = [%s]\n", req->RequestStr_);
 }
 void SendRequest(UserDefine* ud, char* cmd) {
-   // send Req(Id or Name) times
+   // send Req(Id or Name) times [GroupId]
    const f9OmsRc_Layout* pReqLayout = GetRequestLayout(ud, &cmd);
    if (!pReqLayout)
       return;
-   unsigned long times = (cmd ? strtoul(cmd, NULL, 10) : 1);
+   unsigned long times = (cmd ? strtoul(cmd, &cmd, 10) : 1);
    if (times == 0)
       times = 1;
+   if (cmd)
+      cmd = StrTrimHead(cmd);
 
    RequestRec*    req = &ud->RequestRecs_[pReqLayout->LayoutId_ - 1];
    fon9_CStrView  reqstr;
@@ -258,15 +263,58 @@ void SendRequest(UserDefine* ud, char* cmd) {
       PrintRequest(pReqLayout, req);
       return;
    }
-   uint64_t usBeg = GetSystemUS();
-   for (unsigned long L = 0; L < times; ++L)
-      f9OmsRc_SendRequestString(ud->Session_, pReqLayout, reqstr);
+   uint64_t usBeg;
+   if (cmd == NULL || *cmd == '\0') {
+      usBeg = GetSystemUS();
+      for (unsigned long L = 0; L < times; ++L)
+         f9OmsRc_SendRequestString(ud->Session_, pReqLayout, reqstr);
+   }
+   else {
+      fon9_CStrView  reqFieldArray[64];
+      for (unsigned L = 0; L < pReqLayout->FieldCount_; ++L) {
+         reqFieldArray[L].Begin_ = req->Fields_[L];
+         reqFieldArray[L].End_ = memchr(req->Fields_[L], '\0', sizeof(req->Fields_[L]));
+      }
+      usBeg = GetSystemUS();
+      fon9_CStrView* pClOrdId = (pReqLayout->IdxClOrdId_ >= 0) ? &reqFieldArray[pReqLayout->IdxClOrdId_] : NULL;
+      fon9_CStrView* pUsrDef = (pReqLayout->IdxUsrDef_ >= 0) ? &reqFieldArray[pReqLayout->IdxUsrDef_] : NULL;
+      for (unsigned long L = 0; L < times; ++L) {
+         if (pClOrdId)
+            pClOrdId->End_ = pClOrdId->Begin_ + sprintf((char*)pClOrdId->Begin_, "%s:%lu", cmd, L + 1);
+         if (pUsrDef)
+            pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, GetSystemUS());
+         f9OmsRc_SendRequestFields(ud->Session_, pReqLayout, reqFieldArray);
+      }
+      if (pClOrdId)
+         *(char*)(pClOrdId->Begin_) = '\0';
+      if (pUsrDef)
+         *(char*)(pUsrDef->Begin_) = '\0';
+   }
    uint64_t usEnd = GetSystemUS();
    printf("Begin: %" PRIu64 ".%06" PRIu64 "\n", usBeg / 1000000, usBeg % 1000000);
    printf("  End: %" PRIu64 ".%06" PRIu64 "\n", usEnd / 1000000, usEnd % 1000000);
    printf("Spent: %" PRIu64 " us / %lu times = %lf\n",
           usEnd - usBeg, times, (usEnd - usBeg) / (double)times);
 }
+//--------------------------------------------------------------------------//
+const char  kCSTR_LogFileFmt[] =
+"   LogFileFmt:\n"
+"     '' = ./logs/{0:f+'L'}/f9OmsRc.log\n"
+"     time format: {0:?}\n"
+"       L = YYYYMMDDHHMMSS\n"
+"       f = YYYYMMDD\n"
+"       F = YYYY-MM-DD\n"
+"       K = YYYY/MM/DD\n"
+"       Y = YYYY\n"
+"       m = MM = Month\n"
+"       d = DD = Day\n"
+"       +'L' = to localtime\n";
+const char  kCSTR_LogFlags[] =
+"   LogFlags:\n"
+"     1 = f9OmsRc_ClientLogFlag_Request & Config\n"
+"     2 = f9OmsRc_ClientLogFlag_Report  & Config\n"
+"     4 = f9OmsRc_ClientLogFlag_Config\n"
+"     8 = f9OmsRc_ClientLogFlag_Link\n";
 //--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -309,33 +357,21 @@ int main(int argc, char* argv[]) {
    || sesParams.DevName_ == NULL
    || sesParams.DevParams_ == NULL) {
 __USAGE:
-      puts("Usage:\n"
-           "-l LogFileFmt\n"
-           "   default is log to console\n"
-           "   -l '' = ./logs/{0:f+'L'}/f9OmsRc.log\n"
-           "   time format: {0:?}\n"
-           "      L = YYYYMMDDHHMMSS\n"
-           "      f = YYYYMMDD\n"
-           "      F = YYYY-MM-DD\n"
-           "      K = YYYY/MM/DD\n"
-           "      Y = YYYY\n"
-           "      m = MM = Month\n"
-           "      d = DD = Day\n"
-           "      +'L' = to localtime\n"
-           "-f LogFlags(hex)\n"
-           "   LogFlags:\n"
-           "   1 = f9OmsRc_ClientLogFlag_Request & Config\n"
-           "   2 = f9OmsRc_ClientLogFlag_Report  & Config\n"
-           "   4 = f9OmsRc_ClientLogFlag_Config\n"
-           "   8 = f9OmsRc_ClientLogFlag_Link\n"
-           "   default is ff = all of above.\n"
-           "-n DevName\n"
-           "   default is TcpClient\n"
-           "-a DevArguments\n"
-           "   e.g. -a 127.0.0.1:6601\n"
-           "   e.g. -a dn=localhost:6601\n"
-           "-u UserId\n"
-           "-p Password\n");
+      printf("Usage:\n"
+             "-l LogFileFmt\n"
+             "   default is log to console\n"
+             "%s"
+             "-f LogFlags(hex)\n"
+             "   default is ff = all of below.\n"
+             "%s"
+             "-n DevName\n"
+             "   default is TcpClient\n"
+             "-a DevArguments\n"
+             "   e.g. -a 127.0.0.1:6601\n"
+             "   e.g. -a dn=localhost:6601\n"
+             "-u UserId\n"
+             "-p Password\n",
+             kCSTR_LogFileFmt, kCSTR_LogFlags);
       return 3;
    }
    char  passwd[1024];
@@ -373,30 +409,37 @@ __USAGE:
       else if (strcmp(pbeg, "send") == 0)
          SendRequest(&ud, pend);
       else if (strcmp(pbeg, "lf") == 0) {
-         if (pend)
-            ud.Session_->LogFlags_ = (f9OmsRc_ClientLogFlag)strtoul(pend, NULL, 16);
+         if (pend) {
+            ud.Session_->LogFlags_ = (f9OmsRc_ClientLogFlag)strtoul(pend, &pend, 16);
+            pend = StrTrimHead(pend);
+         }
          printf("LogFlags = %x\n", ud.Session_->LogFlags_);
+         if (pend && *pend) {
+            if ((pend[0] == '\'' && pend[1] == '\'')
+                || (pend[0] == '"' && pend[1] == '"'))
+               pend = "";
+            f9OmsRc_Initialize(pend);
+            f9OmsRc_Finalize();
+         }
       }
       else if (strcmp(pbeg, "?") == 0 || strcmp(pbeg, "help") == 0)
-         puts("quit\n"
-              "   Quit program.\n"
-              "\n"
-              "cfg\n"
-              "   List configs.\n"
-              "\n"
-              "set ReqId(or ReqName) FieldId(or FieldName)=value|fld2=val2|fld3=val3\n"
-              "\n"
-              "send ReqId(or ReqName) times\n"
-              "\n"
-              "lf LogFlags(hex)\n"
-              "   LogFlags:\n"
-              "   1 = f9OmsRc_ClientLogFlag_Request & Config\n"
-              "   2 = f9OmsRc_ClientLogFlag_Report  & Config\n"
-              "   4 = f9OmsRc_ClientLogFlag_Config\n"
-              "   8 = f9OmsRc_ClientLogFlag_Link\n"
-              "\n"
-              "? or help\n"
-              "   This info.\n");
+         printf("quit\n"
+                "   Quit program.\n"
+                "\n"
+                "cfg\n"
+                "   List configs.\n"
+                "\n"
+                "set ReqId(or ReqName) FieldId(or FieldName)=value|fld2=val2|fld3=val3\n"
+                "\n"
+                "send ReqId(or ReqName) times [GroupId]\n"
+                "\n"
+                "lf LogFlags(hex) [LogFileFmt]\n"
+                "%s"
+                "%s"
+                "\n"
+                "? or help\n"
+                "   This info.\n",
+                kCSTR_LogFlags, kCSTR_LogFileFmt);
       else
          printf("Unknown command: %s\n", pbeg);
    }

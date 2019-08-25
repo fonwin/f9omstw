@@ -328,6 +328,8 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
       this->Config_.TablesStr_ = std::move(cfg.TablesStr_);
       this->ConfigGvTablesStr_ = this->Config_.TablesStr_;
       fon9_CStrViewFrom(cfg.TablesStrView_, this->Config_.TablesStr_);
+
+      this->ConfigGvTables_.clear();
       OmsParseGvTables(this->ConfigGvTables_, this->ConfigGvTablesStr_);
       
       fon9_GCC_WARN_DISABLE("-Wold-style-cast");

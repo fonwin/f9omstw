@@ -6,6 +6,7 @@
 #include "f9omstw/OmsTree.hpp"
 #include "f9omstw/OmsTools.hpp"
 #include "fon9/StrTo.hpp"
+#include "f9tws/ExgTypes.hpp"
 
 namespace f9omstw {
 
@@ -46,10 +47,10 @@ public:
    void InitializeTwsOrdNoMapRef(f9fmkt_TradingMarket mkt, f9fmkt_TradingMarket mktRefSource);
 
    static int TwsBrkIndex1(fon9::StrView brkid) {
-      return brkid.size() == 4 ? fon9::Alpha2Seq(*(brkid.end() - 1)) : -1;
+      return brkid.size() == sizeof(f9tws::BrkId) ? fon9::Alpha2Seq(*(brkid.end() - 1)) : -1;
    }
    static int TwsBrkIndex2(fon9::StrView brkid) {
-      return brkid.size() == 4
+      return brkid.size() == sizeof(f9tws::BrkId)
          ? fon9::Alpha2Seq(*(brkid.end() - 2)) * fon9::kSeq2AlphaSize + fon9::Alpha2Seq(*(brkid.end() - 1))
          : -1;
    }

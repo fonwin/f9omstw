@@ -80,11 +80,15 @@ struct UtwsOmsCore : public OmsCoreByThread {
    fon9_NON_COPY_NON_MOVE(UtwsOmsCore);
    using base = OmsCoreByThread;
    friend class UtwsOmsCoreMgrSeed;
-   UtwsOmsCore(OmsCoreMgrSP owner, std::string seedPath, std::string name)
+   UtwsOmsCore(OmsCoreMgrSP owner, std::string seedPath, std::string name,
+               fon9::StrView brkIdStart, size_t brkCount)
       : base(std::move(owner), std::move(seedPath), std::move(name)) {
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
-      this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
-      this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
+      OmsBrkTree::FnGetBrkIndex fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex1;
+      if (fon9::Alpha2Seq(*(brkIdStart.end() - 1)) + brkCount - 1 >= fon9::kSeq2AlphaSize)
+         fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex2;
+      this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), fnGetBrkIdx));
+      this->Brks_->Initialize(&UtwsBrk::BrkMaker, brkIdStart, brkCount, &IncStrAlpha);
       // 建立委託書號表的關聯.
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
@@ -102,6 +106,8 @@ class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
    using base = fon9::seed::NamedSapling;
    const fon9::seed::MaTreeSP Root_;
    UtwsExgTradingLineMgr      ExgLineMgr_;
+   f9tws::BrkId               BrkIdStart_;
+   unsigned                   BrkCount_;
 
    UtwsOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
       : base(new OmsCoreMgr{"cores"}, std::move(name))
@@ -142,7 +148,9 @@ public:
       fon9::RevPrint(rbuf, this->Name_, '/');
       UtwsOmsCore* core = new UtwsOmsCore(static_cast<OmsCoreMgr*>(this->Sapling_.get()),
                                           rbuf.ToStrT<std::string>(),
-                                          std::move(coreName));
+                                          std::move(coreName),
+                                          ToStrView(this->BrkIdStart_),
+                                          this->BrkCount_);
       fon9::TimedFileName logfn(fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_), fon9::TimedFileName::TimeScale::Day);
       // oms log 檔名與 TDay 相關, 與 TimeZone 無關, 所以要扣除 logfn.GetTimeChecker().GetTimeZoneOffset();
       logfn.RebuildFileName(tday - logfn.GetTimeChecker().GetTimeZoneOffset());
@@ -166,8 +174,11 @@ public:
       // - IoTse={上市交易線路 IoService 參數} 可使用 IoTse=/MaIo 表示與 /MaIo 共用 IoService
       // - IoOtc={上櫃交易線路 IoService 參數} 可使用 IoOtc=/MaIo 或 IoTse 表示共用 IoService
       // - 「IoService 設定參數」請參考: IoServiceArgs.hpp
+      // - BrkId=起始券商代號
+      // - BrkCount=券商數量
       fon9::IoManagerArgs  ioargsTse, ioargsOtc;
-      fon9::StrView        tag, value, omsName{"omstws"};
+      fon9::StrView        tag, value, omsName{"omstws"}, brkId;
+      unsigned             brkCount = 0;
       while (fon9::SbrFetchTagValue(args, tag, value)) {
          fon9::IoManagerArgs* dst;
          if (tag == "Name") {
@@ -178,6 +189,14 @@ public:
             dst = &ioargsTse;
          else if (tag == "IoOtc")
             dst = &ioargsOtc;
+         else if (tag == "BrkId") {
+            brkId = value;
+            continue;
+         }
+         else if (tag == "BrkCount") {
+            brkCount = fon9::StrTo(value, 0u);
+            continue;
+         }
          else {
             holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown tag: ", tag);
             return false;
@@ -188,11 +207,17 @@ public:
          if (!SetIoManager(holder, *dst))
             return false;
       }
+      if (brkId.size() != sizeof(f9tws::BrkId)) {
+         holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown BrkId: ", brkId);
+         return false;
+      }
       ioargsTse.DeviceFactoryPark_ = ioargsOtc.DeviceFactoryPark_ = devfp;
       // ------------------------------------------------------------------
       UtwsOmsCoreMgrSeed* coreMgrSeed = new UtwsOmsCoreMgrSeed(omsName.ToString(), holder.Root_);
       if (!holder.Root_->Add(coreMgrSeed))
          return false;
+      coreMgrSeed->BrkIdStart_.AssignFrom(brkId);
+      coreMgrSeed->BrkCount_ = (brkCount <= 0 ? 1u : brkCount);
 
       OmsCoreMgr*           coreMgr = static_cast<OmsCoreMgr*>(coreMgrSeed->Sapling_.get());
       UomsOrderTwsFactory*  ordfac = new UomsOrderTwsFactory;

@@ -120,7 +120,9 @@ public:
    ~OmsBackend();
 
    using OpenResult = fon9::File::Result;
-   OpenResult OpenReload(std::string logFileName, OmsResource& resource);
+   OpenResult OpenReload(std::string logFileName, OmsResource& resource,
+                         fon9::FileMode fmode = fon9::FileMode::CreatePath | fon9::FileMode::Append
+                                              | fon9::FileMode::Read | fon9::FileMode::DenyWrite);
    void StartThread(std::string thrName, fon9::TimeInterval flushInterval = fon9::TimeInterval_Millisecond(1));
    /// 通知並等候 thread 結束.
    void WaitThreadEnd();

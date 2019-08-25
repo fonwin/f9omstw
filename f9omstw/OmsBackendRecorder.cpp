@@ -272,13 +272,11 @@ struct OmsBackend::Loader {
    }
 };
 
-OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResource& resource) {
+OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResource& resource, fon9::FileMode fmode) {
    assert(!this->RecorderFd_.IsOpened());
    if (this->RecorderFd_.IsOpened())
       return OpenResult{0};
-   auto res = this->RecorderFd_.Open(logFileName,
-                                     fon9::FileMode::CreatePath | fon9::FileMode::Append
-                                     | fon9::FileMode::Read | fon9::FileMode::DenyWrite);
+   auto res = this->RecorderFd_.Open(logFileName, fmode);
    if (res.IsError()) {
    __OPEN_ERROR:
       this->RecorderFd_.Close();

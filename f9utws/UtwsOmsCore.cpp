@@ -75,32 +75,6 @@ static void AddNamedSapling(Root& root, fon9::intrusive_ptr<NamedSapling> saplin
    root.Add(new fon9::seed::NamedSapling(sapling, sapling->Name_));
 }
 
-class UtwsOmsCoreMgrSeed;
-struct UtwsOmsCore : public OmsCoreByThread {
-   fon9_NON_COPY_NON_MOVE(UtwsOmsCore);
-   using base = OmsCoreByThread;
-   friend class UtwsOmsCoreMgrSeed;
-   UtwsOmsCore(OmsCoreMgrSP owner, std::string seedPath, std::string name,
-               fon9::StrView brkIdStart, size_t brkCount)
-      : base(std::move(owner), std::move(seedPath), std::move(name)) {
-      this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
-      OmsBrkTree::FnGetBrkIndex fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex1;
-      if (fon9::Alpha2Seq(*(brkIdStart.end() - 1)) + brkCount - 1 >= fon9::kSeq2AlphaSize)
-         fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex2;
-      this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), fnGetBrkIdx));
-      this->Brks_->Initialize(&UtwsBrk::BrkMaker, brkIdStart, brkCount, &IncStrAlpha);
-      // 建立委託書號表的關聯.
-      this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
-      this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
-   }
-   ~UtwsOmsCore() {
-      this->OnBeforeDestroy();
-   }
-   void OnParentTreeClear(fon9::seed::Tree& tree) override {
-      base::OnParentTreeClear(tree);
-      this->OnBeforeDestroy();
-   }
-};
 class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
    fon9_NON_COPY_NON_MOVE(UtwsOmsCoreMgrSeed);
    using base = fon9::seed::NamedSapling;
@@ -108,6 +82,8 @@ class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
    UtwsExgTradingLineMgr      ExgLineMgr_;
    f9tws::BrkId               BrkIdStart_;
    unsigned                   BrkCount_;
+   int                        CpuId_{-1};
+   fon9::HowWait              HowWait_{};
 
    UtwsOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
       : base(new OmsCoreMgr{"cores"}, std::move(name))
@@ -140,27 +116,51 @@ class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
       coreMgr.Add(new TwsTradingLineMgrCfgSeed(*linemgr, cfgpath, name.ToString() + "_cfg"));
    }
 
+   void InitCoreTables(OmsResource& res) {
+      res.Symbs_.reset(new OmsSymbTree(res.Core_, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
+
+      OmsBrkTree::FnGetBrkIndex fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex1;
+      if (fon9::Alpha2Seq(*(this->BrkIdStart_.end() - 1)) + this->BrkCount_ - 1 >= fon9::kSeq2AlphaSize)
+         fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex2;
+      res.Brks_.reset(new OmsBrkTree(res.Core_, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), fnGetBrkIdx));
+      res.Brks_->Initialize(&UtwsBrk::BrkMaker, ToStrView(this->BrkIdStart_), this->BrkCount_, &IncStrAlpha);
+      // 建立委託書號表的關聯.
+      res.Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
+      res.Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
+   }
+
+   OmsCoreByThreadBaseSP CreateCore(std::string seedName,
+                                    std::string coreName,
+                                    const OmsCoreByThreadBase::FnInit& fnInit) {
+      if (this->HowWait_ == fon9::HowWait::Busy)
+         return new OmsCoreByThread_Busy(fnInit,
+                                         static_cast<OmsCoreMgr*>(this->Sapling_.get()),
+                                         std::move(seedName),
+                                         std::move(coreName));
+      else
+         return new OmsCoreByThread_CV(fnInit,
+                                       static_cast<OmsCoreMgr*>(this->Sapling_.get()),
+                                       std::move(seedName),
+                                       std::move(coreName));
+   }
+
 public:
    bool AddCore(fon9::TimeStamp tday) {
       fon9::RevBufferFixedSize<128> rbuf;
       fon9::RevPrint(rbuf, this->Name_, '_', fon9::GetYYYYMMDD(tday));
       std::string coreName = rbuf.ToStrT<std::string>();
       fon9::RevPrint(rbuf, this->Name_, '/');
-      UtwsOmsCore* core = new UtwsOmsCore(static_cast<OmsCoreMgr*>(this->Sapling_.get()),
-                                          rbuf.ToStrT<std::string>(),
-                                          std::move(coreName),
-                                          ToStrView(this->BrkIdStart_),
-                                          this->BrkCount_);
+
+      OmsCoreByThreadBaseSP core = this->CreateCore(
+         rbuf.ToStrT<std::string>(),
+         std::move(coreName),
+         [tday, this](OmsResource& res) { this->InitCoreTables(res); }
+      );
+
       fon9::TimedFileName logfn(fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_), fon9::TimedFileName::TimeScale::Day);
       // oms log 檔名與 TDay 相關, 與 TimeZone 無關, 所以要扣除 logfn.GetTimeChecker().GetTimeZoneOffset();
       logfn.RebuildFileName(tday - logfn.GetTimeChecker().GetTimeZoneOffset());
-      std::string fname = logfn.GetFileName() + this->Name_ + ".log";
-      auto res = core->Start(tday, fname);
-      core->SetTitle(std::move(fname));
-      if (res.IsError())
-         core->SetDescription(fon9::RevPrintTo<std::string>(res));
-      // 必須在載入完畢後再加入 CoreMgr, 否則可能造成 TDayChanged 事件處理者, 沒有取得完整的資料表.
-      return static_cast<OmsCoreMgr*>(this->Sapling_.get())->Add(core);
+      return core->StartToCoreMgr(tday, logfn.GetFileName() + this->Name_ + ".log", this->CpuId_);
    }
 
    static bool Create(fon9::seed::PluginsHolder& holder, fon9::StrView args) {
@@ -176,36 +176,42 @@ public:
       // - 「IoService 設定參數」請參考: IoServiceArgs.hpp
       // - BrkId=起始券商代號
       // - BrkCount=券商數量
+      // - Wait=Policy     Busy or Block(default)
+      // - Cpus=CpuId 或 Cpu=CpuId
       fon9::IoManagerArgs  ioargsTse, ioargsOtc;
       fon9::StrView        tag, value, omsName{"omstws"}, brkId;
       unsigned             brkCount = 0;
+      fon9::HowWait        howWait{};
+      int                  cpuId = -1;
       while (fon9::SbrFetchTagValue(args, tag, value)) {
-         fon9::IoManagerArgs* dst;
-         if (tag == "Name") {
+         fon9::IoManagerArgs* ioargs;
+         if (tag == "Name")
             omsName = value;
-            continue;
+         else if (tag == "IoTse") {
+            ioargs = &ioargsTse;
+         __SET_IO_ARGS:;
+            if (!(tag = fon9::SbrFetchInsideNoTrim(value)).IsNull())
+               value = tag;
+            ioargs->IoServiceCfgstr_ = fon9::StrTrim(&value).ToString();
+            if (!SetIoManager(holder, *ioargs))
+               return false;
          }
-         if (tag == "IoTse")
-            dst = &ioargsTse;
-         else if (tag == "IoOtc")
-            dst = &ioargsOtc;
-         else if (tag == "BrkId") {
+         else if (tag == "IoOtc") {
+            ioargs = &ioargsOtc;
+            goto __SET_IO_ARGS;
+         }
+         else if (tag == "BrkId")
             brkId = value;
-            continue;
-         }
-         else if (tag == "BrkCount") {
+         else if (tag == "BrkCount")
             brkCount = fon9::StrTo(value, 0u);
-            continue;
-         }
+         else if (tag == "Wait")
+            howWait = fon9::StrToHowWait(value);
+         else if (tag == "Cpu" || tag == "Cpus")
+            cpuId = fon9::StrTo(value, cpuId);
          else {
             holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown tag: ", tag);
             return false;
          }
-         if (!(tag = fon9::SbrFetchInsideNoTrim(value)).IsNull())
-            value = tag;
-         dst->IoServiceCfgstr_ = fon9::StrTrim(&value).ToString();
-         if (!SetIoManager(holder, *dst))
-            return false;
       }
       if (brkId.size() != sizeof(f9tws::BrkId)) {
          holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown BrkId: ", brkId);
@@ -218,6 +224,8 @@ public:
          return false;
       coreMgrSeed->BrkIdStart_.AssignFrom(brkId);
       coreMgrSeed->BrkCount_ = (brkCount <= 0 ? 1u : brkCount);
+      coreMgrSeed->CpuId_ = cpuId;
+      coreMgrSeed->HowWait_ = howWait;
 
       OmsCoreMgr*           coreMgr = static_cast<OmsCoreMgr*>(coreMgrSeed->Sapling_.get());
       UomsOrderTwsFactory*  ordfac = new UomsOrderTwsFactory;

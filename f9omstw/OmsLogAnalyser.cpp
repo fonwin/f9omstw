@@ -6,14 +6,14 @@
 struct AnItem {
    const f9omstw::OmsRequestTrade* Request_;
 
-   /// Client before send: OmsRcClient_UT.c:285
+   /// Client before send: OmsRcClient_UT.c#L294
    fon9::TimeStamp Ts0_{fon9::TimeStamp::Null()};
    fon9::TimeStamp Ts0() const { return this->Ts0_; }
 
-   /// Server before parse: OmsRcServerFunc.cpp:194
+   /// Server before parse: OmsRcServerFunc.cpp#L194
    fon9::TimeStamp Ts1() const { return this->Request_->CrTime(); }
 
-   /// Server after first updated(Sending, Queuing, Reject...): OmsBackend.cpp:202
+   /// Server after first updated(Sending, Queuing, Reject...): OmsBackend.cpp#L202
    fon9::TimeStamp Ts2_{fon9::TimeStamp::Null()};
    fon9::TimeStamp Ts2() const { return this->Ts2_; }
 

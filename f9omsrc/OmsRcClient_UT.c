@@ -149,7 +149,7 @@ const f9OmsRc_Layout* GetRequestLayout(UserDefine* ud, char** cmd) {
       return NULL;
    }
    // Req(Id or Name)
-   char* reqName = StrCutSpace(*cmd, cmd);
+   const char* reqName = (*cmd ? StrCutSpace(*cmd, cmd) : "");
    if (isdigit(*reqName)) {
       unsigned id = strtoul(reqName, NULL, 10);
       if (id <= 0 || ud->Config_->RequestLayoutCount_ < id) {
@@ -251,8 +251,14 @@ void SendRequest(UserDefine* ud, char* cmd) {
    unsigned long times = (cmd ? strtoul(cmd, &cmd, 10) : 1);
    if (times == 0)
       times = 1;
-   if (cmd)
+   unsigned long msInterval = 0;
+   if (cmd) {
       cmd = StrTrimHead(cmd);
+      if (*cmd == '/') { // times/msInterval
+         msInterval = strtoul(cmd + 1, &cmd, 10);
+         cmd = StrTrimHead(cmd);
+      }
+   }
 
    RequestRec*    req = &ud->RequestRecs_[pReqLayout->LayoutId_ - 1];
    fon9_CStrView  reqstr;
@@ -266,8 +272,11 @@ void SendRequest(UserDefine* ud, char* cmd) {
    uint64_t usBeg;
    if (cmd == NULL || *cmd == '\0') {
       usBeg = GetSystemUS();
-      for (unsigned long L = 0; L < times; ++L)
+      for (unsigned long L = 0; L < times; ++L) {
          f9OmsRc_SendRequestString(ud->Session_, pReqLayout, reqstr);
+         if (msInterval > 0)
+            SleepMS(msInterval);
+      }
    }
    else {
       fon9_CStrView  reqFieldArray[64];
@@ -284,6 +293,8 @@ void SendRequest(UserDefine* ud, char* cmd) {
          if (pUsrDef)
             pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, GetSystemUS());
          f9OmsRc_SendRequestFields(ud->Session_, pReqLayout, reqFieldArray);
+         if (msInterval > 0)
+            SleepMS(msInterval);
       }
       if (pClOrdId)
          *(char*)(pClOrdId->Begin_) = '\0';
@@ -431,7 +442,7 @@ __USAGE:
                 "\n"
                 "set ReqId(or ReqName) FieldId(or FieldName)=value|fld2=val2|fld3=val3\n"
                 "\n"
-                "send ReqId(or ReqName) times [GroupId]\n"
+                "send ReqId(or ReqName) times[/msInterval] [GroupId]\n"
                 "\n"
                 "lf LogFlags(hex) [LogFileFmt]\n"
                 "%s"

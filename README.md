@@ -1,6 +1,8 @@
 ﻿fon9 Order management system for tw
 ===================================
 
+[benchmark](https://github.com/fonwin/f9omstw.benchmark)
+
 libf9omstw: 台灣環境的委託管理系統.
 * 採用 static library:
   * 執行時的速度可加快一點點。
@@ -41,6 +43,16 @@ libf9omstw: 台灣環境的委託管理系統.
           |-- cmake/    build shell for cmake
           \-- vs2015/   VS2015 project & solution files
 ```
+
+---------------------------------------
+
+## 回報匯入(包含下單回報)
+依序回報是理想的世界, 但現實是殘酷的,
+所以「回報匯入」亂序, 是 OMS 必須解決的難題.
+請參閱專章說明: [回報匯入機制](ReportIn.md)
+
+## 根據錯誤碼決定後續行為
+請參閱: [錯誤碼設定](OmsErrCode.cfg)
 
 ---------------------------------------
 
@@ -267,16 +279,3 @@ libf9omstw: 台灣環境的委託管理系統.
 * 將 OmsRequest 或 委託異動資料(OmsOrderRaw) 丟到 OmsBackend.
 * 定時(例:1 ms), 或有空時通知, 或資料累積太多: 通知有新增的 OmsRxItem.
   * OmsBackend 將新增的 OmsRxItem 寫入檔案, 及回報通知.
-
----------------------------------------
-
-## 回報匯入(包含下單回報)
-依序回報是理想的世界, 但現實是殘酷的,
-所以「回報匯入」亂序, 是 OMS 必須解決的難題.
-
-請參閱專章說明: [回報匯入機制](ReportIn.md)
-
----------------------------------------
-
-## 根據錯誤碼決定後續行為
-請參閱: [錯誤碼設定](OmsErrCode.cfg)

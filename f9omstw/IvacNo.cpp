@@ -5,6 +5,12 @@
 
 namespace f9omstw {
 
+#ifdef f9omstw_IVACNO_NOCHKCODE
+const bool kIvacNo_NoChkCode = true;
+#else
+const bool kIvacNo_HasChkCode = true;
+#endif
+
 IvacNo StrToIvacNo(fon9::StrView ivacStr, const char** pend) {
    IvacNo      ivacNo = fon9::StrTo(&ivacStr, 0u);
    const char* pcur = ivacStr.begin();

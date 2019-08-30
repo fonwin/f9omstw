@@ -76,7 +76,6 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\f9utws\UnitTestCore.hpp" />
     <ClInclude Include="..\..\..\f9utws\UtwsBrk.hpp" />
-    <ClInclude Include="..\..\..\f9utws\UtwsExgSenderStep.hpp" />
     <ClInclude Include="..\..\..\f9utws\UtwsIvac.hpp" />
     <ClInclude Include="..\..\..\f9utws\UtwsIvSc.hpp" />
     <ClInclude Include="..\..\..\f9utws\UtwsIvSymb.hpp" />
@@ -85,7 +84,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9utws\UtwsBrk.cpp" />
-    <ClCompile Include="..\..\..\f9utws\UtwsExgSenderStep.cpp" />
     <ClCompile Include="..\..\..\f9utws\UtwsIvac.cpp" />
     <ClCompile Include="..\..\..\f9utws\UtwsIvSc.cpp" />
     <ClCompile Include="..\..\..\f9utws\UtwsIvSymb.cpp" />

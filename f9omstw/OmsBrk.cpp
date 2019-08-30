@@ -1,6 +1,8 @@
 ﻿// \file f9omstw/OmsBrk.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsBrk.hpp"
+#include "f9omstw/OmsBrkTree.hpp"
+#include "f9omstw/OmsIvacTree.hpp"
 
 namespace f9omstw {
 
@@ -54,6 +56,25 @@ void OmsBrk::OnParentSeedClear() {
             ivac->OnParentSeedClear();
       } while ((pivacSP = tmpIvacs.GetNext(i)) != nullptr);
    }
+}
+//--------------------------------------------------------------------------//
+void OmsBrk::MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) {
+   if (tab)
+      FieldsCellRevPrint(tab->Fields_, fon9::seed::SimpleRawRd{*this}, rbuf);
+   fon9::RevPrint(rbuf, this->BrkId_);
+}
+//--------------------------------------------------------------------------//
+OmsBrk::PodOp::PodOp(OmsBrkTree& sender, OmsBrk* brk)
+   : base(sender, fon9::seed::OpResult::no_error, ToStrView(brk->BrkId_))
+   , Brk_{brk} {
+}
+fon9::seed::TreeSP OmsBrk::PodOp::GetSapling(fon9::seed::Tab& tab) {
+   assert(OmsBrkTree::IsInOmsThread(this->Sender_));
+   return new OmsIvacTree(static_cast<OmsBrkTree*>(this->Sender_)->OmsCore_, tab.SaplingLayout_, this->Brk_);
+}
+void OmsBrk::OnPodOp(OmsBrkTree& brkTree, fon9::seed::FnPodOp&& fnCallback) {
+   PodOp op{brkTree, this};
+   fnCallback(op, &op);
 }
 
 } // namespaces

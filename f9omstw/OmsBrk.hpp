@@ -118,8 +118,22 @@ public:
    virtual void OnParentSeedClear();
 
    /// 建立 grid view, 包含 BrkId_; 不含尾端分隔符號.
-   virtual void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) = 0;
-   virtual void OnPodOp(OmsBrkTree& brkTree, fon9::seed::FnPodOp&& fnCallback) = 0;
+   /// 預設簡單輸出:
+   /// `FieldsCellRevPrint(tab->Fields_, SimpleRawRd{*this}, rbuf);`
+   /// `RevPrint(rbuf, this->BrkId_);`
+   virtual void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf);
+
+   struct PodOp : public fon9::seed::PodOpDefault {
+      fon9_NON_COPY_NON_MOVE(PodOp);
+      using base = fon9::seed::PodOpDefault;
+   public:
+      OmsBrk* Brk_;
+      PodOp(OmsBrkTree& sender, OmsBrk* brk);
+
+      /// 預設使用 new OmsIvacTree 處理 IvacTree;
+      fon9::seed::TreeSP GetSapling(fon9::seed::Tab& tab) override;
+   };
+   virtual void OnPodOp(OmsBrkTree& brkTree, fon9::seed::FnPodOp&& fnCallback);
 };
 fon9_WARN_POP;
 

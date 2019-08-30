@@ -38,6 +38,9 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgrCfg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepG1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsOrder.hpp">
@@ -62,6 +65,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgrCfg.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepG1.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

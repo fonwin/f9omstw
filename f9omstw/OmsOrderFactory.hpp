@@ -2,8 +2,8 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsOrderFactory_hpp__
 #define __f9omstw_OmsOrderFactory_hpp__
-#include "f9omstw/OmsBase.hpp"
-#include "fon9/seed/Tab.hpp"
+#include "f9omstw/OmsTools.hpp"
+#include "fon9/ObjSupplier.hpp"
 
 namespace f9omstw {
 
@@ -25,6 +25,29 @@ public:
    /// 建立一個 OmsOrder, 並呼叫 OmsOrder.BeginUpdate() 開始異動.
    /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 OmsOrder 的初始化.
    OmsOrderRaw* MakeOrder(OmsRequestBase& starter, OmsScResource* scRes);
+};
+
+template <class OrderT, class OrderRawT, unsigned kPoolObjCount>
+class OmsOrderFactoryT : public OmsOrderFactory {
+   fon9_NON_COPY_NON_MOVE(OmsOrderFactoryT);
+   using base = OmsOrderFactory;
+
+   using RawSupplier = fon9::ObjSupplier<OrderRawT, kPoolObjCount>;
+   typename RawSupplier::ThisSP RawSupplier_{RawSupplier::Make()};
+   OrderRawT* MakeOrderRawImpl() override {
+      return this->RawSupplier_->Alloc();
+   }
+
+   using OrderSupplier = fon9::ObjSupplier<OrderT, kPoolObjCount>;
+   typename OrderSupplier::ThisSP OrderSupplier_{OrderSupplier::Make()};
+   OrderT* MakeOrderImpl() override {
+      return this->OrderSupplier_->Alloc();
+   }
+
+public:
+   OmsOrderFactoryT(std::string name)
+      : base(fon9::Named(std::move(name)), f9omstw::MakeFieldsT<OrderRawT>()) {
+   }
 };
 
 } // namespaces

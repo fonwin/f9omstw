@@ -2,7 +2,6 @@ set(f9utws_src
  ../../fon9/fon9/framework/Fon9CoRun.cpp
  f9utws_main.cpp
  UtwsOmsCore.cpp
- UtwsExgSenderStep.cpp
  UtwsSymb.cpp
  UtwsIvSymb.cpp
  UtwsIvSc.cpp

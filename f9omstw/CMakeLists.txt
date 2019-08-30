@@ -2,6 +2,7 @@ set(f9omstw_src
  IvacNo.cpp
  OmsCore.cpp
  OmsCoreMgr.cpp
+ OmsCoreMgrSeed.cpp
  OmsCoreByThread.cpp
  OmsResource.cpp
  OmsTools.cpp
@@ -49,7 +50,6 @@ set (f9utws_src
  ../f9omstws/OmsTwsRequest.cpp
  ../f9omstws/OmsTwsOrder.cpp
  ../f9utws/UtwsOmsCore.cpp
- ../f9utws/UtwsExgSenderStep.cpp
  ../f9utws/UtwsBrk.cpp
  ../f9utws/UtwsIvac.cpp
  ../f9utws/UtwsSubac.cpp

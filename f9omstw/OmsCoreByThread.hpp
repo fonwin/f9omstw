@@ -4,6 +4,7 @@
 #define __f9omstw_OmsCoreByThread_hpp__
 #include "f9omstw/OmsCore.hpp"
 #include "fon9/MessageQueue.hpp"
+#include "fon9/Tools.hpp"
 
 namespace f9omstw {
 
@@ -131,9 +132,29 @@ public:
    void RunCoreTask(OmsCoreTask&& task) override {
       this->EmplaceMessage(std::move(task));
    }
+
+   static OmsCoreByThreadBaseSP Creator(const FnInit& fnInit,
+                                        OmsCoreMgrSP coreMgr,
+                                        std::string seedName,
+                                        std::string coreName) {
+      return new OmsCoreByThread(fnInit,
+                                 std::move(coreMgr),
+                                 std::move(seedName),
+                                 std::move(coreName));
+   }
 };
 using OmsCoreByThread_CV = OmsCoreByThread<fon9::WaitPolicy_CV>;
 using OmsCoreByThread_Busy = OmsCoreByThread<fon9::WaitPolicy_SpinBusy>;
+typedef OmsCoreByThreadBaseSP (*FnOmsCoreByThreadCreator)(const OmsCoreByThreadBase::FnInit& fnInit,
+                                                          OmsCoreMgrSP coreMgr,
+                                                          std::string seedName,
+                                                          std::string coreName);
+
+inline FnOmsCoreByThreadCreator GetOmsCoreByThreadCreator(fon9::HowWait howWait) {
+   if (howWait == fon9::HowWait::Busy)
+      return &OmsCoreByThread_Busy::Creator;
+   return &OmsCoreByThread_CV::Creator;
+}
 
 template <class BaseMQ>
 OmsThreadTaskHandler::OmsThreadTaskHandler(BaseMQ& mq)

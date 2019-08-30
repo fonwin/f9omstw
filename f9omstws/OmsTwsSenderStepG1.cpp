@@ -1,20 +1,20 @@
-﻿// \file f9utws/UtwsExgSenderStep.cpp
+﻿// \file f9omstws/OmsTwsTradingLineMgrG1.cpp
 // \author fonwinz@gmail.com
-#include "f9utws/UtwsExgSenderStep.hpp"
+#include "f9omstws/OmsTwsSenderStepG1.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsReportRunner.hpp"
 
 namespace f9omstw {
 
-UtwsExgTradingLineMgr::UtwsExgTradingLineMgr(OmsCoreMgr& coreMgr) : CoreMgr_(coreMgr) {
+TwsTradingLineMgrG1::TwsTradingLineMgrG1(OmsCoreMgr& coreMgr) : CoreMgr_(coreMgr) {
    coreMgr.TDayChangedEvent_.Subscribe(&this->SubrTDayChanged_,
-      std::bind(&UtwsExgTradingLineMgr::OnTDayChanged, this, std::placeholders::_1));
+      std::bind(&TwsTradingLineMgrG1::OnTDayChanged, this, std::placeholders::_1));
 }
-UtwsExgTradingLineMgr::~UtwsExgTradingLineMgr() {
-   // CoreMgr 擁有 UtwsExgTradingLineMgr, 所以當此時, CoreMgr_ 必定已經正在死亡!
+TwsTradingLineMgrG1::~TwsTradingLineMgrG1() {
+   // CoreMgr 擁有 TwsTradingLineMgrG1, 所以當此時, CoreMgr_ 必定正在死亡!
    // 因此沒必要 this->CoreMgr_.TDayChangedEvent_.Unsubscribe(&this->SubrTDayChanged_);
 }
-void UtwsExgTradingLineMgr::OnTDayChanged(OmsCore& core) {
+void TwsTradingLineMgrG1::OnTDayChanged(OmsCore& core) {
    core.RunCoreTask([this](OmsResource& resource) {
       if (this->CoreMgr_.CurrentCore().get() == &resource.Core_) {
          assert(this->TseTradingLineMgr_.get() != nullptr);
@@ -25,10 +25,10 @@ void UtwsExgTradingLineMgr::OnTDayChanged(OmsCore& core) {
    });
 }
 //--------------------------------------------------------------------------//
-UtwsExgSenderStep::UtwsExgSenderStep(UtwsExgTradingLineMgr& lineMgr)
+OmsTwsSenderStepG1::OmsTwsSenderStepG1(TwsTradingLineMgrG1& lineMgr)
    : LineMgr_(lineMgr) {
 }
-void UtwsExgSenderStep::RunRequest(OmsRequestRunnerInCore&& runner) {
+void OmsTwsSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
    fon9_WARN_DISABLE_SWITCH;
    switch (runner.OrderRaw_.Market()) {
    case f9fmkt_TradingMarket_TwSEC:
@@ -43,7 +43,7 @@ void UtwsExgSenderStep::RunRequest(OmsRequestRunnerInCore&& runner) {
    }
    fon9_WARN_POP;
 }
-void UtwsExgSenderStep::RerunRequest(OmsReportRunnerInCore&& runner) {
+void OmsTwsSenderStepG1::RerunRequest(OmsReportRunnerInCore&& runner) {
    if (0);// RerunRequest(): runner.ErrCodeAct_->IsUseNewLine_?
    this->RunRequest(std::move(runner));
 }

@@ -38,15 +38,13 @@ public:
 
    UtwsIvSymbSc Bal_;
    UtwsIvSymbSc Ord_;
-   UtwsIvSymbSc Filled_;
+   UtwsIvSymbSc Mat_;
 
    static OmsIvSymbSP SymbMaker(const fon9::StrView& symbid, OmsIvBase* owner) {
       (void)owner;
       return new UtwsIvSymb{symbid};
    }
    static fon9::seed::LayoutSP MakeLayout();
-   void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) override;
-   void OnPodOp(OmsTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText) override;
 };
 
 } // namespaces

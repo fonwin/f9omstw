@@ -19,10 +19,11 @@ struct UtwsIvSc {
    fon9::fmkt::BigAmt   TotalSell_;
    OmsIvSymbs           Symbs_;
 
-   static void MakeFields(fon9::seed::Fields& scflds);
-   static fon9::seed::Fields MakeFields() {
+   /// ofsadj = fon9_OffsetOfRawPointer(UtwsIvac, Sc_)
+   static void MakeFields(int ofsadj, fon9::seed::Fields& scflds);
+   static fon9::seed::Fields MakeFields(int ofsadj) {
       fon9::seed::Fields scflds;
-      MakeFields(scflds);
+      MakeFields(ofsadj, scflds);
       return scflds;
    }
 };

@@ -26,9 +26,8 @@ public:
    using base::base;
 
    static fon9::seed::LayoutSP MakeLayout();
-   /// 建立 grid view, 包含 SubacNo_; 不含尾端分隔符號.
-   void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) override;
-   void OnPodOp(OmsTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText) override;
+
+   void OnPodOp(OmsSubacTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText) override;
 };
 using UtwsSubacSP = fon9::intrusive_ptr<UtwsSubac>;
 

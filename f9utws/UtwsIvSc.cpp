@@ -5,9 +5,9 @@
 
 namespace f9omstw {
 
-void UtwsIvSc::MakeFields(fon9::seed::Fields& scflds) {
-   scflds.Add(fon9_MakeField2(UtwsIvSc, TotalBuy));
-   scflds.Add(fon9_MakeField2(UtwsIvSc, TotalSell));
+void UtwsIvSc::MakeFields(int ofsadj, fon9::seed::Fields& scflds) {
+   scflds.Add(fon9_MakeField2_OfsAdj(ofsadj, UtwsIvSc, TotalBuy));
+   scflds.Add(fon9_MakeField2_OfsAdj(ofsadj, UtwsIvSc, TotalSell));
 }
 
 } // namespaces

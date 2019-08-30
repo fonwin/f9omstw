@@ -1,49 +1,25 @@
 ﻿// \file f9utws/UtwsOmsCore.cpp
 // \author fonwinz@gmail.com
-#include "f9omstw/OmsCoreByThread.hpp"
-#include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsCoreMgrSeed.hpp"
 #include "f9omstw/OmsReportFactory.hpp"
 
 #include "f9utws/UtwsSymb.hpp"
 #include "f9utws/UtwsBrk.hpp"
-#include "f9utws/UtwsExgSenderStep.hpp"
 
+#include "f9omstws/OmsTwsSenderStepG1.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsFilled.hpp"
 #include "f9omstws/OmsTwsTradingLineMgrCfg.hpp"
 
-#include "fon9/seed/Plugins.hpp"
 #include "fon9/seed/SysEnv.hpp"
+
 const unsigned    kPoolObjCount = 1000 * 100;
 
 namespace f9omstw {
 
-class UomsOrderTwsFactory : public OmsOrderFactory {
-   fon9_NON_COPY_NON_MOVE(UomsOrderTwsFactory);
-   using base = OmsOrderFactory;
-
-   using RawSupplier = fon9::ObjSupplier<OmsTwsOrderRaw, kPoolObjCount>;
-   RawSupplier::ThisSP RawSupplier_{RawSupplier::Make()};
-   OmsTwsOrderRaw* MakeOrderRawImpl() override {
-      return this->RawSupplier_->Alloc();
-   }
-
-   using OmsTwsOrder = OmsOrder;
-   using OrderSupplier = fon9::ObjSupplier<OmsTwsOrder, kPoolObjCount>;
-   OrderSupplier::ThisSP OrderSupplier_{OrderSupplier::Make()};
-   OmsTwsOrder* MakeOrderImpl() override {
-      return this->OrderSupplier_->Alloc();
-   }
-public:
-   UomsOrderTwsFactory()
-      : base(fon9::Named{"TwsOrd"}, MakeFieldsT<OmsTwsOrderRaw>()) {
-   }
-   ~UomsOrderTwsFactory() {
-   }
-};
-//--------------------------------------------------------------------------//
+using UomsOrderTwsFactory = OmsOrderFactoryT<OmsOrder, OmsTwsOrderRaw, kPoolObjCount>;
 using OmsTwsRequestIniFactory = OmsRequestFactoryT<OmsTwsRequestIni, kPoolObjCount>;
 using OmsTwsRequestChgFactory = OmsRequestFactoryT<OmsTwsRequestChg, kPoolObjCount>;
 //--------------------------------------------------------------------------//
@@ -70,39 +46,18 @@ struct UomsTwsIniRiskCheck : public OmsRequestRunStep {
    }
 };
 //--------------------------------------------------------------------------//
-template <class Root, class NamedSapling>
-static void AddNamedSapling(Root& root, fon9::intrusive_ptr<NamedSapling> sapling) {
-   root.Add(new fon9::seed::NamedSapling(sapling, sapling->Name_));
-}
-
-class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
+class UtwsOmsCoreMgrSeed : public OmsCoreMgrSeed {
    fon9_NON_COPY_NON_MOVE(UtwsOmsCoreMgrSeed);
-   using base = fon9::seed::NamedSapling;
-   const fon9::seed::MaTreeSP Root_;
-   UtwsExgTradingLineMgr      ExgLineMgr_;
-   f9tws::BrkId               BrkIdStart_;
-   unsigned                   BrkCount_;
-   int                        CpuId_{-1};
-   fon9::HowWait              HowWait_{};
+   using base = OmsCoreMgrSeed;
+   TwsTradingLineMgrG1  ExgLineMgr_;
+   f9tws::BrkId         BrkIdStart_;
+   unsigned             BrkCount_;
 
    UtwsOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
-      : base(new OmsCoreMgr{"cores"}, std::move(name))
-      , Root_{std::move(owner)}
+      : base(std::move(name), std::move(owner))
       , ExgLineMgr_{*static_cast<OmsCoreMgr*>(Sapling_.get())} {
    }
 
-   static bool SetIoManager(fon9::seed::PluginsHolder& holder, fon9::IoManagerArgs& out) {
-      if (*out.IoServiceCfgstr_.c_str() == '/') {
-         fon9::StrView name{&out.IoServiceCfgstr_};
-         name.SetBegin(name.begin() + 1);
-         out.IoServiceSrc_ = holder.Root_->GetSapling<fon9::IoManager>(name);
-         if (!out.IoServiceSrc_) {
-            holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown IoManager: ", out.IoServiceCfgstr_);
-            return false;
-         }
-      }
-      return true;
-   }
    static void CreateTradingLine(OmsCoreMgr& coreMgr,
                                  const std::string& cfgpath,
                                  fon9::IoManagerArgs& ioargs,
@@ -112,11 +67,11 @@ class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
       ioargs.Name_ = name.ToString() + "_io";
       ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
       linemgr.reset(new TwsTradingLineMgr{ioargs, mkt});
-      AddNamedSapling(coreMgr, linemgr);
+      coreMgr.Add(new fon9::seed::NamedSapling(linemgr, linemgr->Name_));
       coreMgr.Add(new TwsTradingLineMgrCfgSeed(*linemgr, cfgpath, name.ToString() + "_cfg"));
    }
 
-   void InitCoreTables(OmsResource& res) {
+   void InitCoreTables(OmsResource& res) override {
       res.Symbs_.reset(new OmsSymbTree(res.Core_, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
 
       OmsBrkTree::FnGetBrkIndex fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex1;
@@ -129,40 +84,7 @@ class UtwsOmsCoreMgrSeed : public fon9::seed::NamedSapling {
       res.Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
    }
 
-   OmsCoreByThreadBaseSP CreateCore(std::string seedName,
-                                    std::string coreName,
-                                    const OmsCoreByThreadBase::FnInit& fnInit) {
-      if (this->HowWait_ == fon9::HowWait::Busy)
-         return new OmsCoreByThread_Busy(fnInit,
-                                         static_cast<OmsCoreMgr*>(this->Sapling_.get()),
-                                         std::move(seedName),
-                                         std::move(coreName));
-      else
-         return new OmsCoreByThread_CV(fnInit,
-                                       static_cast<OmsCoreMgr*>(this->Sapling_.get()),
-                                       std::move(seedName),
-                                       std::move(coreName));
-   }
-
 public:
-   bool AddCore(fon9::TimeStamp tday) {
-      fon9::RevBufferFixedSize<128> rbuf;
-      fon9::RevPrint(rbuf, this->Name_, '_', fon9::GetYYYYMMDD(tday));
-      std::string coreName = rbuf.ToStrT<std::string>();
-      fon9::RevPrint(rbuf, this->Name_, '/');
-
-      OmsCoreByThreadBaseSP core = this->CreateCore(
-         rbuf.ToStrT<std::string>(),
-         std::move(coreName),
-         [tday, this](OmsResource& res) { this->InitCoreTables(res); }
-      );
-
-      fon9::TimedFileName logfn(fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_), fon9::TimedFileName::TimeScale::Day);
-      // oms log 檔名與 TDay 相關, 與 TimeZone 無關, 所以要扣除 logfn.GetTimeChecker().GetTimeZoneOffset();
-      logfn.RebuildFileName(tday - logfn.GetTimeChecker().GetTimeZoneOffset());
-      return core->StartToCoreMgr(tday, logfn.GetFileName() + this->Name_ + ".log", this->CpuId_);
-   }
-
    static bool Create(fon9::seed::PluginsHolder& holder, fon9::StrView args) {
       #define kCSTR_DevFpName    "FpDevice"
       auto devfp = fon9::seed::FetchNamedPark<fon9::DeviceFactoryPark>(*holder.Root_, kCSTR_DevFpName);
@@ -177,7 +99,7 @@ public:
       // - BrkId=起始券商代號
       // - BrkCount=券商數量
       // - Wait=Policy     Busy or Block(default)
-      // - Cpus=CpuId 或 Cpu=CpuId
+      // - Cpu=CpuId
       fon9::IoManagerArgs  ioargsTse, ioargsOtc;
       fon9::StrView        tag, value, omsName{"omstws"}, brkId;
       unsigned             brkCount = 0;
@@ -206,7 +128,7 @@ public:
             brkCount = fon9::StrTo(value, 0u);
          else if (tag == "Wait")
             howWait = fon9::StrToHowWait(value);
-         else if (tag == "Cpu" || tag == "Cpus")
+         else if (tag == "Cpu")
             cpuId = fon9::StrTo(value, cpuId);
          else {
             holder.SetPluginsSt(fon9::LogLevel::Error, "UtwsOmsCore.Create|err=Unknown tag: ", tag);
@@ -228,7 +150,7 @@ public:
       coreMgrSeed->HowWait_ = howWait;
 
       OmsCoreMgr*           coreMgr = static_cast<OmsCoreMgr*>(coreMgrSeed->Sapling_.get());
-      UomsOrderTwsFactory*  ordfac = new UomsOrderTwsFactory;
+      UomsOrderTwsFactory*  ordfac = new UomsOrderTwsFactory{"TwsOrd"};
       OmsTwsReportFactorySP rptFactory = new OmsTwsReportFactory("TwsRpt", ordfac);
       OmsTwsFilledFactorySP filFactory = new OmsTwsFilledFactory("TwsFil", ordfac);
       coreMgr->SetOrderFactoryPark(new OmsOrderFactoryPark{ordfac});
@@ -254,9 +176,9 @@ public:
       coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
          new OmsTwsRequestIniFactory("TwsNew", ordfac,
                                      OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
-                                        OmsRequestRunStepSP{new UtwsExgSenderStep{coreMgrSeed->ExgLineMgr_}})}),
+                                        OmsRequestRunStepSP{new OmsTwsSenderStepG1{coreMgrSeed->ExgLineMgr_}})}),
          new OmsTwsRequestChgFactory("TwsChg",
-                                     OmsRequestRunStepSP{new UtwsExgSenderStep{coreMgrSeed->ExgLineMgr_}}),
+                                     OmsRequestRunStepSP{new OmsTwsSenderStepG1{coreMgrSeed->ExgLineMgr_}}),
          rptFactory, filFactory
       ));
       coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});

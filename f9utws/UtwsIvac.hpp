@@ -5,7 +5,6 @@
 #include "f9utws/UtwsIvSc.hpp"
 #include "f9omstw/OmsIvac.hpp"
 #include "f9omstw/OmsSubac.hpp"
-#include "fon9/LevelArray.hpp"
 
 namespace f9omstw {
 
@@ -33,8 +32,7 @@ public:
    using base::base;
 
    static fon9::seed::LayoutSP MakeLayout(fon9::seed::TreeFlag treeflags);
-   /// 建立 grid view, 包含 IvacNo_; 不含尾端分隔符號.
-   void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) override;
+
    void OnPodOp(OmsIvacTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText) override;
 };
 using UtwsIvacSP = fon9::intrusive_ptr<UtwsIvac>;

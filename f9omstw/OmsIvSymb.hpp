@@ -5,6 +5,7 @@
 #include "f9omstw/OmsTreeSvctSet.hpp"
 #include "f9omstw/OmsIvBase.hpp"
 #include "fon9/SortedVector.hpp"
+#include "fon9/seed/PodOp.hpp"
 
 namespace f9omstw {
 
@@ -20,8 +21,26 @@ public:
    char                    padding___[4];
    const fon9::CharVector  SymbId_;
 
-   virtual void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf) = 0;
-   virtual void OnPodOp(OmsTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText) = 0;
+   /// 建立 grid view, 包含 SymbId_; 不含尾端分隔符號.
+   /// 預設簡單輸出:
+   /// `FieldsCellRevPrint(tab->Fields_, SimpleRawRd{*this}, rbuf);`
+   /// `RevPrint(rbuf, this->SymbId_);`
+   virtual void MakeGridRow(fon9::seed::Tab* tab, fon9::RevBuffer& rbuf);
+
+   /// 預設使用 SimpleRawRd, SimpleRawWr 讀寫.
+   struct PodOp : public fon9::seed::PodOpDefault {
+      fon9_NON_COPY_NON_MOVE(PodOp);
+      using base = fon9::seed::PodOpDefault;
+   public:
+      OmsIvSymb*  IvSymb_;
+      PodOp(fon9::seed::Tree& sender, OmsIvSymb* ivSymb, const fon9::StrView& strKeyText)
+         : base(sender, fon9::seed::OpResult::no_error, strKeyText)
+         , IvSymb_{ivSymb} {
+      }
+      void BeginRead(fon9::seed::Tab& tab, fon9::seed::FnReadOp fnCallback) override;
+      void BeginWrite(fon9::seed::Tab& tab, fon9::seed::FnWriteOp fnCallback) override;
+   };
+   virtual void OnPodOp(OmsTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText);
 };
 //--------------------------------------------------------------------------//
 struct OmsIvSymbSP_Comper {

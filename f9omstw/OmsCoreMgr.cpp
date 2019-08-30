@@ -46,5 +46,11 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
    }
    this->IsTDayChanging_ = false;
 }
+void OmsCoreMgr::UpdateSc(OmsRequestRunnerInCore& runner) {
+   (void)runner;
+}
+void OmsCoreMgr::RecalcSc(OmsResource& resource, OmsOrder& order) {
+   (void)resource; (void)order;
+}
 
 } // namespaces

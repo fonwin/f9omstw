@@ -21,6 +21,7 @@ public:
    const fon9::seed::MaTreeSP Root_;
 
    OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner);
+   OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner, OmsCoreMgrSP coreMgr);
 
    OmsCoreMgr& GetOmsCoreMgr() const {
       return *static_cast<OmsCoreMgr*>(this->Sapling_.get());

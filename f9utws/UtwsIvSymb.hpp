@@ -31,8 +31,8 @@ struct UtwsIvSymbSc {
 /// 子帳、母帳使用相同的風控資料結構.
 class UtwsIvSymb : public OmsIvSymb {
    fon9_NON_COPY_NON_MOVE(UtwsIvSymb);
-   struct PodOp;
    using base = OmsIvSymb;
+
 public:
    using base::base;
 

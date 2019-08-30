@@ -300,16 +300,25 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          auto* icur = items->RxHistory_[sno];
          if (icur == nullptr)
             continue;
+         OmsOrder*          order;
+         const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(icur->CastToOrder());
+         if (ordraw) {
+            order = &ordraw->Order();
+            if (ordraw == order->Tail()) {
+               // 遇到 Order 的最後一筆 OrderRaw 時, 重算風控資料.
+               resource.Core_.Owner_->RecalcSc(resource, *order);
+               FetchScResourceIvr(resource, *order);
+            }
+         }
          const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
          if (req == nullptr)
             continue;
-         const OmsOrderRaw* ordraw = req->LastUpdated();
-         if (ordraw == nullptr)
+         if ((ordraw = req->LastUpdated()) == nullptr)
             continue;
-         OmsOrder& order = ordraw->Order();
+         order = &ordraw->Order();
          if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
             if (auto filled = dynamic_cast<const OmsReportFilled*>(req)) {
-               if (fon9_LIKELY(order.InsertFilled(filled) == nullptr))
+               if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
                   continue;
                fon9_LOG_ERROR("OmsBackend.InsertFilled|filled.SNO=", sno);
             }
@@ -322,18 +331,12 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
             // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
             //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
             items.unlock();
-            if (OmsOrderRaw* ordupd = order.BeginUpdate(*req)) {
+            if (OmsOrderRaw* ordupd = order->BeginUpdate(*req)) {
                OmsRequestRunnerInCore runner{resource, *ordupd, 0u};
                runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "System restart.");
             }
             items.lock();
          }
-         OmsScResource& scResource = order.ScResource();
-         if (scResource.Ivr_.get() != nullptr)
-            continue;
-         if (auto* inireq = order.Initiator())
-            scResource.Ivr_ = resource.Brks_->FetchIvr(ToStrView(inireq->BrkId_), inireq->IvacNo_, ToStrView(inireq->SubacNo_));
-         if (0); // 重建 Order 的 ScResource; 及重算風控資料.
       }
    }
    fon9::RevBufferList rbuf{128};

@@ -18,11 +18,14 @@ struct OmsScResource {
    fon9::fmkt::SymbSP   Symb_;
    OmsIvBaseSP          Ivr_;
    OmsIvSymbSP          IvSymb_;
+   /// 委託風控計算價格, 小數位樹有風控計算模組決定.
+   int64_t              OrdPri_{0};
 
    void CheckMoveFrom(OmsScResource&& rhs) {
       if (!this->Symb_)    this->Symb_   = std::move(rhs.Symb_);
       if (!this->Ivr_)     this->Ivr_    = std::move(rhs.Ivr_);
       if (!this->IvSymb_)  this->IvSymb_ = std::move(rhs.IvSymb_);
+      this->OrdPri_ = rhs.OrdPri_;
    }
 };
 fon9_WARN_POP;

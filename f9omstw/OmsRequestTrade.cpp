@@ -111,7 +111,7 @@ OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& re
       if (!IsEnumContains(ivrRights, OmsIvRight::IsAdmin)) {
          // 不是 admin 權限, 則必須是可用帳號.
          if (!scRes.Ivr_)
-            scRes.Ivr_ = res.Brks_->GetIvr(ToStrView(this->BrkId_), this->IvacNo_, ToStrView(this->SubacNo_));
+            scRes.Ivr_ = GetIvr(res, *this);
          ivrRights = pol->GetIvRights(scRes.Ivr_.get());
       }
       OmsIvRight  ivRightDeny = RxKindToIvRightDeny(runner.Request_->RxKind());

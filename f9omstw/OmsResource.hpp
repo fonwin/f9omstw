@@ -92,5 +92,23 @@ inline fon9::fmkt::Symb* OmsOrder::GetSymb(OmsResource& res, const SymbId& symbi
    return this->ScResource_.Symb_.get();
 }
 
+inline OmsIvBaseSP GetIvr(OmsResource& res, const OmsRequestIni& inireq) {
+   return res.Brks_->GetIvr(ToStrView(inireq.BrkId_), inireq.IvacNo_, ToStrView(inireq.SubacNo_));
+}
+inline OmsIvBaseSP FetchIvr(OmsResource& res, const OmsRequestIni& inireq) {
+   return res.Brks_->FetchIvr(ToStrView(inireq.BrkId_), inireq.IvacNo_, ToStrView(inireq.SubacNo_));
+}
+/// 因回報訂閱者會用 order.ScResource().Ivr_ 來判斷是否需要回補給 Client:
+///    f9omsrc/OmsRcServerFunc.cpp : OmsRcServerNote::Handler::IsNeedReport()
+/// 所以在重載(Backend.Reload)或收到回報(ReportIn)時, 應設定好 order.ScResource().Ivr_;
+inline OmsIvBase* FetchScResourceIvr(OmsResource& res, OmsOrder& order, const OmsRequestIni* inireq = nullptr) {
+   OmsScResource& scResource = order.ScResource();
+   if (auto* ivr = scResource.Ivr_.get())
+      return ivr;
+   if (inireq || (inireq = order.Initiator()) != nullptr)
+      return (scResource.Ivr_ = FetchIvr(res, *inireq)).get();
+   return nullptr;
+}
+
 } // namespaces
 #endif//__f9omstw_OmsResource_hpp__

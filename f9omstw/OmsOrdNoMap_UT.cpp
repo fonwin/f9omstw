@@ -1,10 +1,7 @@
 ﻿// \file f9omstw/OmsOrdNoMap_UT.cpp
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9omstw/OmsCoreMgr.hpp"
-#include "f9omstws/OmsTwsOrder.hpp"
-#include "f9omstw/OmsRequestFactory.hpp"
-#include "f9omstw/OmsIvSymb.hpp"
+#include "f9utws/UnitTestCore.hpp"
 #include "fon9/ThreadId.hpp"
 #include "fon9/TestTools.hpp"
 //--------------------------------------------------------------------------//
@@ -91,13 +88,14 @@ int main(int argc, char* argv[]) {
    RequestFactory   reqFactory;
 
    // 測試用, 不啟動 OmsThread: 把 main thread 當成 OmsThread.
-   struct TestCore : public f9omstw::OmsCore {
-      fon9_NON_COPY_NON_MOVE(TestCore);
+   struct TestOrdNoCore : public f9omstw::OmsCore {
+      fon9_NON_COPY_NON_MOVE(TestOrdNoCore);
       using base = f9omstw::OmsCore;
-      TestCore() : base(new f9omstw::OmsCoreMgr{"ut"}, "seed/path", "OmsOrdNoMap_UT") {
+      TestOrdNoCore() : base(new f9omstw::OmsCoreMgr{"ut"}, "seed/path", "OmsOrdNoMap_UT") {
          this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
+         DummyBrk::MakeBrkTree(*this);
       }
-      ~TestCore() {
+      ~TestOrdNoCore() {
       }
       f9omstw::OmsResource& GetResource() {
          return *static_cast<f9omstw::OmsResource*>(this);
@@ -105,7 +103,7 @@ int main(int argc, char* argv[]) {
       void RunCoreTask(f9omstw::OmsCoreTask&&) override {}
       bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override { return false; }
    };
-   TestCore                         testCore;
+   TestOrdNoCore                    testCore;
    fon9::intrusive_ptr<RequestNew>  newReq{new RequestNew{reqFactory}};
    f9omstw::OmsRequestRunnerInCore  runner{testCore.GetResource(),
       *ordFactory.MakeOrder(*newReq, nullptr),

@@ -10,7 +10,6 @@ namespace f9omstw {
 class UtwsBrk : public OmsBrk {
    fon9_NON_COPY_NON_MOVE(UtwsBrk);
    using base = OmsBrk;
-   struct PodOp;
 
 protected:
    OmsIvacSP MakeIvac(IvacNo) override;

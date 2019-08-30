@@ -84,6 +84,11 @@ public:
    OmsErrCodeActSP GetErrCodeAct(OmsErrCode ec) const {
       return this->ErrCodeActSeed_->GetErrCodeAct(ec);
    }
+
+   /// 更新風控: 委託資料有異動時. 預設: do nothing.
+   virtual void UpdateSc(OmsRequestRunnerInCore& runner);
+   /// 重算風控: Backend.Reload 重新載入時. 預設: do nothing.
+   virtual void RecalcSc(OmsResource& resource, OmsOrder& order);
 };
 fon9_WARN_POP;
 

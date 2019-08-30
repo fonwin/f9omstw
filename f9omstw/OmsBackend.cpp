@@ -1,7 +1,7 @@
 ﻿// \file f9omstw/OmsBackend.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsBackend.hpp"
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsOrder.hpp"
 #include "fon9/buffer/DcQueueList.hpp"
 #include "fon9/ThreadTools.hpp"
@@ -200,6 +200,9 @@ void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    runner.OrderRaw_.SetRxSNO(++this->LastSNO_);
    runner.OrderRaw_.Request().SetLastUpdated(runner.OrderRaw_);
    runner.OrderRaw_.UpdateTime_ = fon9::UtcNow();
+   runner.Resource_.Core_.Owner_->UpdateSc(runner);
+   assert(runner.Resource_.Brks_.get() != nullptr);
+   FetchScResourceIvr(runner.Resource_, runner.OrderRaw_.Order());
 
    Items::Locker  items{this->Items_};
    if (isNeedsReqAppend) {

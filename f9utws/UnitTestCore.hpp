@@ -290,4 +290,24 @@ struct TestCore : public f9omstw::OmsCore {
       return true;
    }
 };
+//--------------------------------------------------------------------------//
+class DummyBrk : public f9omstw::OmsBrk {
+   fon9_NON_COPY_NON_MOVE(DummyBrk);
+   using base = OmsBrk;
+
+protected:
+   f9omstw::OmsIvacSP MakeIvac(f9omstw::IvacNo) override { return nullptr; }
+
+public:
+   DummyBrk(const fon9::StrView& brkid) : base(brkid) {
+   }
+
+   static f9omstw::OmsBrkSP BrkMaker(const fon9::StrView& brkid) {
+      return new DummyBrk{brkid};
+   }
+   static void MakeBrkTree(f9omstw::OmsResource& res) {
+      res.Brks_.reset(new f9omstw::OmsBrkTree(res.Core_, fon9::seed::LayoutSP{}, &f9omstw::OmsBrkTree::TwsBrkIndex1));
+      res.Brks_->Initialize(&BrkMaker, "8610", 1u, &f9omstw::IncStrAlpha);
+   }
+};
 #endif//__f9utws_UnitTestCore_hpp__

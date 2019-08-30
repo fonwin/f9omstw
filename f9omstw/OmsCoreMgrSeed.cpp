@@ -7,9 +7,12 @@
 
 namespace f9omstw {
 
-OmsCoreMgrSeed::OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
-   : base(new OmsCoreMgr{"ConfigsTab"}, std::move(name))
+OmsCoreMgrSeed::OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner, OmsCoreMgrSP coreMgr)
+   : base(std::move(coreMgr), std::move(name))
    , Root_{std::move(owner)} {
+}
+OmsCoreMgrSeed::OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
+   : OmsCoreMgrSeed(std::move(name), std::move(owner), new OmsCoreMgr{"ConfigsTab"}) {
 }
 
 bool OmsCoreMgrSeed::SetIoManager(fon9::seed::PluginsHolder& holder, fon9::IoManagerArgs& out) {

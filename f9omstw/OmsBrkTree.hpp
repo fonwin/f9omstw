@@ -63,12 +63,14 @@ public:
       return static_cast<size_t>(this->FnGetBrkIndex_(brkid) - this->IdxStart_);
    }
    OmsBrk* GetBrkRec(const fon9::StrView& brkid) const {
-      size_t  idx = this->GetBrkIndex(brkid);
-      if (fon9_LIKELY(idx < this->BrkRecs_.size())) {
-         if (OmsBrk* brk = this->BrkRecs_[idx].get())
-            if (ToStrView(brk->BrkId_) == brkid)
-               return brk;
-      }
+      if (OmsBrk* brk = this->GetBrkRec(this->GetBrkIndex(brkid)))
+         if (ToStrView(brk->BrkId_) == brkid)
+            return brk;
+      return nullptr;
+   }
+   OmsBrk* GetBrkRec(size_t idx) const {
+      if (fon9_LIKELY(idx < this->BrkRecs_.size()))
+         return this->BrkRecs_[idx].get();
       return nullptr;
    }
 

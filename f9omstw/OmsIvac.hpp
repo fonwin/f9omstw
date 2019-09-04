@@ -59,6 +59,9 @@ public:
    OmsSubacSP RemoveSubac(fon9::StrView subacNo);
    OmsSubac* FetchSubac(fon9::StrView subacNo);
    OmsSubac* GetSubac(fon9::StrView subacNo) const;
+
+   OmsSubacMap&       Subacs()       { return this->Subacs_; }
+   const OmsSubacMap& Subacs() const { return this->Subacs_; }
 };
 
 /// key = 移除檢查碼之後的帳號;

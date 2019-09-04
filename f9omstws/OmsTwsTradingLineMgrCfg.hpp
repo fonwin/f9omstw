@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstws_OmsTwsTradingLineMgrCfg_hpp__
 #define __f9omstws_OmsTwsTradingLineMgrCfg_hpp__
-#include "fon9/seed/MaTreeConfig.hpp"
+#include "fon9/seed/MaConfigTree.hpp"
 
 namespace f9omstw {
 
@@ -12,11 +12,10 @@ class TwsTradingLineMgr;
 /// - 提供 seed 查看、修改.
 /// - 啟動時載入、異動時儲存.
 /// - 有異動時, 通知 TwsTradingLineMgr.
-class TwsTradingLineMgrCfgSeed : public fon9::seed::NamedSapling {
+class TwsTradingLineMgrCfgSeed : public fon9::seed::MaConfigMgr {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineMgrCfgSeed);
-   using base = fon9::seed::NamedSapling;
-   fon9::seed::MaTreeConfigItem* const  CfgOrdTeams_;
-   struct CfgTree;
+   using base = fon9::seed::MaConfigMgr;
+   struct CfgOrdTeams;
 
 public:
    TwsTradingLineMgr&   LineMgr_;

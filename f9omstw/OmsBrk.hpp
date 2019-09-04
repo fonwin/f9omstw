@@ -101,6 +101,12 @@ public:
                return ivac;
       return nullptr;
    }
+   const OmsIvacSP* GetFirstIvac(IvacNC& ivacNC) const {
+      return this->Ivacs_.GetFirst(ivacNC);
+   }
+   const OmsIvacSP* GetNextIvac(IvacNC& ivacNC) const {
+      return this->Ivacs_.GetNext(ivacNC);
+   }
 
    OmsMarketRec& GetMarket(f9fmkt_TradingMarket mkt) {
       return this->MarketAry_[f9fmkt_TradingMarket_ToIndex(mkt)];

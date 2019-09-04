@@ -18,5 +18,8 @@
     <ClCompile Include="..\..\..\f9omsrc\OmsRcClient_UT.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

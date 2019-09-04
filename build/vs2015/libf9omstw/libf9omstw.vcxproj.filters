@@ -167,6 +167,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsCoreMgrSeed.hpp">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsToolsC.h">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -278,6 +281,9 @@
       <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsCoreMgrSeed.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c">
       <Filter>Source Files\_core</Filter>
     </ClCompile>
   </ItemGroup>

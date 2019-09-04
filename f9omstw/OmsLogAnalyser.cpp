@@ -6,7 +6,7 @@
 struct AnItem {
    const f9omstw::OmsRequestTrade* Request_;
 
-   /// Client before send: OmsRcClient_UT.c#L294
+   /// Client before send: OmsRcClient_UT.c#L330
    fon9::TimeStamp Ts0_{fon9::TimeStamp::Null()};
    fon9::TimeStamp Ts0() const { return this->Ts0_; }
 
@@ -184,14 +184,19 @@ void OutputAnalytic(const AnalyticCounter& ac, const std::string& resFileName, b
       const auto& ibeg = *ac.Items_.begin();
       const auto& iback = ac.Items_.back();
       const auto  sz = fon9::signed_cast(szItems);
-      fon9::RevPrint(rbuf, "Spend(us)|", LatencyUS{iback.Ts0() - ibeg.Ts0()},
-                     '|', LatencyUS{iback.Ts1() - ibeg.Ts1()},
-                     '|', LatencyUS{iback.Ts2() - ibeg.Ts2()},
-                     "\n"
-                     "Avg(us)|", LatencyUS{iback.Ts0() - ibeg.Ts0()} / sz,
-                     '|', LatencyUS{iback.Ts1() - ibeg.Ts1()} / sz,
-                     '|', LatencyUS{iback.Ts2() - ibeg.Ts2()} / sz,
-                     '\n');
+      LatencyUS   spT0{iback.Ts0() - ibeg.Ts0()};
+      LatencyUS   spT1{iback.Ts1() - ibeg.Ts1()};
+      LatencyUS   spT2{iback.Ts2() - ibeg.Ts2()};
+      LatencyUS   spT10{iback.Ts1() - ibeg.Ts0()};
+      LatencyUS   spT20{iback.Ts2() - ibeg.Ts0()};
+      LatencyUS   spT21{iback.Ts2() - ibeg.Ts1()};
+      fon9::RevPrint(rbuf,
+         "Spend(us)|", spT0,      '|', spT1,      '|', spT2, "\n"
+         "Avg(us)|",   spT0 / sz, '|', spT1 / sz, '|', spT2 / sz, "\n"
+         "T1(last)-T0(first)=", spT10, "|Avg=", spT10 / sz, "\n"
+         "T2(last)-T0(first)=", spT20, "|Avg=", spT20 / sz, "\n"
+         "T2(last)-T1(first)=", spT21, "|Avg=", spT21 / sz, "\n"
+         );
       fd.Append(rbuf.GetCurrent(), rbuf.GetUsedSize());
       *const_cast<char*>(rbuf.GetMemEnd() - 1) = '\0'; // 使用 puts() 尾端不用換行.
       puts(rbuf.GetCurrent());
@@ -248,7 +253,7 @@ int main(int argc, char* argv[]) {
          this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
          this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
          // 分析 omslog 的效率, 不會用到「委託書號」對照表, 所以不用設定券商.
-         this->Brks_->Initialize(&UtwsBrk::BrkMaker, "0000", 1u, &IncStrAlpha);
+         this->Brks_->Initialize(&UtwsBrk::BrkMaker, "0000", 1u, &f9omstw_IncStrAlpha);
          // 建立委託書號表的關聯.
          this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
          this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);

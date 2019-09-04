@@ -64,7 +64,7 @@ void ConfigToTeamList(OmsOrdTeamList& list, fon9::StrView cfg) {
          char* pteamBack = &team.back();
          if (++idx < team.size()) { // "Axy-X" => Axy,Axz,Ay,Az
             do { 
-               while (IncStrAlpha(pteamBack, pteamBack + 1)) {
+               while (f9omstw_IncStrAlpha(pteamBack, pteamBack + 1)) {
                   list.push_back(team);
                }
                *pteamBack-- = '\0';
@@ -72,7 +72,7 @@ void ConfigToTeamList(OmsOrdTeamList& list, fon9::StrView cfg) {
             } while (idx < team.size());
          }
          for(;;) {
-            if (!IncStrAlpha(pteamBack, pteamBack + 1)) // "A1-Az"
+            if (!f9omstw_IncStrAlpha(pteamBack, pteamBack + 1)) // "A1-Az"
                goto __RANGE_DONE;
             if (*pteamBack == ch) // "A1-A3" or "A1-A3x" 處理到 "A3" 時,
                break;             // 再回到 for(idx) 看看是否需要在尾端補 '0';

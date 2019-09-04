@@ -2,6 +2,7 @@
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omsrc/OmsRc.h"
+#include "f9omstw/OmsToolsC.h" // f9omstw_IncStrAlpha();
 #include "fon9/ConsoleIO.h"
 
 fon9_BEFORE_INCLUDE_STD;
@@ -71,10 +72,12 @@ const char* StrFetchNoTrim(const char* pbeg, const char** ppend, const char* del
    return pbeg;
 }
 //--------------------------------------------------------------------------//
+#define kMaxFieldCount  64
+#define kMaxValueSize   64
 typedef struct {
-   // 為了簡化測試, 每個下單要求最多支援64個欄位, 每個欄位最多 64 bytes(包含EOS).
-   char  Fields_[64][64];
-   char  RequestStr_[64 * 64];
+   // 為了簡化測試, 每個下單要求最多支援 kMaxFieldCount 個欄位, 每個欄位最多 kMaxValueSize bytes(包含EOS).
+   char  Fields_[kMaxFieldCount][kMaxValueSize];
+   char  RequestStr_[kMaxFieldCount * kMaxValueSize];
 } RequestRec;
 
 fon9_WARN_DISABLE_PADDING;
@@ -175,6 +178,37 @@ void MakeRequestStr(const f9OmsRc_Layout* pReqLayout, RequestRec* req) {
    }
    *reqstr = '\0';
 }
+
+int FetchFieldIndex(char** pcmd, const f9OmsRc_Layout* pReqLayout) {
+   unsigned iFld;
+   if (isdigit((unsigned char)**pcmd)) {
+      iFld = strtoul(*pcmd, pcmd, 10);
+      if (iFld >= pReqLayout->FieldCount_) {
+         printf("Unknwon field index = %u\n", iFld);
+         return -1;
+      }
+   }
+   else {
+      const char* fldName = StrFetchNoTrim(*pcmd, (const char**)pcmd, "= \t");
+      char ch = **pcmd;
+      **pcmd = '\0';
+      for (iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
+         if (strcmp(pReqLayout->FieldArray_[iFld].Name_.Begin_, fldName) == 0)
+            goto __FOUND_FIELD;
+      }
+      printf("Field not found: %s\n", fldName);
+      return -1;
+   __FOUND_FIELD:
+      **pcmd = ch;
+   }
+   *pcmd = StrTrimHead(*pcmd);
+   if (**pcmd != '=') {
+      printf("Loss '=' for field.");
+      return -1;
+   }
+   *pcmd = StrTrimHead(*pcmd + 1);
+   return (int)iFld;
+}
 void SetRequest(UserDefine* ud, char* cmd) {
    // Req(Id or Name) fld(Index or Name)=value|fld2=val2|fld3=val3...
    const f9OmsRc_Layout* pReqLayout = GetRequestLayout(ud, &cmd);
@@ -185,32 +219,8 @@ void SetRequest(UserDefine* ud, char* cmd) {
    if (cmd == NULL)
       goto __BREAK_PUT_FIELDS;
    for (;;) {
-      if (isdigit((unsigned char)*cmd)) {
-         iFld = strtoul(cmd, &cmd, 10);
-         if (iFld >= pReqLayout->FieldCount_) {
-            printf("Unknwon field index = %u\n", iFld);
-            break;
-         }
-      }
-      else {
-         const char* fldName = StrFetchNoTrim(cmd, (const char**)&cmd, "= \t");
-         char ch = *cmd;
-         *cmd = '\0';
-         for (iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
-            if (strcmp(pReqLayout->FieldArray_[iFld].Name_.Begin_, fldName) == 0)
-               goto __FOUND_FIELD;
-         }
-         printf("Field not found: %s\n", fldName);
+      if ((int)(iFld = FetchFieldIndex(&cmd, pReqLayout)) < 0)
          break;
-      __FOUND_FIELD:
-         *cmd = ch;
-      }
-      cmd = StrTrimHead(cmd);
-      if (*cmd != '=') {
-         printf("Loss '=' for field.");
-         break;
-      }
-      cmd = StrTrimHead(cmd + 1);
       char* val;
       switch (*cmd) {
       case '\'': case '"':
@@ -243,69 +253,136 @@ __BREAK_PUT_FIELDS:
    PrintRequest(pReqLayout, req);
    printf("RequestStr = [%s]\n", req->RequestStr_);
 }
+//--------------------------------------------------------------------------//
+typedef struct {
+   f9OmsRc_ClientSession*  Session_;
+   const f9OmsRc_Layout*   ReqLayout_;
+   RequestRec*             ReqRec_;
+   unsigned long           IntervalMS_;
+   unsigned long           Times_;
+} SendArgs;
+
+#define kMaxLoopValueCount 100
+typedef struct {
+   fon9_CStrView  Values_[kMaxLoopValueCount];
+   unsigned       ValueCount_;
+   unsigned       FieldIndex_;
+} LoopField;
+
+uint64_t SendGroup(char* cmd, const SendArgs args) {
+   fon9_CStrView  reqFieldArray[kMaxFieldCount];
+   for (unsigned L = 0; L < args.ReqLayout_->FieldCount_; ++L) {
+      reqFieldArray[L].Begin_ = args.ReqRec_->Fields_[L];
+      reqFieldArray[L].End_ = memchr(args.ReqRec_->Fields_[L], '\0', sizeof(args.ReqRec_->Fields_[L]));
+   }
+   const char* groupName = StrCutSpace(cmd, &cmd);
+   LoopField   loopFields[kMaxFieldCount];
+   unsigned    loopFieldCount = 0;
+   fon9_CStrView* pAutoOrdNo = NULL; // OrdNo 自動累加.
+   if (cmd) {
+      if (*cmd == '|') {
+         // "|FieldName1=V1,V2,V3...|FieldName2=v1,v2..."
+         // value 使用「,」分隔, 不支援特殊字元及引號.
+         for (;;) {
+            LoopField* fld = loopFields + loopFieldCount;
+            ++cmd;
+            fld->FieldIndex_ = (unsigned)FetchFieldIndex(&cmd, args.ReqLayout_);
+            if ((int)fld->FieldIndex_ < 0)
+               return 0;
+            fld->ValueCount_ = 0;
+            ++loopFieldCount;
+            for (;;) {
+               fon9_CStrView* val = &fld->Values_[fld->ValueCount_++];
+               val->Begin_ = StrFetchNoTrim(StrTrimHead(cmd), &val->End_, ",|");
+               char chSpl = *(cmd = (char*)val->End_);
+               val->End_ = StrTrimTail((char*)val->Begin_, cmd);
+               *((char*)val->End_) = '\0';
+               if (chSpl == '\0')
+                  goto __CMD_PARSE_END;
+               if (chSpl == '|')
+                  break;
+               ++cmd;
+            }
+         }
+      }
+      else if (*cmd == '+') {
+         if (args.ReqLayout_->IdxOrdNo_ >= 0)
+            pAutoOrdNo = &reqFieldArray[args.ReqLayout_->IdxOrdNo_];
+      }
+   }
+__CMD_PARSE_END:;
+   uint64_t usBeg = GetSystemUS();
+   fon9_CStrView* pClOrdId = (args.ReqLayout_->IdxClOrdId_ >= 0) ? &reqFieldArray[args.ReqLayout_->IdxClOrdId_] : NULL;
+   fon9_CStrView* pUsrDef = (args.ReqLayout_->IdxUsrDef_ >= 0) ? &reqFieldArray[args.ReqLayout_->IdxUsrDef_] : NULL;
+   for (unsigned long L = 0; L < args.Times_; ++L) {
+      if (loopFieldCount) {
+         const LoopField* fld = loopFields;
+         for (unsigned lc = 0; lc < loopFieldCount; ++lc) {
+            reqFieldArray[fld->FieldIndex_] = fld->Values_[L % fld->ValueCount_];
+            ++fld;
+         }
+      }
+      if (pAutoOrdNo)
+         f9omstw_IncStrAlpha((char*)pAutoOrdNo->Begin_, (char*)pAutoOrdNo->End_);
+      if (pClOrdId)
+         pClOrdId->End_ = pClOrdId->Begin_ + sprintf((char*)pClOrdId->Begin_, "%s:%lu", groupName, L + 1);
+      if (pUsrDef)
+         pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, GetSystemUS());
+      f9OmsRc_SendRequestFields(args.Session_, args.ReqLayout_, reqFieldArray);
+      if (args.IntervalMS_ > 0)
+         SleepMS(args.IntervalMS_);
+   }
+   if (pClOrdId)
+      *(char*)(pClOrdId->Begin_) = '\0';
+   if (pUsrDef)
+      *(char*)(pUsrDef->Begin_) = '\0';
+   return usBeg;
+}
 void SendRequest(UserDefine* ud, char* cmd) {
    // send Req(Id or Name) times [GroupId]
-   const f9OmsRc_Layout* pReqLayout = GetRequestLayout(ud, &cmd);
-   if (!pReqLayout)
+   SendArgs args;
+   args.ReqLayout_ = GetRequestLayout(ud, &cmd);
+   if (!args.ReqLayout_)
       return;
-   unsigned long times = (cmd ? strtoul(cmd, &cmd, 10) : 1);
-   if (times == 0)
-      times = 1;
-   unsigned long msInterval = 0;
+   args.ReqRec_ = &ud->RequestRecs_[args.ReqLayout_->LayoutId_ - 1];
+   args.Session_ = ud->Session_;
+
+   args.Times_ = (cmd ? strtoul(cmd, &cmd, 10) : 1);
+   if (args.Times_ == 0)
+      args.Times_ = 1;
+   args.IntervalMS_ = 0;
    if (cmd) {
       cmd = StrTrimHead(cmd);
       if (*cmd == '/') { // times/msInterval
-         msInterval = strtoul(cmd + 1, &cmd, 10);
+         args.IntervalMS_ = strtoul(cmd + 1, &cmd, 10);
          cmd = StrTrimHead(cmd);
       }
    }
-
-   RequestRec*    req = &ud->RequestRecs_[pReqLayout->LayoutId_ - 1];
    fon9_CStrView  reqstr;
-   reqstr.Begin_ = req->RequestStr_;
-   reqstr.End_ = memchr(reqstr.Begin_, '\0', sizeof(req->RequestStr_));
+   reqstr.Begin_ = args.ReqRec_->RequestStr_;
+   reqstr.End_ = memchr(reqstr.Begin_, '\0', sizeof(args.ReqRec_->RequestStr_));
    if (reqstr.End_ - reqstr.Begin_ <= 0) {
       puts("Request message is empty?");
-      PrintRequest(pReqLayout, req);
+      PrintRequest(args.ReqLayout_, args.ReqRec_);
       return;
    }
    uint64_t usBeg;
    if (cmd == NULL || *cmd == '\0') {
       usBeg = GetSystemUS();
-      for (unsigned long L = 0; L < times; ++L) {
-         f9OmsRc_SendRequestString(ud->Session_, pReqLayout, reqstr);
-         if (msInterval > 0)
-            SleepMS(msInterval);
+      for (unsigned long L = 0; L < args.Times_; ++L) {
+         f9OmsRc_SendRequestString(args.Session_, args.ReqLayout_, reqstr);
+         if (args.IntervalMS_ > 0)
+            SleepMS(args.IntervalMS_);
       }
    }
-   else {
-      fon9_CStrView  reqFieldArray[64];
-      for (unsigned L = 0; L < pReqLayout->FieldCount_; ++L) {
-         reqFieldArray[L].Begin_ = req->Fields_[L];
-         reqFieldArray[L].End_ = memchr(req->Fields_[L], '\0', sizeof(req->Fields_[L]));
-      }
-      usBeg = GetSystemUS();
-      fon9_CStrView* pClOrdId = (pReqLayout->IdxClOrdId_ >= 0) ? &reqFieldArray[pReqLayout->IdxClOrdId_] : NULL;
-      fon9_CStrView* pUsrDef = (pReqLayout->IdxUsrDef_ >= 0) ? &reqFieldArray[pReqLayout->IdxUsrDef_] : NULL;
-      for (unsigned long L = 0; L < times; ++L) {
-         if (pClOrdId)
-            pClOrdId->End_ = pClOrdId->Begin_ + sprintf((char*)pClOrdId->Begin_, "%s:%lu", cmd, L + 1);
-         if (pUsrDef)
-            pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, GetSystemUS());
-         f9OmsRc_SendRequestFields(ud->Session_, pReqLayout, reqFieldArray);
-         if (msInterval > 0)
-            SleepMS(msInterval);
-      }
-      if (pClOrdId)
-         *(char*)(pClOrdId->Begin_) = '\0';
-      if (pUsrDef)
-         *(char*)(pUsrDef->Begin_) = '\0';
-   }
+   else if ((usBeg = SendGroup(cmd, args)) <= 0)
+      return;
+
    uint64_t usEnd = GetSystemUS();
    printf("Begin: %" PRIu64 ".%06" PRIu64 "\n", usBeg / 1000000, usBeg % 1000000);
    printf("  End: %" PRIu64 ".%06" PRIu64 "\n", usEnd / 1000000, usEnd % 1000000);
    printf("Spent: %" PRIu64 " us / %lu times = %lf\n",
-          usEnd - usBeg, times, (usEnd - usBeg) / (double)times);
+          usEnd - usBeg, args.Times_, (usEnd - usBeg) / (double)args.Times_);
 }
 //--------------------------------------------------------------------------//
 const char  kCSTR_LogFileFmt[] =

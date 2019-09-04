@@ -6,6 +6,7 @@ set(f9omstw_src
  OmsCoreByThread.cpp
  OmsResource.cpp
  OmsTools.cpp
+ OmsToolsC.c
  OmsBackend.cpp
  OmsBackendRecorder.cpp
  OmsOrdTeam.cpp

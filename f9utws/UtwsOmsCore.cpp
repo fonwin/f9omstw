@@ -78,7 +78,7 @@ class UtwsOmsCoreMgrSeed : public OmsCoreMgrSeed {
       if (fon9::Alpha2Seq(*(this->BrkIdStart_.end() - 1)) + this->BrkCount_ - 1 >= fon9::kSeq2AlphaSize)
          fnGetBrkIdx = &OmsBrkTree::TwsBrkIndex2;
       res.Brks_.reset(new OmsBrkTree(res.Core_, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), fnGetBrkIdx));
-      res.Brks_->Initialize(&UtwsBrk::BrkMaker, ToStrView(this->BrkIdStart_), this->BrkCount_, &IncStrAlpha);
+      res.Brks_->Initialize(&UtwsBrk::BrkMaker, ToStrView(this->BrkIdStart_), this->BrkCount_, &f9omstw_IncStrAlpha);
       // 建立委託書號表的關聯.
       res.Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
       res.Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);

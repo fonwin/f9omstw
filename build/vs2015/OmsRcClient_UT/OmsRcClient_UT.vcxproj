@@ -76,6 +76,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omsrc\OmsRcClient_UT.c" />
+    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">

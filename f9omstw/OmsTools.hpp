@@ -3,15 +3,14 @@
 #ifndef __f9omstw_OmsTools_hpp__
 #define __f9omstw_OmsTools_hpp__
 #include "f9omstw/OmsBase.hpp"
+#include "f9omstw/OmsToolsC.h"
 #include "fon9/seed/Tab.hpp"
 
 namespace f9omstw {
 
 /// 「數字字串」 + 1;
 /// 返回 true 表示成功, false = overflow;
-typedef bool (*FnIncStr)(char* pbeg, char* pend);
-bool IncStrDec(char* pbeg, char* pend);
-bool IncStrAlpha(char* pbeg, char* pend);
+typedef int (*FnIncStr)(char* pbeg, char* pend);
 
 /// Container = fon9::SortedVectorSet<smart_pointer>;
 /// 可用 fon9::StrView keyText; 尋找元素.

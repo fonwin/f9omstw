@@ -19,7 +19,7 @@ bool OmsOrdNoMap::GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out) {
          memset(this->begin(), '0', this->max_size());
       }
       bool IncOrdNo(size_t idxfrom) {
-         return IncStrAlpha(this->begin() + idxfrom, this->begin() + this->max_size());
+         return f9omstw_IncStrAlpha(this->begin() + idxfrom, this->begin() + this->max_size());
       }
       void PutOrdNo(OmsOrdNo& dst) {
          // 此時雖然 this->size() 不是 max_size(); 但因為 clear() 時, 已填 '0',

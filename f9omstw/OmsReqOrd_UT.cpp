@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
       fon9::RevPrint(rbuf, "TwsChg|Market=T|SessionId=N|SesName=UT|Src=B|UsrDef=UD234|ClOrdId=C34"
                      "|BrkId=8610|OrdNo=", ordno, "|Qty=0");
       TestCase(testCore, reqPolicySP, ToStrView(rbuf));
-      f9omstw::IncStrAlpha(ordno.begin(), ordno.end());
+      f9omstw_IncStrAlpha(ordno.begin(), ordno.end());
    }
    stopWatch.PrintResult("ReqDel ", testCore.TestCount_);
 }

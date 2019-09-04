@@ -236,7 +236,7 @@ struct TestCore : public f9omstw::OmsCore {
       using namespace f9omstw;
       this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
-      this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
+      this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &f9omstw_IncStrAlpha);
       // 建立委託書號表的關聯.
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
       this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
@@ -307,7 +307,7 @@ public:
    }
    static void MakeBrkTree(f9omstw::OmsResource& res) {
       res.Brks_.reset(new f9omstw::OmsBrkTree(res.Core_, fon9::seed::LayoutSP{}, &f9omstw::OmsBrkTree::TwsBrkIndex1));
-      res.Brks_->Initialize(&BrkMaker, "8610", 1u, &f9omstw::IncStrAlpha);
+      res.Brks_->Initialize(&BrkMaker, "8610", 1u, &f9omstw_IncStrAlpha);
    }
 };
 #endif//__f9utws_UnitTestCore_hpp__

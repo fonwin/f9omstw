@@ -15,5 +15,5 @@ add_executable(OmsRcFramework_UT OmsRcFramework_UT.cpp OmsRcFramework_UT_C.c)
 target_link_libraries(OmsRcFramework_UT f9omstw_s f9utws_s f9omsrc_s)
 
 # ---
-add_executable(OmsRcClient_UT OmsRcClient_UT.c)
+add_executable(OmsRcClient_UT OmsRcClient_UT.c ../f9omstw/OmsToolsC.c)
 target_link_libraries(OmsRcClient_UT f9omsrc_s)

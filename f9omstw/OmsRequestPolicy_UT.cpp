@@ -50,7 +50,7 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
    OmsRequestPolicy_UT() : f9omstw::OmsCore(new f9omstw::OmsCoreMgr{"ut"}, "seed/path", "ut") {
       using namespace f9omstw;
       this->Brks_.reset(new OmsBrkTree(*this, UtwsBrk::MakeLayout(OmsBrkTree::DefaultTreeFlag()), &OmsBrkTree::TwsBrkIndex1));
-      this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &IncStrAlpha);
+      this->Brks_->Initialize(&UtwsBrk::BrkMaker, "8610", 5u, &f9omstw_IncStrAlpha);
    }
    ~OmsRequestPolicy_UT() {
       this->Brks_->InThr_OnParentSeedClear();

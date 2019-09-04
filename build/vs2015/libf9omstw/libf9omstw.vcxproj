@@ -114,6 +114,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsToolsC.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTreeSvctSet.hpp" />
   </ItemGroup>
@@ -154,6 +155,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c" />
     <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp" />
   </ItemGroup>
   <ItemGroup>

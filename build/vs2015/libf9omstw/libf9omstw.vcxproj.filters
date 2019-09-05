@@ -170,6 +170,12 @@
     <ClInclude Include="..\..\..\f9omstw\OmsToolsC.h">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsScBase.hpp">
+      <Filter>Header Files\_sc_tables %28trees%29</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTypes.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -285,6 +291,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c">
       <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsScBase.cpp">
+      <Filter>Source Files\_sc_tables %28trees%29</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

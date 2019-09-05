@@ -1,6 +1,7 @@
 ﻿// \file f9omstws/OmsTwsFilled.cpp
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsFilled.hpp"
+#include "f9omstws/OmsTwsRequest.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstw/OmsCore.hpp"
 #include "f9omstw/OmsReportRunner.hpp"

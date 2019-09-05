@@ -110,6 +110,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsRequestPolicy.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsScBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp" />
@@ -117,6 +118,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsToolsC.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTreeSvctSet.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTypes.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp" />
@@ -151,6 +153,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsRequestPolicy.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestRunner.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsScBase.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSubac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp" />

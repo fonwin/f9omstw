@@ -4,15 +4,9 @@
 #define __f9omstws_OmsTwsRequest_hpp__
 #include "f9omstw/OmsRequestTrade.hpp"
 #include "f9omstw/OmsReportFilled.hpp"
-#include "f9tws/ExgTypes.hpp"
+#include "f9omstws/OmsTwsTypes.hpp"
 
 namespace f9omstw {
-
-using OmsTwsPri = fon9::Decimal<uint32_t, 2>;
-using OmsTwsQty = uint32_t;
-using OmsTwsAmt = fon9::Decimal<uint64_t, 2>;
-using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
-using OmsTwsOType = f9tws::TwsOType;
 
 struct OmsTwsRequestIniDat {
    OmsTwsSymbol         Symbol_;

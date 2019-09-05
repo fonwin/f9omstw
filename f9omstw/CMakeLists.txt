@@ -12,6 +12,7 @@ set(f9omstw_src
  OmsOrdTeam.cpp
  OmsOrdNoMap.cpp
  OmsErrCodeAct.cpp
+ OmsScBase.cpp
 
  OmsTree.cpp
  OmsIvBase.cpp

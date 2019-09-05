@@ -4,7 +4,7 @@
 #define __f9omstws_OmsTwsFilled_hpp__
 #include "f9omstw/OmsReportFilled.hpp"
 #include "f9omstw/OmsReportFactory.hpp"
-#include "f9omstws/OmsTwsRequest.hpp"
+#include "f9omstws/OmsTwsTypes.hpp"
 
 namespace f9omstw {
 

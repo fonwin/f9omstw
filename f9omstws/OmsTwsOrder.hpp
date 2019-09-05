@@ -3,7 +3,7 @@
 #ifndef __f9omstws_OmsTwsOrder_hpp__
 #define __f9omstws_OmsTwsOrder_hpp__
 #include "f9omstw/OmsOrder.hpp"
-#include "f9omstws/OmsTwsRequest.hpp"
+#include "f9omstws/OmsTwsTypes.hpp"
 
 namespace f9omstw {
 

@@ -1,4 +1,5 @@
 set(f9omstws_src
+ OmsTwsTypes.cpp
  OmsTwsRequest.cpp
  OmsTwsFilled.cpp
  OmsTwsReport.cpp

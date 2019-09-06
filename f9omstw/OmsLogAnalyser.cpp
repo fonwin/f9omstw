@@ -160,23 +160,31 @@ void OutputAnalytic(const AnalyticCounter& ac, const std::string& resFileName, b
       t2g.reserve(szItems);
    }
    fon9::RevBufferFixedSize<1024 * 4> rbuf;
-   const AnItem* prevItem = nullptr;
-   for (const auto& i : ac.Items_) {
+   // 可能因為 abandon, 造成沒有 t2, 所以額外記錄最後一個有效的 t2.
+   fon9::TimeStamp   t2Last(fon9::TimeStamp::Null());
+   size_t            t2LastIdx = 0;
+   const AnItem*     prevItem = nullptr;
+   for (size_t idx = 0; idx < szItems; ++idx) {
+      const auto& curItem = ac.Items_[idx];
       rbuf.Rewind();
-      const auto t0 = i.Ts0();
-      const auto t1 = i.Ts1();
-      const auto t2 = i.Ts2();
+      const auto t0 = curItem.Ts0();
+      const auto t1 = curItem.Ts1();
+      const auto t2 = curItem.Ts2();
+      if (!t2.IsNull()) {
+         t2Last = t2;
+         t2LastIdx = idx;
+      }
       fon9::RevPrint(rbuf, '\n');
       if (isGroup && prevItem) {
          OutputTmDiff(rbuf, t2g, t2, prevItem->Ts2());
          OutputTmDiff(rbuf, t1g, t1, prevItem->Ts1());
          OutputTmDiff(rbuf, t0g, t0, prevItem->Ts0());
       }
-      prevItem = &i;
+      prevItem = &curItem;
 
       OutputTmDiff(rbuf, t21, t2, t1);
       OutputTmDiff(rbuf, t10, t1, t0);
-      fon9::RevPrint(rbuf, i.Request_->RxSNO(), '|', t0, '|', t1, '|', t2);
+      fon9::RevPrint(rbuf, curItem.Request_->RxSNO(), '|', t0, '|', t1, '|', t2);
       fd.Append(rbuf.GetCurrent(), rbuf.GetUsedSize());
    }
    if (isGroup) {
@@ -186,16 +194,17 @@ void OutputAnalytic(const AnalyticCounter& ac, const std::string& resFileName, b
       const auto  sz = fon9::signed_cast(szItems);
       LatencyUS   spT0{iback.Ts0() - ibeg.Ts0()};
       LatencyUS   spT1{iback.Ts1() - ibeg.Ts1()};
-      LatencyUS   spT2{iback.Ts2() - ibeg.Ts2()};
+      LatencyUS   spT2{t2Last - ibeg.Ts2()};
       LatencyUS   spT10{iback.Ts1() - ibeg.Ts0()};
-      LatencyUS   spT20{iback.Ts2() - ibeg.Ts0()};
-      LatencyUS   spT21{iback.Ts2() - ibeg.Ts1()};
+      LatencyUS   spT20{t2Last - ibeg.Ts0()};
+      LatencyUS   spT21{t2Last - ibeg.Ts1()};
+      const auto  szT2 = fon9::signed_cast(t2LastIdx + 1);
       fon9::RevPrint(rbuf,
          "Spend(us)|", spT0,      '|', spT1,      '|', spT2, "\n"
-         "Avg(us)|",   spT0 / sz, '|', spT1 / sz, '|', spT2 / sz, "\n"
-         "T1(last)-T0(first)=", spT10, "|Avg=", spT10 / sz, "\n"
-         "T2(last)-T0(first)=", spT20, "|Avg=", spT20 / sz, "\n"
-         "T2(last)-T1(first)=", spT21, "|Avg=", spT21 / sz, "\n"
+         "Avg(us)|",   spT0 / sz, '|', spT1 / sz, '|', spT2 / szT2, "\n"
+         "T1(last)-T0(first)=", spT10, '/', sz,   "|Avg=", spT10 / sz, "\n"
+         "T2(last)-T0(first)=", spT20, '/', szT2, "|Avg=", spT20 / szT2, "\n"
+         "T2(last)-T1(first)=", spT21, '/', szT2, "|Avg=", spT21 / szT2, "\n"
          );
       fd.Append(rbuf.GetCurrent(), rbuf.GetUsedSize());
       *const_cast<char*>(rbuf.GetMemEnd() - 1) = '\0'; // 使用 puts() 尾端不用換行.

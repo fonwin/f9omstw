@@ -3,20 +3,18 @@
 #ifndef __f9omstws_OmsTwsTradingLineFix_hpp__
 #define __f9omstws_OmsTwsTradingLineFix_hpp__
 #include "f9tws/ExgTradingLineFixFactory.hpp"
-#include "f9omstws/OmsTwsFilled.hpp"
-#include "f9omstws/OmsTwsReport.hpp"
+#include "f9omstws/OmsTwsTradingLineBase.hpp"
 
 namespace f9omstw {
 namespace f9fix = fon9::fix;
 namespace f9fmkt = fon9::fmkt;
 
-class TwsTradingLineFix : public f9tws::ExgTradingLineFix {
+class TwsTradingLineFix : public f9tws::ExgTradingLineFix
+                        , public TwsTradingLineBase {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineFix);
    using base = f9tws::ExgTradingLineFix;
 
 public:
-   const fon9::CharVector  StrSendingBy_;
-
    TwsTradingLineFix(f9fix::IoFixManager&                mgr,
                      const f9fix::FixConfig&             fixcfg,
                      const f9tws::ExgTradingLineFixArgs& lineargs,
@@ -27,7 +25,8 @@ public:
 
 //--------------------------------------------------------------------------//
 
-class TwsTradingLineFixFactory : public f9tws::ExgTradingLineFixFactory {
+class TwsTradingLineFixFactory : public f9tws::ExgTradingLineFixFactory
+                               , public TwsTradingLineFactoryBase {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineFixFactory);
    using base = f9tws::ExgTradingLineFixFactory;
 
@@ -37,20 +36,16 @@ class TwsTradingLineFixFactory : public f9tws::ExgTradingLineFixFactory {
    void OnFixCancelReject(const f9fix::FixRecvEvArgs& rxargs);
 
 protected:
-   OmsCoreMgr&          CoreMgr_;
-   OmsTwsReportFactory& RptFac_;
-   OmsTwsFilledFactory& FilFac_;
-
    fon9::TimeStamp GetTDay() override;
-   fon9::io::SessionSP CreateTradingLine(f9tws::ExgTradingLineMgr&           lineMgr,
-                                         const f9tws::ExgTradingLineFixArgs& args,
-                                         f9fix::IoFixSenderSP                fixSender) override;
+   fon9::io::SessionSP CreateTradingLineFix(f9tws::ExgTradingLineMgr&           lineMgr,
+                                            const f9tws::ExgTradingLineFixArgs& args,
+                                            f9fix::IoFixSenderSP                fixSender) override;
 public:
    TwsTradingLineFixFactory(OmsCoreMgr&          coreMgr,
                             OmsTwsReportFactory& rptFactory,
                             OmsTwsFilledFactory& filFactory,
                             std::string          fixLogPathFmt,
-                            Named&& name);
+                            Named&&              name);
 };
 
 } // namespaces

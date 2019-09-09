@@ -24,7 +24,7 @@ bool OmsOrdNoMap::GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out) {
       void PutOrdNo(OmsOrdNo& dst) {
          // 此時雖然 this->size() 不是 max_size(); 但因為 clear() 時, 已填 '0',
          // 所以可已直接取用 ordno.GetOrigCharAry();
-         dst = this->Ary_;
+         dst = *static_cast<const OmsOrdNo*>(&this->Ary_);
       }
    };
    OrdNoStr ordno;

@@ -9,6 +9,7 @@
 #include "f9omstws/OmsTwsSenderStepG1.hpp"
 #include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
+#include "f9omstws/OmsTwsTradingLineTmp2019.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsFilled.hpp"
 #include "f9omstws/OmsTwsTradingLineMgrCfg.hpp"
@@ -158,11 +159,13 @@ public:
       ioargsTse.SessionFactoryPark_ = ioargsOtc.SessionFactoryPark_
          = fon9::seed::FetchNamedPark<fon9::SessionFactoryPark>(*coreMgr, "FpSession");
       const std::string logpath = fon9::seed::SysEnv_GetLogFileFmtPath(*coreMgrSeed->Root_);
-      ioargsTse.SessionFactoryPark_->Add(
-         new TwsTradingLineFixFactory(
-            *coreMgr, *rptFactory, *filFactory,
-            logpath,
-            fon9::Named{"FIX44"}));
+      ioargsTse.SessionFactoryPark_->Add(new TwsTradingLineFixFactory(
+                                                *coreMgr, *rptFactory, *filFactory,
+                                                logpath, fon9::Named{"FIX44"}));
+      // 預計新版 TMP 下單, Named 使用 "TMP2"
+      ioargsTse.SessionFactoryPark_->Add(new TwsTradingLineTmpFactory2019(
+                                                *coreMgr, *rptFactory, *filFactory,
+                                                logpath, fon9::Named{"TMP"}));
       // ------------------------------------------------------------------
       const std::string cfgpath = fon9::seed::SysEnv_GetConfigPath(*coreMgrSeed->Root_).ToString();
       CreateTradingLine(*coreMgr, cfgpath, ioargsTse, f9fmkt_TradingMarket_TwSEC, "UtwSEC",

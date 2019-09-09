@@ -8,7 +8,7 @@
 
 namespace f9omstw {
 
-/// user(session) thread 的下單要求物件
+/// user(session) thread 的下單要求(包含回報)物件
 class OmsRequestRunner {
    fon9_NON_COPYABLE(OmsRequestRunner);
 public:
@@ -43,6 +43,17 @@ public:
    /// 若無權限, 返回前會先呼叫 this->RequestAbandon(nullptr, OmsErrCode_DenyAddReport);
    bool CheckReportRights(const OmsRequestPolicy& pol);
 };
+
+/// 如果 rpt->ReqUID_ 使用此字串開頭(含EOS), 則後續緊接著 OmsRxSNO 指定回報.
+#define f9omstw_kCSTR_ReportReqUID  "SNO.bin"
+/// 指定 rpt 的回報原始「下單要求」序號.
+inline void OmsAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
+   memcpy(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ReportReqUID, sizeof(f9omstw_kCSTR_ReportReqUID));
+   memcpy(rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ReportReqUID), &sno, sizeof(sno));
+   static_assert(rpt.ReqUID_.size() >= sizeof(f9omstw_kCSTR_ReportReqUID) + sizeof(sno),
+                 "OmsRequestId::ReqUID_ too small.");
+}
+
 //--------------------------------------------------------------------------//
 /// - 禁止使用 new 的方式建立 OmsRequestRunnerInCore;
 ///   只能用「堆疊變數」的方式, 並在解構時自動結束更新.
@@ -129,6 +140,34 @@ public:
       if (!iniReq->OrdNo_.empty1st() || iniReq->Policy()->OrdTeamGroupId() != 0)
          return this->AllocOrdNo(iniReq->OrdNo_);
       return this->AllocOrdNo(tgId);
+   }
+
+   /// - retval=0 刪單.
+   /// - retval<0 期望的改後數量有誤: 不可增量, 或期望的改後數量與現在(LeavesQty+CumQty)相同.
+   /// - retval>0 isWantToKill==true:要刪除的數量; isWantToKill==false:改後的數量;
+   template <typename QtyU, typename QtyS = fon9::make_signed_t<QtyU>>
+   QtyS GetRequestChgQty(QtyS reqQty, bool isWantToKill, QtyU leavesQty, QtyU cumQty) {
+      if (reqQty < 0) {
+         if (fon9_LIKELY(isWantToKill)) {
+            if (fon9::unsigned_cast(reqQty = -reqQty) >= leavesQty)
+               return 0;
+            return reqQty;
+         }
+         if ((reqQty += fon9::signed_cast(leavesQty)) <= 0)
+            return 0;
+         return reqQty;
+      }
+      if (reqQty > 0) {
+         if (fon9_LIKELY(isWantToKill)) {
+            if ((reqQty = fon9::signed_cast(leavesQty + cumQty) - reqQty) <= 0) {
+               this->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
+               return -1;
+            }
+         }
+         return reqQty;
+      }
+      // 改量時 reqQty = 0 = 刪單.
+      return 0;
    }
 };
 //--------------------------------------------------------------------------//

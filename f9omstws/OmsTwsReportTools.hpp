@@ -45,6 +45,7 @@ inline f9fmkt_Side GetFixSide(const fon9::fix::FixParser& fixmsg) {
 }
 inline f9fmkt_TradingSessionId GetFixSessionId(const fon9::fix::FixParser::FixField* fixfld) {
    if (fixfld) {
+      fon9_WARN_DISABLE_SWITCH;
       switch (static_cast<f9tws::TwsApCode>(fixfld->Value_.Get1st())) {
       default:
       case f9tws::TwsApCode::Regular:
@@ -54,6 +55,7 @@ inline f9fmkt_TradingSessionId GetFixSessionId(const fon9::fix::FixParser::FixFi
       case f9tws::TwsApCode::FixedPrice:
          return f9fmkt_TradingSessionId_FixedPrice;
       }
+      fon9_WARN_POP;
    }
    return f9fmkt_TradingSessionId_Normal;
 }

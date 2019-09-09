@@ -33,8 +33,13 @@ OmsOrdNoMap* OmsReportChecker::GetOrdNoMap() {
    return ordnoMap;
 }
 const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
-   OmsRequestBase&       rpt = *this->Report_;
-   const OmsRxSNO        sno = this->Resource_.ParseRequestId(rpt);
+   OmsRequestBase& rpt = *this->Report_;
+   OmsRxSNO        sno;
+   if (fon9_UNLIKELY(memcmp(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ReportReqUID, sizeof(f9omstw_kCSTR_ReportReqUID)) == 0)) {
+      memcpy(&sno, rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ReportReqUID), sizeof(sno));
+      return this->Resource_.GetRequest(sno);
+   }
+   sno = this->Resource_.ParseRequestId(rpt);
    const OmsRequestBase* origReq = this->Resource_.GetRequest(sno);
    if (fon9_UNLIKELY(origReq == nullptr)) // 無法用 ReqUID 的 RxSNO 取得 request.
       return nullptr;

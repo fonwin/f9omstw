@@ -80,10 +80,12 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsReportTools.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsRequest.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepG1.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineBase.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFix.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFixSend.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgrCfg.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineTmp2019.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTypes.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -92,11 +94,14 @@
     <ClInclude Include="..\..\..\f9omstws\OmsTwsReport.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsReportTools.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsRequest.hpp" />
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsRequestTools.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsScBase.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepG1.hpp" />
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineBase.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineFix.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgrCfg.hpp" />
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineTmp2019.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTypes.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

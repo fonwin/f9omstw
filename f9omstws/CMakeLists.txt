@@ -7,9 +7,12 @@ set(f9omstws_src
  OmsTwsOrder.cpp
  OmsTwsTradingLineMgr.cpp
  OmsTwsTradingLineMgrCfg.cpp
+ OmsTwsTradingLineBase.cpp
+ OmsTwsSenderStepG1.cpp
+
  OmsTwsTradingLineFix.cpp
  OmsTwsTradingLineFixSend.cpp
- OmsTwsSenderStepG1.cpp
+ OmsTwsTradingLineTmp2019.cpp
 )
 add_library(f9omstws_s STATIC ${f9omstws_src})
 target_link_libraries(f9omstws_s f9omstw_s f9tws_s fon9_s pthread dl)

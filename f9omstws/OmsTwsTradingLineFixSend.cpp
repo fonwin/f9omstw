@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
-#include "f9omstws/OmsTwsOrder.hpp"
+#include "f9omstws/OmsTwsRequestTools.hpp"
 #include "fon9/fix/FixApDef.hpp"
 
 namespace f9omstw {
@@ -142,50 +142,19 @@ __REQUEST_DELETE:
                runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_TimeInForce, nullptr);
                return SendResult::RejectRequest;
             }
-            fixQty = iniReq->Qty_;
+            fixQty = lastOrd->LeavesQty_;
             fixPri = lastOrd->LastPri_;
             fixPriType = lastOrd->LastPriType_;
          }
          else if (fon9_LIKELY(rxKind == f9fmkt_RxKind_RequestChgQty)) {
-            if (auto* chgQtyReq = dynamic_cast<const OmsTwsRequestChg*>(curReq)) {
-               // OrderQty = 整股:欲刪數量, 零股:剩餘數量.
-               // 20200323 零股也改成:欲刪數量, 那時應將 isWantToKill 設為 true;
-               const bool isWantToKill = (twsApCode != f9tws::TwsApCode::OddLot);
-               const auto reqQty = chgQtyReq->Qty_;
-               if (reqQty < 0) {
-                  if (fon9_LIKELY(isWantToKill)) {
-                     if ((fixQty = fon9::unsigned_cast(-reqQty)) >= lastOrd->LeavesQty_)
-                        goto __REQUEST_DELETE;
-                  }
-                  else {
-                     if (fon9::signed_cast(fixQty = lastOrd->LeavesQty_ + reqQty) <= 0)
-                        goto __REQUEST_DELETE;
-                  }
-               }
-               else if (reqQty > 0) {
-                  if (fon9_LIKELY(isWantToKill)) {
-                     if (fon9::signed_cast(fixQty = lastOrd->LeavesQty_ + lastOrd->CumQty_ - reqQty) <= 0) {
-                        // 期望的改後數量有誤: 不可增量, 或期望的改後數量與現在(LeavesQty+CumQty)相同.
-                        runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
-                        return SendResult::RejectRequest;
-                     }
-                  }
-                  else {
-                     fixQty = fon9::unsigned_cast(reqQty);
-                  }
-               }
-               else { // 改量時 reqQty = 0 = 刪單.
-                  goto __REQUEST_DELETE;
-               }
-            }
-            else if (auto* chgQtyIniReq = dynamic_cast<const OmsTwsRequestIni*>(curReq)) {
-               // 使用 OmsTwsRequestIni 改量, 則直接把 chgQtyIniReq->Qty_ 送交易所.
-               fixQty = chgQtyIniReq->Qty_;
-            }
-            else {
-               runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_UnknownRequestType, nullptr);
+            // OrderQty = 整股:欲刪數量, 零股:剩餘數量.
+            // 20200323 零股也改成:欲刪數量, 那時應將 isWantToKill 設為 true;
+            const bool isWantToKill = (twsApCode != f9tws::TwsApCode::OddLot);
+            fixQty = static_cast<OmsTwsQty>(GetTwsRequestChgQty(*runner, curReq, lastOrd, isWantToKill));
+            if(fixQty == 0)
+               goto __REQUEST_DELETE;
+            if (fon9::signed_cast(fixQty) < 0)
                return SendResult::RejectRequest;
-            }
             fixPriType = f9fmkt_PriType_Limit;
             msgType = f9fix_SPLFLDMSGTYPE(OrderReplaceRequest);
          }

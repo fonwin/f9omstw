@@ -27,7 +27,7 @@ class OmsOrdTeamGroupCfg;
 /// 台灣證券券商代號 4 碼, 台灣期貨商代號 7 碼.
 using OmsBrkId = fon9::CharAryL<7>;
 /// 台灣證券、期權, 委託書號 5 碼.
-using OmsOrdNo = fon9::CharAry<5>;
+using OmsOrdNo = fon9::CharAryF<5>;
 
 class OmsIvBase;
 using OmsIvBaseSP = fon9::intrusive_ptr<OmsIvBase>;

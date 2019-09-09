@@ -107,9 +107,10 @@ struct OmsBackend::Loader {
       if (reqFrom == nullptr)
          return "Loader.MakeOrder: Request not found.";
       // ln 讀入的可能是 reqFrom 的首次或後續異動.
-      OmsOrderRaw* ordraw = nullptr;
-      OmsOrder*    order;
-      if (const OmsOrderRaw* lastupd = reqFrom->LastUpdated())
+      OmsOrderRaw*       ordraw = nullptr;
+      OmsOrder*          order;
+      const OmsOrderRaw* lastupd = reqFrom->LastUpdated();
+      if (lastupd)
          order = &lastupd->Order();
       else { // ln = reqFrom 的首次異動 => order 的首次異動? 或後續異動?
          if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
@@ -128,6 +129,7 @@ struct OmsBackend::Loader {
          else {
       __GET_ORDER_BY_ORDKEY:
             if ((order = reqFrom->SearchOrderByOrdKey(this->Resource_)) == nullptr) {
+               assert(lastupd == nullptr);
                ordraw = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(*reqFrom, nullptr);
                order = &ordraw->Order();
             }
@@ -135,14 +137,14 @@ struct OmsBackend::Loader {
       }
       if (ordraw == nullptr) {
          assert(order != nullptr);
+         lastupd = order->Tail();
          ordraw = order->BeginUpdate(*reqFrom);
-         order = &ordraw->Order();
       }
       ordraw->SetRxSNO(this->LastSNO_);
       reqFrom->SetLastUpdated(*ordraw);
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ordraw}, ln);
       this->Items_.AppendHistory(*ordraw);
-      if (!ordraw->OrdNo_.empty1st() && (order->Head() == ordraw || order->Tail()->OrdNo_ != ordraw->OrdNo_)) {
+      if (!ordraw->OrdNo_.empty1st() && (order->Head() == ordraw || lastupd->OrdNo_ != ordraw->OrdNo_)) {
          if (OmsBrk* brk = order->GetBrk(this->Resource_))
             if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*reqFrom))
                if (!ordNoMap->EmplaceOrder(*ordraw)) {

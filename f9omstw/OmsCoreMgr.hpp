@@ -19,6 +19,20 @@ using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
 using OmsEventFactoryPark = OmsFactoryPark_NoKey<OmsEventFactory, fon9::seed::TreeFlag::Unordered>;
 using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
 
+//--------------------------------------------------------------------------//
+
+/// 如果有 Lg 的需求, 則進入下單流程前, 必須先填好 OmsRequestTrade::LgOut_;
+/// 填入 OmsRequestTrade::LgOut_; 的時機:
+/// (1) 收單程序(例如:OmsRcServerFunc.cpp#L196): 使用 PolicyConfig_.UserRights_.LgOut_;
+/// (2) 若收單程序沒填, 則透過 OmsCoreMgr::FnSetRequestLgOut_ 處理.
+///     - 在 OmsCore.cpp#L50 進入 OmsRequestRunnerInCore 之前呼叫 OmsCoreMgr::FnSetRequestLgOut_.
+///     - 如果 OmsCoreMgr::FnSetRequestLgOut_ == nullptr, 則不再有機會改變 LgOut_;
+///     - 這裡提供一個使用 OmsIvac::LgOut_; 的範例 OmsSetRequestLgOut_UseIvac()
+void OmsSetRequestLgOut_UseIvac(OmsResource& res, OmsRequestTrade& req, OmsOrder& order);
+using FnSetRequestLgOut = void (*)(OmsResource&, OmsRequestTrade&, OmsOrder&);
+
+//--------------------------------------------------------------------------//
+
 fon9_WARN_DISABLE_PADDING;
 /// 管理 OmsCore 的生死.
 /// - 每個 OmsCore 僅處理一交易日的資料, 不處理換日、清檔,
@@ -42,7 +56,9 @@ protected:
    void OnMaTree_AfterClear() override;
 
 public:
-   OmsCoreMgr(std::string tabName);
+   const FnSetRequestLgOut FnSetRequestLgOut_{};
+
+   OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut);
 
    using TDayChangedEvent = fon9::Subject<OmsTDayChangedHandler>;
    TDayChangedEvent  TDayChangedEvent_;

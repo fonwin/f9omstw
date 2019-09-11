@@ -1,9 +1,27 @@
 ﻿// \file f9omstws/OmsTwsTradingLineMgr.cpp
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
+#include "f9omstws/OmsTwsTradingLineMgrCfg.hpp"
+#include "fon9/FilePath.hpp"
 
 namespace f9omstw {
 
+TwsTradingLineMgrSP CreateTradingLineMgr(fon9::seed::MaTree&  owner,
+                                         std::string          cfgpath,
+                                         fon9::IoManagerArgs& ioargs,
+                                         f9fmkt_TradingMarket mkt) {
+   std::string orgName = std::move(ioargs.Name_);
+   ioargs.Name_ = orgName + "_io";
+   cfgpath = fon9::FilePath::AppendPathTail(&cfgpath);
+   ioargs.CfgFileName_ = cfgpath + ioargs.Name_ + ".f9gv";
+   TwsTradingLineMgrSP linemgr{new TwsTradingLineMgr{ioargs, mkt}};
+   ioargs.Name_ = std::move(orgName);
+   if (owner.Add(new fon9::seed::NamedSapling(linemgr, linemgr->Name_))
+    && owner.Add(new TwsTradingLineMgrCfgSeed(*linemgr, cfgpath, ioargs.Name_ + "_cfg")))
+      return linemgr;
+   return nullptr;
+}
+//--------------------------------------------------------------------------//
 TwsTradingLineMgr::TwsTradingLineMgr(const fon9::IoManagerArgs& ioargs, f9fmkt_TradingMarket mkt)
    : base{ioargs, fon9::TimeInterval::Null(), mkt} // 建構時不應啟動 device, 必須在 OnOmsCoreChanged(); 啟動.
    , StrQueuingIn_{fon9::RevPrintTo<fon9::CharVector>("Queuing in ", ioargs.Name_)} {

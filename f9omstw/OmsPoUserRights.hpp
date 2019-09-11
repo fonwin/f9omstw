@@ -2,9 +2,7 @@
 /// \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsPoUserRights_hpp__
 #define __f9omstw_OmsPoUserRights_hpp__
-#include "fon9/CharVector.hpp"
-#include "fon9/CharAry.hpp"
-#include <vector>
+#include "f9omstw/OmsBase.hpp"
 
 namespace f9omstw {
 
@@ -15,6 +13,7 @@ struct FlowControlArgs {
    uint16_t IntervalMS_{0};
 };
 
+fon9_WARN_DISABLE_PADDING;
 /// Oms使用者權限:
 /// - 是否可自訂櫃號 or 委託書號.
 /// - 流量管制.
@@ -25,11 +24,14 @@ public:
    /// 允許的委託櫃號, 使用 "," 分隔, 或使用 "-" 設定範圍.
    /// 若為空白, 則不允許自訂櫃號 or 委託書號.
    fon9::CharVector  AllowOrdTeams_;
-   // 下單(新、刪、改、查...)要求的流量管制參數.
+   /// 下單(新、刪、改、查...)要求的流量管制參數.
    FlowControlArgs   FcRequest_;
-   // 各類查詢(例如:商品基本資料,帳號庫存...)的流量管制參數.
+   /// 各類查詢(例如:商品基本資料,帳號庫存...)的流量管制參數.
    FlowControlArgs   FcQuery_;
+   /// 預設下單群組.
+   LgOut             LgOut_{};
 };
+fon9_WARN_POP;
 
 } // namespaces
 #endif//__f9omstw_OmsPoUserRights_hpp__

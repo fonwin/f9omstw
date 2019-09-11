@@ -9,6 +9,7 @@ set(f9omstws_src
  OmsTwsTradingLineMgrCfg.cpp
  OmsTwsTradingLineBase.cpp
  OmsTwsSenderStepG1.cpp
+ OmsTwsSenderStepLg.cpp
 
  OmsTwsTradingLineFix.cpp
  OmsTwsTradingLineFixSend.cpp

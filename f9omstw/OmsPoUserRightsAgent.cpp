@@ -16,7 +16,8 @@ static void SerializeVer(Archive& ar, fon9::ArchiveWorker<Archive, OmsPoUserRigh
       rec.FcRequest_.Count_,
       rec.FcRequest_.IntervalMS_,
       rec.FcQuery_.Count_,
-      rec.FcQuery_.IntervalMS_
+      rec.FcQuery_.IntervalMS_,
+      rec.LgOut_
       );
 }
 template <class Archive>
@@ -31,7 +32,7 @@ struct OmsPoUserRightsPolicy : public fon9::auth::PolicyItem, public OmsUserRigh
    using base::base;
 
    void LoadPolicy(fon9::DcQueue& buf) override {
-      PolicySerialize(fon9::BitvInArchive{buf}, *this);
+      PolicySerialize(fon9::InArchiveClearBack<fon9::BitvInArchive>{buf}, *this);
    }
    void SavePolicy(fon9::RevBuffer& rbuf) override {
       PolicySerialize(fon9::BitvOutArchive{rbuf}, *this);
@@ -47,6 +48,7 @@ static fon9::seed::Fields MakeOmsUserRightsFields() {
    fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcRequest_.IntervalMS_, "FcReqMS"));
    fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcQuery_.Count_,        "FcQryCount"));
    fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcQuery_.IntervalMS_,   "FcQryMS"));
+   fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, LgOut));
    return fields;
 }
 

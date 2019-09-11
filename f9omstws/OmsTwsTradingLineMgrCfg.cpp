@@ -2,6 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsTradingLineMgrCfg.hpp"
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
+#include "fon9/FilePath.hpp"
 
 namespace f9omstw {
 using namespace fon9;
@@ -31,7 +32,7 @@ TwsTradingLineMgrCfgSeed::TwsTradingLineMgrCfgSeed(TwsTradingLineMgr& linemgr,
    , LineMgr_(linemgr) {
    auto& configTree = this->GetConfigTree();
    configTree.Add(new CfgOrdTeams{configTree});
-   this->BindConfigFile(cfgpath + this->Name_ + ".f9gv", true);
+   this->BindConfigFile(fon9::FilePath::AppendPathTail(&cfgpath) + this->Name_ + ".f9gv", true);
 }
 fon9_MSC_WARN_POP;
 

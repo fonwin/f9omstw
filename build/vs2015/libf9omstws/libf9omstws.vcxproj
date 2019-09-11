@@ -80,6 +80,7 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsReportTools.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsRequest.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepG1.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepLg.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineBase.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFix.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFixSend.cpp" />
@@ -97,6 +98,7 @@
     <ClInclude Include="..\..\..\f9omstws\OmsTwsRequestTools.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsScBase.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepG1.hpp" />
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepLg.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineBase.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineFix.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.hpp" />

@@ -45,6 +45,10 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
    this->FetchRequestId(*runner.Request_);
    if (auto* step = runner.Request_->Creator().RunStep_.get()) {
       if (OmsOrderRaw* ordraw = runner.BeforeReqInCore(*this)) {
+         if (this->Owner_->FnSetRequestLgOut_) {
+            assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
+            this->Owner_->FnSetRequestLgOut_(*this, *static_cast<OmsRequestTrade*>(runner.Request_.get()), ordraw->Order());
+         }
          OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
          if (ordraw->OrdNo_.empty1st() && *(ordraw->Request().OrdNo_.end() - 1) != '\0') {
             assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);

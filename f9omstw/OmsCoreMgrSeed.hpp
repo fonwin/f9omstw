@@ -20,16 +20,12 @@ protected:
 public:
    const fon9::seed::MaTreeSP Root_;
 
-   OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner);
+   OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner, FnSetRequestLgOut fnSetRequestLgOut);
    OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner, OmsCoreMgrSP coreMgr);
 
    OmsCoreMgr& GetOmsCoreMgr() const {
       return *static_cast<OmsCoreMgr*>(this->Sapling_.get());
    }
-
-   /// 若 out.IoServiceCfgstr_ 第一碼為 '/' 則從 holder.Root_ 尋找 IoManager 填入 out.IoServiceSrc_;
-   /// 例如: out.IoServiceCfgstr_ = "/MaIo";
-   static bool SetIoManager(fon9::seed::PluginsHolder& holder, fon9::IoManagerArgs& out);
 
    /// 建立預設的 OmsCore.
    /// - GetOmsCoreByThreadCreator(this->HowWait_);

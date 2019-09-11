@@ -41,6 +41,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_SymbMarketId = 104,
    /// 不認識的 MarketId, 無法決定下單要求要送到何處.
    OmsErrCode_Bad_MarketId = 105,
+   /// 不正確的 LgOut 線路群組設定.
+   OmsErrCode_Bad_LgOut = 106,
 
    /// RxKind 有誤.
    OmsErrCode_Bad_RxKind = 110,

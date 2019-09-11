@@ -11,23 +11,8 @@ OmsCoreMgrSeed::OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner, Oms
    : base(std::move(coreMgr), std::move(name))
    , Root_{std::move(owner)} {
 }
-OmsCoreMgrSeed::OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
-   : OmsCoreMgrSeed(std::move(name), std::move(owner), new OmsCoreMgr{"ConfigsTab"}) {
-}
-
-bool OmsCoreMgrSeed::SetIoManager(fon9::seed::PluginsHolder& holder, fon9::IoManagerArgs& out) {
-   if (*out.IoServiceCfgstr_.c_str() == '/') {
-      fon9::StrView name{&out.IoServiceCfgstr_};
-      name.SetBegin(name.begin() + 1);
-      out.IoServiceSrc_ = holder.Root_->GetSapling<fon9::IoManager>(name);
-      if (!out.IoServiceSrc_) {
-         holder.SetPluginsSt(fon9::LogLevel::Error,
-                             "OmsCoreMgrSeed.SetIoManager|err=Unknown IoManager: ",
-                             out.IoServiceCfgstr_);
-         return false;
-      }
-   }
-   return true;
+OmsCoreMgrSeed::OmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner, FnSetRequestLgOut fnSetRequestLgOut)
+   : OmsCoreMgrSeed(std::move(name), std::move(owner), new OmsCoreMgr{fnSetRequestLgOut}) {
 }
 
 bool OmsCoreMgrSeed::AddCore(fon9::TimeStamp tday) {

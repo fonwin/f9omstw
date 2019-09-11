@@ -192,7 +192,11 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    param.RecvBuffer_.Read(pout, byteCount);
 
    runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
-   if (fon9_UNLIKELY(!runner.Request_)) {
+   if (fon9_LIKELY(runner.Request_)) {
+      assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
+      static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
+   }
+   else {
       // Rc client 端使用 TwsRpt 補登回報(補單).
       runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
       if (!runner.Request_) {

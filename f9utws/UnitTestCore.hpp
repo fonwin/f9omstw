@@ -212,7 +212,7 @@ struct TestCore : public f9omstw::OmsCore {
    }
 
    TestCore(int argc, char* argv[], std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
-      : base(owner ? owner : new f9omstw::OmsCoreMgr{"ut"}, "seed/path", name) {
+      : base(owner ? owner : new f9omstw::OmsCoreMgr{nullptr}, "seed/path", name) {
       this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 
       if (owner.get() == nullptr) {

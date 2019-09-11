@@ -147,14 +147,12 @@
 * 若 Rpt 必須先保留
   * 直接使用 Req 異動 OrderRaw
     * OrderSt = f9fmkt_OrderSt_ReportPending
-    * 設定 BeforeQty, AfterQty, LastExgTime, ErrCode;
-    ====> 如果是改價呢?
-    ====> 增加一個 Order.LastXXX_ 用來記錄「最後一個非保留」的異動, 每當要異動時, 從這裡複製「異動前」內容.
+    * 設定 BeforeQty, AfterQty, LastExgTime, Pri, PriType, LastPriTime, ErrCode...
     * 不改變 LeavesQty
     * 刪除 Rpt
   * 等後續回報造成 LeavesQty == BeforeQty 時, 再異動一次 OrderRaw.
     * RequestSt: ExchangeRejected、ExchangeNoLeavesQty、ExchangeAccepted...
-    * 重設 BeforeQty, AfterQty, LastExgTime, ErrCode;
+    * 重設 BeforeQty, AfterQty, LastExgTime, ErrCode...
     * 計算 LeavesQty
 
 #### 若 Rpt 非 f9oms Req 的回報
@@ -173,9 +171,9 @@
   * 若 Rpt 必須保留
     * 使用 Rpt 異動 OrderRaw
       * OrderSt = f9fmkt_OrderSt_ReportPending
-      * 設定 BeforeQty, AfterQty, LastExgTime, ErrCode;
+      * 設定 BeforeQty, AfterQty, LastExgTime, ErrCode...
       * 不改變 LeavesQty
     * 等後續回報造成 LeavesQty == BeforeQty 時, 再異動一次 OrderRaw.
       * RequestSt: ExchangeRejected、ExchangeNoLeavesQty、ExchangeAccepted...
-      * 重設 BeforeQty, AfterQty, LastExgTime, ErrCode;
+      * 重設 BeforeQty, AfterQty, LastExgTime, ErrCode...
       * 計算 LeavesQty

@@ -237,7 +237,7 @@ int main(int argc, char* argv[]) {
          this->get()->OnParentSeedClear();
       }
    };
-   OmsCoreMgrSP         coreMgr{new f9omstw::OmsCoreMgr{"Analyser"}};
+   OmsCoreMgrSP         coreMgr{new f9omstw::OmsCoreMgr{nullptr}};
    OmsTwsOrderFactory*  ordfac = new OmsTwsOrderFactory;
    coreMgr->SetOrderFactoryPark(new f9omstw::OmsOrderFactoryPark(
       ordfac

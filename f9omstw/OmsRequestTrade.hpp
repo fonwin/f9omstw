@@ -14,7 +14,12 @@ struct OmsRequestFrom {
    fon9::CharAry<12> UserId_;
    fon9::CharAry<16> FromIp_;
    /// 來源別.
-   fon9::CharAry<4>  Src_;
+   fon9::CharAry<3>  Src_;
+
+   /// 預計要使用的下單線路群組.
+   /// 可能根據: IvacNo, User, Src, RxKind 設定, 必須在進入下單流程前填妥.
+   /// 在設計券商系統時, 根據需求決定.
+   LgOut LgOut_;
 
    OmsRequestFrom() {
       memset(this, 0, sizeof(*this));

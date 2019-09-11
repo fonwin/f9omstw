@@ -4,8 +4,21 @@
 
 namespace f9omstw {
 
-OmsCoreMgr::OmsCoreMgr(std::string tabName)
-   : base{std::move(tabName)} {
+void OmsSetRequestLgOut_UseIvac(OmsResource& res, OmsRequestTrade& req, OmsOrder& order) {
+   // 可能在收單程序(例如:OmsRcServer)就已填妥.
+   if (IsValidateLgOut(req.LgOut_))
+      return;
+   if (OmsIvBase* ivr = FetchScResourceIvr(res, order)) {
+      if (ivr->IvKind_ == OmsIvKind::Subac)
+         ivr = ivr->Parent_.get();
+      assert(dynamic_cast<OmsIvac*>(ivr) != nullptr);
+      req.LgOut_ = static_cast<OmsIvac*>(ivr)->LgOut_;
+   }
+}
+//--------------------------------------------------------------------------//
+OmsCoreMgr::OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut)
+   : base{"coremgr"/*tabName*/}
+   , FnSetRequestLgOut_{fnSetRequestLgOut} {
    this->Add(this->ErrCodeActSeed_ = new ErrCodeActSeed("ErrCodeAct"));
 }
 void OmsCoreMgr::OnMaTree_AfterClear() {

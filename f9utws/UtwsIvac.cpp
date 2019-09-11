@@ -17,6 +17,7 @@ fon9::seed::LayoutSP UtwsIvac::MakeLayout(fon9::seed::TreeFlag treeflags) {
    Fields   infoflds;
    infoflds.Add(fon9_MakeField(UtwsIvac, Info_.Name_,       "Name"));
    infoflds.Add(fon9_MakeField(UtwsIvac, Info_.OrderLimit_, "OrderLimit"));
+   infoflds.Add(fon9_MakeField2(UtwsIvac, LgOut));
    return new LayoutN(fon9_MakeField2(UtwsIvac, IvacNo), treeflags,
       new Tab{fon9::Named{"Info"}, std::move(infoflds), UtwsSubac::MakeLayout(), TabFlag::NoSeedCommand | TabFlag::Writable | TabFlag::HasSapling},
       new Tab{fon9::Named{"Sc"}, UtwsIvSc::MakeFields(fon9_OffsetOfRawPointer(UtwsIvac, Sc_)), UtwsIvSymb::MakeLayout(), TabFlag::NoSeedCommand | TabFlag::Writable | TabFlag::HasSapling}

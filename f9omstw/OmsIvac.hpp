@@ -20,7 +20,9 @@ protected:
 public:
    /// 帳號包含檢查碼.
    const IvacNo   IvacNo_;
-   char           padding___[4];
+   /// 投資人帳號預設的下單線路.
+   LgOut          LgOut_{};
+   char           padding___[3];
 
    OmsIvac(IvacNo ivacNo, OmsBrkSP parent);
    ~OmsIvac();

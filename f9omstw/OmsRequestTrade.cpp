@@ -14,6 +14,7 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTrade, UserId));
    flds.Add(fon9_MakeField2(OmsRequestTrade, FromIp));
    flds.Add(fon9_MakeField2(OmsRequestTrade, Src));
+   flds.Add(fon9_MakeField2(OmsRequestTrade, LgOut));
    flds.Add(fon9_MakeField2(OmsRequestTrade, UsrDef));
    flds.Add(fon9_MakeField2(OmsRequestTrade, ClOrdId));
 }

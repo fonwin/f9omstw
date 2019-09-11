@@ -16,10 +16,16 @@ void OmsSetRequestLgOut_UseIvac(OmsResource& res, OmsRequestTrade& req, OmsOrder
    }
 }
 //--------------------------------------------------------------------------//
+fon9::seed::TreeSP  OmsCoreMgr::CurrentCoreSapling::GetSapling() {
+   return this->Sapling_;
+}
+//--------------------------------------------------------------------------//
 OmsCoreMgr::OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut)
    : base{"coremgr"/*tabName*/}
+   , CurrentCoreSapling_{*new CurrentCoreSapling{"CurrentCore"}}
    , FnSetRequestLgOut_{fnSetRequestLgOut} {
    this->Add(this->ErrCodeActSeed_ = new ErrCodeActSeed("ErrCodeAct"));
+   this->Add(&this->CurrentCoreSapling_);
 }
 void OmsCoreMgr::OnMaTree_AfterClear() {
    ConstLocker locker{this->Container_};
@@ -57,6 +63,8 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
       // 即使這裡一輩子也用不到, 但也不能不考慮.
       old = std::move(cur);
    }
+   this->CurrentCoreSapling_.Sapling_ = this->CurrentCore_->GetSapling();
+   this->CurrentCoreSapling_.SetTitle(this->CurrentCore_->Name_);
    this->IsTDayChanging_ = false;
 }
 void OmsCoreMgr::UpdateSc(OmsRequestRunnerInCore& runner) {

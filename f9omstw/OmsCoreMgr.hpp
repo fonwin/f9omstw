@@ -43,9 +43,18 @@ fon9_WARN_DISABLE_PADDING;
 class OmsCoreMgr : public fon9::seed::MaTree {
    fon9_NON_COPY_NON_MOVE(OmsCoreMgr);
    using base = fon9::seed::MaTree;
-   OmsCoreSP         CurrentCore_;
-   bool              IsTDayChanging_{false};
-   ErrCodeActSeed*   ErrCodeActSeed_;
+   class CurrentCoreSapling : public fon9::seed::NamedSeed {
+      fon9_NON_COPY_NON_MOVE(CurrentCoreSapling);
+      using base = fon9::seed::NamedSeed;
+   public:
+      fon9::seed::TreeSP Sapling_;
+      using base::base;
+      fon9::seed::TreeSP GetSapling() override;
+   };
+   OmsCoreSP            CurrentCore_;
+   CurrentCoreSapling&  CurrentCoreSapling_;
+   bool                 IsTDayChanging_{false};
+   ErrCodeActSeed*      ErrCodeActSeed_;
 
 protected:
    OmsOrderFactoryParkSP   OrderFactoryPark_;

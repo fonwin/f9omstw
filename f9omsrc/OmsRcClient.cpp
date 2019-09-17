@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omsrc/OmsRcClient.hpp"
 #include "f9omstw/OmsBase.hpp"
-#include "f9omstw/OmsErrCode.h"
+#include "f9omstw/OmsMakeErrMsg.h"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/Log.hpp"
 
@@ -11,7 +11,8 @@ namespace f9omstw {
 OmsRcClientSession::OmsRcClientSession(fon9::rc::RcFunctionMgrSP funcMgr, const f9OmsRc_ClientSessionParams* params)
    : base(std::move(funcMgr), fon9::rc::RcSessionRole::User, static_cast<fon9::rc::RcFlag>(params->RcFlags_))
    , Password_{params->Password_}
-   , Handler_(*params->Handler_) {
+   , Handler_(*params->Handler_)
+   , ErrCodeTx_{params->ErrCodeTx_} {
    this->SetUserId(fon9::StrView_cstr(params->UserId_));
    this->UserData_ = params->UserData_;
    this->LogFlags_ = params->LogFlags_;
@@ -85,16 +86,27 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
 
    assert(dynamic_cast<OmsRcClientSession*>(&ses) != nullptr);
    OmsRcClientSession* clises = static_cast<OmsRcClientSession*>(&ses);
-   if ((clises->LogFlags_ & f9OmsRc_ClientLogFlag_Report) || rpt.ReportSNO_ == 0)
-      fon9_LOG_INFO("OmsRcClient.RxReport|ses=", fon9::ToPtr(static_cast<f9OmsRc_ClientSession*>(clises)),
-                    "|tab=", tableId,
-                    ':', tab ? fon9::StrView{&tab->Name_} : fon9::StrView{"?"},
-                    "|sno=", rpt.ReportSNO_, "|ref=", rpt.ReferenceSNO_, "|rpt=", rptstr);
+   bool                isNeedsLog = (fon9::LogLevel::Info >= fon9::LogLevel_
+                                     && ((clises->LogFlags_ & f9OmsRc_ClientLogFlag_Report) != 0
+                                         || rpt.ReportSNO_ == 0));
+   fon9::RevBufferList rbuf{fon9::kLogBlockNodeSize};
+   if (isNeedsLog) {
+      fon9::RevPrint(rbuf, "OmsRcClient.RxReport"
+                     "|ses=", fon9::ToPtr(static_cast<f9OmsRc_ClientSession*>(clises)),
+                     "|tab=", tableId,
+                     ':', tab ? fon9::StrView{&tab->Name_} : fon9::StrView{"?"},
+                     "|sno=", rpt.ReportSNO_, "|ref=", rpt.ReferenceSNO_,
+                     "|rpt=", rptstr, '\n');
 
-   if (tab == nullptr)
+   }
+   if (tab == nullptr || rptstr.empty()) {
+   __LOG_AND_RETURN:;
+      if (isNeedsLog)
+         fon9::LogWrite(fon9::LogLevel::Info, std::move(rbuf));
       return;
+   }
    if (!clises->Handler_.FnOnReport_)
-      return;
+      goto __LOG_AND_RETURN;
       
    char*          strBeg = &*rptstr.begin();
    char* const    strEnd = strBeg + rptstr.size();
@@ -115,7 +127,22 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
       }
       ++pval;
    }
+   char  txmsg[1024 * 4];
+   if (clises->ErrCodeTx_ && rpt.Layout_->IdxErrCode_ >= 0 && rpt.Layout_->IdxMessage_ >= 0) {
+      OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(rpt.FieldArray_[rpt.Layout_->IdxErrCode_], 0u));
+      if (ec != OmsErrCode_NoError) {
+         fon9_CStrView& msg = tab->RptValues_[static_cast<unsigned>(rpt.Layout_->IdxMessage_)];
+         const char*    pRptMsg = msg.Begin_;
+         msg = f9omstw_MakeErrMsg(clises->ErrCodeTx_, txmsg, sizeof(txmsg), ec, rpt.FieldArray_[rpt.Layout_->IdxMessage_]);
+         if (isNeedsLog && msg.Begin_ != pRptMsg) {
+            isNeedsLog = false;
+            rbuf.RemoveBackData(1); // 移除尾端 '\n', 加上訊息.
+            fon9_LOG_INFO(rbuf.MoveOut(), "|txmsg=", msg);
+         }
+      }
+   }
    clises->Handler_.FnOnReport_(clises, &rpt);
+   goto __LOG_AND_RETURN;
 }
 void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) {
    f9OmsRc_OpKind opkind{};
@@ -130,7 +157,7 @@ void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFu
    case f9OmsRc_OpKind_TDayChanged:
       this->OnRecvTDayChanged(ses, param);
       break;
-   case f9OmsRc_OpKind_ReportSubscribe:
+   case f9OmsRc_OpKind_ReportSubscribe: // 回補結束.
       fon9::TimeStamp      tday;
       f9OmsRc_ClientReport rpt;
       fon9::ZeroStruct(rpt);

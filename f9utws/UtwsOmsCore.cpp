@@ -188,7 +188,7 @@ public:
          rptFactory, filFactory
       ));
       coreMgr.SetEventFactoryPark(new f9omstw::OmsEventFactoryPark{});
-      coreMgr.ReloadErrCodeAct(fon9::ToStrView(cfgpath + "UtwErrCode.cfg"));
+      coreMgr.ReloadErrCodeAct(fon9::ToStrView(cfgpath + "UtwErrCodeAct.cfg"));
       coreMgrSeed->AddCore(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset());
       return true;
    }

@@ -163,6 +163,7 @@ int main(int argc, char* argv[]) {
    using CliSessionSP = fon9::intrusive_ptr<f9omstw::OmsRcClientSession>;
    f9OmsRc_ClientHandler         cliHandler = {&OnClientLinkEv, &OnClientConfig, &OnClientReport, nullptr};
    f9OmsRc_ClientSessionParams   sesParams;
+   fon9::ZeroStruct(sesParams);
    sesParams.Handler_   = &cliHandler;
    sesParams.UserId_    = kUSERID;
    sesParams.Password_  = kPASSWD;

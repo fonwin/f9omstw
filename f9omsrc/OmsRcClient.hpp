@@ -14,8 +14,9 @@ class OmsRcClientSession : public fon9::rc::RcSession, public f9OmsRc_ClientSess
    using base = fon9::rc::RcSession;
    std::string Password_;
 public:
-   const f9OmsRc_ClientHandler   Handler_;
-   fon9::FlowCounterThreadSafe   FcReq_;
+   const f9OmsRc_ClientHandler      Handler_;
+   fon9::FlowCounterThreadSafe      FcReq_;
+   const f9omstw_ErrCodeTx* const   ErrCodeTx_;
 
    OmsRcClientSession(fon9::rc::RcFunctionMgrSP funcMgr, const f9OmsRc_ClientSessionParams* params);
    fon9::StrView GetAuthPassword() const override;

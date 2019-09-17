@@ -131,23 +131,25 @@ inline void ExgTmpToReport(const ExgTmpTradeT& pktmp, OmsTwsReport& rpt) {
 //--------------------------------------------------------------------------//
 void TwsTradingLineTmp2019::OnExgTmp_ApPacket(const f9tws::ExgTmpHead& pktmp, unsigned pksz) {
    // B=>E 00 委託輸入訊息      this->SendRequest();
-   // B<=E 01 委託回報訊息      this mf.
+   // B<=E 01 委託回報訊息      this mf: isRptOK=true;
    // B=>E 02 確認連線訊息      ExgLineTmp::OnExgTmp_CheckApTimer();
-   // B<=E 03 錯誤發生回覆訊息  this mf.
+   // B<=E 03 錯誤發生回覆訊息  this mf: isRptOK=false;
    // B=>E 04 重新連線查詢訊息
    // B<=E 05 確定連線回覆訊息  dont care.
-   OmsErrCode ec;
    if (pktmp.MsgType_.Chars_[0] != '0')
       return;
+   bool isRptOK;
    switch (pktmp.MsgType_.Chars_[1]) {
    case '1': // MsgType = "01" = 委託回報訊息.
-      ec = OmsErrCode_NoError;
+      // 仍可能有 StCode:
+      // 31 = QUANTITY WAS CUT     | 外資買進、借券賣出委託數量被刪減。IOC委託可成交部分之委託數量生效，剩餘委託數量剔退
+      // 32 = DELETE OVER QUANTITY | 取消數量超過原有數量
+      // 51 = 委託觸及價格穩定措施上、下限價格，部分委託被刪減。市價、IOC委託可成交部分之委託數量生效，剩餘委託數量剔退
+      isRptOK = true;
       break;
    case '3': // MsgType = "03" = 錯誤發生回覆訊息.
       // 僅提供 pktmp.StCode_; 判斷錯誤原因.
-      ec = (this->LineArgs_.Market_ == f9fmkt_TradingMarket_TwOTC
-            ? OmsErrCode_FromTwOTC : OmsErrCode_FromTwSEC);
-      ec = static_cast<OmsErrCode>(ec + pktmp.GetStCode());
+      isRptOK = false;
       break;
    default:
       return;
@@ -159,7 +161,7 @@ void TwsTradingLineTmp2019::OnExgTmp_ApPacket(const f9tws::ExgTmpHead& pktmp, un
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
    OmsAssignReportReqUID(rpt, this->SendingSNO_);
-   if (fon9_LIKELY(ec == OmsErrCode_NoError)) {
+   if (fon9_LIKELY(isRptOK)) {
       rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeAccepted);
       if (fon9_UNLIKELY(this->LineArgs_.ApCode_ == f9tws::TwsApCode::OddLot))
          ExgTmpToReport(*static_cast<const ExgTmpO020*>(&pktmp), rpt);
@@ -168,9 +170,18 @@ void TwsTradingLineTmp2019::OnExgTmp_ApPacket(const f9tws::ExgTmpHead& pktmp, un
    }
    else {
       rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
-      rpt.SetErrCode(ec);
       rpt.ExgTime_ = fon9::StrTo(fon9::StrView_all(pktmp.Time_.Chars_), fon9::DayTime::Null());
    }
+
+   OmsErrCode ec = static_cast<OmsErrCode>(pktmp.GetStCode());
+   if (fon9_UNLIKELY(ec != OmsErrCode_NoError)) {
+      assert(fon9::isdigit(static_cast<unsigned char>(this->LineArgs_.ApCode_)));
+      rpt.SetErrCode(static_cast<OmsErrCode>(ec
+             + (static_cast<unsigned char>(this->LineArgs_.ApCode_) - '0') * 1000
+             + (this->LineArgs_.Market_ == f9fmkt_TradingMarket_TwOTC
+                ? OmsErrCode_FromTwOTC : OmsErrCode_FromTwSEC)));
+   }
+
    // TODO: 是否可以在 OmsCore thread 執行完回報後,
    //       直接在 OmsCore thread 處理 this->LineMgr_.OnTradingLineReady();
    OmsCoreSP core{std::move(this->OmsCore_)};

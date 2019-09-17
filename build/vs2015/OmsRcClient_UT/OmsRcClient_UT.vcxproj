@@ -76,7 +76,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omsrc\OmsRcClient_UT.c" />
-    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
@@ -84,6 +83,9 @@
     </ProjectReference>
     <ProjectReference Include="..\libf9omsrc\libf9omsrc.vcxproj">
       <Project>{c8a7d05e-e4a0-40e4-9343-fb3366d84ce3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
+      <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

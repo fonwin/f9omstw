@@ -189,7 +189,7 @@ public:
 
    virtual void RunRequest(OmsRequestRunnerInCore&&) = 0;
 
-   /// 透過 OmsErrCode.cfg 設定某些錯誤碼在特定條件下,
+   /// 透過 OmsErrCodeAct.cfg 設定某些錯誤碼在特定條件下,
    /// 必須重跑一次流程, 透過這處理.
    /// 預設: `if (this->NextStep_) this->NextStep_->RerunRequest(std::move(runner));`
    virtual void RerunRequest(OmsReportRunnerInCore&& runner);

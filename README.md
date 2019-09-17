@@ -52,7 +52,7 @@ libf9omstw: 台灣環境的委託管理系統.
 請參閱專章說明: [回報匯入機制](ReportIn.md)
 
 ## 根據錯誤碼決定後續行為
-請參閱: [錯誤碼設定](OmsErrCode.cfg)
+請參閱: [錯誤碼設定](OmsErrCode/OmsErrCodeAct.cfg)
 
 ---------------------------------------
 

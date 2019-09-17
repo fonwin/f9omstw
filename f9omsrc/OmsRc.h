@@ -36,6 +36,9 @@ extern "C" {
 
 #define f9OmsRc_API_FN(ReturnType)  extern f9OmsRc_DECL ReturnType f9OmsRc_CALL
 
+/// ErrCode 訊息翻譯服務, 透過 OmsMakeErrMsg.h 提供的 functions 載入、釋放.
+typedef struct f9omstw_ErrCodeTx    f9omstw_ErrCodeTx;
+
 //--------------------------------------------------------------------------//
 
 /// 在 server 回覆 Config 時, 提供 table 資料時,
@@ -57,6 +60,8 @@ fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
    /// C -> S.
    f9OmsRc_OpKind_TDayConfirm = 1,
 
+   /// C -> S: 回補要求.
+   /// C <- S: 回補結束通知.
    f9OmsRc_OpKind_ReportSubscribe,
 };
 
@@ -330,6 +335,7 @@ typedef struct {
    f9rc_RcFlag                   RcFlags_;
    f9OmsRc_ClientLogFlag         LogFlags_;
    char                          Reserved7___[5];
+   const f9omstw_ErrCodeTx*      ErrCodeTx_;
 } f9OmsRc_ClientSessionParams;
 
 //--------------------------------------------------------------------------//

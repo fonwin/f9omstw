@@ -3,6 +3,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omsrc/OmsRc.h"
 #include "f9omstw/OmsToolsC.h" // f9omstw_IncStrAlpha();
+#include "f9omstw/OmsMakeErrMsg.h"
 #include "fon9/ConsoleIO.h"
 
 fon9_BEFORE_INCLUDE_STD;
@@ -413,7 +414,7 @@ int main(int argc, char* argv[]) {
 #endif
    const char* logFileFmt = NULL;
 
-   f9OmsRc_ClientSessionParams   sesParams;
+   f9OmsRc_ClientSessionParams  sesParams;
    memset(&sesParams, 0, sizeof(sesParams));
    sesParams.DevName_ = "TcpClient";
    sesParams.LogFlags_ = f9OmsRc_ClientLogFlag_All;
@@ -437,6 +438,10 @@ int main(int argc, char* argv[]) {
       case 'p':   sesParams.Password_ = *pargv;  break;
       case 'n':   sesParams.DevName_ = *pargv;   break;
       case 'a':   sesParams.DevParams_ = *pargv; break;
+      case 't':
+         f9omstw_FreeOmsErrMsgTx(sesParams.ErrCodeTx_);
+         sesParams.ErrCodeTx_ = f9omstw_LoadOmsErrMsgTx1(*pargv);
+         break;
       case '?':   goto __USAGE;
       default:    goto __UNKNOWN_ARGUMENT;
       }
@@ -458,7 +463,8 @@ __USAGE:
              "   e.g. -a 127.0.0.1:6601\n"
              "   e.g. -a dn=localhost:6601\n"
              "-u UserId\n"
-             "-p Password\n",
+             "-p Password\n"
+             "-t OmsErrCode.All.cfg:zh\n",
              kCSTR_LogFileFmt, kCSTR_LogFlags);
       return 3;
    }
@@ -535,5 +541,6 @@ __USAGE:
 __QUIT:
    f9OmsRc_DestroySession_Wait(ud.Session_);
    f9OmsRc_Finalize();
+   f9omstw_FreeOmsErrMsgTx(sesParams.ErrCodeTx_);
    puts("OmsRcClient test quit.");
 }

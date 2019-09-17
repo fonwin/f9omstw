@@ -7,6 +7,7 @@ set(f9omstw_src
  OmsResource.cpp
  OmsTools.cpp
  OmsToolsC.c
+ OmsMakeErrMsg.cpp
  OmsBackend.cpp
  OmsBackendRecorder.cpp
  OmsOrdTeam.cpp

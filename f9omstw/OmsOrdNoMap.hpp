@@ -26,8 +26,8 @@ public:
 
    /// 使用 runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
    /// - 如果沒有 Policy, 或 Policy 沒設定 OrdTeamGroupId, 則 OmsErrCode_OrdTeamGroupId;
-   /// - 如果 (!req.empty1st()) 則必須要有 IsAllowAnyOrdNo_ 權限.
-   bool AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdNo req);
+   /// - 如果 (!OmsIsOrdNoEmpty(reqOrdNo)) 則必須要有 IsAllowAnyOrdNo_ 權限.
+   bool AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdNo reqOrdNo);
 
    /// 固定傳回 false;
    static bool Reject(OmsRequestRunnerInCore& runner, OmsErrCode errc);

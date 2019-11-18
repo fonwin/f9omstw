@@ -79,6 +79,11 @@ protected:
 
 public:
    const fon9::CharVector  BrkId_;
+
+   using OmsFcmId = uint16_t;
+   OmsFcmId FcmId_{};
+   OmsFcmId CmId_{};
+
    OmsBrk(const fon9::StrView& brkid) : base(OmsIvKind::Brk, nullptr), BrkId_(brkid) {
       this->InitializeMarketAry();
    }

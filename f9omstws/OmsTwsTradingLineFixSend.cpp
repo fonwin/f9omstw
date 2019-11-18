@@ -138,7 +138,7 @@ __REQUEST_DELETE:
                pout = RevPutStr(pout, f9fix_SPLTAGEQ(TimeInForce) f9fix_kVAL_TimeInForce_FOK);
                break;
             default:
-            case f9fmkt_TimeInForce_QuotAutoCancel:
+            case f9fmkt_TimeInForce_QuoteAutoCancel:
                runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_TimeInForce, nullptr);
                return SendResult::RejectRequest;
             }
@@ -202,7 +202,7 @@ __REQUEST_DELETE:
                              f9fix_SPLTAGEQ(Price)   "0");
             break;
          default:
-         case f9fmkt_PriType_MWP:
+         case f9fmkt_PriType_Mwp:
             runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_PriType, nullptr);
             return SendResult::RejectRequest;
          }

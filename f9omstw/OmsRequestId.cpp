@@ -15,7 +15,7 @@ OmsReqUID_Builder::OmsReqUID_Builder() {
 }
 void OmsReqUID_Builder::MakeReqUID(OmsRequestId& reqid, OmsRxSNO sno) {
    assert(sno != 0);
-   if (reqid.ReqUID_.empty1st()) {
+   if (OmsIsReqUIDEmpty(reqid)) {
       // [...ReqSNO.LocalHostId--------]
       //     \___ sizeof(ReqUID) ___/ copyto(req.ReqUID_)
       // memcpy(,,sizeof(req->ReqUID_)) 固定大小, 可以讓 compiler 最佳化.

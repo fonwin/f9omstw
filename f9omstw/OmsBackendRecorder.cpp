@@ -144,7 +144,7 @@ struct OmsBackend::Loader {
       reqFrom->SetLastUpdated(*ordraw);
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*ordraw}, ln);
       this->Items_.AppendHistory(*ordraw);
-      if (!ordraw->OrdNo_.empty1st() && (order->Head() == ordraw || lastupd->OrdNo_ != ordraw->OrdNo_)) {
+      if (!OmsIsOrdNoEmpty(ordraw->OrdNo_) && (order->Head() == ordraw || lastupd->OrdNo_ != ordraw->OrdNo_)) {
          if (OmsBrk* brk = order->GetBrk(this->Resource_))
             if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*reqFrom))
                if (!ordNoMap->EmplaceOrder(*ordraw)) {
@@ -298,6 +298,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          goto __OPEN_ERROR;
 
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
+      if (items->RxHistory_.size() <= loader.LastSNO_) // 可能資料檔有不認識的 factory name 造成的.
+         items->RxHistory_.resize(loader.LastSNO_ + 1);
       for (OmsRxSNO sno = loader.LastSNO_; sno > 0; --sno) {
          auto* icur = items->RxHistory_[sno];
          if (icur == nullptr)

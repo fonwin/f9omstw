@@ -25,8 +25,6 @@ public:
    OmsTwsReportFactory& RptFactory_;
    OmsTwsFilledFactory& FilFactory_;
 
-   fon9::TimeStamp GetCoreTDay() const;
-
    TwsTradingLineFactoryBase(OmsCoreMgr&          coreMgr,
                              OmsTwsReportFactory& rptFactory,
                              OmsTwsFilledFactory& filFactory)

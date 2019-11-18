@@ -179,6 +179,15 @@
     <ClInclude Include="..\..\..\f9omstw\OmsMakeErrMsg.h">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgr.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsReportTools.hpp">
+      <Filter>Header Files\_ord_rpt_evt</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -300,6 +309,15 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsMakeErrMsg.cpp">
       <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgr.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsReportTools.cpp">
+      <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

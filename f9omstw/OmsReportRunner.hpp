@@ -58,6 +58,19 @@ fon9_WARN_POP;
 
 //--------------------------------------------------------------------------//
 
+/// 若 rpt 有 Message_ 欄位, 則將 rpt->Message_ 複製 or 移動到 ordraw->Message_;
+template <class ReportT>
+inline auto OmsAssignReportMessage(OmsOrderRaw* ordraw, ReportT* rpt)
+->decltype(rpt->Message_, void()) {
+   if (&ordraw->Request() == rpt)
+      ordraw->Message_ = rpt->Message_;
+   else { // ordraw 異動的是已存在的 request, this 即將被刪除, 所以使用 std::move(this->Message_)
+      ordraw->Message_ = std::move(rpt->Message_);
+   }
+}
+inline void OmsAssignReportMessage(...) {
+}
+
 fon9_WARN_DISABLE_PADDING;
 /// - 協助處理 ErrCodeAct.
 /// - 建構時設定:
@@ -73,7 +86,11 @@ class OmsReportRunnerInCore : public OmsRequestRunnerInCore {
    int  RequestRunTimes_{-1};
    bool HasDeleteRequest_{false};
    bool IsReportPending_{false};
+
    void CalcRequestRunTimes();
+   void UpdateReportImpl(OmsRequestBase& rpt);
+   using base::Update;
+
    static OmsErrCodeActSP GetErrCodeAct(OmsReportRunnerInCore& runner, const OmsRequestBase* rpt);
    static OmsErrCodeActSP CheckErrCodeAct(OmsReportRunnerInCore& runner, const OmsRequestBase* rpt);
 
@@ -99,6 +116,26 @@ public:
       if (this->RequestRunTimes_ < 0)
          this->CalcRequestRunTimes();
       return static_cast<unsigned>(this->RequestRunTimes_);
+   }
+
+   /// 回報最後的更新:
+   /// - 若 rpt 有 Message_ 欄位, 則將 rpt.Message_ 複製或移動到 this->OrderRaw_.Message_;
+   /// - 若 rpt.RequestFlags() 有設定 OmsRequestFlag_ReportNeedsLog; 且 rpt 是現有 request 的回報:
+   ///   - 則將 rpt 內容寫入 log.
+   /// - 如果 this->OrderRaw_.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale 則:
+   ///   - this->OrderRaw_.Message_.append("(stale)");
+   /// - 最後呼叫 base::Update(this->OrderRaw_.RequestSt_);
+   template <class ReportT>
+   void UpdateReport(ReportT& rpt) {
+      OmsAssignReportMessage(&this->OrderRaw_, &rpt);
+      this->UpdateReportImpl(rpt);
+   }
+   void UpdateSt(f9fmkt_OrderSt ordst, f9fmkt_TradingRequestSt reqst) {
+      this->OrderRaw_.UpdateOrderSt_ = ordst;
+      this->Update(reqst);
+   }
+   void UpdateFilled(f9fmkt_OrderSt ordst, const OmsReportFilled& rptFilled) {
+      this->UpdateSt(ordst, rptFilled.ReportSt());
    }
 };
 fon9_WARN_POP;

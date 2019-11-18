@@ -22,7 +22,7 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
 //--------------------------------------------------------------------------//
 
 bool OmsRequestIni::ValidateInUser(OmsRequestRunner& reqRunner) {
-   if (this->RxKind_ == f9fmkt_RxKind_RequestNew && !this->OrdNo_.empty1st()) {
+   if (this->RxKind_ == f9fmkt_RxKind_RequestNew && !OmsIsOrdNoEmpty(this->OrdNo_)) {
       const OmsRequestPolicy* pol = this->Policy();
       if (pol == nullptr || !pol->IsAllowAnyOrdNo()) {
          reqRunner.RequestAbandon(nullptr, OmsErrCode_OrdNoMustEmpty);
@@ -86,7 +86,7 @@ const OmsRequestIni* OmsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runn
       return this;
    }
    // 不是新單 => 刪改查要求: 返回要操作的「初始委託要求」.
-   if (this->OrdNo_.empty1st()) {
+   if (OmsIsOrdNoEmpty(this->OrdNo_)) {
       runner.RequestAbandon(&res, OmsErrCode_Bad_OrdNo);
       return nullptr;
    }

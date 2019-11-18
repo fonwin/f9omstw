@@ -1,718 +1,557 @@
 ﻿// \file f9omstw/OmsReport_UT.cpp
 // \author fonwinz@gmail.com
-#include "f9utws/UnitTestCore.hpp"
+#include "f9omstw/OmsReport_RunTest.hpp"
 //--------------------------------------------------------------------------//
-void AssignKeyFromRef(f9omstw::OmsRequestBase& dst, const fon9::fmkt::TradingRxItem* ref) {
-   if (ref) {
-      if (auto ordraw = dynamic_cast<const f9omstw::OmsOrderRaw*>(ref))
-         dst.OrdNo_ = ordraw->OrdNo_;
-      else if (auto req = dynamic_cast<const f9omstw::OmsRequestBase*>(ref)) {
-         dst.OrdNo_ = req->LastUpdated()->Order().Tail()->OrdNo_;
-         dst.ReqUID_ = req->ReqUID_;
-      }
+template <class BaseT>
+struct ReportQtyOddLot : public BaseT {
+   fon9_NON_COPY_NON_MOVE(ReportQtyOddLot);
+   static f9omstw::OmsRequestSP MakeReportIn(f9omstw::OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
+      auto retval = BaseT::MakeReportIn(creator, reqKind);
+      static_cast<BaseT*>(retval.get())->QtyStyle_ = f9omstw::OmsReportQtyStyle::OddLot;
+      return retval;
    }
-}
-const fon9::fmkt::TradingRxItem* RunRequest(f9omstw::OmsCore& core,
-                                            const fon9::fmkt::TradingRxItem* ref,
-                                            f9omstw::OmsRequestPolicySP pol,
-                                            fon9::StrView reqstr) {
-   auto runner = MakeOmsRequestRunner(core.Owner_->RequestFactoryPark(), reqstr);
-   AssignKeyFromRef(*runner.Request_, ref);
-   ref = runner.Request_.get();
-   static_cast<f9omstw::OmsRequestTrade*>(runner.Request_.get())->SetPolicy(pol);
-   core.MoveToCore(std::move(runner));
-   return ref;
-}
-const fon9::fmkt::TradingRxItem* RunReport(TestCore& core,
-                                           const fon9::fmkt::TradingRxItem* ref,
-                                           fon9::StrView rptstr) {
-   int  ch1 = rptstr.Get1st();
-   if (!fon9::isalnum(ch1)) {
-      rptstr.SetBegin(rptstr.begin() + 1);
-      fon9::StrTrim(&rptstr);
-   }
-   auto runner = MakeOmsReportRunner(core.Owner_->RequestFactoryPark(), rptstr, f9fmkt_RxKind_Filled);
-   AssignKeyFromRef(*runner.Request_, ref);
-   auto retval = runner.Request_.get();
-   core.MoveToCore(std::move(runner));
-   if (ch1 != '=') {  // 測試重複回報: 應拋棄, 不會寫入 history.
-      runner = MakeOmsReportRunner(core.Owner_->RequestFactoryPark(), rptstr, f9fmkt_RxKind_Filled);
-      AssignKeyFromRef(*runner.Request_, ref);
-      auto lastSNO = core.GetResource().Backend_.LastSNO();
-      core.MoveToCore(std::move(runner));
-      if (lastSNO != core.GetResource().Backend_.LastSNO()) {
-         std::cout << "|err=Dup report." "\r[ERROR]" << std::endl;
-         abort();
-      }
-   }
-   return retval;
-}
+};
+using TwsFilled = ReportQtyOddLot<f9omstw::OmsTwsFilled>;
+using TwsReport = ReportQtyOddLot<f9omstw::OmsTwsReport>;
+using TwsFilledFactory = f9omstw::OmsReportFactoryT<TwsFilled>;
+using TwsReportFactory = f9omstw::OmsReportFactoryT<TwsReport>;
 //--------------------------------------------------------------------------//
-[[noreturn]] void AbortAtLine(size_t lineNo) {
-   std::cout << "|lineNo=" << lineNo << "\r[ERROR]" << std::endl;
-   abort();
-}
-void CheckOrderRaw(const f9omstw::OmsOrderRaw& ordraw, fon9::StrView chkstr, size_t lineNo) {
-   fon9::StrView tag = fon9::StrFetchNoTrim(chkstr, '|');
-   auto& ordfac = ordraw.Order().Creator();
-   if (tag != &ordfac.Name_) {
-      std::cout << "|err=OrderRaw creator not match, "
-         "expected=" << tag.ToString() << "|curr=" << ordfac.Name_;
-      AbortAtLine(lineNo);
-   }
-   fon9::seed::SimpleRawRd rd{ordraw};
-   fon9::StrView           value;
-   fon9::RevBufferFixedSize<1024> rbuf;
-   while (fon9::StrFetchTagValue(chkstr, tag, value)) {
-      auto* fld = ordfac.Fields_.Get(tag);
-      if (fld == nullptr) {
-         std::cout << "|err=OrderRaw field not found: " << tag.ToString();
-         AbortAtLine(lineNo);
-      }
-      rbuf.Rewind();
-      fld->CellRevPrint(rd, nullptr, rbuf);
-      if (value != ToStrView(rbuf)) {
-         std::cout << "|err=OrderRaw field not match|field=" << fld->Name_
-            << "|expected=" << value.ToString() << "|curr=" << rbuf.ToStrT<std::string>();
-         AbortAtLine(lineNo);
-      }
-   }
-}
-//--------------------------------------------------------------------------//
-using SnoVect = std::vector<f9omstw::OmsRxSNO>;
-const fon9::fmkt::TradingRxItem* GetReference(TestCore& core,
-                                              f9omstw::OmsRxSNO snoCurr,
-                                              const SnoVect& snoVect,
-                                              fon9::StrView& rptstr) {
-   if (rptstr.Get1st() == 'L') { // lineNo
-      rptstr.SetBegin(rptstr.begin() + 1);
-      snoCurr = snoVect[fon9::StrTo(&rptstr, 0u) - 1];
-   }
-   else
-      snoCurr = snoCurr - fon9::StrTo(&rptstr, 0u);
-   if (!fon9::StrTrim(&rptstr).empty() && !fon9::isalpha(*rptstr.begin())) {
-      switch (rptstr.Get1st()) {
-      case '.': case ' ':
-         rptstr.SetBegin(rptstr.begin() + 1);
-         fon9::StrTrim(&rptstr);
-         break;
-      }
-   }
-   return core.GetResource().Backend_.GetItem(snoCurr);
-}
-
-using TestCoreSP = fon9::intrusive_ptr<TestCore>;
-typedef void (*FnBeforeAddReq)(TestCoreSP& core, f9omstw::OmsRequestPolicySP& poAdmin);
-
-void RunTestCore(FnBeforeAddReq fnBeforeAddReq,
-                 TestCoreSP& core, f9omstw::OmsRequestPolicySP& pol,
-                 const char** cstrTestList, size_t count) {
-   f9omstw::OmsRxSNO                snoCurr = core->GetResource().Backend_.LastSNO() + 1;
-   SnoVect                          snoVect(count);
-   const fon9::fmkt::TradingRxItem* rxItem;
-   const f9omstw::OmsOrderRaw*      ordraw;
-   std::string                      rptstrApp;
-   for (size_t lineNo = 1; lineNo <= count; ++lineNo) {
-      fon9::StrView  rptstr = fon9::StrView_cstr(*cstrTestList++);
-      // [0]: '+'=Report占用序號, '-'=Report不占用序號, '*'=Request, '/'=OrderRaw
-      int chHead = fon9::StrTrim(&rptstr).Get1st();
-      if (chHead == EOF)
-         continue;
-      std::string tmpstr;
-      fon9::StrTrimHead(&rptstr, rptstr.begin() + 1);
-      if (!rptstrApp.empty()) {
-         tmpstr = rptstr.ToString() + rptstrApp;
-         rptstr = &tmpstr;
-         rptstrApp.clear();
-      }
-      switch (chHead) {
-      default:
-         continue;
-      case '+':
-         if (rptstr.Get1st() != 'L' && !fon9::isdigit(rptstr.Get1st())) {
-            fnBeforeAddReq(core, pol);
-            rxItem = RunReport(*core, nullptr, rptstr);
-            break;
-         }
-         // "+N.RptName" 接續前第N筆的異動.
-      case '-':
-         fnBeforeAddReq(core, pol);
-         rxItem = GetReference(*core, snoCurr, snoVect, rptstr);
-         rxItem = RunReport(*core, rxItem, rptstr);
-         if (chHead == '-') // 不占序號的回報.
-            continue;
-         break;
-      case '*':
-         fnBeforeAddReq(core, pol);
-         rxItem = (rptstr.Get1st() == 'L' || fon9::isdigit(rptstr.Get1st()))
-            ? GetReference(*core, snoCurr, snoVect, rptstr)
-            : nullptr;
-         rxItem = RunRequest(*core, rxItem, pol, rptstr);
-         break;
-      case '/':
-         rxItem = core->GetResource().Backend_.GetItem(snoCurr);
-         ordraw = dynamic_cast<const f9omstw::OmsOrderRaw*>(rxItem);
-         if (ordraw == nullptr) {
-            std::cout << "|err=Not OrderRaw SNO:" << snoCurr;
-            AbortAtLine(lineNo);
-         }
-         CheckOrderRaw(*ordraw, rptstr, lineNo);
-         break;
-      case '>':
-         // ">AllocOrdNo=A"
-         fon9::StrView tag, value;
-         fon9::StrFetchTagValue(rptstr, tag, value);
-         if (tag == "AllocOrdNo") {
-            auto brk = core->GetResource().Brks_->GetBrkRec("8610");
-            auto ordnoMap = brk->GetMarket(f9fmkt_TradingMarket_TwSEC)
-               .GetSession(f9fmkt_TradingSessionId_Normal)
-               .GetOrdNoMap();
-            f9omstw::OmsOrdNo  ordno;
-            ordnoMap->GetNextOrdNo(value, ordno);
-            rptstrApp = "|OrdNo=";
-            rptstrApp.append(ordno.begin(), ordno.end());
-         }
-         continue;
-      }
-      if (rxItem->RxSNO() != snoCurr) {
-         std::cout << "|err=Unexpected SNO:" << rxItem->RxSNO()
-            << "|expected=" << snoCurr;
-         AbortAtLine(lineNo);
-      }
-      snoVect[lineNo - 1] = snoCurr;
-      ++snoCurr;
-   }
-}
-//--------------------------------------------------------------------------//
-int      gArgc;
-char**   gArgv;
-bool     gIsTestReload = false;
-void ResetTestCore(TestCoreSP& core, f9omstw::OmsRequestPolicySP& poAdmin) {
-   core.reset();
-   core.reset(new TestCore{gArgc, gArgv});
-   core->IsWaitQuit_ = false;
-   auto  ordfac = core->Owner_->OrderFactoryPark().GetFactory("TwsOrd");
-   core->Owner_->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
+void InitTestCore(TestCore& core) {
+   auto  ordfac = core.Owner_->OrderFactoryPark().GetFactory("TwsOrd");
+   core.Owner_->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
       new OmsTwsRequestIniFactory("TwsNew", ordfac,
                                   f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck{
-                                    f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}}}),
+      f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}}}),
       new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsTwsFilledFactory("TwsFil", ordfac),
-      new OmsTwsReportFactory("TwsRpt", ordfac)
+
+      new TwsFilledFactory("TwsFil", ordfac),
+      new TwsReportFactory("TwsRpt", ordfac)
       ));
-   core->OpenReload(gArgc, gArgv, "OmsReport_UT.log");
-   core->Owner_->ReloadErrCodeAct(
-      "$x=x\n"
+   core.Owner_->ReloadErrCodeAct(
+      "$x=x\n" // 用 $ 開頭, 表示此處提供的是設定內容, 不是檔案名稱.
       "20050:St=ExchangeNoLeavesQty\n"
       "20002:Rerun=3|Memo=TIME IS EARLY\n"
       "20005:Rerun=4|AtNewDone=Y|UseNewLine=Y|Memo=ORDER NOT FOUND\n"
       "30005:Rerun=2|NewSending=1.5|AtNewDone=Y|Memo=ORDER NOT FOUND\n"
    );
+   core.OpenReload(gArgc, gArgv, "OmsReport_UT.log");
 
-   f9omstw::OmsRequestPolicyCfg  polcfg;
-   #define kCSTR_TEAM_NO   "A"
-   polcfg.TeamGroupName_.assign("admin");
-   polcfg.UserRights_.AllowOrdTeams_.assign(kCSTR_TEAM_NO);
-   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowAll;
-   poAdmin = polcfg.MakePolicy(core->GetResource());
-}
-void ResetTestCoreDummy(TestCoreSP&, f9omstw::OmsRequestPolicySP&) {
-}
-//--------------------------------------------------------------------------//
-void RunTest(TestCoreSP& core, const char* testName, const char** cstrTestList, size_t count) {
-   f9omstw::OmsRequestPolicySP pol;
-   ResetTestCore(core, pol);
-   std::this_thread::sleep_for(std::chrono::milliseconds{100}); // 等候 Backend thread 啟動.
-   std::cout << "[TEST ] " << testName;
-   RunTestCore(&ResetTestCoreDummy, core, pol, cstrTestList, count);
-   std::cout << "\r[OK   ]" << std::endl;
-   // 每遇到 Req or Rpt 就先重啟 core: 測試 reload 之後是否會正確.
-   if (gIsTestReload)
-      RunTestCore(&ResetTestCore, core, pol, cstrTestList, count);
+#define kErrCode_0                  "|ErrCode=0"
+#define kErrCode_NoLeaves           "|ErrCode=20050"
+#define kErrCode_Rerun2_AtNewDone   "|ErrCode=30005"
+#define kErrCode_Rerun3             "|ErrCode=20002"
+#define kErrCode_Rerun4_AtNewDone   "|ErrCode=20005"
+#define kErrCode_NoRerun            "|ErrCode=20001"
 }
 //--------------------------------------------------------------------------//
-#define kREQ_BASE             "|Market=T|SessionId=N|BrkId=8610"
-#define kREQ_SYMB             kREQ_BASE "|IvacNo=10|Symbol=2317|Side=B"
+#define kTIME0    "09:00:00"
+#define kTIME1    "09:00:00.1"
+#define kTIME2    "09:00:00.2"
+#define kTIME3    "09:00:00.3"
+#define kTIME4    "09:00:00.4"
+#define kTIME5    "09:00:00.5"
+#define kTIME6    "09:00:00.6"
+#define kTIME7    "09:00:00.7"
+#define kTIME8    "09:00:00.8"
+#define kTIME9    "09:00:00.9"
+#define kTIMEA    "09:00:01"
+#define kTIMEB    "09:00:02"
+#define kTIMEC    "09:00:03"
+#define kTIMED    "09:00:04"
+#define kTIMEE    "09:00:05"
+//--------------------------------------------------------------------------//
+#define kOrdKey            "|Market=T|SessionId=N|BrkId=8610"
+#define kReqBase           kOrdKey "|IvacNo=10|Symbol=2317|Side=B"
+#define kPriLmt(pri)       "|Pri=" fon9_CTXTOCSTR(pri) "|PriType=L"
+//#define kPriMkt            "|Pri=|PriType=M"
 
-#define kCHK_ST(ordst,reqst)  "|OrdSt=" fon9_CTXTOCSTR(ordst) "|ReqSt=" fon9_CTXTOCSTR(reqst)
-#define kVAL_Sending          30
-#define kVAL_ExchangeAccepted f2
-#define kVAL_PartFilled       f3
-#define kVAL_FullFilled       f4
-#define kVAL_ExchangeNoLeaves ef
-#define kVAL_ExchangeRejected ee
-#define kVAL_PartCanceled     f5
-#define kVAL_ExchangeCanceled fa
-#define kVAL_UserCanceled     fd
+// [0]: '+'=Report (占用序號).
+// [0]: '-'=Report (不占用序號).
+// [0]: '*'=Request 透過 core.MoveToCore(OmsRequestRunner{}) 執行;
+// [0]: '/'=檢查 OrderRaw 是否符合預期. (占用序號).
+// [1..]: 參考資料「'L' + LineNo」或「序號-N」
 
-#define kCHK_NewSending       kCHK_ST(kVAL_Sending, kVAL_Sending)
-#define kCHK_ExchangeAccepted kCHK_ST(kVAL_ExchangeAccepted, kVAL_ExchangeAccepted)
-#define kCHK_PartFilled       kCHK_ST(kVAL_PartFilled, kVAL_PartFilled)
+// 新單要求測試內容:Pri=200,Qty=10000
+#define kTwsNew   "* TwsNew" kReqBase "|Qty=10000" kPriLmt(200)
+// 新單要求 core.MoveToCore(OmsRequestRunner{}) 的結果.
+#define kChkOrderNewSending \
+        kChkOrderST(Sending,0,10000,10000,/*No exgTime*/) kOrdPri(200,/*No LastPriTime*/)
 
-#define kCHK_PartFilled_CUM(qty,amt,tmstr)   kCHK_PartFilled kCHK_CUM(qty,amt,tmstr)
-#define kCHK_CUM(qty,amt,tmstr)         \
-         "|CumQty=" fon9_CTXTOCSTR(qty) \
-         "|CumAmt=" fon9_CTXTOCSTR(amt) \
-         "|LastFilledTime=" tmstr
+// -----
+#define kChkOrder(ordSt,reqSt,bfQty,afQty,leaves,exgTime) \
+        "/ TwsOrd" kOrdReqST(kVAL_##ordSt, kVAL_##reqSt)  \
+                   kOrdQtys(bfQty,afQty,leaves)           \
+                   "|LastExgTime=" exgTime
+#define kChkOrderST(st,bfQty,afQty,leaves,exgTime) \
+        kChkOrder(st,st,bfQty,afQty,leaves,exgTime)
 
-#define kVAL_ReportPending    1
-#define kVAL_ReportStale      2
-#define kREQ_ReportSt(st)     "|ReportSt=" fon9_CTXTOCSTR(st)
-#define kREQ_ReportNoLeaves   "|ReportSt=" fon9_CTXTOCSTR(kVAL_ExchangeNoLeaves) "|ErrCode=20050"
+#define kOrdPri(pri,priTime) \
+        "|LastPriTime=" priTime "|LastPri=" fon9_CTXTOCSTR(pri) "|LastPriType=L"
+// -----
+#define kTwsRpt(st,kind,bfQty,afQty,exgTime) \
+        "TwsRpt" kRptVST(st) kReqBase "|Kind=" #kind \
+                 "|BeforeQty=" #bfQty "|Qty=" #afQty "|ExgTime=" exgTime
 
-#define kREQ_PRI(pri)         "|Pri=" fon9_CTXTOCSTR(pri) "|PriType="
-#define kREQ_MarketPRI        "|Pri=|PriType=M"
-
-#define kCHK_PRI(pri)         "|LastPri=" fon9_CTXTOCSTR(pri) "|LastPriType="
-#define kCHK_MarketPRI        "|LastPri=|LastPriType=M"
-#define kCHK_QTYS(bf,af,le)   "|BeforeQty=" fon9_CTXTOCSTR(bf) "|AfterQty=" fon9_CTXTOCSTR(af) \
-                              "|LeavesQty=" fon9_CTXTOCSTR(le)
+#define kTwsFil(matKey,qty,pri,tm) \
+        "TwsFil" kReqBase "|MatchKey=" #matKey "|Qty=" #qty "|Pri=" #pri "|Time=" tm
 //--------------------------------------------------------------------------//
 // 一般正常順序下單回報.
 void TestNormalOrder(TestCoreSP& core) {
-   #define kREQ_P200_Q10   kREQ_SYMB kREQ_PRI(200) "|Qty=10000"
    const char* cstrTestList[] = {
-"*"   "TwsNew" kREQ_P200_Q10,
-"/"   "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,10000,10000) "|LastExgTime=|LastPriTime=",
-"-2." "TwsRpt" "|Kind=N" kREQ_P200_Q10 "|BeforeQty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/"   "TwsOrd" kCHK_ExchangeAccepted kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|LastExgTime=09:00:00|LastPriTime=09:00:00",
+kTwsNew,
+kChkOrderNewSending,
+"-2." kTwsRpt(ExchangeAccepted,N,            10000, 10000,       kTIME0) kPriLmt(200),
+kChkOrder(ExchangeAccepted,ExchangeAccepted, 10000, 10000, 10000,kTIME0) kOrdPri(200,kTIME0),
 // 成交.
-"+1." "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1") kCHK_QTYS(10000,9000,9000),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2") kCHK_QTYS(9000,7000,7000),
+"+1." kTwsFil(1,                                                                            1000,201,   kTIME1),
+kChkOrder(PartFilled,PartFilled,      10000, 9000, 9000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(1000,201000,kTIME1),
+"+1." kTwsFil(2,                                                                            2000,202,   kTIME2),
+kChkOrder(PartFilled,PartFilled,       9000, 7000, 7000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
 // 減3
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=-3000",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(7000,7000,7000),
-"-2." "TwsRpt" "|Kind=C" kREQ_SYMB "|BeforeQty=7000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_PRI(200) kCHK_QTYS(7000,4000,4000) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00",
+"*1.TwsChg" kOrdKey "|Qty=-3000",
+kChkOrder(PartFilled,Sending,          7000, 7000, 7000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+"-2." kTwsRpt(ExchangeAccepted,C,      7000, 4000,      kTIME3),
+kChkOrder(PartFilled,ExchangeAccepted, 7000, 4000, 4000,kTIME3) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
 // 改價$203
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" kREQ_PRI(203) "L",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(4000,4000,4000),
-"-2." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,4000) "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.4",
+"*1.TwsChg" kOrdKey kPriLmt(203),
+kChkOrder(PartFilled,Sending,          4000, 4000, 4000,kTIME3) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+"-2." kTwsRpt(ExchangeAccepted,P,      4000, 4000,      kTIME4) kPriLmt(203),
+kChkOrder(PartFilled,ExchangeAccepted, 4000, 4000, 4000,kTIME4) kOrdPri(203,kTIME4) kOrdCum(3000,605000,kTIME2),
 // 成交4
-"+1." "TwsFil" kREQ_SYMB "|Qty=4000|Pri=204|Time=090000.5|MatchKey=5",
-"/"   "TwsOrd" kCHK_ST(kVAL_FullFilled, kVAL_PartFilled) kCHK_QTYS(4000,0,0) kCHK_CUM(7000,1421000,"09:00:00.5"),
+"+1." kTwsFil(5,                                                                            4000,204,    kTIME5),
+kChkOrder(FullFilled,PartFilled,       4000,    0,    0,kTIME4) kOrdPri(203,kTIME4) kOrdCum(7000,1421000,kTIME5),
 // 刪單
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_FullFilled, kVAL_Sending) kCHK_PRI(203) "L" kCHK_QTYS(0,0,0),
-"-2." "TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_FullFilled, kVAL_ExchangeNoLeaves) "|ErrCode=20050" kCHK_PRI(203) "L" kCHK_QTYS(0,0,0) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.4",
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(FullFilled,Sending,          0, 0, 0,kTIME4) kOrdPri(203,kTIME4) kOrdCum(7000,1421000,kTIME5),
+"-2." kTwsRpt(ExchangeRejected,D,      0, 0,   kTIME6)                                                  kErrCode_NoLeaves,
+kChkOrder(FullFilled,ExchangeNoLeaves, 0, 0, 0,kTIME6) kOrdPri(203,kTIME4) kOrdCum(7000,1421000,kTIME5) kErrCode_NoLeaves,
+// - 新單失敗 -----
+kTwsNew,
+kChkOrderNewSending,
+"-2." kTwsRpt(ExchangeRejected,N,            10000, 0,   kTIME0),
+kChkOrder(ExchangeRejected,ExchangeRejected, 10000, 0, 0,kTIME0) kOrdPri(200,""),
+kTwsNew,
+kChkOrderNewSending,
+"-2." kTwsRpt(ExchangeRejected,N,                 , 0,   kTIME0), // 不填 "BeforeQty="
+kChkOrder(ExchangeRejected,ExchangeRejected, 10000, 0, 0,kTIME0) kOrdPri(200,""),
    };
-   RunTest(core, "Normal-order", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Normal-order", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 下單後,亂序回報.
 void TestOutofOrder(TestCoreSP& core) {
    const char* cstrTestList[] = {
-"*"   "TwsNew" kREQ_P200_Q10,
-"/"   "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,10000,10000),
-// 新單尚未回報, 先收到刪改查成交 => 透過 OmsOrderRaw.UpdateOrderSt_ = ReportPending 保留.
-"+1." "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(10000,10000,10000) kCHK_CUM(0,0,""),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(10000,10000,10000) kCHK_CUM(0,0,""),
+kTwsNew,
+kChkOrderNewSending,
+// 新單尚未回報, 先收到「刪、改、查、成交」 => 透過 OmsOrderRaw.UpdateOrderSt_ = ReportPending 保留.
+"+1." kTwsFil(1,1000,201,kTIME1),
+kChkOrder(ReportPending,PartFilled,      10000,10000,10000,"")     kOrdPri(200,"") kOrdCum(0,0,""),
+"+1." kTwsFil(2,2000,202,kTIME2),
+kChkOrder(ReportPending,PartFilled,      10000,10000,10000,"")     kOrdPri(200,"") kOrdCum(0,0,""),
 // 減1成功.
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=-1000",
-"/"   "TwsOrd" kCHK_ST(kVAL_Sending, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(10000,10000,10000),
-"-2." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=7000|Qty=6000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(200) kCHK_QTYS(7000,6000,10000) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.3",
+"*1.TwsChg" kOrdKey "|Qty=-1000",
+kChkOrder(Sending,Sending,               10000,10000,10000,"")     kOrdPri(200,""),
+"-2." kTwsRpt(ExchangeAccepted,C,         7000, 6000,      kTIME3) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted, 7000, 6000,10000,kTIME3) kOrdPri(200,kTIME3),
 // ** 減2沒回報(Ln#11)
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=-2000",
-"/"   "TwsOrd" kCHK_ST(kVAL_Sending, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(10000,10000,10000),
+"*1.TwsChg" kOrdKey "|Qty=-2000",
+kChkOrder(Sending,Sending,               10000,10000,10000,kTIME3) kOrdPri(200,kTIME3),
 // 改價$203成功
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" kREQ_PRI(203) "L",
-"/"   "TwsOrd" kCHK_ST(kVAL_Sending, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(10000,10000,10000),
-"-2." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,10000) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.5",
+"*1.TwsChg" kOrdKey kPriLmt(203),
+kChkOrder(Sending,Sending,               10000,10000,10000,kTIME3) kOrdPri(200,kTIME3),
+"-2." kTwsRpt(ExchangeAccepted,P,         4000, 4000,      kTIME5) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted, 4000, 4000,10000,kTIME5) kOrdPri(203,kTIME5),
 // >> 刪單未回報(Ln#17).
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_Sending, kVAL_Sending) kCHK_PRI(203) "L" kCHK_QTYS(10000,10000,10000),
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(Sending,Sending,               10000,10000,10000,kTIME5) kOrdPri(203,kTIME5),
 // 刪單成功, 但會等「減2成功」後才處理.
-"*1." "TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_Sending, kVAL_Sending) kCHK_PRI(203) "L" kCHK_QTYS(10000,10000,10000),
-"-2." "TwsRpt" "|Kind=D" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=0" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,0,10000) "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.5",
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(Sending,Sending,               10000,10000,10000,kTIME5) kOrdPri(203,kTIME5),
+"-2." kTwsRpt(ExchangeAccepted,D,         4000,    0,      kTIME6) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted, 4000,    0,10000,kTIME6) kOrdPri(203,kTIME5),
 // >> 刪單失敗(接續 Ln#17), 等刪單成功後處理.
-"-L17. TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090000.9",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeNoLeaves) "|ErrCode=20050" kCHK_PRI(203) "L" kCHK_QTYS(0,0,10000) "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.5",
+"-L17." kTwsRpt(ExchangeRejected,D,          0,    0,      kTIME9)                     kErrCode_NoLeaves,
+kChkOrder(ReportPending,ExchangeNoLeaves,    0,    0,10000,kTIME9) kOrdPri(203,kTIME5) kErrCode_NoLeaves,
 // ** 減2回報成功(接續 Ln#11).
-"-L11. TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=6000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(6000,4000,10000) "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.5|ErrCode=0",
+"-L11." kTwsRpt(ExchangeAccepted,C,       6000, 4000,      kTIME4) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted, 6000, 4000,10000,kTIME4) kOrdPri(203,kTIME5) kErrCode_0,
 // -------------------------------------
 // 新單回報(接續 Ln#1) => 處理等候中的回報.
-"-L1.TwsRpt" "|Kind=N" kREQ_P200_Q10 "|BeforeQty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/" "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(10000,10000,10000) kCHK_PRI(200)     "|LastExgTime=09:00:00|LastPriTime=09:00:00" "|ErrCode=0",
-"/" "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1")     kCHK_QTYS(10000,9000,9000),
-"/" "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2")     kCHK_QTYS(9000,7000,7000),
-"/" "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(7000,6000,6000)    kCHK_PRI(200)     "|LastExgTime=09:00:00.3|LastPriTime=09:00:00",
-"/" "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,6000)    kCHK_PRI(203) "L" "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.5",
-"/" "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(6000,4000,4000)    kCHK_PRI(203) "L" "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.5",
-"/" "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,0,0)          kCHK_PRI(203) "L" "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.5" "|ErrCode=0",
-"/" "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,0)             kCHK_PRI(203) "L" "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.5" "|ErrCode=20050",
+"-L1." kTwsRpt(ExchangeAccepted,N,    10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,         10000,10000,10000,kTIME0) kOrdPri(200,kTIME0) kErrCode_0,
+kChkOrder(PartFilled,PartFilled,      10000, 9000, 9000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(1000,201000,kTIME1),
+kChkOrder(PartFilled,PartFilled,       9000, 7000, 7000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted, 7000, 6000, 6000,kTIME3) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted, 4000, 4000, 6000,kTIME5) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted, 6000, 4000, 4000,kTIME4) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2),
+kChkOrder(Canceled,ExchangeAccepted,   4000,    0,    0,kTIME6) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeNoLeaves,      0,    0,    0,kTIME9) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
    };
-   RunTest(core, "Out-of-order", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 委託不存在(尚未收到新單回報), 先收到成交及其他回報.
 void TestNoNewFilled(TestCoreSP& core) {
    const char* cstrTestList[] = {
 // 先收到刪改查成交 => 透過 OmsOrderRaw.UpdateOrderSt_ = ReportPending 保留.
-">AllocOrdNo=A",
-"+"   "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
+">AllocOrdNo=T-N-8610-A",
+"+"   kTwsFil(1,1000,201,kTIME1),
+kChkOrder(ReportPending,PartFilled,0,0,0,"") kOrdCum(0,0,""),
+"+1." kTwsFil(2,2000,202,kTIME2),
+kChkOrder(ReportPending,PartFilled,0,0,0,"") kOrdCum(0,0,""),
 // 減1成功.
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_ReportSt(kVAL_ExchangeAccepted) kREQ_PRI(200) "|BeforeQty=7000|Qty=6000|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(200) kCHK_QTYS(7000,6000,0) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.3",
+"+1." kTwsRpt(ExchangeAccepted,C,        7000,6000,  kTIME3) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,7000,6000,0,kTIME3) kOrdPri(200,kTIME3),
 // 改價203成功,但「遺漏2」
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.5",
+"+1." kTwsRpt(ExchangeAccepted,P,        4000,4000,  kTIME5) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,4000,0,kTIME5) kOrdPri(203,kTIME5),
 // 刪單失敗, 等「LeavesQty==0」後處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090000.9",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeNoLeaves) kCHK_PRI(203) "L" kCHK_QTYS(0,0,0) "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.5|ErrCode=20050",
+"+1." kTwsRpt(ExchangeRejected,D,           0,   0,  kTIME9)                     kErrCode_NoLeaves,
+kChkOrder(ReportPending,ExchangeNoLeaves,   0,   0,0,kTIME9) kOrdPri(203,kTIME5) kErrCode_NoLeaves,
 // 刪單成功, 但會等「遺漏2補齊」後才處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=0" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,0,0) "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.5|ErrCode=0",
+"+1." kTwsRpt(ExchangeAccepted,D,        4000,   0,  kTIME6) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,   0,0,kTIME6) kOrdPri(203,kTIME5) kErrCode_0,
 // 減2回報成功.
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=6000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(6000,4000,0) "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.5",
+"+1." kTwsRpt(ExchangeAccepted,C,        6000,4000,  kTIME4) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,6000,4000,0,kTIME4) kOrdPri(203,kTIME5),
 // -------------------------------------
 // 新單回報
-"+1." "TwsRpt" "|Kind=N" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=10000|Qty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(0,10000,10000)  kCHK_PRI(200) "|LastExgTime=09:00:00|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1")     kCHK_QTYS(10000,9000,9000),
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2")     kCHK_QTYS(9000,7000,7000),
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(7000,6000,6000) kCHK_PRI(200)     "|LastExgTime=09:00:00.3|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,6000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(6000,4000,4000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,0,0)       kCHK_PRI(203) "L" "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.5" "|ErrCode=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,0)          kCHK_PRI(203) "L" "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.5" "|ErrCode=20050",
+"+1." kTwsRpt(ExchangeAccepted,N,    10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,            0,10000,10000,kTIME0) kOrdPri(200,kTIME0),
+kChkOrder(PartFilled,PartFilled,     10000, 9000, 9000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(1000,201000,kTIME1),
+kChkOrder(PartFilled,PartFilled,      9000, 7000, 7000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,7000, 6000, 6000,kTIME3) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,4000, 4000, 6000,kTIME5) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,6000, 4000, 4000,kTIME4) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2),
+kChkOrder(Canceled,ExchangeAccepted,  4000,    0,    0,kTIME6) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeNoLeaves,     0,    0,    0,kTIME9) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
    };
-   RunTest(core, "Out-of-order(NoNewFilled)", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order(NoNewFilled)", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 委託不存在(尚未收到新單回報), 先收到ChgQty及其他回報.
 void TestNoNewChgQty(TestCoreSP& core) {
    const char* cstrTestList[] = {
-">AllocOrdNo=A",
+">AllocOrdNo=T-N-8610-A",
 // 減1成功.
-"+"   "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_ReportSt(kVAL_ExchangeAccepted) kREQ_PRI(200) "|BeforeQty=7000|Qty=6000|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(200) kCHK_QTYS(7000,6000,0) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.3",
+"+" kTwsRpt(ExchangeAccepted,C,          7000,6000,  kTIME3) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,7000,6000,0,kTIME3) kOrdPri(200,kTIME3),
 // 成交.
-"+1"  "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
+"+1." kTwsFil(1,1000,201,kTIME1),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(200,kTIME3) kOrdCum(0,0,""),
+"+1." kTwsFil(2,2000,202,kTIME2),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(200,kTIME3) kOrdCum(0,0,""),
 // 改價203成功,但「遺漏2」
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.5",
+"+1." kTwsRpt(ExchangeAccepted,P,        4000,4000,  kTIME5) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,4000,0,kTIME5) kOrdPri(203,kTIME5),
 // 刪單失敗, 等「LeavesQty==0」後處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090000.9",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeNoLeaves) kCHK_PRI(203) "L" kCHK_QTYS(0,0,0) "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.5|ErrCode=20050",
+"+1." kTwsRpt(ExchangeRejected,D,           0,   0,  kTIME9)                     kErrCode_NoLeaves,
+kChkOrder(ReportPending,ExchangeNoLeaves,   0,   0,0,kTIME9) kOrdPri(203,kTIME5) kErrCode_NoLeaves,
 // 刪單成功, 但會等「遺漏2補齊」後才處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=0" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,0,0) "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.5|ErrCode=0",
+"+1." kTwsRpt(ExchangeAccepted,D,        4000,   0,  kTIME6) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,   0,0,kTIME6) kOrdPri(203,kTIME5) kErrCode_0,
 // 減2回報成功.
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=6000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(6000,4000,0) "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.5",
+"+1." kTwsRpt(ExchangeAccepted,C,        6000,4000,  kTIME4) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,6000,4000,0,kTIME4) kOrdPri(203,kTIME5) kErrCode_0,
 // -------------------------------------
 // 新單回報
-"+1." "TwsRpt" "|Kind=N" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=10000|Qty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(0,10000,10000)  kCHK_PRI(200) "|LastExgTime=09:00:00|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(7000,6000,9000) kCHK_PRI(200) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1")     kCHK_QTYS(9000,8000,8000),
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2")     kCHK_QTYS(8000,6000,6000),
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,6000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(6000,4000,4000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,0,0)       kCHK_PRI(203) "L" "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.5" "|ErrCode=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,0)          kCHK_PRI(203) "L" "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.5" "|ErrCode=20050",
+"+1." kTwsRpt(ExchangeAccepted,N,    10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,            0,10000,10000,kTIME0) kOrdPri(200,kTIME0),
+kChkOrderST(ExchangeAccepted,         7000, 6000, 9000,kTIME3) kOrdPri(200,kTIME0),
+kChkOrder(PartFilled,PartFilled,      9000, 8000, 8000,kTIME3) kOrdPri(200,kTIME0) kOrdCum(1000,201000,kTIME1),
+kChkOrder(PartFilled,PartFilled,      8000, 6000, 6000,kTIME3) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,4000, 4000, 6000,kTIME5) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,6000, 4000, 4000,kTIME4) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2),
+kChkOrder(Canceled,ExchangeAccepted,  4000,    0,    0,kTIME6) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeNoLeaves,     0,    0,    0,kTIME9) kOrdPri(203,kTIME5) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
    };
-   RunTest(core, "Out-of-order(NoNewChgQty)", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order(NoNewChgQty)", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 委託不存在(尚未收到新單回報), 先收到Delete及其他回報.
 void TestNoNewDelete(TestCoreSP& core) {
    const char* cstrTestList[] = {
-">AllocOrdNo=A",
-// 刪單成功, 但會等「LeavesQty=BeforeQty=4」才處理.
-"+"   "TwsRpt" "|Kind=D" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=0" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,0,0) "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.6",
+">AllocOrdNo=T-N-8610-A",
+// 刪單成功(↑分配委託書號), 但會等「LeavesQty=BeforeQty=4」才處理.
+"+" kTwsRpt(ExchangeAccepted,D,          4000,   0,  kTIME6) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,   0,0,kTIME6) kOrdPri(203,kTIME6),
 // 減1成功.
-"+1"  "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_ReportSt(kVAL_ExchangeAccepted) kREQ_PRI(200) "|BeforeQty=7000|Qty=6000|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(7000,6000,0) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.6",
+"+1" kTwsRpt(ExchangeAccepted,C,         7000,6000,  kTIME3) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,7000,6000,0,kTIME3) kOrdPri(203,kTIME6),
 // 成交.
-"+1"  "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
+"+1." kTwsFil(1,1000,201,kTIME1),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(203,kTIME6) kOrdCum(0,0,""),
+"+1." kTwsFil(2,2000,202,kTIME2),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(203,kTIME6) kOrdCum(0,0,""),
 // 改價203成功.
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.6",
+"+1." kTwsRpt(ExchangeAccepted,P,        4000,4000,  kTIME5) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,4000,0,kTIME5) kOrdPri(203,kTIME6) kOrdCum(0,0,""),
 // 刪單失敗, 等「LeavesQty==0」後處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090000.9",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeNoLeaves) kCHK_PRI(203) "L" kCHK_QTYS(0,0,0) "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.6|ErrCode=20050",
+"+1." kTwsRpt(ExchangeRejected,D,           0,   0,  kTIME9)                     kErrCode_NoLeaves,
+kChkOrder(ReportPending,ExchangeNoLeaves,   0,   0,0,kTIME9) kOrdPri(203,kTIME6) kErrCode_NoLeaves,
 // 減2回報成功.
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=6000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(6000,4000,0) "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.6",
+"+1." kTwsRpt(ExchangeAccepted,C,        6000,4000,  kTIME4) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,6000,4000,0,kTIME4) kOrdPri(203,kTIME6) kErrCode_0,
 // -------------------------------------
 // 新單回報
-"+1." "TwsRpt" "|Kind=N" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=10000|Qty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(0,10000,10000)  kCHK_PRI(200)     "|LastExgTime=09:00:00|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(7000,6000,9000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.6",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1")     kCHK_QTYS(9000,8000,8000),
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2")     kCHK_QTYS(8000,6000,6000),
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,6000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(6000,4000,4000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,0,0)       kCHK_PRI(203) "L" "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.6" "|ErrCode=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,0)          kCHK_PRI(203) "L" "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.6" "|ErrCode=20050",
+"+1." kTwsRpt(ExchangeAccepted,N,    10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,            0,10000,10000,kTIME0) kOrdPri(200,kTIME0),
+kChkOrderST(ExchangeAccepted,         7000, 6000, 9000,kTIME3) kOrdPri(203,kTIME6),
+kChkOrder(PartFilled,PartFilled,      9000, 8000, 8000,kTIME3) kOrdPri(203,kTIME6) kOrdCum(1000,201000,kTIME1),
+kChkOrder(PartFilled,PartFilled,      8000, 6000, 6000,kTIME3) kOrdPri(203,kTIME6) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,4000, 4000, 6000,kTIME5) kOrdPri(203,kTIME6) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,6000, 4000, 4000,kTIME4) kOrdPri(203,kTIME6) kOrdCum(3000,605000,kTIME2),
+kChkOrder(Canceled,ExchangeAccepted,  4000,    0,    0,kTIME6) kOrdPri(203,kTIME6) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeNoLeaves,     0,    0,    0,kTIME9) kOrdPri(203,kTIME6) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
    };
-   RunTest(core, "Out-of-order(NoNewDelete)", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order(NoNewDelete)", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 委託不存在(尚未收到新單回報), 先收到Query及其他回報.
 void TestNoNewQuery(TestCoreSP& core) {
    const char* cstrTestList[] = {
-">AllocOrdNo=A",
-"+"   "TwsRpt" "|Kind=Q" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.8",
-"/"   "TwsOrd" kCHK_ST(0, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.8|LastPriTime=09:00:00.8",
+">AllocOrdNo=T-N-8610-A",
+"+" kTwsRpt(ExchangeAccepted,Q,          4000,4000,  kTIME8) kPriLmt(203),
+kChkOrder(Initialing,ExchangeAccepted,   4000,4000,0,kTIME8) kOrdPri(203,kTIME8),
 // 刪單成功, 但會等「LeavesQty=BeforeQty=4」才處理.
-"+1"  "TwsRpt" "|Kind=D" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=0" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.6",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,0,0) "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.8",
+"+1" kTwsRpt(ExchangeAccepted,D,         4000,   0,  kTIME6) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,   0,0,kTIME6) kOrdPri(203,kTIME8),
 // 減1成功.
-"+1"  "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_ReportSt(kVAL_ExchangeAccepted) kREQ_PRI(200) "|BeforeQty=7000|Qty=6000|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(7000,6000,0) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.8",
+"+1" kTwsRpt(ExchangeAccepted,C,         7000,6000,  kTIME3) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,7000,6000,0,kTIME3) kOrdPri(203,kTIME8),
 // 成交.
-"+1"  "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
+"+1." kTwsFil(1,1000,201,kTIME1),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(203,kTIME8) kOrdCum(0,0,""),
+"+1." kTwsFil(2,2000,202,kTIME2),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(203,kTIME8) kOrdCum(0,0,""),
 // 改價203成功.
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.8",
+"+1." kTwsRpt(ExchangeAccepted,P,        4000,4000,  kTIME5) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,4000,0,kTIME5) kOrdPri(203,kTIME8),
 // 刪單失敗, 等「LeavesQty==0」後處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090000.9",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeNoLeaves) kCHK_PRI(203) "L" kCHK_QTYS(0,0,0) "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.8|ErrCode=20050",
+"+1." kTwsRpt(ExchangeRejected,D,           0,   0,  kTIME9)                     kErrCode_NoLeaves,
+kChkOrder(ReportPending,ExchangeNoLeaves,   0,   0,0,kTIME9) kOrdPri(203,kTIME8) kErrCode_NoLeaves,
 // 減2回報成功.
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=6000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(6000,4000,0) "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.8",
+"+1." kTwsRpt(ExchangeAccepted,C,        6000,4000,  kTIME4) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,6000,4000,0,kTIME4) kOrdPri(203,kTIME8) kErrCode_0,
 // -------------------------------------
 // 新單回報
-"+1." "TwsRpt" "|Kind=N" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=10000|Qty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(0,10000,10000)  kCHK_PRI(200)     "|LastExgTime=09:00:00|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                             kCHK_QTYS(7000,6000,9000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.8",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1")     kCHK_QTYS(9000,8000,8000),
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2")     kCHK_QTYS(8000,6000,6000),
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,6000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.8",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled,   kVAL_ExchangeAccepted) kCHK_QTYS(6000,4000,4000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.4|LastPriTime=09:00:00.8",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,0,0)       kCHK_PRI(203) "L" "|LastExgTime=09:00:00.6|LastPriTime=09:00:00.8" "|ErrCode=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,0)          kCHK_PRI(203) "L" "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.8" "|ErrCode=20050",
+"+1." kTwsRpt(ExchangeAccepted,N,    10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,            0,10000,10000,kTIME0) kOrdPri(200,kTIME0),
+kChkOrderST(ExchangeAccepted,         7000, 6000, 9000,kTIME3) kOrdPri(203,kTIME8),
+kChkOrder(PartFilled,PartFilled,      9000, 8000, 8000,kTIME3) kOrdPri(203,kTIME8) kOrdCum(1000,201000,kTIME1),
+kChkOrder(PartFilled,PartFilled,      8000, 6000, 6000,kTIME3) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,4000, 4000, 6000,kTIME5) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,6000, 4000, 4000,kTIME4) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2),
+kChkOrder(Canceled,ExchangeAccepted,  4000,    0,    0,kTIME6) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeNoLeaves,     0,    0,    0,kTIME9) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
    };
-   RunTest(core, "Out-of-order(NoNewQuery)", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order(NoNewQuery)", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 有收到新單回報, 及後續回報.
 void TestNormalReport(TestCoreSP& core) {
    const char* cstrTestList[] = {
-">AllocOrdNo=A",
-"+"   "TwsRpt" "|Kind=Q" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.8",
-"/"   "TwsOrd" kCHK_ST(0, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.8|LastPriTime=09:00:00.8",
+">AllocOrdNo=T-N-8610-A",
+"+" kTwsRpt(ExchangeAccepted,Q,          4000,4000,  kTIME8) kPriLmt(203),
+kChkOrder(Initialing,ExchangeAccepted,   4000,4000,0,kTIME8) kOrdPri(203,kTIME8),
 // 減1成功.
-"+1"  "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_ReportSt(kVAL_ExchangeAccepted) kREQ_PRI(200) "|BeforeQty=7000|Qty=6000|ExgTime=090000.3",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(7000,6000,0) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.8",
+"+1" kTwsRpt(ExchangeAccepted,C,         7000,6000,  kTIME3) kPriLmt(200),
+kChkOrder(ReportPending,ExchangeAccepted,7000,6000,0,kTIME3) kOrdPri(203,kTIME8),
 // 成交.
-"+1"  "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.1|MatchKey=1",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.2|MatchKey=2",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_PartFilled) kCHK_QTYS(0,0,0) kCHK_CUM(0,0,""),
+"+1." kTwsFil(1,1000,201,kTIME1),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(203,kTIME8) kOrdCum(0,0,""),
+"+1." kTwsFil(2,2000,202,kTIME2),
+kChkOrder(ReportPending,PartFilled,         0,   0,0,kTIME3) kOrdPri(203,kTIME8) kOrdCum(0,0,""),
 // 改價203成功.
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(203) "L" "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.5",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_PRI(203) "L" kCHK_QTYS(4000,4000,0) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.8",
+"+1." kTwsRpt(ExchangeAccepted,P,        4000,4000,  kTIME5) kPriLmt(203),
+kChkOrder(ReportPending,ExchangeAccepted,4000,4000,0,kTIME5) kOrdPri(203,kTIME8),
 // -------------------------------------
 // 新單回報
-"+1." "TwsRpt" "|Kind=N" kREQ_SYMB kREQ_PRI(200) "|BeforeQty=10000|Qty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                           kCHK_QTYS(0,10000,10000)  kCHK_PRI(200)     "|LastExgTime=09:00:00|LastPriTime=09:00:00",
-"/"   "TwsOrd" kCHK_ExchangeAccepted                           kCHK_QTYS(7000,6000,9000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.8",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.1")   kCHK_QTYS(9000,8000,8000),
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.2")   kCHK_QTYS(8000,6000,6000),
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,6000) kCHK_PRI(203) "L" "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.8",
+"+1." kTwsRpt(ExchangeAccepted,N,    10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,            0,10000,10000,kTIME0) kOrdPri(200,kTIME0),
+kChkOrderST(ExchangeAccepted,         7000, 6000, 9000,kTIME3) kOrdPri(203,kTIME8),
+kChkOrder(PartFilled,PartFilled,      9000, 8000, 8000,kTIME3) kOrdPri(203,kTIME8) kOrdCum(1000,201000,kTIME1),
+kChkOrder(PartFilled,PartFilled,      8000, 6000, 6000,kTIME3) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,4000, 4000, 6000,kTIME5) kOrdPri(203,kTIME8) kOrdCum(3000,605000,kTIME2),
 // -------------------------------------
 // 減1回報成功.
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(204) "|BeforeQty=4000|Qty=3000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090002",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_QTYS(4000,3000,5000) kCHK_PRI(204)     "|LastExgTime=09:00:02|LastPriTime=09:00:02",
+"+1." kTwsRpt(ExchangeAccepted,C,     4000, 3000,      kTIMEB) kPriLmt(204),
+kChkOrder(PartFilled,ExchangeAccepted,4000, 3000, 5000,kTIMEB) kOrdPri(204,kTIMEB) kOrdCum(3000,605000,kTIME2),
 // -------------------------------------
 // 減2回報成功(補單).
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(203) "|BeforeQty=6000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_QTYS(6000,4000,3000) kCHK_PRI(204)     "|LastExgTime=09:00:00.4|LastPriTime=09:00:02",
+"+1." kTwsRpt(ExchangeAccepted,C,     6000, 4000,      kTIME4) kPriLmt(203),
+kChkOrder(PartFilled,ExchangeAccepted,6000, 4000, 3000,kTIME4) kOrdPri(204,kTIMEB) kOrdCum(3000,605000,kTIME2),
 // -------------------------------------
 // 改價204成功(補單).
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(204) "|BeforeQty=4000|Qty=4000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090001",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportStale,kVAL_ExchangeAccepted) kCHK_QTYS(4000,4000,3000) kCHK_PRI(204)    "|LastExgTime=09:00:01|LastPriTime=09:00:02",
+"+1." kTwsRpt(ExchangeAccepted,P,      4000,4000,      kTIMEA) kPriLmt(204),
+kChkOrder(ReportStale,ExchangeAccepted,4000,4000, 3000,kTIMEA) kOrdPri(204,kTIMEB) kOrdCum(3000,605000,kTIME2),
 // 改價205成功.
-"+1." "TwsRpt" "|Kind=P" kREQ_SYMB kREQ_PRI(205) "|BeforeQty=3000|Qty=3000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090003",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_QTYS(3000,3000,3000) kCHK_PRI(205)    "|LastExgTime=09:00:03|LastPriTime=09:00:03",
+"+1." kTwsRpt(ExchangeAccepted,P,      3000,3000,      kTIMEC) kPriLmt(205),
+kChkOrder(PartFilled,ExchangeAccepted, 3000,3000, 3000,kTIMEC) kOrdPri(205,kTIMEC) kOrdCum(3000,605000,kTIME2),
 // -------------------------------------
 // 刪單失敗, 等「LeavesQty==0」後處理.
-"+1." "TwsRpt" "|Kind=D" kREQ_BASE "|BeforeQty=0|Qty=0" kREQ_ReportNoLeaves "|ExgTime=090005",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,3000)    kCHK_PRI(205) "|LastExgTime=09:00:05|LastPriTime=09:00:03|ErrCode=20050",
+"+1." kTwsRpt(ExchangeRejected,D,         0,   0,      kTIMEE)                                                 kErrCode_NoLeaves,
+kChkOrder(ReportPending,ExchangeNoLeaves, 0,   0, 3000,kTIMEE) kOrdPri(205,kTIMEC) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
 // 刪單成功, 但會等「LeavesQty=BeforeQty=2」才處理.
-"+1"  "TwsRpt" "|Kind=D" kREQ_SYMB kREQ_PRI(205) "|BeforeQty=2000|Qty=0" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090004",
-"/"   "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeAccepted) kCHK_QTYS(2000,0,3000) kCHK_PRI(205) "|LastExgTime=09:00:04|LastPriTime=09:00:03",
+"+1" kTwsRpt(ExchangeAccepted,D,         2000, 0,      kTIMED) kPriLmt(205),
+kChkOrder(ReportPending,ExchangeAccepted,2000, 0, 3000,kTIMED) kOrdPri(205,kTIMEC) kOrdCum(3000,605000,kTIME2) kErrCode_0,
 // -------------------------------------
 // 減1回報成功(補單).
-"+1." "TwsRpt" "|Kind=C" kREQ_SYMB kREQ_PRI(203) "|BeforeQty=6000|Qty=5000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.4",
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted) kCHK_QTYS(6000,5000,2000) kCHK_PRI(205) "|LastExgTime=09:00:00.4|LastPriTime=09:00:03",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeAccepted) kCHK_QTYS(2000,0,0)     kCHK_PRI(205) "|LastExgTime=09:00:04|LastPriTime=09:00:03" "|ErrCode=0",
-"/"   "TwsOrd" kCHK_ST(kVAL_UserCanceled, kVAL_ExchangeNoLeaves) kCHK_QTYS(0,0,0)        kCHK_PRI(205) "|LastExgTime=09:00:05|LastPriTime=09:00:03" "|ErrCode=20050",
+"+1." kTwsRpt(ExchangeAccepted,C,      6000,5000,      kTIME4) kPriLmt(203),
+kChkOrder(PartFilled,ExchangeAccepted, 6000,5000, 2000,kTIME4) kOrdPri(205,kTIMEC) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeAccepted,   2000,   0,    0,kTIMED) kOrdPri(205,kTIMEC) kOrdCum(3000,605000,kTIME2) kErrCode_0,
+kChkOrder(Canceled,ExchangeNoLeaves,      0,   0,    0,kTIMEE) kOrdPri(205,kTIMEC) kOrdCum(3000,605000,kTIME2) kErrCode_NoLeaves,
    };
-   RunTest(core, "Out-of-order(TestNormalReport)", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order(TestNormalReport)", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 // 先收到成交, 後收到減量回報(造成 LeavesQty=0).
 void TestPartCancel(TestCoreSP& core) {
    const char* cstrTestList[] = {
-">AllocOrdNo=A",
+">AllocOrdNo=T-N-8610-A",
 // 新單回報.
-"+"   "TwsRpt" "|Kind=N" kREQ_ReportSt(kVAL_ExchangeAccepted) kREQ_PRI(200) "|BeforeQty=10000|Qty=10000" "|ExgTime=090000" kREQ_SYMB,
-"/"   "TwsOrd" kCHK_ExchangeAccepted                          kCHK_PRI(200) kCHK_QTYS(0,10000,10000) "|LastExgTime=09:00:00|LastPriTime=09:00:00",
+"+" kTwsRpt(ExchangeAccepted,N,       10000,10000,      kTIME0) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,             0,10000,10000,kTIME0) kOrdPri(200,kTIME0),
 // 成交.
-"+1"  "TwsFil" kREQ_SYMB "|Qty=1000|Pri=201|Time=090000.5|MatchKey=1",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(1000,201000,"09:00:00.5")   kCHK_QTYS(10000,9000,9000),
-"+1." "TwsFil" kREQ_SYMB "|Qty=2000|Pri=202|Time=090000.6|MatchKey=2",
-"/"   "TwsOrd" kCHK_PartFilled_CUM(3000,605000,"09:00:00.6")   kCHK_QTYS(9000,7000,7000),
+"+1." kTwsFil(1,                                                                     1000,201,   kTIME5),
+kChkOrderST(PartFilled,               10000, 9000, 9000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(1000,201000,kTIME5),
+"+1." kTwsFil(2,                                                                     2000,202,   kTIME6),
+kChkOrderST(PartFilled,                9000, 7000, 7000,kTIME0) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME6),
 // 減3(補單).
-"+1." "TwsRpt" "|Kind=C" kREQ_ReportSt(kVAL_ExchangeAccepted)    kREQ_PRI(200) "|BeforeQty=10000|Qty=7000" "|ExgTime=090000.1" kREQ_SYMB,
-"/"   "TwsOrd" kCHK_ST(kVAL_PartFilled, kVAL_ExchangeAccepted)   kCHK_PRI(200) kCHK_QTYS(10000,7000,4000) "|LastExgTime=09:00:00.1|LastPriTime=09:00:00",
+"+1." kTwsRpt(ExchangeAccepted,C,     10000, 7000,      kTIME1) kPriLmt(200),
+kChkOrder(PartFilled,ExchangeAccepted,10000, 7000, 4000,kTIME1) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME6),
 // 減4(補單).
-"+1." "TwsRpt" "|Kind=C" kREQ_ReportSt(kVAL_ExchangeAccepted)    kREQ_PRI(200) "|BeforeQty=7000|Qty=3000" "|ExgTime=090000.2" kREQ_SYMB,
-"/"   "TwsOrd" kCHK_ST(kVAL_PartCanceled, kVAL_ExchangeAccepted) kCHK_PRI(200) kCHK_QTYS(7000,3000,0) "|LastExgTime=09:00:00.2|LastPriTime=09:00:00",
+"+1." kTwsRpt(ExchangeAccepted,C,      7000, 3000,      kTIME2) kPriLmt(200),
+kChkOrder(AsCanceled,ExchangeAccepted, 7000, 3000,    0,kTIME2) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME6),
    };
-   RunTest(core, "Out-of-order(PartCancel)", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "Out-of-order(PartCancel)", cstrTestList);
 }
 //--------------------------------------------------------------------------//
 void TestErrCodeAct_ReNew(TestCoreSP& core) {
    const char* cstrTestList[] = {
-"*" "TwsNew" kREQ_P200_Q10,
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,10000,10000),
+kTwsNew,
+kChkOrderNewSending,
 // ----- ReNew 3 次.
-"-L1=TwsRpt" kREQ_P200_Q10 "|Kind=N|BeforeQty=0|ExgTime=090000|ErrCode=20002" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,0,10000) "|ErrCode=20002|LastExgTime=09:00:00|LastPriTime=",
-"-L1=TwsRpt" kREQ_P200_Q10 "|Kind=N|BeforeQty=0|ExgTime=090000.1|ErrCode=20002" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,0,10000) "|ErrCode=20002|LastExgTime=09:00:00.1|LastPriTime=",
-"-L1=TwsRpt" kREQ_P200_Q10 "|Kind=N|BeforeQty=0|ExgTime=090000.2|ErrCode=20002" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,0,10000) "|ErrCode=20002|LastExgTime=09:00:00.2|LastPriTime=",
-"-L1=TwsRpt" kREQ_P200_Q10 "|Kind=N|BeforeQty=0|ExgTime=090000.3|ErrCode=20002" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeRejected, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(10000,0,0) "|ErrCode=20002|LastExgTime=09:00:00.3|LastPriTime=",
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME0)                 kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,0,10000,kTIME0) kOrdPri(200,"") kErrCode_Rerun3,
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME1)                 kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,0,10000,kTIME1) kOrdPri(200,"") kErrCode_Rerun3,
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME2)                 kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,0,10000,kTIME2) kOrdPri(200,"") kErrCode_Rerun3,
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME3)                 kErrCode_Rerun3,
+kChkOrderST(ExchangeRejected,      10000,0,    0,kTIME3) kOrdPri(200,"") kErrCode_Rerun3,
+
 // ----- ReNew 過程中 Delete.
-"*"  "TwsNew" kREQ_P200_Q10,
-"/"  "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,10000,10000),
+kTwsNew,
+kChkOrderNewSending,
 // New(Re:1)
-"-L11=TwsRpt" kREQ_P200_Q10 "|Kind=N|BeforeQty=0|ExgTime=090000|ErrCode=20002" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/"  "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,0,10000) "|ErrCode=20002|LastExgTime=09:00:00|LastPriTime=",
+"-L11=" kTwsRpt(ExchangeRejected,N,    0,    0,      kTIME0)                 kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,    0,10000,kTIME0) kOrdPri(200,"") kErrCode_Rerun3,
 
 // 然後收到刪單要求.
-"*1   TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/"  "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|ErrCode=0|LastExgTime=09:00:00|LastPriTime=",
-// 刪單要求回報:20005 => Chg(Re:1).
-"-L15=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.1|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/"  "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.1|LastPriTime=",
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrderST(Sending,               10000,10000,10000,kTIME0) kOrdPri(200,"") kErrCode_0,
+// 刪單要求回報失敗:Rerun4 => Chg(Re:1).
+"-L15=" kTwsRpt(ExchangeRejected,D,    0,    0,      kTIME1) kPriLmt(200)    kErrCode_Rerun4_AtNewDone,
+kChkOrderST(Sending,                   0,    0,10000,kTIME1) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
 
 // New(Re:1) 的回報, 因 NewSending 之後收到 DeleteRequest, 所以不用再重送新單了.
-"-L11=TwsRpt" kREQ_P200_Q10 "|Kind=N|BeforeQty=0|ExgTime=090000.3|ErrCode=20002" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/"  "TwsOrd" kCHK_ST(kVAL_ExchangeRejected, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(10000,0,0) "|ErrCode=20002|LastExgTime=09:00:00.3|LastPriTime=",
-// Delete 的 20005 回報, 因新單失敗, 所以不用重送 Delete.
-"-L15=TwsRpt" kREQ_P200_Q10 "|Kind=D|BeforeQty=0|ExgTime=090000.5|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/"  "TwsOrd" kCHK_ST(kVAL_ExchangeRejected, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(0,0,0) "|ErrCode=20005|LastExgTime=09:00:00.5|LastPriTime=",
+"-L11=" kTwsRpt(ExchangeRejected,N,    0,10000,      kTIME3)                 kErrCode_Rerun3,
+kChkOrderST(ExchangeRejected,      10000,    0,    0,kTIME3) kOrdPri(200,"") kErrCode_Rerun3,
+// Rerun Delete 的回報, 因新單失敗, 所以不用重送 Delete.
+"-L15=" kTwsRpt(ExchangeRejected,D,    0,    0,      kTIME5) kPriLmt(200)    kErrCode_Rerun4_AtNewDone,
+kChkOrderST(ExchangeRejected,          0,    0,    0,kTIME5) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
    };
-   RunTest(core, "ErrCodeAct.ReNew", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "ErrCodeAct.ReNew", cstrTestList);
 }
+//--------------------------------------------------------------------------//
 void TestErrCodeAct_ReChg(TestCoreSP& core) {
    const char* cstrTestList[] = {
-"*" "TwsNew" kREQ_P200_Q10,
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,10000,10000),
-// ----- NewSending => Delete(30005:AtNewDone=Y|Rerun=2)
-"*1  TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,10000,10000),
-"-L3=TwsRpt" kREQ_SYMB "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.01|ErrCode=30005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=30005|LastExgTime=09:00:00.01|LastPriTime=",
-"-L3=TwsRpt" kREQ_SYMB "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.02|ErrCode=30005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=30005|LastExgTime=09:00:00.02|LastPriTime=",
-"-L3=TwsRpt" kREQ_SYMB "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.03|ErrCode=30005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=30005|LastExgTime=09:00:00.03|LastPriTime=",
+kTwsNew,
+kChkOrderNewSending,
+// ----- NewSending => Delete 失敗 Rerun2(AtNewDone=Y)
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(Sending,Sending,           10000,10000,10000,"")     kOrdPri(200,""),
+"-L3=" kTwsRpt(ExchangeRejected,D,       0,    0,      kTIME1)                 kErrCode_Rerun2_AtNewDone,
+kChkOrder(Sending,Sending,               0,    0,10000,kTIME1) kOrdPri(200,"") kErrCode_Rerun2_AtNewDone,
+"-L3=" kTwsRpt(ExchangeRejected,D,       0,    0,      kTIME2)                 kErrCode_Rerun2_AtNewDone,
+kChkOrder(Sending,Sending,               0,    0,10000,kTIME2) kOrdPri(200,"") kErrCode_Rerun2_AtNewDone,
+"-L3=" kTwsRpt(ExchangeRejected,D,       0,    0,      kTIME3)                 kErrCode_Rerun2_AtNewDone,
+kChkOrder(ReportPending,ExchangeRejected,0,    0,10000,kTIME3) kOrdPri(200,"") kErrCode_Rerun2_AtNewDone,
 
 // ----- 刪單.
-"*1  TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,10000,10000),
-// ----- 刪單(失敗20001) => 等新單回報後處理.
-"-2 =TwsRpt" kREQ_SYMB "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.2|ErrCode=20001" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20001|LastExgTime=09:00:00.2|LastPriTime=",
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(Sending,Sending,                  10000,10000,10000,kTIME3) kOrdPri(200,"") kErrCode_0,
+// ----- 刪單(NoRerun)一般失敗 => 等新單回報後處理.
+"-2=" kTwsRpt(ExchangeRejected,D,               0,    0,      kTIME4)                 kErrCode_NoRerun,
+kChkOrder(ReportPending,ExchangeRejected,       0,    0,10000,kTIME4) kOrdPri(200,"") kErrCode_NoRerun,
 
 // ----- New.Accepted.
-"-L1=TwsRpt" "|Kind=N" kREQ_P200_Q10 "|BeforeQty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.3",
-"/" "TwsOrd" kCHK_ExchangeAccepted kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|LastExgTime=09:00:00.3|LastPriTime=09:00:00.3",
-// 新單成功, 處理 30005 的失敗回報: Rerun.
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_Sending) kCHK_QTYS(0,0,10000) "|ErrCode=30005|LastExgTime=09:00:00.03|LastPriTime=09:00:00.3",
-// 新單成功, 處理 20001 的失敗回報.
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_ExchangeRejected) kCHK_QTYS(0,0,10000) "|ErrCode=20001|LastExgTime=09:00:00.2|LastPriTime=09:00:00.3",
-// Rerun: 又收到 30005 的失敗, 因為有 AtNewDone=Y, 所以不會再 Rerun.
-"-L3=TwsRpt" kREQ_SYMB "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.4|ErrCode=30005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_ExchangeRejected) kCHK_QTYS(10000,10000,10000) "|ErrCode=30005|LastExgTime=09:00:00.4|LastPriTime=09:00:00.3",
+"-L1=" kTwsRpt(ExchangeAccepted,N,          10000,10000,      kTIME5) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,               10000,10000,10000,kTIME5) kOrdPri(200,kTIME5),
+// 新單成功, 處理 Rerun2(AtNewDone=Y) 的失敗回報: Rerun.
+kChkOrder(ExchangeAccepted,Sending,             0,    0,10000,kTIME3) kOrdPri(200,kTIME5) kErrCode_Rerun2_AtNewDone,
+// 新單成功, 處理 (NoRerun)一般失敗 的 ReportPending 回報.
+kChkOrder(ExchangeAccepted,ExchangeRejected,    0,    0,10000,kTIME4) kOrdPri(200,kTIME5) kErrCode_NoRerun,
+// Rerun2(AtNewDone=Y) 之後, 又收到 Rerun2 的失敗, 因為有 AtNewDone=Y, 所以不會再 Rerun.
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME6)                     kErrCode_Rerun2_AtNewDone,
+kChkOrder(ExchangeAccepted,ExchangeRejected,10000,10000,10000,kTIME6) kOrdPri(200,kTIME5) kErrCode_Rerun2_AtNewDone,
 
 // ----- New.ExchangeCanceled.
-"-L1=TwsRpt" "|Kind=N" kREQ_P200_Q10 "|Qty=0|BeforeQty=10000" kREQ_ReportSt(kVAL_ExchangeCanceled) "|ExgTime=090000.9",
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeCanceled, kVAL_ExchangeCanceled) kCHK_PRI(200) kCHK_QTYS(10000,0,0) "|LastExgTime=09:00:00.9|LastPriTime=09:00:00.9",
+"-L1=" kTwsRpt(ExchangeCanceled,N,          10000,    0,      kTIME9) kPriLmt(200),
+kChkOrderST(ExchangeCanceled,               10000,    0,    0,kTIME9) kOrdPri(200,kTIME9),
    };
-   RunTest(core, "ErrCodeAct.ReChg", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "ErrCodeAct.ReChg", cstrTestList);
 }
-void TestErrCodeAct_ReChg20005(TestCoreSP& core) {
+void TestErrCodeAct_ReChg2(TestCoreSP& core) {
    const char* cstrTestList[] = {
-"*" "TwsNew" kREQ_P200_Q10,
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,10000,10000),
-// ----- NewSending => Delete(20005) 重送4次, 然後失敗.
-"*1  TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|ErrCode=0|LastExgTime=|LastPriTime=",
-// ----- NewSending => Delete(20005) 重送1次 => New.Accepted 之後應重送一次.
-"*1  TwsChg" "|Market=T|SessionId=N|BrkId=8610" "|Qty=0",
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|ErrCode=0|LastExgTime=|LastPriTime=",
+kTwsNew,
+kChkOrderNewSending,
+// ----- NewSending => Delete 失敗重送4次, 然後失敗.
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(Sending,Sending,                  10000,10000,10000,"")     kOrdPri(200,"") kErrCode_0,
+// ----- NewSending => Delete 失敗重送1次 => New.Accepted 之後應重送一次.
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(Sending,Sending,                  10000,10000,10000,"")     kOrdPri(200,"") kErrCode_0,
 
-"-L3=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.1|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.1|LastPriTime=",
-"-L3=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.2|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.2|LastPriTime=",
-"-L3=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.3|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.3|LastPriTime=",
-"-L3=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.4|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.4|LastPriTime=",
-"-L3=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.5|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ReportPending, kVAL_ExchangeRejected) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.5|LastPriTime=",
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME1)                 kErrCode_Rerun4_AtNewDone,
+kChkOrder(Sending,Sending,                      0,    0,10000,kTIME1) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
 
-"-L5=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090000.01|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_NewSending kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|ErrCode=20005|LastExgTime=09:00:00.01|LastPriTime=",
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME2)                 kErrCode_Rerun4_AtNewDone,
+kChkOrder(Sending,Sending,                      0,    0,10000,kTIME2) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME3)                 kErrCode_Rerun4_AtNewDone,
+kChkOrder(Sending,Sending,                      0,    0,10000,kTIME3) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME4)                 kErrCode_Rerun4_AtNewDone,
+kChkOrder(Sending,Sending,                      0,    0,10000,kTIME4) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME5)                 kErrCode_Rerun4_AtNewDone,
+kChkOrder(ReportPending,ExchangeRejected,       0,    0,10000,kTIME5) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
+
+"-L5=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIME6)                 kErrCode_Rerun4_AtNewDone,
+kChkOrder(Sending,Sending,                      0,    0,10000,kTIME6) kOrdPri(200,"") kErrCode_Rerun4_AtNewDone,
 
 // ----- New.Accepted.
-"-L1=TwsRpt" "|Kind=N" kREQ_P200_Q10 "|BeforeQty=10000" kREQ_ReportSt(kVAL_ExchangeAccepted) "|ExgTime=090000.8",
-"/" "TwsOrd" kCHK_ExchangeAccepted kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|LastExgTime=09:00:00.8|LastPriTime=09:00:00.8|ErrCode=0",
+"-L1=" kTwsRpt(ExchangeAccepted,N,          10000,10000,      kTIME8) kPriLmt(200),
+kChkOrderST(ExchangeAccepted,               10000,10000,10000,kTIME8) kOrdPri(200,kTIME8) kErrCode_0,
 // 新單成功後再送一次刪單.
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(0,0,10000) "|LastExgTime=09:00:00.5|LastPriTime=09:00:00.8|ErrCode=20005",
-"-L3=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090001|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|LastExgTime=09:00:01|LastPriTime=09:00:00.8|ErrCode=20005",
+kChkOrder(ExchangeAccepted,Sending,             0,    0,10000,kTIME5) kOrdPri(200,kTIME8) kErrCode_Rerun4_AtNewDone,
+"-L3=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIMEA)                     kErrCode_Rerun4_AtNewDone,
+kChkOrder(ExchangeAccepted,ExchangeRejected,10000,10000,10000,kTIMEA) kOrdPri(200,kTIME8) kErrCode_Rerun4_AtNewDone,
 // Ln#5 的刪單回報 => 再送一次刪單.
-"-L5=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090002|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_Sending) kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|ErrCode=20005|LastExgTime=09:00:02|LastPriTime=09:00:00.8|ErrCode=20005",
-"-L5=TwsRpt" kREQ_P200_Q10 "|Kind=D|Qty=0|BeforeQty=0|ExgTime=090003|ErrCode=20005" kREQ_ReportSt(kVAL_ExchangeRejected),
-"/" "TwsOrd" kCHK_ST(kVAL_ExchangeAccepted, kVAL_ExchangeRejected) kCHK_PRI(200) kCHK_QTYS(10000,10000,10000) "|LastExgTime=09:00:03|LastPriTime=09:00:00.8|ErrCode=20005",
+"-L5=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIMEB) kPriLmt(200)        kErrCode_Rerun4_AtNewDone,
+kChkOrder(ExchangeAccepted,Sending,         10000,10000,10000,kTIMEB) kOrdPri(200,kTIME8) kErrCode_Rerun4_AtNewDone,
+"-L5=" kTwsRpt(ExchangeRejected,D,              0,    0,      kTIMEC)                     kErrCode_Rerun4_AtNewDone,
+kChkOrder(ExchangeAccepted,ExchangeRejected,10000,10000,10000,kTIMEC) kOrdPri(200,kTIME8) kErrCode_Rerun4_AtNewDone,
    };
-   RunTest(core, "ErrCodeAct.ReChg20005", cstrTestList, fon9::numofele(cstrTestList));
+   RunTestList(core, "ErrCodeAct.ReChg2", cstrTestList);
 }
 //--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
-   gArgc = argc;
-   gArgv = argv;
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
       //_CrtSetBreakAlloc(176);
    #endif
 
-   const auto isTestReload = fon9::GetCmdArg(argc, argv, "r", "reload");
-   gIsTestReload = (isTestReload.begin() && (isTestReload.empty() || fon9::toupper(static_cast<unsigned char>(*isTestReload.begin())) == 'Y'));
-   gIsLessInfo = true;
-   fon9::LogLevel_ = fon9::LogLevel::Warn;
-
+   InitReportUT(argc, argv);
    fon9::AutoPrintTestInfo utinfo{"OmsReport"};
    TestCoreSP core;
 
@@ -754,6 +593,6 @@ int main(int argc, char* argv[]) {
    TestErrCodeAct_ReChg(core);
    utinfo.PrintSplitter();
 
-   TestErrCodeAct_ReChg20005(core);
+   TestErrCodeAct_ReChg2(core);
    utinfo.PrintSplitter();
 }

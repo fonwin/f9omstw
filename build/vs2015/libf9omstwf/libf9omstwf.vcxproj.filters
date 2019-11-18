@@ -1,0 +1,164 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files\9.Quote">
+      <UniqueIdentifier>{41d9a097-cbfb-42c2-852e-db1c1f3b0ecb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\7.QuoteR">
+      <UniqueIdentifier>{5768776c-c821-42e5-840f-5aadb7532c33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\1.Normal">
+      <UniqueIdentifier>{53d3cb24-ba08-46c2-a8f3-e00b52c69ce3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\1.Normal">
+      <UniqueIdentifier>{53959e0f-2318-42f6-96ca-8bfadb2c0f9e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\7.QuoteR">
+      <UniqueIdentifier>{848b00bf-b6e5-4459-b4ad-b10ca262b730}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\9.Quote">
+      <UniqueIdentifier>{d13b3aac-da4c-45f1-9c50-d739b1e60a30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\0.Base">
+      <UniqueIdentifier>{f00418d8-985e-49e5-af3d-c883c49bb977}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\0.Base">
+      <UniqueIdentifier>{c3d9e002-35cc-4a5e-bec6-88de6e644621}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfTypes.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineMgr.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptLineTmp.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfLineTmpFactory.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfFilled.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfOrder1.hpp">
+      <Filter>Header Files\1.Normal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest1.hpp">
+      <Filter>Header Files\1.Normal</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfOrder7.hpp">
+      <Filter>Header Files\7.QuoteR</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest7.hpp">
+      <Filter>Header Files\7.QuoteR</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfOrder9.hpp">
+      <Filter>Header Files\9.Quote</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfReport9.hpp">
+      <Filter>Header Files\9.Quote</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest9.hpp">
+      <Filter>Header Files\9.Quote</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfOrder0.hpp">
+      <Filter>Header Files\0.Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest0.hpp">
+      <Filter>Header Files\0.Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfReport3.hpp">
+      <Filter>Header Files\0.Base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfReport8.hpp">
+      <Filter>Header Files\7.QuoteR</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfReport2.hpp">
+      <Filter>Header Files\1.Normal</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfTypes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptLineTmp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfLineTmpFactory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfFilled.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfOrder0.cpp">
+      <Filter>Source Files\0.Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest0.cpp">
+      <Filter>Source Files\0.Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfOrder1.cpp">
+      <Filter>Source Files\1.Normal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest1.cpp">
+      <Filter>Source Files\1.Normal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfOrder7.cpp">
+      <Filter>Source Files\7.QuoteR</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest7.cpp">
+      <Filter>Source Files\7.QuoteR</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfOrder9.cpp">
+      <Filter>Source Files\9.Quote</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfReport9.cpp">
+      <Filter>Source Files\9.Quote</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest9.cpp">
+      <Filter>Source Files\9.Quote</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfReport3.cpp">
+      <Filter>Source Files\0.Base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfReport8.cpp">
+      <Filter>Source Files\7.QuoteR</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfReport2.cpp">
+      <Filter>Source Files\1.Normal</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

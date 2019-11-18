@@ -37,6 +37,7 @@ public:
    }
    void RequestAbandon(OmsResource* res, OmsErrCode errCode);
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
+   void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::nullptr_t) = delete;
 
    /// 檢查是否有回報權限, 由收到回報的人自主檢查.
    /// 檢查方式: IsEnumContains(pol.GetIvrAdminRights(), OmsIvRight::AllowAddReport);
@@ -45,12 +46,13 @@ public:
 };
 
 /// 如果 rpt->ReqUID_ 使用此字串開頭(含EOS), 則後續緊接著 OmsRxSNO 指定回報.
-#define f9omstw_kCSTR_ReportReqUID  "SNO.bin"
-/// 指定 rpt 的回報原始「下單要求」序號.
-inline void OmsAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
-   memcpy(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ReportReqUID, sizeof(f9omstw_kCSTR_ReportReqUID));
-   memcpy(rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ReportReqUID), &sno, sizeof(sno));
-   static_assert(rpt.ReqUID_.size() >= sizeof(f9omstw_kCSTR_ReportReqUID) + sizeof(sno),
+#define f9omstw_kCSTR_ForceReportReqUID  "SNO.bin"
+/// 設定 rpt 的回報原始「下單要求」序號.
+/// 適用於「立即等候回報」的情況, 例如: 台灣證券TMP下單協定.
+inline void OmsForceAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
+   memcpy(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqUID, sizeof(f9omstw_kCSTR_ForceReportReqUID));
+   memcpy(rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqUID), &sno, sizeof(sno));
+   static_assert(rpt.ReqUID_.size() >= sizeof(f9omstw_kCSTR_ForceReportReqUID) + sizeof(sno),
                  "OmsRequestId::ReqUID_ too small.");
 }
 
@@ -101,6 +103,10 @@ public:
 
    ~OmsRequestRunnerInCore();
 
+   /// - 更新 this->OrderRaw_.RequestSt_ = reqst;
+   /// - 如果是新單要求的異動
+   ///   - 若有必要, 會根據 reqst 更新 this->OrderRaw_.UpdateOrderSt_;
+   ///   - 若為新單拒絕, 則會呼叫 this->OrderRaw_.OnOrderReject();
    void Update(f9fmkt_TradingRequestSt reqst);
    void Update(f9fmkt_TradingRequestSt reqst, fon9::StrView cause) {
       this->OrderRaw_.Message_.assign(cause);
@@ -112,18 +118,16 @@ public:
    }
 
    /// 使用 this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
-   ///
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo(OmsOrdNo reqOrdNo);
    /// 使用 tgId 的櫃號設定, 不考慮 Request policy.
-   ///
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo(OmsOrdTeamGroupId tgId);
 
-   /// 在 this->OrderRaw_.OrdNo_.empty1st() 時, 分配委託書號.
-   /// - 如果 !this->OrderRaw_.Order_->Initiator_->OrdNo_.empty1st()
+   /// 在 OmsIsOrdNoEmpty(this->OrderRaw_.OrdNo_) 時, 分配委託書號.
+   /// - 如果 !OmsIsOrdNoEmpty(this->OrderRaw_.Order_->Initiator_->OrdNo_)
    ///     || this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId() != 0;
    ///   也就是下單時有指定櫃號, 或 Policy 有指定櫃號群組.
    ///   則使用 this->AllocOrdNo(this->OrderRaw_.Order_->Initiator_->OrdNo_).
@@ -132,12 +136,12 @@ public:
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId) {
-      if (!this->OrderRaw_.OrdNo_.empty1st()) // 已編號.
+      if (!OmsIsOrdNoEmpty(this->OrderRaw_.OrdNo_)) // 已編號.
          return true;
       assert(this->OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew);
       assert(this->OrderRaw_.Order().Initiator() == &this->OrderRaw_.Request());
       auto iniReq = this->OrderRaw_.Order().Initiator();
-      if (!iniReq->OrdNo_.empty1st() || iniReq->Policy()->OrdTeamGroupId() != 0)
+      if (!OmsIsOrdNoEmpty(iniReq->OrdNo_) || iniReq->Policy()->OrdTeamGroupId() != 0)
          return this->AllocOrdNo(iniReq->OrdNo_);
       return this->AllocOrdNo(tgId);
    }
@@ -147,6 +151,7 @@ public:
    /// - retval>0 isWantToKill==true:要刪除的數量; isWantToKill==false:改後的數量;
    template <typename QtyU, typename QtyS = fon9::make_signed_t<QtyU>>
    QtyS GetRequestChgQty(QtyS reqQty, bool isWantToKill, QtyU leavesQty, QtyU cumQty) {
+      fon9_GCC_WARN_DISABLE("-Wconversion");
       if (reqQty < 0) {
          if (fon9_LIKELY(isWantToKill)) {
             if (fon9::unsigned_cast(reqQty = -reqQty) >= leavesQty)
@@ -166,6 +171,7 @@ public:
          }
          return reqQty;
       }
+      fon9_GCC_WARN_POP;
       // 改量時 reqQty = 0 = 刪單.
       return 0;
    }

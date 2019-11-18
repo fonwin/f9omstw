@@ -1,7 +1,7 @@
-﻿// \file f9omstw/OmsTwsSenderStepG1.hpp
+﻿// \file f9omstws/OmsTwsSenderStepG1.hpp
 // \author fonwinz@gmail.com
-#ifndef __f9omstw_OmsTwsSenderStepG1_hpp__
-#define __f9omstw_OmsTwsSenderStepG1_hpp__
+#ifndef __f9omstws_OmsTwsSenderStepG1_hpp__
+#define __f9omstws_OmsTwsSenderStepG1_hpp__
 #include "f9omstw/OmsRequestRunner.hpp"
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
 
@@ -35,4 +35,4 @@ public:
 };
 
 } // namespaces
-#endif//__f9omstw_OmsTwsSenderStepG1_hpp__
+#endif//__f9omstws_OmsTwsSenderStepG1_hpp__

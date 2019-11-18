@@ -20,7 +20,7 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
       return;
    OmsRequestRunner runner{rxargs.MsgStr_};
    fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
-   runner.Request_ = this->RptFactory_.MakeReportIn(f9fmkt_RxKind_Unknown);
+   runner.Request_ = this->RptFactory_.MakeReportIn(f9fmkt_RxKind_Unknown, fon9::UtcNow());
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
@@ -63,7 +63,7 @@ void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxa
 
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
-   runner.Request_ = this->RptFactory_.MakeReportIn(rptKind);
+   runner.Request_ = this->RptFactory_.MakeReportIn(rptKind, fon9::UtcNow());
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
@@ -135,7 +135,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
 
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
-   runner.Request_ = this->RptFactory_.MakeReportIn(rptKind);
+   runner.Request_ = this->RptFactory_.MakeReportIn(rptKind, fon9::UtcNow());
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
@@ -181,11 +181,10 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
 void TwsTradingLineFixFactory::OnFixExecFilled(const f9fix::FixRecvEvArgs& rxargs) {
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
-   runner.Request_ = this->FilFactory_.MakeReportIn(f9fmkt_RxKind_Filled);
+   runner.Request_ = this->FilFactory_.MakeReportIn(f9fmkt_RxKind_Filled, fon9::UtcNow());
 
    assert(dynamic_cast<OmsTwsFilled*>(runner.Request_.get()) != nullptr);
    OmsTwsFilled&  rpt = *static_cast<OmsTwsFilled*>(runner.Request_.get());
-   rpt.SetReportSt(f9fmkt_TradingRequestSt_Filled);
    AssignRptBase(rpt, rxargs);
    AssignReportSymbol(rpt.Symbol_, rxargs.Msg_);
    rpt.Side_ = GetFixSide(rxargs.Msg_);
@@ -226,7 +225,7 @@ TwsTradingLineFixFactory::TwsTradingLineFixFactory(
       = std::bind(&TwsTradingLineFixFactory::OnFixCancelReject, this, _1);
 }
 fon9::TimeStamp TwsTradingLineFixFactory::GetTDay() {
-   return this->GetCoreTDay();
+   return this->CoreMgr_.CurrentCoreTDay();
 }
 fon9::io::SessionSP TwsTradingLineFixFactory::CreateTradingLineFix(
    f9tws::ExgTradingLineMgr&           lineMgr,

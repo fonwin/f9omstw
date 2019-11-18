@@ -23,6 +23,11 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// 此類回報如果 RxSNO==0, 則無法回補.
    OmsErrCode_Bad_Report = 3,
 
+   /// 沒有商品資料,無法下單.
+   OmsErrCode_SymbNotFound = 4,
+   /// P08的價格小數位數有誤.
+   OmsErrCode_SymbDecimalLocator = 5,
+
    /// OmsCore::RunInCore();
    /// Request_->Creator_->RunStep_ 沒定義.
    OmsErrCode_RequestStepNotFound = 10,
@@ -34,53 +39,61 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_BrkId = 100,
    /// 不是新單要求, 則必須提供 OrdNo.
    OmsErrCode_Bad_OrdNo = 101,
-   OmsErrCode_Bad_SessionId = 102,
-   /// 新單沒有填 Market, 且找不到商品資料, 無法自動填 MarketId.
-   OmsErrCode_Bad_MarketId_SymbNotFound = 103,
-   /// 新單沒有填 Market, 且商品資料的 MarketId 為 f9fmkt_TradingMarket_Unknown.
-   OmsErrCode_Bad_SymbMarketId = 104,
+
+   OmsErrCode_Bad_SessionId = 110,
+   /// 新單沒有填 SessionId, 且找不到商品資料, 無法自動填 SessionId.
+   /// 台灣期交所: 用商品的FlowGroup, 來判斷現在是日盤還是夜盤.
+   OmsErrCode_Bad_SessionId_SymbNotFound = 111,
+   /// 新單沒有填 SessionId, 且商品資料的相關欄位不正確(例如 symb->FlowGroup_, symb->TradingSessionId_);
+   OmsErrCode_Bad_SymbSessionId = 112,
+
    /// 不認識的 MarketId, 無法決定下單要求要送到何處.
-   OmsErrCode_Bad_MarketId = 105,
+   OmsErrCode_Bad_MarketId = 120,
+   /// 新單沒有填 Market, 且找不到商品資料, 無法自動填 MarketId.
+   OmsErrCode_Bad_MarketId_SymbNotFound = 121,
+   /// 新單沒有填 Market, 且商品資料的 MarketId 為 f9fmkt_TradingMarket_Unknown.
+   OmsErrCode_Bad_SymbMarketId = 122,
+
    /// 不正確的 LgOut 線路群組設定.
-   OmsErrCode_Bad_LgOut = 106,
+   OmsErrCode_Bad_LgOut = 130,
 
    /// RxKind 有誤.
-   OmsErrCode_Bad_RxKind = 110,
+   OmsErrCode_Bad_RxKind = 200,
    /// 買賣別問題.
-   OmsErrCode_Bad_Side = 111,
+   OmsErrCode_Bad_Side = 201,
    /// 新單: 新單數量問題, 超過上限? 非整股數量?
    /// 改單: 期望的改後數量有誤: 不可增量, 或期望的改後數量與現在(LeavesQty+CumQty)相同.
-   OmsErrCode_Bad_Qty = 112,
+   OmsErrCode_Bad_Qty = 202,
    /// 下單價格問題.
-   OmsErrCode_Bad_Pri = 113,
-   OmsErrCode_Bad_PriType = 114,
-   OmsErrCode_Bad_TimeInForce = 115,
+   OmsErrCode_Bad_Pri = 203,
+   OmsErrCode_Bad_PriType = 204,
+   OmsErrCode_Bad_TimeInForce = 205,
 
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
-   OmsErrCode_IvNoPermission = 120,
+   OmsErrCode_IvNoPermission = 300,
    /// OmsRequestIni::BeforeReq_CheckIvRight(); 必要欄位不正確(例如: IvacNo, Side, Symbol...)
-   OmsErrCode_FieldNotMatch = 121,
+   OmsErrCode_FieldNotMatch = 301,
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Order not found, or RequestIni not allowed.
    /// 補單操作, 必須有 AllowAddReport 權限.
-   OmsErrCode_DenyAddReport = 122,
+   OmsErrCode_DenyAddReport = 302,
 
    /// 客戶端(例:RcClient) 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
-   OmsErrCode_OverFlowControl = 130,
+   OmsErrCode_OverFlowControl = 400,
 
    /// OmsOrdNoMap::AllocOrdNo(); 下單的 OrdTeamGroupId 有問題.
-   OmsErrCode_OrdTeamGroupId = 200,
+   OmsErrCode_OrdTeamGroupId = 500,
    /// OmsOrdNoMap::AllocOrdNo(); 自編委託書號, 但委託書已存在.
    /// OmsRequestIni::BeforeReq_CheckOrdKey() 新單自編委託書, 但委託書已存在.
-   OmsErrCode_OrderAlreadyExists = 201,
+   OmsErrCode_OrderAlreadyExists = 501,
    /// OmsOrdNoMap::AllocOrdNo(); 自訂委託櫃號, 但委託書號已用完.
-   OmsErrCode_OrdNoOverflow = 202,
+   OmsErrCode_OrdNoOverflow = 502,
    /// OmsOrdNoMap::AllocOrdNo(); OmsRequestIni::ValidateInUser();
    /// 沒有自編委託櫃號(或委託書號)的權限. 新單要求的 OrdNo 必須為空白.
-   OmsErrCode_OrdNoMustEmpty = 203,
+   OmsErrCode_OrdNoMustEmpty = 503,
    /// OmsOrdNoMap::AllocOrdNo(); 委託櫃號已用完(或沒設定).
-   OmsErrCode_OrdTeamUsedUp = 204,
+   OmsErrCode_OrdTeamUsedUp = 504,
    /// OmsOrdNoMap 沒找到, 可能是 Market 或 SessionId 不正確, 或系統沒設定.
-   OmsErrCode_OrdNoMapNotFound = 205,
+   OmsErrCode_OrdNoMapNotFound = 505,
 
    // -----------------------------------------------------------------------
    /// 無可用的下單連線.

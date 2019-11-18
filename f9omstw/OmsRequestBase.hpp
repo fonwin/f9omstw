@@ -99,6 +99,8 @@ protected:
    }
    /// 在 flds 增加 ReportSt 及 ErrCode 欄位, 這裡沒有呼叫 MakeFields().
    static void AddFieldsForReport(fon9::seed::Fields& flds);
+   /// 在 flds 增加 ErrCode 欄位, 這裡沒有呼叫 MakeFields().
+   static void AddFieldsErrCode(fon9::seed::Fields& flds);
 
    void InitializeForReportIn() {
       this->RxItemFlags_ |= OmsRequestFlag_ReportIn;
@@ -206,8 +208,7 @@ public:
       return this->ReportSt_;
    }
    /// 排除重複回報之後, 透過這裡處理回報.
-   /// - assert(this == runner.Request_.get() && !"Not support RunReportInCore()");
-   /// - 預設使用 ExInfo 方式寫入 log: runner.ReportAbandon("Not support RunReportInCore");
+   /// - 預設呼叫 this->RunReportInCore_Start(std::move(checker));
    virtual void RunReportInCore(OmsReportChecker&& checker);
 
    /// 當委託有異動時, 在 OmsOrder::ProcessPendingReport(); 裡面:
@@ -215,6 +216,75 @@ public:
    /// 則會透過這裡通知繼續處理回報.
    /// 預設 assert(!"Derived must override ProcessPendingReport()");
    virtual void ProcessPendingReport(OmsResource& res) const;
+
+protected:
+   void RunReportInCore_Start(OmsReportChecker&& checker);
+
+   /// RunReportInCore_Start() 的過程:
+   /// 有找到「原始下單要求」, 直接處理回報.
+   /// 預設: do nothing: assert(!"應由衍生者完成.");
+   virtual void RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq);
+   /// - 檢查 RxKind 是否與 origReq 一致.
+   /// - 檢查是否重複回報: this->ReportSt() <= origReq.LastUpdated()->RequestSt_;
+   /// - 返回 false: 表示已呼叫過 checker.ReportAbandon();
+   /// - 返回 true: 表示檢查通過, 回報應正常處理.
+   bool RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker, const OmsRequestBase& origReq);
+
+   /// RunReportInCore_Start() 的過程:
+   /// 預設: checker.ReportAbandon("Report: OrdNo is empty.");
+   virtual void RunReportInCore_OrdNoEmpty(OmsReportChecker&& checker);
+   /// RunReportInCore_Start() 的過程:
+   /// 預設 do nothing: assert(!"應由衍生者完成.");
+   /// 實作建議: this->MakeReportReqUID(this->ExgTime_, this->BeforeQty_);
+   virtual void RunReportInCore_MakeReqUID();
+
+   /// Order 沒有 Initiator 時的新單回報.
+   /// - RunReportInCore_NewOrder() 的新單回報;
+   /// - RunReportInCore_Order() 的新單回報:
+   ///   - order.Initiator() 有存在 透過 RunReportInCore_FromOrig() 處理.
+   ///   - order.Initiator() 不存在 透過 RunReportInCore_InitiatorNew() 處理.
+   /// - 預設 do nothing: assert(!"應由衍生者完成.");
+   virtual void RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner);
+   /// 一般的刪改查回報.
+   /// - 已過濾了重複回報.
+   /// - 預設 do nothing: assert(!"應由衍生者完成.");
+   virtual void RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner);
+
+   /// 在 RunReportInCore_Order() 的刪改查回報:
+   /// - 檢查 ordu 的 Before*, After* 是否與 this 相同.
+   /// - 如果相同, 則 this 可能為重複回報, 接下來 RunReportInCore_Order() 還會檢查:
+   ///   - RunReportInCore_IsExgTimeMatch() or RxKind==ChgQty or RxKind==Delete;
+   ///   - 如果都相同, 則為重複回報, 會透過 this->RunReportInCore_FromOrig() 做後續處理.
+   //      - 一般而言此時會在 this->RunReportInCore_FromOrig_Precheck();
+   //        - 透過 checker.ReportAbandon() 記錄 log.
+   //        - Order 不會有任何異動.
+   /// - 預設傳回 false;
+   virtual bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu);
+   virtual bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu);
+   /// RunReportInCore_Start() 的過程:
+   /// - 回報找不到「原始下單要求」, 但有找到「原始委託」.
+   /// - this = 新單回報
+   ///   - order.Initiator() 有存在 透過 RunReportInCore_FromOrig() 處理.
+   ///   - order.Initiator() 不存在 透過 RunReportInCore_InitiatorNew() 處理.
+   /// - this = 刪改查回報
+   ///   - 檢查是否重複
+   ///     - 使用 RunReportInCore_IsBfAfMatch()、RunReportInCore_IsExgTimeMatch()
+   ///     - 及 ExgTime, RxKind...
+   ///   - 如果有重複: this->RunReportInCore_FromOrig();
+   ///   - 如果沒重複: this->RunReportInCore_DCQ();
+   virtual void RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder& order);
+
+   /// RunReportInCore_Start() 的過程:
+   /// 回報找不到「原始下單要求」, 也找不到「原始委託」, 預設:
+   /// - 用 this->Creator().OrderFactory_ 建立新委託.
+   /// - 用 RunReportInCore_NewOrder(runner) 處理.
+   virtual void RunReportInCore_OrderNotFound(OmsReportChecker&& checker, OmsOrdNoMap& ordnoMap);
+
+   /// 在 RunReportInCore_OrderNotFound() 時,
+   /// 透過 factory 建立了新單要求, 透過這裡處理後續回報.
+   /// - this = 新單回報: this->RunReportInCore_InitiatorNew(std::move(runner));
+   /// - this = 刪改查回報: this->RunReportInCore_DCQ(std::move(runner), *this);
+   virtual void RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner);
 };
 
 } // namespaces

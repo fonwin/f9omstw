@@ -102,6 +102,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsPoUserRightsAgent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsReportFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsReportRunner.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsReportTools.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestTrade.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsRequestFactory.hpp" />
@@ -117,6 +118,8 @@
     <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsToolsC.h" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgr.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTreeSvctSet.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTypes.hpp" />
@@ -146,6 +149,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRights.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoUserRightsAgent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsReportRunner.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsReportTools.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestTrade.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestBase.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsRequestFactory.cpp" />
@@ -161,6 +165,8 @@
     <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c" />
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgr.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -168,9 +174,6 @@
     <None Include="..\..\..\ReportIn.md" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj">
-      <Project>{0e13a033-3aa4-4f1e-8f1d-5bf74123cccd}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
       <Project>{6b9031a7-02e1-4171-8ca5-9f780be21806}</Project>
     </ProjectReference>

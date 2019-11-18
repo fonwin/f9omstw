@@ -43,7 +43,7 @@ void OmsRequestRunnerInCore::Update(f9fmkt_TradingRequestSt reqst) {
       if (this->OrderRaw_.UpdateOrderSt_ < static_cast<f9fmkt_OrderSt>(reqst)
           && reqst < f9fmkt_TradingRequestSt_Restated) {
          this->OrderRaw_.UpdateOrderSt_ = static_cast<f9fmkt_OrderSt>(reqst);
-         if (f9fmkt_TradingRequestSt_IsRejected(reqst))
+         if (f9fmkt_TradingRequestSt_IsFinishedRejected(reqst))
             this->OrderRaw_.OnOrderReject();
       }
    }

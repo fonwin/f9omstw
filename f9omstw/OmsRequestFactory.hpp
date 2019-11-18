@@ -20,7 +20,9 @@ class OmsRequestFactory : public fon9::seed::Tab {
 
 public:
    /// 如果 this 建立的 request 屬於 OmsRequestIni 或 回報(包含成交回報),
-   /// 則必須提供此類 request, 對應的 OrderFactory;
+   /// 則必須提供此類 request 對應的 OrderFactory;
+   /// - (this->OrderFactory_ && this->RunStep_):  this = 可建立 Initiator 的 factory;
+   /// - (this->OrderFactory_ && !this->RunStep_): this = Report 用的 factory;
    const OmsOrderFactorySP    OrderFactory_;
    const OmsRequestRunStepSP  RunStep_;
 
@@ -49,7 +51,7 @@ public:
    }
 
    /// 預設傳回 nullptr, 表示此 factory 不支援回報.
-   virtual OmsRequestSP MakeReportIn(f9fmkt_RxKind reqKind, fon9::TimeStamp now = fon9::UtcNow()) {
+   OmsRequestSP MakeReportIn(f9fmkt_RxKind reqKind, fon9::TimeStamp now) {
       OmsRequestSP retval = this->MakeReportInImpl(reqKind);
       if (retval)
          retval->Initialize(*this, now);
@@ -57,10 +59,29 @@ public:
    }
 };
 
-template <class RequestBaseT, unsigned kPoolObjCount>
-class OmsRequestFactoryT : public OmsRequestFactory {
-   fon9_NON_COPY_NON_MOVE(OmsRequestFactoryT);
+template <class RequestBaseT>
+class OmsRequestFactoryBaseT : public OmsRequestFactory {
+   fon9_NON_COPY_NON_MOVE(OmsRequestFactoryBaseT);
    using base = OmsRequestFactory;
+
+protected:
+   OmsRequestSP MakeRequestImpl() override {
+      return new RequestBaseT;
+   }
+
+public:
+   OmsRequestFactoryBaseT(std::string name, OmsRequestRunStepSP runStepList)
+      : base(std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<RequestBaseT>()) {
+   }
+   OmsRequestFactoryBaseT(std::string name, OmsOrderFactorySP ordFactory, OmsRequestRunStepSP runStepList)
+      : base(std::move(ordFactory), std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<RequestBaseT>()) {
+   }
+};
+
+template <class RequestBaseT, unsigned kPoolObjCount>
+class OmsRequestFactoryT : public OmsRequestFactoryBaseT<RequestBaseT> {
+   fon9_NON_COPY_NON_MOVE(OmsRequestFactoryT);
+   using base = OmsRequestFactoryBaseT<RequestBaseT>;
 
 protected:
    using RequestSupplier = fon9::ObjSupplier<RequestBaseT, kPoolObjCount>;
@@ -70,12 +91,16 @@ protected:
    }
 
 public:
-   OmsRequestFactoryT(std::string name, OmsRequestRunStepSP runStepList)
-      : base(std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<RequestBaseT>()) {
-   }
-   OmsRequestFactoryT(std::string name, OmsOrderFactorySP ordFactory, OmsRequestRunStepSP runStepList)
-      : base(std::move(ordFactory), std::move(runStepList), fon9::Named(std::move(name)), MakeFieldsT<RequestBaseT>()) {
-   }
+   using base::base;
+};
+
+template <class RequestBaseT>
+class OmsRequestFactoryT<RequestBaseT, 0> : public OmsRequestFactoryBaseT<RequestBaseT> {
+   fon9_NON_COPY_NON_MOVE(OmsRequestFactoryT);
+   using base = OmsRequestFactoryBaseT<RequestBaseT>;
+
+public:
+   using base::base;
 };
 
 } // namespaces

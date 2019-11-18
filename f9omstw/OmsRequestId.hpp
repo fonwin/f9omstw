@@ -20,6 +20,9 @@ struct OmsRequestId {
       memset(this, 0, sizeof(*this));
    }
 };
+inline bool OmsIsReqUIDEmpty(const OmsRequestId& id) {
+   return id.ReqUID_.empty1st();
+}
 
 class OmsReqUID_Builder {
    // [buffer.LocalHostId--------]  '-' = '\0'
@@ -34,7 +37,7 @@ public:
       return this->Buffer_ + sizeof(this->Buffer_) - sizeof(OmsRequestId);
    }
 
-   /// 此時若 req.ReqUID_.empty1st(); 則會編製 req.ReqUID_;
+   /// 此時若 OmsIsReqUIDEmpty(req); 則會編製 req.ReqUID_;
    void MakeReqUID(OmsRequestId& req, OmsRxSNO sno);
 
    /// 從 reqId 解析出 OmsRxSNO;

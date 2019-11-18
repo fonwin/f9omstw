@@ -106,7 +106,7 @@
   * 如果 AfterQty==0 則應為 UserCanceled, 此時應等遺漏的「在途成交 or 其他改量」, 等滿足 BeforeQty 之後再處理.
 * OrderSt 的因應之道
   * 正常: 新單10:Accepted => 成交1:PartFilled => 減量6(Bf=9,Af=3):PartFilled => 成交3:FullFilled
-  * 亂序: 新單10:Accepted => 成交1:PartFilled => 成交3:PartFilled => 減量6(Bf=9,Af=3):PartCanceled
+  * 亂序: 新單10:Accepted => 成交1:PartFilled => 成交3:PartFilled => 減量6(Bf=9,Af=3):AsCanceled
 
 ### 過時的回報(stale)
 * 多次改價, 只需保留最後一次的結果, 例如:
@@ -128,7 +128,7 @@
   * (委託不存在的「刪、改、查、成交」回報) 或 (證券且尚未收到交易所新單回報).
 * 無法結單:
   * 刪改結果 AfterQty==0, 但刪減數量不足以使 Order.LeavesQty==0,
-    此時應等遺漏的「在途成交 or 其他改量」, 等滿足 BeforeQty 時再處理: OrderSt_UserCanceled.
+    此時應等遺漏的「在途成交 or 其他改量」, 等滿足 BeforeQty 時再處理: OrderSt_Canceled.
   * 刪改失敗(剩餘量為0), 但此時 Order.LeavesQty != 0,
     此時應等遺漏的「在途成交 or 其他改量」, 等 Order.LeavesQty==0 時再處理: RequestSt_ExchangeRejected.
 

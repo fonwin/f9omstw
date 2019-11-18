@@ -1,7 +1,7 @@
 ﻿// \file f9omstw/OmsLogAnalyser.cpp
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9utws/UnitTestCore.hpp"
+#include "f9utw/UnitTestCore.hpp"
 //--------------------------------------------------------------------------//
 struct AnItem {
    const f9omstw::OmsRequestTrade* Request_;
@@ -51,7 +51,7 @@ struct AnalyticCounter {
             ++this->CountSending_;
          else if (ord->RequestSt_ == f9fmkt_TradingRequestSt_Queuing)
             ++this->CountQueuing_;
-         else if (f9fmkt_TradingRequestSt_IsRejected(ord->RequestSt_))
+         else if (f9fmkt_TradingRequestSt_IsFinishedRejected(ord->RequestSt_))
             ++this->CountRejected_;
       }
       this->Items_.emplace_back(req, ord);
@@ -238,17 +238,33 @@ int main(int argc, char* argv[]) {
       }
    };
    OmsCoreMgrSP         coreMgr{new f9omstw::OmsCoreMgr{nullptr}};
-   OmsTwsOrderFactory*  ordfac = new OmsTwsOrderFactory;
+   OmsTwsOrderFactory*  twsOrdFactory = new OmsTwsOrderFactory("TwsOrd");
+   OmsTwfOrder1Factory* twfOrd1Factory = new OmsTwfOrder1Factory("TwfOrd");
+   OmsTwfOrder7Factory* twfOrd7Factory = new OmsTwfOrder7Factory("TwfOrdQR");
+   OmsTwfOrder9Factory* twfOrd9Factory = new OmsTwfOrder9Factory("TwfOrdQ");
    coreMgr->SetOrderFactoryPark(new f9omstw::OmsOrderFactoryPark(
-      ordfac
+      twsOrdFactory, twfOrd1Factory, twfOrd9Factory, twfOrd7Factory
    ));
    f9omstw::OmsRequestFactoryPark* facpark;
    coreMgr->SetRequestFactoryPark(facpark = new f9omstw::OmsRequestFactoryPark(
-      new FactoryWithCounter<OmsTwsRequestIniFactory>("TwsNew", ordfac, nullptr),
+      new FactoryWithCounter<OmsTwsRequestIniFactory>("TwsNew", twsOrdFactory, nullptr),
       new FactoryWithCounter<OmsTwsRequestChgFactory>("TwsChg", nullptr),
-      new OmsTwsFilledFactory("TwsFil", ordfac),
-      new OmsTwsReportFactory("TwsRpt", ordfac)
-   ));
+      new OmsTwsFilledFactory("TwsFil", twsOrdFactory),
+      new OmsTwsReportFactory("TwsRpt", twsOrdFactory),
+
+      new FactoryWithCounter<OmsTwfRequestIni1Factory>("TwfNew", twfOrd1Factory, nullptr),
+      new FactoryWithCounter<OmsTwfRequestChg1Factory>("TwfChg", nullptr),
+      new OmsTwfFilled1Factory("TwfFil", twfOrd1Factory, twfOrd9Factory),
+      new OmsTwfFilled2Factory("TwfFil2", twfOrd1Factory),
+      new OmsTwfReport2Factory("TwfRpt", twfOrd1Factory),
+
+      new FactoryWithCounter<OmsTwfRequestIni9Factory>("TwfNewQ", twfOrd9Factory, nullptr),
+      new FactoryWithCounter<OmsTwfRequestChg9Factory>("TwfChgQ", nullptr),
+      new OmsTwfReport9Factory("TwfRptQ", twfOrd9Factory),
+
+      new FactoryWithCounter<OmsTwfRequestIni7Factory>("TwfNewQR", twfOrd7Factory, nullptr),
+      new OmsTwfReport8Factory("TwfRptQR", twfOrd7Factory)
+      ));
    coreMgr->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark(
    ));
    // ------------------------------------------------------------------------
@@ -266,6 +282,8 @@ int main(int argc, char* argv[]) {
          // 建立委託書號表的關聯.
          this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwSEC);
          this->Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
+         this->Brks_->InitializeTwfOrdNoMap(f9fmkt_TradingMarket_TwFUT);
+         this->Brks_->InitializeTwfOrdNoMap(f9fmkt_TradingMarket_TwOPT);
       }
       ~OmsCore() {
          this->Brks_->InThr_OnParentSeedClear();

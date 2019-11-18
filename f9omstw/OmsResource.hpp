@@ -87,9 +87,14 @@ inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
 
 template <class SymbId>
 inline fon9::fmkt::Symb* OmsOrder::GetSymb(OmsResource& res, const SymbId& symbid) {
-   if (!this->ScResource_.Symb_)
-      this->ScResource_.Symb_ = res.Symbs_->GetSymb(ToStrView(symbid));
-   return this->ScResource_.Symb_.get();
+   if (fon9::fmkt::Symb* retval = this->ScResource_.Symb_.get())
+      return retval;
+   return (this->ScResource_.Symb_ = this->FindSymb(res, ToStrView(symbid))).get();
+}
+inline fon9::fmkt::Symb* OmsOrder::GetSymb(OmsResource& res, const fon9::StrView& symbid) {
+   if (fon9::fmkt::Symb* retval = this->ScResource_.Symb_.get())
+      return retval;
+   return (this->ScResource_.Symb_ = this->FindSymb(res, symbid)).get();
 }
 
 inline OmsIvBaseSP GetIvr(OmsResource& res, const OmsRequestIni& inireq) {

@@ -74,22 +74,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj">
-      <Project>{0e13a033-3aa4-4f1e-8f1d-5bf74123cccd}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
-      <Project>{6b9031a7-02e1-4171-8ca5-9f780be21806}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\libf9omsrc\libf9omsrc.vcxproj">
       <Project>{c8a7d05e-e4a0-40e4-9343-fb3366d84ce3}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\libf9omstws\libf9omstws.vcxproj">
-      <Project>{0e4240bd-7908-4238-9dd7-e9029dca47fa}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
-      <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\libf9utws\libf9utws.vcxproj">
+    <ProjectReference Include="..\libf9utw\libf9utw.vcxproj">
       <Project>{44cf3194-49b5-4061-acb1-6a566339a82b}</Project>
     </ProjectReference>
   </ItemGroup>

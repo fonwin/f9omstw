@@ -3,9 +3,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
-#include "f9utws/UtwsBrk.hpp"
-#include "f9utws/UtwsIvac.hpp"
-#include "f9utws/UtwsSubac.hpp"
+#include "f9utw/UtwsBrk.hpp"
+#include "f9utw/UtwsIvac.hpp"
+#include "f9utw/UtwsSubac.hpp"
 #include "fon9/TestTools.hpp"
 
 fon9_WARN_DISABLE_PADDING;

@@ -62,7 +62,7 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
    }
    return this->Reject(runner, OmsErrCode_OrdTeamUsedUp);
 }
-bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo req) {
+bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo reqOrdNo) {
    OmsOrdTeamGroupId tgId;
    if (const auto* reqPolicy = runner.OrderRaw_.Order().Initiator()->Policy()) {
       if ((tgId = reqPolicy->OrdTeamGroupId()) != 0)
@@ -72,23 +72,23 @@ __ERROR_OrdTeamGroupId:
    return this->Reject(runner, OmsErrCode_OrdTeamGroupId);
 
 __READY_GroupId:
-   if (req.empty1st())
+   if (OmsIsOrdNoEmpty(reqOrdNo))
       return this->AllocOrdNo(runner, tgId);
    auto tgCfg = runner.Resource_.OrdTeamGroupMgr_.GetTeamGroupCfg(tgId);
    if (fon9_UNLIKELY(tgCfg == nullptr))
       goto __ERROR_OrdTeamGroupId;
    if (!tgCfg->IsAllowAnyOrdNo_)
       return this->Reject(runner, OmsErrCode_OrdNoMustEmpty);
-   const char* peos = reinterpret_cast<const char*>(memchr(req.begin(), '\0', req.size()));
+   const char* peos = reinterpret_cast<const char*>(memchr(reqOrdNo.begin(), '\0', reqOrdNo.size()));
    if (peos == nullptr) { // req = 完整委託書號.
-      auto ires = this->emplace(fon9::StrView{req.begin(), req.end()}, &runner.OrderRaw_.Order());
+      auto ires = this->emplace(fon9::StrView{reqOrdNo.begin(), reqOrdNo.end()}, &runner.OrderRaw_.Order());
       if (ires.second) {  // 成功將 order 設定在指定的委託書號.
-         runner.OrderRaw_.OrdNo_ = req;
+         runner.OrderRaw_.OrdNo_ = reqOrdNo;
          return true;
       }
       return this->Reject(runner, OmsErrCode_OrderAlreadyExists);
    }
-   if (this->AllocByTeam(runner, OmsOrdTeam{req.begin(), static_cast<uint8_t>(peos - req.begin())}))
+   if (this->AllocByTeam(runner, OmsOrdTeam{reqOrdNo.begin(), static_cast<uint8_t>(peos - reqOrdNo.begin())}))
       return true;
    return this->Reject(runner, OmsErrCode_OrdNoOverflow);
 }
@@ -100,7 +100,7 @@ bool OmsOrdNoMap::Reject(OmsRequestRunnerInCore& runner, OmsErrCode errc) {
 }
 
 bool OmsOrdNoMap::EmplaceOrder(OmsOrdNo ordno, OmsOrder* order) {
-   assert(!ordno.empty1st() && order != nullptr);
+   assert(!OmsIsOrdNoEmpty(ordno) && order != nullptr);
    const auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, order);
    return(ires.second || order == ires.first->value());
 }

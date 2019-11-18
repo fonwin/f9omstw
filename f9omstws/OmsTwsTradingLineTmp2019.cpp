@@ -18,7 +18,7 @@ TwsTradingLineTmpFactory2019::TwsTradingLineTmpFactory2019(
    , TwsTradingLineFactoryBase(coreMgr, rptFactory, filFactory) {
 }
 fon9::TimeStamp TwsTradingLineTmpFactory2019::GetTDay() {
-   return this->GetCoreTDay();
+   return this->CoreMgr_.CurrentCoreTDay();
 }
 fon9::io::SessionSP TwsTradingLineTmpFactory2019::CreateLineTmp(
                         f9tws::ExgTradingLineMgr&    lineMgr,
@@ -157,10 +157,10 @@ void TwsTradingLineTmp2019::OnExgTmp_ApPacket(const f9tws::ExgTmpHead& pktmp, un
    if (this->SendingSNO_ == 0)
       return;
    OmsRequestRunner runner{fon9::StrView{reinterpret_cast<const char*>(&pktmp), pksz}};
-   runner.Request_ = this->RptFactory_.MakeReportIn(f9fmkt_RxKind_Unknown);
+   runner.Request_ = this->RptFactory_.MakeReportIn(f9fmkt_RxKind_Unknown, this->LastRxTime());
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
-   OmsAssignReportReqUID(rpt, this->SendingSNO_);
+   OmsForceAssignReportReqUID(rpt, this->SendingSNO_);
    if (fon9_LIKELY(isRptOK)) {
       rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeAccepted);
       if (fon9_UNLIKELY(this->LineArgs_.ApCode_ == f9tws::TwsApCode::OddLot))

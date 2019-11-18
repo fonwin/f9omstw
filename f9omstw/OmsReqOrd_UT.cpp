@@ -4,7 +4,7 @@
 //
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9utws/UnitTestCore.hpp"
+#include "f9utw/UnitTestCore.hpp"
 //--------------------------------------------------------------------------//
 void TestCase(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP policy, fon9::StrView reqstr) {
    auto req = MakeOmsRequestRunner(core.Owner_->RequestFactoryPark(), reqstr);

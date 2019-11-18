@@ -16,6 +16,8 @@ del *.log
 %EXEDIR%\OmsRequestTrade_UT
 
 %EXEDIR%\OmsReport_UT -r
+%EXEDIR%\OmsTwfReport_UT -r
+%EXEDIR%\OmsTwfReportQuote_UT -r
 
 @REM -----------------------
 %EXEDIR%\OmsReqOrd_UT -o OmsReqOrd_UT.log -f 0

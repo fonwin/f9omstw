@@ -12,11 +12,5 @@ TwsTradingLineBase::TwsTradingLineBase(const f9tws::ExgLineArgs& lineargs)
                         lineargs.BrkId_,
                         lineargs.SocketId_)} {
 }
-//--------------------------------------------------------------------------//
-fon9::TimeStamp TwsTradingLineFactoryBase::GetCoreTDay() const {
-   if (auto core = this->CoreMgr_.CurrentCore())
-      return core->TDay();
-   return fon9::TimeStamp{};
-}
 
 } // namespaces

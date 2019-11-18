@@ -14,7 +14,9 @@ OmsOrder::~OmsOrder() {
 void OmsOrder::FreeThis() {
    delete this;
 }
-
+fon9::fmkt::SymbSP OmsOrder::FindSymb(OmsResource& res, const fon9::StrView& symbid) {
+   return res.Symbs_->GetSymb(symbid);
+}
 OmsBrk* OmsOrder::GetBrk(OmsResource& res) const {
    if (auto* ivr = this->ScResource_.Ivr_.get())
       return f9omstw::GetBrk(ivr);

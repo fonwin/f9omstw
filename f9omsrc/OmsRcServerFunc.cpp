@@ -461,5 +461,5 @@ static bool OmsRcServerAgent_Start(fon9::seed::PluginsHolder& holder, fon9::StrV
 }
 
 extern "C" fon9::seed::PluginsDesc f9p_OmsRcServerAgent;
-static fon9::seed::PluginsPark f9p_NamedIoManager_reg{"OmsRcServerAgent", &f9p_OmsRcServerAgent};
+static fon9::seed::PluginsPark f9pAutoPluginsReg{"OmsRcServerAgent", &f9p_OmsRcServerAgent};
 fon9::seed::PluginsDesc f9p_OmsRcServerAgent{"", &OmsRcServerAgent_Start, nullptr, nullptr,};

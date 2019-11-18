@@ -37,7 +37,7 @@ libf9omstw: 台灣環境的委託管理系統.
       |-- f9omsrc/      使用 fon9 rc protocol 的「client 端 C API」及「server 端: RcServerAgent, RcServerNote」
       |   \-- forms/    API 表單 Layout 設定範例.
       |
-      |-- f9utws/       台灣證券市場 OMS 範例程式.
+      |-- f9utw/        台「證券、期貨」市場 OMS 範例程式.
       |
       \-- build/
           |-- cmake/    build shell for cmake

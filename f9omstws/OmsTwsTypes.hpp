@@ -34,7 +34,7 @@ union OmsTwsQtyBS {
    }
 };
 
-fon9_MSC_WARN_DISABLE(4582); // 'f9oms960T::AmtBS::AmtBS_': constructor is not implicitly called
+fon9_MSC_WARN_DISABLE(4582); // constructor is not implicitly called
 union OmsTwsAmtBS {
    struct {
       OmsTwsAmt   Buy_;

@@ -3,7 +3,6 @@
 #include "f9omstws/OmsTwsSenderStepLg.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsReportRunner.hpp"
-#include "f9omstws/OmsTwsTradingLineMgrCfg.hpp"
 #include "fon9/ConfigFileBinder.hpp"
 #include "fon9/FilePath.hpp"
 
@@ -92,13 +91,13 @@ TwsTradingLineMgrLgSP TwsTradingLineMgrLg::Plant(OmsCoreMgr&                core
 
          fon9::seed::MaTree& mgrTree = *static_cast<fon9::seed::MaTree*>(lgMgr->Sapling_.get());
          argsIoTse.Name_.assign(lgMgr->Name_ + "_TSE");
-         lgMgr->TseTradingLineMgr_ = CreateTradingLineMgr(mgrTree, cfgpath, argsIoTse, f9fmkt_TradingMarket_TwSEC);
+         lgMgr->TseTradingLineMgr_ = CreateTwsTradingLineMgr(mgrTree, cfgpath, argsIoTse, f9fmkt_TradingMarket_TwSEC);
          argsIoTse.IoServiceSrc_ = lgMgr->TseTradingLineMgr_;
 
          argsIoOtc.Name_.assign(lgMgr->Name_ + "_OTC");
          if (argsIoOtc.IoServiceCfgstr_ == "IoTse")
             argsIoOtc.IoServiceSrc_ = argsIoTse.IoServiceSrc_;
-         lgMgr->OtcTradingLineMgr_ = CreateTradingLineMgr(mgrTree, cfgpath, argsIoOtc, f9fmkt_TradingMarket_TwOTC);
+         lgMgr->OtcTradingLineMgr_ = CreateTwsTradingLineMgr(mgrTree, cfgpath, argsIoOtc, f9fmkt_TradingMarket_TwOTC);
          argsIoOtc.IoServiceSrc_ = lgMgr->OtcTradingLineMgr_;
 
          retval->LgMgrs_[idx] = std::move(lgMgr);

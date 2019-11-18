@@ -205,6 +205,21 @@ public:
    }
 
    OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override;
+
+   template <class RequestUpdT, class OmsRequestRunnerT>
+   static bool RequestUpd_AutoRxKind(RequestUpdT& req, OmsRequestRunnerT& runner) {
+      if (fon9_LIKELY(req.RxKind_ != f9fmkt_RxKind_Unknown))
+         return true;
+      if (req.PriType_ == f9fmkt_PriType{} && req.Pri_.IsNull())
+         req.RxKind_ = (req.Qty_ == 0 ? f9fmkt_RxKind_RequestDelete : f9fmkt_RxKind_RequestChgQty);
+      else if (req.Qty_ == 0)
+         req.RxKind_ = f9fmkt_RxKind_RequestChgPri;
+      else { // 不能同時「改價 & 改量」.
+         runner.RequestAbandon(nullptr, OmsErrCode_Bad_RxKind);
+         return false;
+      }
+      return true;
+   }
 };
 
 } // namespaces

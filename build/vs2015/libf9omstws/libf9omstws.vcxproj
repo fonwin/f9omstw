@@ -85,7 +85,6 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFix.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineFixSend.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.cpp" />
-    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineMgrCfg.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineTmp2019.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTypes.cpp" />
   </ItemGroup>
@@ -102,9 +101,13 @@
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineBase.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineFix.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgr.hpp" />
-    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineMgrCfg.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineTmp2019.hpp" />
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTypes.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9tws\libf9tws.vcxproj">
+      <Project>{0e13a033-3aa4-4f1e-8f1d-5bf74123cccd}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -35,8 +35,8 @@ OmsOrdNoMap* OmsReportChecker::GetOrdNoMap() {
 const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
    OmsRequestBase& rpt = *this->Report_;
    OmsRxSNO        sno;
-   if (fon9_UNLIKELY(memcmp(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ReportReqUID, sizeof(f9omstw_kCSTR_ReportReqUID)) == 0)) {
-      memcpy(&sno, rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ReportReqUID), sizeof(sno));
+   if (fon9_UNLIKELY(memcmp(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqUID, sizeof(f9omstw_kCSTR_ForceReportReqUID)) == 0)) {
+      memcpy(&sno, rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqUID), sizeof(sno));
       return this->Resource_.GetRequest(sno);
    }
    sno = this->Resource_.ParseRequestId(rpt);
@@ -62,8 +62,8 @@ const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
          // - 返回後, 由呼叫端繼續處理.
          return origReq;
       }
-      if (!origOrdNo.empty1st()) {
-         if (!rpt.OrdNo_.empty1st()) {
+      if (!OmsIsOrdNoEmpty(origOrdNo)) {
+         if (!OmsIsOrdNoEmpty(rpt.OrdNo_)) {
             // ReqUID 找到的 orig 與 rpt 都有編委託書號, 但卻不同.
             // => 此處的 orig 不屬於此筆 rpt.
             // => 應是 ReqUID 編者有問題!!
@@ -121,6 +121,9 @@ OmsReportRunnerInCore::~OmsReportRunnerInCore() {
          return;
       this->OrderRaw_.UpdateOrderSt_ = this->OrderRaw_.Order().LastOrderSt();
    }
+   if (this->OrderRaw_.RequestSt_ == f9fmkt_TradingRequestSt_PartExchangeRejected)
+      // 雙邊單須等到完整回報(f9fmkt_TradingRequestSt_ExchangeRejected)時, 才重送.
+      return;
    // 在這裡處理 ErrCodeAct: Rerun.
    // - 如果是新單失敗: 在此時 LeavesQty 可能為 0.
    //   在 RerunRequest() 時:
@@ -136,6 +139,14 @@ OmsReportRunnerInCore::~OmsReportRunnerInCore() {
       if (this->HasDeleteRequest_)
          return;
    }
+
+   if (0); // 如果是斷線後的回補回報, 是否還有需要 Rerun 呢?
+   // - 此時 TradingLine 可能尚未回補完畢, 尚未進入 ApReady.
+   // - 斷線後到重新連線回補, 中間可能已做過其他處置.
+   // - 有回補功能的連線都會面臨此問題:
+   //   - 證券的 FIX Session;
+   //   - 期貨的 TMP Session;
+
    const auto reqst = this->OrderRaw_.RequestSt_;
    step->RerunRequest(std::move(*this));
    if (reqst != this->OrderRaw_.RequestSt_) {
@@ -155,6 +166,17 @@ void OmsReportRunnerInCore::CalcRequestRunTimes() {
          this->HasDeleteRequest_ = true;
       ordraw = ordraw->Next();
    }
+}
+void OmsReportRunnerInCore::UpdateReportImpl(OmsRequestBase& rpt) {
+   if (&this->OrderRaw_.Request() != &rpt) {
+      if (IsEnumContains(rpt.RequestFlags(), OmsRequestFlag_ReportNeedsLog)) {
+         fon9::RevPrint(this->ExLogForUpd_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+         rpt.RevPrint(this->ExLogForUpd_);
+      }
+   }
+   if (this->OrderRaw_.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale)
+      this->OrderRaw_.Message_.append("(stale)");
+   this->Update(this->OrderRaw_.RequestSt_);
 }
 //--------------------------------------------------------------------------//
 static bool CheckSrc(fon9::StrView cfg, const OmsRequestTrade* req) {

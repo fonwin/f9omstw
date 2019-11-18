@@ -13,7 +13,7 @@
 //
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
-#include "f9utws/UnitTestCore.hpp"
+#include "f9utw/UnitTestCore.hpp"
 #include "f9omsrc/OmsRcServerFunc.hpp"
 #include "f9omsrc/OmsRcClient.hpp"
 #include "f9omstw/OmsPoIvListAgent.hpp"
@@ -69,19 +69,35 @@ int main(int argc, char* argv[]) {
       SetConsoleOutputCP(CP_UTF8);
       // setvbuf(stdout, nullptr, _IOFBF, 10000); // for std::cout + UTF8;
    #endif
-   fon9::AutoPrintTestInfo utinfo{"OmsRcServer"};
+   fon9::AutoPrintTestInfo utinfo{"OmsRcAgent"};
    //---------------------------------------------
    auto  core = TestCore::MakeCoreMgr(argc, argv);
    auto  coreMgr = core->Owner_;
-   auto  ordfac = coreMgr->OrderFactoryPark().GetFactory("TwsOrd");
+   auto  twsOrdFac = coreMgr->OrderFactoryPark().GetFactory("TwsOrd");
+   auto  twfOrd1Fac = coreMgr->OrderFactoryPark().GetFactory("TwfOrd");
+   auto  twfOrd7Fac = coreMgr->OrderFactoryPark().GetFactory("TwfOrdQR");
+   auto  twfOrd9Fac = coreMgr->OrderFactoryPark().GetFactory("TwfOrdQ");
    coreMgr->SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
-      new OmsTwsRequestIniFactory("TwsNew", ordfac,
+      new OmsTwsRequestIniFactory("TwsNew", twsOrdFac,
                                   f9omstw::OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
                                      f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender})}),
       new OmsTwsRequestChgFactory("TwsChg", f9omstw::OmsRequestRunStepSP{new UomsTwsExgSender}),
-      new OmsTwsFilledFactory("TwsFil", ordfac),
-      new OmsTwsReportFactory("TwsRpt", ordfac)
-   ));
+      new OmsTwsFilledFactory("TwsFil", twsOrdFac),
+      new OmsTwsReportFactory("TwsRpt", twsOrdFac),
+
+      new OmsTwfRequestIni1Factory("TwfNew", twfOrd1Fac, f9omstw::OmsRequestRunStepSP{new UomsTwfExgSender}),
+      new OmsTwfRequestChg1Factory("TwfChg", f9omstw::OmsRequestRunStepSP{new UomsTwfExgSender}),
+      new OmsTwfFilled1Factory("TwfFil", twfOrd1Fac, twfOrd9Fac),
+      new OmsTwfFilled2Factory("TwfFil2", twfOrd1Fac),
+      new OmsTwfReport2Factory("TwfRpt", twfOrd1Fac),
+
+      new OmsTwfRequestIni9Factory("TwfNewQ", twfOrd9Fac, f9omstw::OmsRequestRunStepSP{new UomsTwfExgSender}),
+      new OmsTwfRequestChg9Factory("TwfChgQ", f9omstw::OmsRequestRunStepSP{new UomsTwfExgSender}),
+      new OmsTwfReport9Factory("TwfRptQ", twfOrd9Fac),
+
+      new OmsTwfRequestIni7Factory("TwfNewQR", twfOrd7Fac, f9omstw::OmsRequestRunStepSP{new UomsTwfExgSender}),
+      new OmsTwfReport8Factory("TwfRptQR", twfOrd7Fac)
+      ));
    const std::string fnDefault = "OmsRcServer.log";
    core->OpenReload(argc, argv, fnDefault);
    std::this_thread::sleep_for(std::chrono::milliseconds{100});

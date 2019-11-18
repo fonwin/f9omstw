@@ -79,6 +79,12 @@ public:
       ConstLocker locker{this->Container_};
       return this->CurrentCore_;
    }
+   fon9::TimeStamp CurrentCoreTDay() const {
+      ConstLocker locker{this->Container_};
+      if (this->CurrentCore_)
+         return this->CurrentCore_->TDay();
+      return fon9::TimeStamp{};
+   }
 
    void SetRequestFactoryPark(OmsRequestFactoryParkSP&& facPark) {
       assert(this->RequestFactoryPark_.get() == nullptr);

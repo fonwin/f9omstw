@@ -24,10 +24,18 @@ class OmsOrdNoMap;
 using OmsOrdNoMapSP = fon9::intrusive_ptr<OmsOrdNoMap>;
 using OmsOrdTeamGroupId = uint32_t;
 class OmsOrdTeamGroupCfg;
+
 /// 台灣證券券商代號 4 碼, 台灣期貨商代號 7 碼.
 using OmsBrkId = fon9::CharAryL<7>;
+inline bool OmsIsBrkIdEmpty(const OmsBrkId& brkId) {
+   return brkId.empty();
+}
+
 /// 台灣證券、期權, 委託書號 5 碼.
 using OmsOrdNo = fon9::CharAryF<5>;
+inline bool OmsIsOrdNoEmpty(const OmsOrdNo& ordNo) {
+   return ordNo.empty1st();
+}
 
 class OmsIvBase;
 using OmsIvBaseSP = fon9::intrusive_ptr<OmsIvBase>;
@@ -81,6 +89,18 @@ using OmsErrCodeActSP = fon9::intrusive_ptr<const OmsErrCodeAct>;
 
 class OmsEventFactory;
 using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
+
+//--------------------------------------------------------------------------//
+
+template <class T>
+inline auto OmsIsSymbolEmpty(const T& symbid) -> decltype(symbid.empty()) {
+   return symbid.empty();
+}
+
+template <size_t arysz, typename CharT, CharT kChFiller>
+inline bool OmsIsSymbolEmpty(const fon9::CharAry<arysz, CharT, kChFiller>& symbid) {
+   return symbid.empty1st();
+}
 
 //--------------------------------------------------------------------------//
 

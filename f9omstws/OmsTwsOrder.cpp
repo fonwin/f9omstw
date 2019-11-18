@@ -29,7 +29,7 @@ void OmsTwsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    OmsTwsOrderRawDat::ContinuePrevUpdate(*static_cast<const OmsTwsOrderRaw*>(&prev));
 }
 void OmsTwsOrderRaw::OnOrderReject() {
-   assert(f9fmkt_OrderSt_IsRejected(this->UpdateOrderSt_));
+   assert(f9fmkt_OrderSt_IsFinishedRejected(this->UpdateOrderSt_));
    this->AfterQty_ = 0;
    this->LeavesQty_ = 0;
 }

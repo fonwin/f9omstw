@@ -50,7 +50,7 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
             this->Owner_->FnSetRequestLgOut_(*this, *static_cast<OmsRequestTrade*>(runner.Request_.get()), ordraw->Order());
          }
          OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
-         if (ordraw->OrdNo_.empty1st() && *(ordraw->Request().OrdNo_.end() - 1) != '\0') {
+         if (OmsIsOrdNoEmpty(ordraw->OrdNo_) && *(ordraw->Request().OrdNo_.end() - 1) != '\0') {
             assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
             // 新單委託還沒填委託書號, 但下單要求有填委託書號.
             // => 執行下單步驟前, 應先設定委託書號對照.

@@ -55,21 +55,9 @@ void OmsTwsRequestChg::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwsRequestChg, Pri));
 }
 bool OmsTwsRequestChg::ValidateInUser(OmsRequestRunner& reqRunner) {
-   if (fon9_UNLIKELY(this->RxKind_ == f9fmkt_RxKind_Unknown)) {
-      if (this->Qty_ == 0) {
-         if (this->PriType_ == f9fmkt_PriType{} && this->Pri_.IsNull())
-            this->RxKind_ = f9fmkt_RxKind_RequestDelete;
-         else
-            this->RxKind_ = f9fmkt_RxKind_RequestChgPri;
-      }
-      else {
-         if (this->PriType_ == f9fmkt_PriType{} && this->Pri_.IsNull())
-            this->RxKind_ = f9fmkt_RxKind_RequestChgQty;
-         else // 不能同時「改價 & 改量」.
-            reqRunner.RequestAbandon(nullptr, OmsErrCode_Bad_RxKind, nullptr);
-      }
-   }
-   return base::ValidateInUser(reqRunner);
+   if (fon9_LIKELY(this->RequestUpd_AutoRxKind(*this, reqRunner)))
+      return base::ValidateInUser(reqRunner);
+   return false;
 }
 
 } // namespaces

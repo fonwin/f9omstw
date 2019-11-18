@@ -58,6 +58,26 @@ void OmsBrkTree::InitializeTwsOrdNoMap(f9fmkt_TradingMarket mkt) {
       mktRec.GetSession(f9fmkt_TradingSessionId_OddLot).InitializeOrdNoMapRef(ordNoMap);
    }
 }
+
+void OmsBrkTree::InitializeTwfOrdNoMapRef(f9fmkt_TradingMarket mkt, f9fmkt_TradingMarket mktRefSource) {
+   assert(mktRefSource != f9fmkt_TradingMarket_Unknown);
+   for (OmsBrkSP& pbrk : this->BrkRecs_) {
+      OmsBrk& brk = *pbrk;
+      auto&   mktRec = brk.GetMarket(mkt);
+      auto&   mktSrc = brk.GetMarket(mktRefSource);
+      RefSameOrdNoMap(mktRec, mktSrc, f9fmkt_TradingSessionId_Normal);
+      RefSameOrdNoMap(mktRec, mktSrc, f9fmkt_TradingSessionId_AfterHour);
+   }
+}
+void OmsBrkTree::InitializeTwfOrdNoMap(f9fmkt_TradingMarket mkt) {
+   for (OmsBrkSP& pbrk : this->BrkRecs_) {
+      OmsBrk& brk = *pbrk;
+      auto&   mktRec = brk.GetMarket(mkt);
+      auto    ordNoMap = mktRec.GetSession(f9fmkt_TradingSessionId_Normal).InitializeOrdNoMap();
+      mktRec.GetSession(f9fmkt_TradingSessionId_AfterHour).InitializeOrdNoMapRef(ordNoMap);
+   }
+}
+
 OmsOrdNoMapSP OmsSessionRec::InitializeOrdNoMap() {
    assert(this->OrdNoMap_.get() == nullptr);
    this->OrdNoMap_.reset(new OmsOrdNoMap{});

@@ -77,9 +77,6 @@
     <ClCompile Include="..\..\..\f9omstw\OmsOrdNoMap_UT.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
-      <Project>{6b9031a7-02e1-4171-8ca5-9f780be21806}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\libf9omstws\libf9omstws.vcxproj">
       <Project>{0e4240bd-7908-4238-9dd7-e9029dca47fa}</Project>
     </ProjectReference>

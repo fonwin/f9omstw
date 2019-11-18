@@ -45,6 +45,8 @@ public:
    void InitializeTwsOrdNoMap(f9fmkt_TradingMarket mkt);
    /// 若上市上櫃共用委託書號表, 則可在上市初始化之後, 呼叫: InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC, f9fmkt_TradingMarket_TwSEC);
    void InitializeTwsOrdNoMapRef(f9fmkt_TradingMarket mkt, f9fmkt_TradingMarket mktRefSource);
+   void InitializeTwfOrdNoMap(f9fmkt_TradingMarket mkt);
+   void InitializeTwfOrdNoMapRef(f9fmkt_TradingMarket mkt, f9fmkt_TradingMarket mktRefSource);
 
    static int TwsBrkIndex1(fon9::StrView brkid) {
       return brkid.size() == sizeof(f9tws::BrkId) ? fon9::Alpha2Seq(*(brkid.end() - 1)) : -1;

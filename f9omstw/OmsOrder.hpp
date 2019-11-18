@@ -48,8 +48,13 @@ class OmsOrder {
 
    void ProcessPendingReport(OmsResource& res);
 
-protected:
+protected:     
    virtual ~OmsOrder();
+
+   /// - 當 this->GetSymb() 時, 若 this->ScResource_.Symb_.get() == nullptr;
+   /// - 則透過 this->ScResource_.Symb_ = this->FindSymb() 尋找商品.
+   /// - 預設: return res.Symbs_->GetSymb(symbid);
+   virtual fon9::fmkt::SymbSP FindSymb(OmsResource& res, const fon9::StrView& symbid);
 
 public:
    /// 若透過類似 ObjSupplier 的機制, 無法提供建構時參數.
@@ -86,6 +91,7 @@ public:
 
    template <class SymbId>
    fon9::fmkt::Symb* GetSymb(OmsResource& res, const SymbId& symbid);
+   fon9::fmkt::Symb* GetSymb(OmsResource& res, const fon9::StrView& symbid);
 
    /// 透過 this->Creator_->MakeOrderRawImpl() 建立委託異動資料.
    /// - 通常配合 OmsRequestRunnerInCore 建立 runner; 然後執行下單(或回報)步驟.
@@ -145,19 +151,27 @@ protected:
    const OmsOrderRaw* CastToOrder() const override;
 
 public:
-   f9fmkt_OrderSt              UpdateOrderSt_;
-   f9fmkt_TradingRequestSt     RequestSt_;
-   OmsErrCode                  ErrCode_{OmsErrCode_NoError};
-   OmsOrdNo                    OrdNo_{nullptr};
-   char                        padding___[3];
+   /// 此筆異動期望的 OrderSt, 但不一定會改變 Order::LastOrderSt();
+   f9fmkt_OrderSt          UpdateOrderSt_;
+   f9fmkt_TradingRequestSt RequestSt_;
+   OmsErrCode              ErrCode_{OmsErrCode_NoError};
+
+   // -----
+   // 在 64bits 系統上, OrdNo_(5 bytes) 之後會有 3 bytes padding.
+   // 所以將衍生者可能用到的少量資料放在 OrdNo_ 之後, 降低記憶體的負擔.
+   OmsOrdNo                OrdNo_{nullptr};
+   /// 用在「報價回報」時, 若僅回報單邊, 則透過此處表明此次回報 Bid 或 Offer.
+   f9fmkt_Side             QuoteReportSide_{f9fmkt_Side_Unknown};
+   char                    padding___[2];
+   // -----
 
    /// 異動時的本機時間.
    /// 在 OmsBackend::OnAfterOrderUpdated() 填入當時的時間.
-   fon9::TimeStamp             UpdateTime_;
+   fon9::TimeStamp         UpdateTime_;
    /// 若訊息長度沒有超過 fon9::CharVector::kMaxBinsSize (在x64系統, 大約 23 bytes),
    /// 則可以不用分配記憶體, 一般而言常用的訊息不會超過(例如: "Sending by BBBB-SS", "Queuing"),
    /// 通常在有錯誤時才會使用較長的訊息.
-   fon9::CharVector            Message_;
+   fon9::CharVector        Message_;
 
    /// 必須透過 FreeThis() 來刪除, 預設 delete this; 不處理 this->Next_;
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;

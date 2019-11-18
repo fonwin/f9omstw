@@ -37,7 +37,7 @@ fon9_WARN_POP;
 #define DEF_RequestStDef(st) { f9fmkt_TradingRequestSt_##st, fon9::StrView{#st} }
 static const RequestStDef StrRequestSt[]{
    DEF_RequestStDef(ExchangeNoLeavesQty),
-   DEF_RequestStDef(BeforeExchangeCancel),
+   DEF_RequestStDef(ExchangeCanceling),
    DEF_RequestStDef(ExchangeCanceled),
 };
 f9fmkt_TradingRequestSt StrToRequestSt(fon9::StrView value) {

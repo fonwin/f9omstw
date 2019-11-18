@@ -27,10 +27,29 @@ public:
    OmsOrderRaw* MakeOrder(OmsRequestBase& starter, OmsScResource* scRes);
 };
 
-template <class OrderT, class OrderRawT, unsigned kPoolObjCount>
-class OmsOrderFactoryT : public OmsOrderFactory {
-   fon9_NON_COPY_NON_MOVE(OmsOrderFactoryT);
+template <class OrderT, class OrderRawT>
+class OmsOrderFactoryBaseT : public OmsOrderFactory {
+   fon9_NON_COPY_NON_MOVE(OmsOrderFactoryBaseT);
    using base = OmsOrderFactory;
+
+   OrderRawT* MakeOrderRawImpl() override {
+      return new OrderRawT;
+   }
+
+   OrderT* MakeOrderImpl() override {
+      return new OrderT;
+   }
+
+public:
+   OmsOrderFactoryBaseT(std::string name)
+      : base(fon9::Named(std::move(name)), f9omstw::MakeFieldsT<OrderRawT>()) {
+   }
+};
+
+template <class OrderT, class OrderRawT, unsigned kPoolObjCount>
+class OmsOrderFactoryT : public OmsOrderFactoryBaseT<OrderT, OrderRawT> {
+   fon9_NON_COPY_NON_MOVE(OmsOrderFactoryT);
+   using base = OmsOrderFactoryBaseT<OrderT, OrderRawT>;
 
    using RawSupplier = fon9::ObjSupplier<OrderRawT, kPoolObjCount>;
    typename RawSupplier::ThisSP RawSupplier_{RawSupplier::Make()};
@@ -45,9 +64,16 @@ class OmsOrderFactoryT : public OmsOrderFactory {
    }
 
 public:
-   OmsOrderFactoryT(std::string name)
-      : base(fon9::Named(std::move(name)), f9omstw::MakeFieldsT<OrderRawT>()) {
-   }
+   using base::base;
+};
+
+template <class OrderT, class OrderRawT>
+class OmsOrderFactoryT<OrderT, OrderRawT, 0> : public OmsOrderFactoryBaseT<OrderT, OrderRawT> {
+   fon9_NON_COPY_NON_MOVE(OmsOrderFactoryT);
+   using base = OmsOrderFactoryBaseT<OrderT, OrderRawT>;
+
+public:
+   using base::base;
 };
 
 } // namespaces

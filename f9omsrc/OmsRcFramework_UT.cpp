@@ -84,12 +84,12 @@ static const char kRcUT_Dbf_FileName[] = "OmsRcUT.f9dbf";
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_NamedIoManager;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_TcpServer;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_RcSessionServer;
-extern "C"          fon9::seed::PluginsDesc f9p_UtwsOmsCore;
+extern "C"          fon9::seed::PluginsDesc f9p_UtwOmsCore;
 extern "C"          fon9::seed::PluginsDesc f9p_OmsRcServerAgent;
 void* ForceLinkSomething() {
    static const void* forceLinkList[]{
       &f9p_NamedIoManager, &f9p_TcpServer, &f9p_RcSessionServer,
-      &f9p_UtwsOmsCore, &f9p_OmsRcServerAgent
+      &f9p_UtwOmsCore, &f9p_OmsRcServerAgent
    };
    return forceLinkList;
 }
@@ -140,11 +140,11 @@ private:
       "Id" _ "Enabled" _ "FileName" _ "EntryName"       _ "Args\n"
       "iDevTcps" _ "Y" _ ""         _ "TcpServer"       _ "Name=TcpServer|AddTo=FpDevice\n"
       "iMaIo"    _ "Y" _ ""         _ "NamedIoManager"  _ "Name=MaIo|DevFp=FpDevice|SesFp=FpSession|SvcCfg='ThreadCount=1|Capacity=100'\n"
-      // 啟動 OmsCoreMgr=UtwsOmsCore, Name="omstws"
-      "iOmsTws"  _ "Y" _ ""         _ "UtwsOmsCore"     _ "BrkId=8610\n"
+      // 啟動 OmsCoreMgr=UtwOmsCore, Name="omstw"
+      "iOmsTws"  _ "Y" _ ""         _ "UtwOmsCore"      _ "BrkId=8610\n"
       "iRcSv"    _ "Y" _ ""         _ "RcSessionServer" _ "Name=RcSv|Desp=f9OmsRc Tester|AuthMgr=AuthMgr|AddTo=FpSession\n"
       // 將 OmsRcServerAgent 加入 RcSv:
-      "iRcSvOms" _ "Y" _ "" _ "OmsRcServerAgent" _ "OmsCore=omstws"
+      "iRcSvOms" _ "Y" _ "" _ "OmsRcServerAgent" _ "OmsCore=omstw"
                                                    "|Cfg=$TxLang={zh} $include:../../f9omsrc/forms/ApiAll.cfg"
                                                    "|AddTo=FpSession/RcSv\n"
       );

@@ -5,7 +5,6 @@
 // - 要測試的 class:
 //   - OmsRcServerAgent/Note;
 //   - OmsRcClientAgent/Note;
-//   - OmsRcClientSession;
 // - 測試項目:
 //   - Config 查詢.
 //   - TDayChanged/Confirm: 瞬間多次.
@@ -43,17 +42,17 @@ struct RcFuncMgr : public fon9::rc::RcFunctionMgrRefCounter {
 f9OmsRc_CoreTDay  CoreTDay_;
 f9OmsRc_SNO       LastSNO_;
 fon9::CharVector  LastClOrdId_;
-void OnClientLinkEv(f9OmsRc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
+void OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
    (void)ses; (void)st; (void)info;
 }
-void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
+void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    if (f9OmsRc_IsCoreTDayChanged(&CoreTDay_, &cfg->CoreTDay_)) {
       LastSNO_ = 0;
       CoreTDay_ = cfg->CoreTDay_;
    }
    f9OmsRc_SubscribeReport(ses, cfg, LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 }
-void OnClientReport(f9OmsRc_ClientSession*, const f9OmsRc_ClientReport* rpt) {
+void OnClientReport(f9rc_ClientSession*, const f9OmsRc_ClientReport* rpt) {
    LastSNO_ = rpt->ReportSNO_;
    if (rpt->Layout_ && rpt->Layout_->IdxClOrdId_ >= 0) {
       const auto& val = rpt->FieldArray_[rpt->Layout_->IdxClOrdId_];
@@ -176,24 +175,29 @@ int main(int argc, char* argv[]) {
    devSvr->WaitGetDeviceId();
    //---------------------------------------------
    // Client 登入.
-   using CliSessionSP = fon9::intrusive_ptr<f9omstw::OmsRcClientSession>;
-   f9OmsRc_ClientHandler         cliHandler = {&OnClientLinkEv, &OnClientConfig, &OnClientReport, nullptr};
-   f9OmsRc_ClientSessionParams   sesParams;
-   fon9::ZeroStruct(sesParams);
-   sesParams.Handler_   = &cliHandler;
-   sesParams.UserId_    = kUSERID;
-   sesParams.Password_  = kPASSWD;
-   sesParams.DevName_   = "";
-   sesParams.DevParams_ = "";
-   sesParams.UserData_  = nullptr;
+   f9rc_ClientSessionParams  f9rcCliParams;
+   memset(&f9rcCliParams, 0, sizeof(f9rcCliParams));
+   f9rcCliParams.UserId_    = kUSERID;
+   f9rcCliParams.Password_  = kPASSWD;
+   f9rcCliParams.DevName_   = "";
+   f9rcCliParams.DevParams_ = "";
+   f9rcCliParams.UserData_  = nullptr;
    fon9::StrView  arg = fon9::GetCmdArg(argc, argv, "l", "log");
    if (!arg.empty())
-      sesParams.LogFlags_ = static_cast<f9OmsRc_ClientLogFlag>(fon9::HIntStrTo(arg, 0u));
+      f9rcCliParams.LogFlags_ = static_cast<f9rc_ClientLogFlag>(fon9::HIntStrTo(arg, 0u));
    else
-      sesParams.LogFlags_ = f9OmsRc_ClientLogFlag_Config;
+      f9rcCliParams.LogFlags_ = f9rc_ClientLogFlag_Config;
 
+   f9OmsRc_ClientSessionParams   omsRcParams;
+   f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
+
+   f9rcCliParams.FnOnLinkEv_ = &OnClientLinkEv;
+   omsRcParams.FnOnConfig_ = &OnClientConfig;
+   omsRcParams.FnOnReport_ = &OnClientReport;
+
+   using CliSessionSP = fon9::intrusive_ptr<fon9::rc::RcClientSession>;
    RcFuncMgrSP    rcFuncMgrCli{new RcFuncMgr};
-   CliSessionSP   sesCli{new f9omstw::OmsRcClientSession(rcFuncMgrCli, &sesParams)};
+   CliSessionSP   sesCli{new fon9::rc::RcClientSession(rcFuncMgrCli, &f9rcCliParams)};
    TestDevSP      devCli{new fon9::io::TestDevice2(sesCli, iomgr)};
    devCli->Initialize();
    devCli->AsyncOpen("dev.client");
@@ -234,7 +238,7 @@ int main(int argc, char* argv[]) {
    }
    //---------------------------------------------
    // 等候 Client 收到最後的 TDay config.
-   f9omstw::OmsRcClientNote* cliNote = sesCli->GetNote<f9omstw::OmsRcClientNote>(fon9::rc::RcFunctionCode::OmsApi);
+   f9omstw::OmsRcClientNote* cliNote = sesCli->GetNote<f9omstw::OmsRcClientNote>(f9rc_FunctionCode_OmsApi);
    while (cliNote->Config().TDay_ != lastTDay) {
       std::this_thread::yield();
    }

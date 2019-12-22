@@ -49,7 +49,7 @@ typedef enum {
 
 fon9_WARN_DISABLE_PADDING;
 typedef struct {
-   f9OmsRc_ClientSession*        Session_;
+   f9rc_ClientSession*           Session_;
    const f9OmsRc_ClientConfig*   Config_;
    f9OmsRc_CoreTDay              CoreTDay_;
    unsigned                      LastClOrdId_;
@@ -82,7 +82,7 @@ void WaitLastSNO2(const volatile OmsRcMyself* ud1, const volatile OmsRcMyself* u
    }
 }
 //--------------------------------------------------------------------------//
-void OnClientLinkEv(f9OmsRc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
+void OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
    (void)info;
    OmsRcMyself* ud = (OmsRcMyself*)(ses->UserData_);
    if (st == f9io_State_LinkReady)
@@ -92,7 +92,7 @@ void OnClientLinkEv(f9OmsRc_ClientSession* ses, f9io_State st, fon9_CStrView inf
    else if (st == f9io_State_LinkError)
       ud->State_ = OmsRcCliSt_LinkError;
 }
-void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
+void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    OmsRcMyself* ud = (OmsRcMyself*)(ses->UserData_);
    ud->Config_ = cfg;
    ud->State_ = OmsRcCliSt_Recovering;
@@ -111,19 +111,19 @@ void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg)
    f9OmsRc_SubscribeReport(ses, ud->Config_, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 
    // 印出解析前的原始字串.
-   puts(cfg->TablesStrView_.Begin_);
+   puts(cfg->RightsTables_.OrigStrView_.Begin_);
    // 可用櫃號、下單流量.
    printf("OrdTeams=%s|FcReq=%u/%u\n", cfg->OrdTeams_.Begin_, cfg->FcReqCount_, cfg->FcReqMS_);
    // 印出解析後的資料表.
-   for (f9OmsRc_TableIndex iTab = 0; iTab < cfg->TableCount_; ++iTab) {
-      const f9oms_GvTable* tab = cfg->TableList_[iTab];
-      printf("[%d]%s\n\t", tab->Table_.Index_, tab->Table_.Name_.Begin_);
+   for (f9OmsRc_TableIndex iTab = 0; iTab < cfg->RightsTables_.TableCount_; ++iTab) {
+      const f9sv_GvTable*  tab = cfg->RightsTables_.TableList_[iTab];
+      printf("[%d]%s\n\t", tab->Named_.Index_, tab->Named_.Name_.Begin_);
       f9OmsRc_TableIndex iFld = 0;
       for (; iFld < tab->GvList_.FieldCount_; ++iFld) {
          if (iFld != 0)
             printf("|");
-         const f9oms_GvField* fld = &tab->GvList_.FieldArray_[iFld];
-         printf("[%2d]%-12s", fld->Index_, fld->Name_.Begin_);
+         const f9sv_Field* fld = &tab->GvList_.FieldArray_[iFld];
+         printf("[%2d]%-12s", fld->Named_.Index_, fld->Named_.Name_.Begin_);
       }
       printf("\n\t");
       for (unsigned iRec = 0; iRec < tab->GvList_.RecordCount_; ++iRec) {
@@ -138,7 +138,7 @@ void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg)
       puts("");
    }
 }
-void OnClientReport(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
+void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    OmsRcMyself* ud = (OmsRcMyself*)(ses->UserData_);
    ud->CheckSum_ += rpt->ReportSNO_ + rpt->ReferenceSNO_ + 1;
    if (fon9_LIKELY(rpt->Layout_)) {
@@ -170,43 +170,49 @@ f9OmsRc_SNO AddCheckSum_NextReqOrd_Times(f9OmsRc_SNO next, unsigned times) {
    return res;
 }
 
-void OnClientFcReq(f9OmsRc_ClientSession* ses, unsigned usWait) {
+void OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
    printf("OnClientFcReq|ses=%p|wait=%u us\n", ses, usWait);
    SleepMS((usWait + 999) / 1000);
 }
 //--------------------------------------------------------------------------//
-f9OmsRc_ClientHandler cliHandler = {&OnClientLinkEv, &OnClientConfig, &OnClientReport, &OnClientFcReq};
-f9OmsRc_API_FN(void) f9OmsRc_FcReqResize(f9OmsRc_ClientSession* ses, unsigned count, unsigned ms);
+f9OmsRc_API_FN(void) f9OmsRc_ResizeFcRequest(f9rc_ClientSession* ses, unsigned count, unsigned ms);
 
 int OmsRcFramework_UT_C_main(int argc, char** argv) {
    (void)argc; (void)argv;
 
    f9OmsRc_Initialize(NULL);
 
-   f9OmsRc_ClientSessionParams   sesParams;
-   memset(&sesParams, 0, sizeof(sesParams));
-   sesParams.Handler_ = &cliHandler;
-   sesParams.DevName_ = "TcpClient";
-   sesParams.LogFlags_ = f9OmsRc_ClientLogFlag_Link
-      //| f9OmsRc_ClientLogFlag_Config
-      //| f9OmsRc_ClientLogFlag_Report | f9OmsRc_ClientLogFlag_Request
+   f9rc_ClientSessionParams  f9rcCliParams;
+   memset(&f9rcCliParams, 0, sizeof(f9rcCliParams));
+   f9rcCliParams.DevName_ = "TcpClient";
+   f9rcCliParams.LogFlags_ = f9rc_ClientLogFlag_Link
+      //| f9rc_ClientLogFlag_Config
+      //| f9rc_ClientLogFlag_Report | f9rc_ClientLogFlag_Request
       ;
+
+   f9OmsRc_ClientSessionParams   omsRcParams;
+   f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
+
+   f9rcCliParams.FnOnLinkEv_ = &OnClientLinkEv;
+   omsRcParams.FnOnConfig_ = &OnClientConfig;
+   omsRcParams.FnOnReport_ = &OnClientReport;
+   omsRcParams.FnOnFlowControl_ = &OnClientFcReq;
 
    OmsRcMyself udAdmin;
    memset(&udAdmin, 0, sizeof(udAdmin));
-   sesParams.UserId_ = "admin";
-   sesParams.Password_ = "AdminPass";
-   sesParams.DevParams_ = "dn=localhost:6601";
-   sesParams.UserData_ = &udAdmin;
-   f9OmsRc_CreateSession(&udAdmin.Session_, &sesParams);
+   f9rcCliParams.UserId_ = "admin";
+   f9rcCliParams.Password_ = "AdminPass";
+   f9rcCliParams.DevParams_ = "dn=localhost:6601";
+   f9rcCliParams.UserData_ = &udAdmin;
+   f9rc_CreateClientSession(&udAdmin.Session_, &f9rcCliParams);
 
    OmsRcMyself udFonwin;
    memset(&udFonwin, 0, sizeof(udFonwin));
-   sesParams.UserId_ = "fonwin";
-   sesParams.Password_ = "FonPass";
-   sesParams.DevParams_ = "127.0.0.1:6601";
-   sesParams.UserData_ = &udFonwin;
-   f9OmsRc_CreateSession(&udFonwin.Session_, &sesParams);
+   f9rcCliParams.UserId_ = "fonwin";
+   f9rcCliParams.Password_ = "FonPass";
+   f9rcCliParams.DevParams_ = "127.0.0.1:6601";
+   f9rcCliParams.UserData_ = &udFonwin;
+   f9rc_CreateClientSession(&udFonwin.Session_, &f9rcCliParams);
    //---------------------------------------------
    // 等候回報回補結束.
    unsigned waitTimes = 0;
@@ -287,7 +293,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
 
    // 測試強制超過流量.
    puts("Waiting test FlowControl.");
-   f9OmsRc_FcReqResize(udFonwin.Session_, 0, 0);
+   f9OmsRc_ResizeFcRequest(udFonwin.Session_, 0, 0);
    SleepMS(udFonwin.Config_->FcReqMS_);
    f9OmsRc_SNO chk = udFonwin.CheckSum_
                    + AddCheckSum_NextReqOrd_Times(expectedSNO + 1, kFcCount)
@@ -314,12 +320,12 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
    }
    //---------------------------------------------
    // puts("OK, Wait enter..."); getchar();
-   f9OmsRc_DestroySession(udAdmin.Session_, 1);
-   f9OmsRc_DestroySession(udFonwin.Session_, 1);
+   f9rc_DestroyClientSession_Wait(udAdmin.Session_);
+   f9rc_DestroyClientSession_Wait(udFonwin.Session_);
    printf("LastSNO: admin=%u, fonwin=%u\n", (unsigned)udAdmin.LastSNO_, (unsigned)udFonwin.LastSNO_);
    // puts("Wait enter again..."); getchar();
 
-   f9OmsRc_Finalize();
+   fon9_Finalize();
    free(udAdmin.ReqNewValues_);
    free(udFonwin.ReqNewValues_);
    return 0;

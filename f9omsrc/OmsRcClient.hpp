@@ -3,41 +3,23 @@
 #ifndef __f9omsrc_OmsRcClient_hpp__
 #define __f9omsrc_OmsRcClient_hpp__
 #include "f9omsrc/OmsRc.h"
-#include "f9omsrc/OmsGvTable.hpp"
-#include "fon9/rc/RcSession.hpp"
+#include "fon9/rc/RcSeedVisitor.hpp"
+#include "fon9/rc/RcClientSession.hpp"
 #include "fon9/FlowCounter.hpp"
 
 namespace f9omstw {
 
-class OmsRcClientSession : public fon9::rc::RcSession, public f9OmsRc_ClientSession {
-   fon9_NON_COPY_NON_MOVE(OmsRcClientSession);
-   using base = fon9::rc::RcSession;
-   std::string Password_;
-public:
-   const f9OmsRc_ClientHandler      Handler_;
-   fon9::FlowCounterThreadSafe      FcReq_;
-   const f9omstw_ErrCodeTx* const   ErrCodeTx_;
-
-   OmsRcClientSession(fon9::rc::RcFunctionMgrSP funcMgr, const f9OmsRc_ClientSessionParams* params);
-   fon9::StrView GetAuthPassword() const override;
-
-   void OnDevice_StateChanged(fon9::io::Device& dev, const fon9::io::StateChangedArgs& e) override;
-   void OnDevice_StateUpdated(fon9::io::Device& dev, const fon9::io::StateUpdatedArgs& e) override;
-};
-
-//--------------------------------------------------------------------------//
-
-class OmsRcClientAgent : public fon9::rc::RcFunctionAgent {
+class OmsRcClientAgent : public fon9::rc::RcClientFunctionAgent {
    fon9_NON_COPY_NON_MOVE(OmsRcClientAgent);
-   using base = fon9::rc::RcFunctionAgent;
+   using base = fon9::rc::RcClientFunctionAgent;
 public:
-   OmsRcClientAgent() : base{fon9::rc::RcFunctionCode::OmsApi} {
+   OmsRcClientAgent() : base{f9rc_FunctionCode_OmsApi} {
    }
    ~OmsRcClientAgent();
 
+   void OnSessionCtor(fon9::rc::RcClientSession& ses, const f9rc_ClientSessionParams* params) override;
    void OnSessionApReady(fon9::rc::RcSession& ses) override;
    void OnSessionLinkBroken(fon9::rc::RcSession& ses) override;
-   // void OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) override;
 };
 
 //--------------------------------------------------------------------------//
@@ -48,12 +30,14 @@ struct OmsRcClientConfig : public f9OmsRc_ClientConfig {
    OmsRcClientConfig() {
       fon9::ZeroStruct(static_cast<f9OmsRc_ClientConfig*>(this));
    }
-   OmsRcClientConfig(const f9OmsRc_ClientConfig* src) : f9OmsRc_ClientConfig{*src} {
+   OmsRcClientConfig(const f9OmsRc_ClientConfig* src) : f9OmsRc_ClientConfig(*src) {
    }
    fon9::TimeStamp   TDay_;
    std::string       OmsSeedPath_;
    std::string       LayoutsStr_;
-   std::string       TablesStr_;
+   /// 收到的 Table 訊息, 保留著分隔符號.
+   /// 未經過 fon9::rc::SvParseGvTables() 解析.
+   std::string       OrigTablesStr_;
 
    void MoveFromRc(OmsRcClientConfig&& src) {
       memcpy(static_cast<f9OmsRc_ClientConfig*>(this), static_cast<f9OmsRc_ClientConfig*>(&src), sizeof(f9OmsRc_ClientConfig));
@@ -107,12 +91,15 @@ using OmsRcRptLayouts = std::vector<OmsRcRptLayoutSP>;
 
 class OmsRcClientNote : public fon9::rc::RcFunctionNote {
    fon9_NON_COPY_NON_MOVE(OmsRcClientNote);
-   fon9::TimeStamp   ChangingTDay_;
-   OmsRcClientConfig Config_;
-   std::string       ConfigGvTablesStr_;
-   OmsGvTables       ConfigGvTables_;
-   OmsRcReqLayouts   ReqLayouts_;
-   OmsRcRptLayouts   RptLayouts_;
+   fon9::TimeStamp      ChangingTDay_;
+
+   /// 提供給 fon9::rc::SvParseGvTables() 解析使用的訊息, 分隔符號變成 EOS.
+   std::string          ConfigGvTablesStr_;
+   fon9::rc::SvGvTables ConfigGvTables_;
+   OmsRcClientConfig    Config_;
+
+   OmsRcReqLayouts      ReqLayouts_;
+   OmsRcRptLayouts      RptLayouts_;
    std::vector<const f9OmsRc_Layout*>  RequestLayoutVector_;
 
    friend class OmsRcClientAgent;
@@ -124,7 +111,11 @@ class OmsRcClientNote : public fon9::rc::RcFunctionNote {
    void SendTDayConfirm(fon9::rc::RcSession& ses);
 
 public:
-   OmsRcClientNote() = default;
+   const f9OmsRc_ClientSessionParams   Params_;
+   fon9::FlowCounterThreadSafe         FcReq_;
+
+   OmsRcClientNote(const f9OmsRc_ClientSessionParams& params) : Params_(params) {
+   }
 
    void OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) override;
 

@@ -12,7 +12,7 @@ namespace f9omstw {
 /// AuthMgr/PoOmsUser.Layout =
 ///   { KeyName = "PolicyId",
 ///     Tab[0] = { TabName  = "Rights",
-///                Fields[] = {"OrdTeams", "FcReqCount", "FcReqMS", "FcQryCount", "FcQryMS"}
+///                Fields[] = {"OrdTeams", "FcReqCount", "FcReqMS", "LgOut"}
 ///              }
 ///   }
 /// \endcode

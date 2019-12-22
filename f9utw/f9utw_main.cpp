@@ -12,6 +12,7 @@ extern "C" fon9_API fon9::seed::PluginsDesc f9p_FileIO;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_Dgram;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_RcSessionServer;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_SeedImporter;
+extern "C" fon9_API fon9::seed::PluginsDesc f9p_RcSvServerAgent;
 extern "C"          fon9::seed::PluginsDesc f9p_OmsRcServerAgent;
 void* ForceLinkSomething() {
 //
@@ -20,13 +21,14 @@ void* ForceLinkSomething() {
 //
 // 提供 OmsRc protocol:
 // * 在 /MaPlugins 增加:
-//    iOmsRcSv       RcSessionServer   Name=OmsRcSvr|Desp=f9OmsRc Server|AuthMgr=MaAuth|AddTo=FpSession
-//    iOmsRcSvAgent  OmsRcServerAgent  OmsCore=omstws|Cfg=$TxLang={zh} $include:forms/ApiAll.cfg|AddTo=FpSession/OmsRcSvr
+//    iOmsRcSvr       RcSessionServer   Name=OmsRcSvr|Desp=f9OmsRc Server|AuthMgr=MaAuth|AddTo=FpSession
+//    iRcSvAgent      RcSvServerAgent   AddTo=FpSession/OmsRcSvr
+//    iOmsRcSvrAgent  OmsRcServerAgent  OmsCore=omstws|Cfg=$TxLang={zh} $include:forms/ApiAll.cfg|AddTo=FpSession/OmsRcSvr
 // * 在 /MaIo 增加:
-//    iOmsRcSv       OmsRcSvr    TcpServer   6601
+//    iOmsRcSvr       OmsRcSvr    TcpServer   6601
 //
    static const void* forceLinkList[]{
-      &f9p_RcSessionServer, &f9p_OmsRcServerAgent,
+      &f9p_RcSessionServer, &f9p_OmsRcServerAgent, &f9p_RcSvServerAgent,
       &f9p_NamedIoManager, &f9p_TcpServer, &f9p_TcpClient, &f9p_FileIO, &f9p_Dgram,
       &f9p_SeedImporter
    };

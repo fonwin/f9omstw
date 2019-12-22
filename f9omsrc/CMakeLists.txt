@@ -3,7 +3,6 @@ set(f9omsrc_src
  OmsRcServerFunc.cpp
  OmsRcClient.cpp
  OmsRcClientApi.cpp
- OmsGvTable.cpp
 )
 add_library(f9omsrc_s STATIC ${f9omsrc_src})
 target_link_libraries(f9omsrc_s f9omstw_s fon9_s pthread dl)

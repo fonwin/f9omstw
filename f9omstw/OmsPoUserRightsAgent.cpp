@@ -12,11 +12,14 @@ struct OmsPoUserRightsPolicy;
 template <class Archive>
 static void SerializeVer(Archive& ar, fon9::ArchiveWorker<Archive, OmsPoUserRightsPolicy>& rec, unsigned ver) {
    (void)ver; assert(ver == 0);
+   // ver = 0, 包含這2個欄位, 但此功能應由 SeedVisitor 處理.
+   // 在此使用 local var, 保留與舊版想容, 若以後 OmsPoUserRightsPolicy 有新增數字欄位, 可拿來使用.
+   unsigned vFcQueryCount = 0, vFcQueryMS = 0;
    ar(rec.AllowOrdTeams_,
-      rec.FcRequest_.Count_,
-      rec.FcRequest_.IntervalMS_,
-      rec.FcQuery_.Count_,
-      rec.FcQuery_.IntervalMS_,
+      rec.FcRequest_.FcCount_,
+      rec.FcRequest_.FcTimeMS_,
+      vFcQueryCount,
+      vFcQueryMS,
       rec.LgOut_
       );
 }
@@ -43,11 +46,9 @@ struct OmsPoUserRightsPolicy : public fon9::auth::PolicyItem, public OmsUserRigh
 
 static fon9::seed::Fields MakeOmsUserRightsFields() {
    fon9::seed::Fields fields;
-   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, AllowOrdTeams_,         "OrdTeams"));
-   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcRequest_.Count_,      "FcReqCount"));
-   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcRequest_.IntervalMS_, "FcReqMS"));
-   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcQuery_.Count_,        "FcQryCount"));
-   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcQuery_.IntervalMS_,   "FcQryMS"));
+   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, AllowOrdTeams_,       "OrdTeams"));
+   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcRequest_.FcCount_,  "FcReqCount"));
+   fields.Add(fon9_MakeField(OmsPoUserRightsPolicy, FcRequest_.FcTimeMS_, "FcReqMS"));
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, LgOut));
    return fields;
 }

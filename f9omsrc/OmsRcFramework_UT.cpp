@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
    int retval = OmsRcFramework_UT_C_main(argc, argv);
 
    framework.Dispose();
-   f9OmsRc_Finalize();
+   fon9_Finalize();
    //---------------------------------------------
    return retval;
 }

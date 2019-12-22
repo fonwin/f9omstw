@@ -8,50 +8,27 @@
 
 namespace f9omstw {
 
-OmsRcClientSession::OmsRcClientSession(fon9::rc::RcFunctionMgrSP funcMgr, const f9OmsRc_ClientSessionParams* params)
-   : base(std::move(funcMgr), fon9::rc::RcSessionRole::User, static_cast<fon9::rc::RcFlag>(params->RcFlags_))
-   , Password_{params->Password_}
-   , Handler_(*params->Handler_)
-   , ErrCodeTx_{params->ErrCodeTx_} {
-   this->SetUserId(fon9::StrView_cstr(params->UserId_));
-   this->UserData_ = params->UserData_;
-   this->LogFlags_ = params->LogFlags_;
-}
-fon9::StrView OmsRcClientSession::GetAuthPassword() const {
-   return fon9::StrView{&this->Password_};
-}
-
-static void LogDevSt(fon9::StrView head, OmsRcClientSession* ses, const fon9::io::StateUpdatedArgs& e) {
-   if (ses->LogFlags_ & f9OmsRc_ClientLogFlag_Link)
-      fon9_LOG_INFO(head, "|ses=", fon9::ToPtr(ses), "|dev=", fon9::ToPtr(ses->GetDevice()),
-                    "|st=", fon9::io::GetStateStr(e.State_),
-                    "|devid=", e.DeviceId_,
-                    "|info=", e.Info_);
-   if (ses->Handler_.FnOnLinkEv_)
-      ses->Handler_.FnOnLinkEv_(ses, static_cast<f9io_State>(e.State_), e.Info_.ToCStrView());
-}
-void OmsRcClientSession::OnDevice_StateChanged(fon9::io::Device& dev, const fon9::io::StateChangedArgs& e) {
-   LogDevSt("OmsRcClient.OnDeviceSt", this, e.After_);
-   base::OnDevice_StateChanged(dev, e);
-}
-void OmsRcClientSession::OnDevice_StateUpdated(fon9::io::Device& dev, const fon9::io::StateUpdatedArgs& e) {
-   LogDevSt("OmsRcClient.OnDeviceStU", this, e);
-   base::OnDevice_StateUpdated(dev, e);
-}
-//--------------------------------------------------------------------------//
 OmsRcClientAgent::~OmsRcClientAgent() {
 }
+void OmsRcClientAgent::OnSessionCtor(fon9::rc::RcClientSession& ses, const f9rc_ClientSessionParams* params) {
+   if (f9rc_FunctionNoteParams* p = params->FunctionNoteParams_[f9rc_FunctionCode_OmsApi]) {
+      f9OmsRc_ClientSessionParams& f9OmsRcParams = fon9::ContainerOf(*p, &f9OmsRc_ClientSessionParams::BaseParams_);
+      assert(f9OmsRcParams.BaseParams_.FunctionCode_ == f9rc_FunctionCode_OmsApi
+             && f9OmsRcParams.BaseParams_.ParamSize_ == sizeof(f9OmsRcParams));
+      ses.ResetNote(f9rc_FunctionCode_OmsApi, fon9::rc::RcFunctionNoteSP{new OmsRcClientNote{f9OmsRcParams}});
+   }
+}
 void OmsRcClientAgent::OnSessionLinkBroken(fon9::rc::RcSession& ses) {
-   if (auto* note = static_cast<OmsRcClientNote*>(ses.GetNote(fon9::rc::RcFunctionCode::OmsApi)))
+   if (auto note = static_cast<OmsRcClientNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi))) {
+      assert(dynamic_cast<OmsRcClientNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi)) != nullptr);
       note->OnSessionLinkBroken(ses);
+   }
 }
 void OmsRcClientAgent::OnSessionApReady(fon9::rc::RcSession& ses) {
-   auto* note = static_cast<OmsRcClientNote*>(ses.GetNote(fon9::rc::RcFunctionCode::OmsApi));
-   if (note == nullptr) {
-      ses.ResetNote(fon9::rc::RcFunctionCode::OmsApi,
-                    fon9::rc::RcFunctionNoteSP{note = new OmsRcClientNote});
+   if (auto note = static_cast<OmsRcClientNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi))) {
+      assert(dynamic_cast<OmsRcClientNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi)) != nullptr);
+      note->OnSessionApReady(ses);
    }
-   note->OnSessionApReady(ses);
 }
 //--------------------------------------------------------------------------//
 void OmsRcClientNote::OnSessionLinkBroken(fon9::rc::RcSession& ses) {
@@ -60,16 +37,11 @@ void OmsRcClientNote::OnSessionLinkBroken(fon9::rc::RcSession& ses) {
    this->ChangingTDay_.Assign0();
 }
 void OmsRcClientNote::OnSessionApReady(fon9::rc::RcSession& ses) {
-   if (static_cast<OmsRcClientSession*>(&ses)->LogFlags_ & f9OmsRc_ClientLogFlag_Link)
-      fon9_LOG_INFO("OmsRcClient.ApReady|ses=", fon9::ToPtr(static_cast<f9OmsRc_ClientSession*>(static_cast<OmsRcClientSession*>(&ses))),
-                    "|user=", ses.GetUserId(),
-                    "|remoteAp=", ses.GetRemoteParam().ApVer_,
-                    "|remoteIp=", ses.GetRemoteIp());
    assert(this->Config_.TDay_.GetOrigValue() == 0 && this->ChangingTDay_.GetOrigValue() == 0);
    fon9::RevBufferList rbuf{128};
    fon9::ToBitv(rbuf, f9OmsRc_OpKind_Config);
    fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
-   ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
+   ses.Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
 }
 void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) {
    unsigned tableId{0};
@@ -84,15 +56,15 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
    fon9::BitvTo(param.RecvBuffer_, rptstr);
    const OmsRcRptLayout* tab = (tableId > this->RptLayouts_.size() ? nullptr : this->RptLayouts_[tableId - 1].get());
 
-   assert(dynamic_cast<OmsRcClientSession*>(&ses) != nullptr);
-   OmsRcClientSession* clises = static_cast<OmsRcClientSession*>(&ses);
-   bool                isNeedsLog = (fon9::LogLevel::Info >= fon9::LogLevel_
-                                     && ((clises->LogFlags_ & f9OmsRc_ClientLogFlag_Report) != 0
-                                         || rpt.ReportSNO_ == 0));
+   assert(dynamic_cast<fon9::rc::RcClientSession*>(&ses) != nullptr);
+   fon9::rc::RcClientSession* clises = static_cast<fon9::rc::RcClientSession*>(&ses);
+   bool                       isNeedsLog = (fon9::LogLevel::Info >= fon9::LogLevel_
+                                            && ((clises->LogFlags_ & f9rc_ClientLogFlag_Report) != 0
+                                                || rpt.ReportSNO_ == 0));
    fon9::RevBufferList rbuf{fon9::kLogBlockNodeSize};
    if (isNeedsLog) {
       fon9::RevPrint(rbuf, "OmsRcClient.RxReport"
-                     "|ses=", fon9::ToPtr(static_cast<f9OmsRc_ClientSession*>(clises)),
+                     "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(clises)),
                      "|tab=", tableId,
                      ':', tab ? fon9::StrView{&tab->Name_} : fon9::StrView{"?"},
                      "|sno=", rpt.ReportSNO_, "|ref=", rpt.ReferenceSNO_,
@@ -105,7 +77,7 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
          fon9::LogWrite(fon9::LogLevel::Info, std::move(rbuf));
       return;
    }
-   if (!clises->Handler_.FnOnReport_)
+   if (!this->Params_.FnOnReport_)
       goto __LOG_AND_RETURN;
       
    char*          strBeg = &*rptstr.begin();
@@ -128,12 +100,12 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
       ++pval;
    }
    char  txmsg[1024 * 4];
-   if (clises->ErrCodeTx_ && rpt.Layout_->IdxErrCode_ >= 0 && rpt.Layout_->IdxMessage_ >= 0) {
+   if (this->Params_.ErrCodeTx_ && rpt.Layout_->IdxErrCode_ >= 0 && rpt.Layout_->IdxMessage_ >= 0) {
       OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(rpt.FieldArray_[rpt.Layout_->IdxErrCode_], 0u));
       if (ec != OmsErrCode_NoError) {
          fon9_CStrView& msg = tab->RptValues_[static_cast<unsigned>(rpt.Layout_->IdxMessage_)];
          const char*    pRptMsg = msg.Begin_;
-         msg = f9omstw_MakeErrMsg(clises->ErrCodeTx_, txmsg, sizeof(txmsg), ec, rpt.FieldArray_[rpt.Layout_->IdxMessage_]);
+         msg = f9omstw_MakeErrMsg(this->Params_.ErrCodeTx_, txmsg, sizeof(txmsg), ec, rpt.FieldArray_[rpt.Layout_->IdxMessage_]);
          if (isNeedsLog && msg.Begin_ != pRptMsg) {
             isNeedsLog = false;
             rbuf.RemoveBackData(1); // 移除尾端 '\n', 加上訊息.
@@ -141,7 +113,7 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
          }
       }
    }
-   clises->Handler_.FnOnReport_(clises, &rpt);
+   this->Params_.FnOnReport_(clises, &rpt);
    goto __LOG_AND_RETURN;
 }
 void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) {
@@ -163,9 +135,8 @@ void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFu
       fon9::ZeroStruct(rpt);
       fon9::BitvTo(param.RecvBuffer_, tday);
       fon9::BitvTo(param.RecvBuffer_, rpt.ReportSNO_);
-      OmsRcClientSession* clises = static_cast<OmsRcClientSession*>(&ses);
-      if (this->Config_.TDay_ == tday && clises->Handler_.FnOnReport_)
-         clises->Handler_.FnOnReport_(clises, &rpt);
+      if (this->Config_.TDay_ == tday && this->Params_.FnOnReport_)
+         this->Params_.FnOnReport_(static_cast<fon9::rc::RcClientSession*>(&ses), &rpt);
       return;
    }
 }
@@ -180,9 +151,9 @@ void OmsRcLayout::Initialize() {
    for (unsigned L = this->FieldCount_; L > 0;) {
       f9OmsRc_LayoutField* cfld = &this->LayoutFieldVector_[--L];
       const auto*          rfld = this->Fields_.Get(L);
-      fon9_CStrViewFrom(cfld->Name_, rfld->Name_);
-      fon9_CStrViewFrom(cfld->Title_, rfld->GetTitle());
-      fon9_CStrViewFrom(cfld->Description_, rfld->GetDescription());
+      fon9_CStrViewFrom(cfld->Named_.Name_, rfld->Name_);
+      fon9_CStrViewFrom(cfld->Named_.Title_, rfld->GetTitle());
+      fon9_CStrViewFrom(cfld->Named_.Description_, rfld->GetDescription());
       fon9::NumOutBuf nbuf;
       rfld->GetTypeId(nbuf).ToString(cfld->TypeId_);
    }
@@ -285,7 +256,7 @@ static void ParseRptLayout(fon9::StrView& cfgstr, OmsRcRptLayouts& layouts) {
    layouts.emplace_back(new OmsRcRptLayout(ex, layoutKind, static_cast<f9OmsRc_TableIndex>(layouts.size() + 1),
                                            named, std::move(fields)));
 }
-static void LogConfig(fon9::LogLevel lv, f9OmsRc_ClientSession* ses, const OmsRcClientConfig& cfg) {
+static void LogConfig(fon9::LogLevel lv, f9rc_ClientSession* ses, const OmsRcClientConfig& cfg) {
    if (fon9_UNLIKELY(lv < fon9::LogLevel_))
       return;
    fon9::RevBufferList rbuf_{fon9::kLogBlockNodeSize};
@@ -295,10 +266,10 @@ static void LogConfig(fon9::LogLevel lv, f9OmsRc_ClientSession* ses, const OmsRc
    else
       fon9::RevPrint(rbuf_, "\n" "Layouts=\n", cfg.LayoutsStr_);
 
-   if (cfg.TablesStr_.empty())
+   if (cfg.OrigTablesStr_.empty())
       fon9::RevPrint(rbuf_, "|Tables=(empty)");
    else
-      fon9::RevPrint(rbuf_, "\n" "Tables=\n", cfg.TablesStr_);
+      fon9::RevPrint(rbuf_, "\n" "Tables=\n", cfg.OrigTablesStr_);
 
    fon9::RevPrint(rbuf_, "OmsRcClient.OnConfig|ses=", fon9::ToPtr(ses),
                   "|TDay=", cfg.TDay_, fon9::FmtTS("f-t"),
@@ -312,11 +283,11 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
    fon9::BitvTo(param.RecvBuffer_, cfg.OmsSeedPath_);
    fon9::BitvTo(param.RecvBuffer_, cfg.CoreTDay_.HostId_);
    fon9::BitvTo(param.RecvBuffer_, cfg.LayoutsStr_);
-   fon9::BitvTo(param.RecvBuffer_, cfg.TablesStr_);
+   fon9::BitvTo(param.RecvBuffer_, cfg.OrigTablesStr_);
 
-   assert(dynamic_cast<OmsRcClientSession*>(&ses) != nullptr);
-   OmsRcClientSession* clises = static_cast<OmsRcClientSession*>(&ses);
-   if (clises->LogFlags_ & (f9OmsRc_ClientLogFlag_Config | f9OmsRc_ClientLogFlag_Report | f9OmsRc_ClientLogFlag_Request))
+   assert(dynamic_cast<fon9::rc::RcClientSession*>(&ses) != nullptr);
+   fon9::rc::RcClientSession* clises = static_cast<fon9::rc::RcClientSession*>(&ses);
+   if (clises->LogFlags_ & (f9rc_ClientLogFlag_Config | f9rc_ClientLogFlag_Report | f9rc_ClientLogFlag_Request))
       LogConfig(fon9::LogLevel::Info, clises, cfg);
 
    if (this->ChangingTDay_ > cfg.TDay_) {
@@ -351,30 +322,12 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
    else
       cfg.RequestLayoutArray_ = nullptr;
 
-   if (!cfg.TablesStr_.empty() && this->Config_.TablesStr_ != cfg.TablesStr_) {
-      this->Config_.TablesStr_ = std::move(cfg.TablesStr_);
-      this->ConfigGvTablesStr_ = this->Config_.TablesStr_;
-      fon9_CStrViewFrom(cfg.TablesStrView_, this->Config_.TablesStr_);
-
-      this->ConfigGvTables_.clear();
-      OmsParseGvTables(this->ConfigGvTables_, this->ConfigGvTablesStr_);
-      
-      fon9_GCC_WARN_DISABLE("-Wold-style-cast");
-      fon9_GCC_WARN_DISABLE_NO_PUSH("-Winvalid-offsetof");
-      static_assert(offsetof(OmsGvTable, Name_) == offsetof(f9oms_GvTable, Table_.Name_),
-                    "offsetof(OmsGvTable, Name_) != offsetof(f9oms_GvTable, Name_)");
-      static_assert(offsetof(OmsGvTable, GvList_) == offsetof(f9oms_GvTable, GvList_),
-                    "offsetof(OmsGvTable, GvList_) != offsetof(f9oms_GvTable, GvList_)");
-      static_assert(sizeof(const OmsGvTableSP) == sizeof(const f9oms_GvTable*),
-                    "OmsGvTables::NamedIxSP cannot be a plain pointer.");
-      const OmsGvTableSP* ppTabs = this->ConfigGvTables_.GetVector();
-      cfg.TableList_ = (const f9oms_GvTable**)(ppTabs);
-      cfg.TableCount_ = static_cast<f9OmsRc_TableIndex>(this->ConfigGvTables_.size());
-      fon9_GCC_WARN_POP;
-
+   if (!cfg.OrigTablesStr_.empty() && this->Config_.OrigTablesStr_ != cfg.OrigTablesStr_) {
+      this->Config_.OrigTablesStr_ = std::move(cfg.OrigTablesStr_);
+      SvParseGvTablesC(cfg.RightsTables_, this->ConfigGvTables_, this->ConfigGvTablesStr_, &this->Config_.OrigTablesStr_);
       cfg.OrdTeams_.Begin_ = cfg.OrdTeams_.End_ = nullptr;
       cfg.FcReqCount_ = cfg.FcReqMS_ = 0;
-      if (const OmsGvTable* tab = this->ConfigGvTables_.Get("OmsPoUserRights")) {
+      if (const fon9::rc::SvGvTable* tab = this->ConfigGvTables_.Get("OmsPoUserRights")) {
          if (tab->RecList_.size() > 0) {
             const fon9::StrView* rec = tab->RecList_[0];
             if (const auto* fld = tab->Fields_.Get("OrdTeams"))
@@ -387,15 +340,15 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
       }
    }
 
-   clises->FcReq_.Resize(cfg.FcReqCount_, fon9::TimeInterval_Millisecond(cfg.FcReqMS_));
+   this->FcReq_.Resize(cfg.FcReqCount_, fon9::TimeInterval_Millisecond(cfg.FcReqMS_));
    this->Config_.MoveFromRc(std::move(cfg));
-   if (clises->Handler_.FnOnConfig_)
-      clises->Handler_.FnOnConfig_(clises, &this->Config_);
+   if (this->Params_.FnOnConfig_)
+      this->Params_.FnOnConfig_(clises, &this->Config_);
 }
 void OmsRcClientNote::OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) {
    fon9::BitvTo(param.RecvBuffer_, this->ChangingTDay_);
-   if (static_cast<OmsRcClientSession*>(&ses)->LogFlags_ & f9OmsRc_ClientLogFlag_Config)
-      fon9_LOG_INFO("OmsRcClient.Recv|ses=", fon9::ToPtr(static_cast<f9OmsRc_ClientSession*>(static_cast<OmsRcClientSession*>(&ses))),
+   if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9rc_ClientLogFlag_Config)
+      fon9_LOG_INFO("OmsRcClient.Recv|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
                     "TDayChanged=", this->ChangingTDay_, fon9::FmtTS("f-t"));
    if (this->Config_.TDay_.GetOrigValue() == 0) {
       // 尚未收到 Config, 就先收到 TDayChanged, 等收到 Config 時, 再回 TDayConfirm;
@@ -406,14 +359,14 @@ void OmsRcClientNote::OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFu
    }
 }
 void OmsRcClientNote::SendTDayConfirm(fon9::rc::RcSession& ses) {
-   if (static_cast<OmsRcClientSession*>(&ses)->LogFlags_ & f9OmsRc_ClientLogFlag_Config)
-      fon9_LOG_INFO("OmsRcClient.Send|ses=", fon9::ToPtr(static_cast<f9OmsRc_ClientSession*>(static_cast<OmsRcClientSession*>(&ses))),
+   if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9rc_ClientLogFlag_Config)
+      fon9_LOG_INFO("OmsRcClient.Send|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
                     "TDayConfirm=", this->ChangingTDay_, fon9::FmtTS("f-t"));
    fon9::RevBufferList rbuf{128};
    fon9::ToBitv(rbuf, this->ChangingTDay_);
    fon9::ToBitv(rbuf, f9OmsRc_OpKind_TDayConfirm);
    fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
-   ses.Send(fon9::rc::RcFunctionCode::OmsApi, std::move(rbuf));
+   ses.Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
 }
 
 } // namespaces

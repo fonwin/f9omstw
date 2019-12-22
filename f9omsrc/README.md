@@ -7,7 +7,7 @@
 * TODO: 增加「一批下單要求」一次打包.
 
 
-## fon9::rc::RcFunctionCode::OmsApi = 0x08
+## f9rc_FunctionCode_OmsApi = 0x08
 * `unsigned tableId`
   * tableId == 0 各類查詢、操作: [`enum f9OmsRc_OpKind`](OmsRc.h)
   * tableId != 0
@@ -102,8 +102,8 @@
     * IvKey|Rights
     * IvKey = BrkId-IvacNo-SubacNo
     * [Rights = enum class OmsIvRight](OmsPoIvList.hpp)
-  * OmsPoUserRights, 使用者權限(可用櫃號、下單流量、查詢流量)
-    * OrdTeams|FcReqCount|FcReqMS|FcQryCount|FcQryMS
+  * OmsPoUserRights, 使用者權限(可用櫃號、下單流量、線路群組)
+    * OrdTeams|FcReqCount|FcReqMS|LgOut
     * 如果有提供 OrdTeams, 表示 OMS 會用這些櫃號來填委託書號.
       * 如果第1碼為 '*', 表示客戶端可自訂櫃號或委託書號.
       * 除非第1碼為 '*', 否則 client 不能自訂櫃號, 即使 OmsTeams 有提供, 例如:

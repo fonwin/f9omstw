@@ -2,11 +2,9 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omsrc_OmsRc_h__
 #define __f9omsrc_OmsRc_h__
-#include "fon9/io/IoState.h"
-#include "fon9/rc/Rc.h"
+#include "fon9/rc/RcClientApi.h"
+#include "fon9/rc/RcSeedVisitor.h"
 #include "f9omstw/OmsPoIvList.h"
-#include "f9omsrc/OmsGvTable.h"
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,19 +34,10 @@ extern "C" {
 
 #define f9OmsRc_API_FN(ReturnType)  extern f9OmsRc_DECL ReturnType f9OmsRc_CALL
 
-/// ErrCode 訊息翻譯服務, 透過 OmsMakeErrMsg.h 提供的 functions 載入、釋放.
+/// ErrCode 訊息翻譯服務, 透過 f9omstw/OmsMakeErrMsg.h 提供的 functions 載入、釋放.
 typedef struct f9omstw_ErrCodeTx    f9omstw_ErrCodeTx;
 
 //--------------------------------------------------------------------------//
-
-/// 在 server 回覆 Config 時, 提供 table 資料時,
-/// 行的第1個字元, 如果是 *fon9_kCSTR_LEAD_TABLE, 則表示一個 table 的開始.
-/// ```
-/// fon9_kCSTR_LEAD_TABLE + TableNamed\n
-/// FieldNames\n
-/// FieldValues\n    可能有 0..n 行
-/// ```
-#define fon9_kCSTR_LEAD_TABLE    "\x02"
 
 fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
    f9OmsRc_OpKind_Config,
@@ -86,25 +75,10 @@ fon9_ENUM(f9OmsRc_LayoutKind, uint8_t) {
    f9OmsRc_LayoutKind_ReportEvent,
 };
 
-typedef struct {
-   fon9_CStrView  Name_;
-   fon9_CStrView  Title_;
-   fon9_CStrView  Description_;
-   /// 欄位型別.
-   /// - Cn = char[n], 若 n==0 則為 Blob.Chars 欄位.
-   /// - Bn = byte[n], 若 n==0 則為 Blob.Bytes 欄位.
-   /// - Un[.s] = Unsigned, n=bytes(1,2,4,8), s=scale(小數位數)可為0
-   /// - Sn[.s] = Signed, n=bytes(1,2,4,8), s=scale(小數位數)可為0
-   /// - Unx = Unsigned, n=bytes(1,2,4,8), CellRevPrint()使用Hex輸出
-   /// - Snx = Signed, n=bytes(1,2,4,8), CellRevPrint()使用Hex輸出
-   /// - Ti = TimeInterval
-   /// - Ts = TimeStamp
-   char           TypeId_[16];
-} f9OmsRc_LayoutField;
-
-typedef uint16_t  f9OmsRc_TableIndex;
-typedef uint16_t  f9OmsRc_FieldIndexU;
-typedef int16_t   f9OmsRc_FieldIndexS;
+typedef f9sv_Field   f9OmsRc_LayoutField;
+typedef uint16_t     f9OmsRc_TableIndex;
+typedef uint16_t     f9OmsRc_FieldIndexU;
+typedef int16_t      f9OmsRc_FieldIndexS;
 
 /// 下單格式、回報格式.
 typedef struct {
@@ -198,24 +172,18 @@ typedef struct {
 
 //--------------------------------------------------------------------------//
 
-fon9_ENUM(f9OmsRc_ClientLogFlag, uint8_t) {
-   f9OmsRc_ClientLogFlag_None = 0,
-   f9OmsRc_ClientLogFlag_All = 0xff,
-   /// 記錄下單訊息 & Config.
-   f9OmsRc_ClientLogFlag_Request = 0x01,
-   /// 記錄回報訊息 & Config.
-   f9OmsRc_ClientLogFlag_Report = 0x02,
-   /// 登入成功後, TDayChanged, Config 相關事件.
-   f9OmsRc_ClientLogFlag_Config = 0x04,
-   /// 連線(斷線)相關事件.
-   f9OmsRc_ClientLogFlag_Link = 0x08,
-};
-
-typedef struct {
-   void*                   UserData_;
-   f9OmsRc_ClientLogFlag   LogFlags_;
-   char                    Reserved7___[7];
-} f9OmsRc_ClientSession;
+#ifdef __cplusplus
+/// 記錄下單訊息 & Config.
+#define f9rc_ClientLogFlag_Request  static_cast<f9rc_ClientLogFlag>(0x0100)
+/// 記錄回報訊息 & Config.
+#define f9rc_ClientLogFlag_Report   static_cast<f9rc_ClientLogFlag>(0x0200)
+/// 登入成功後, TDayChanged, Config 相關事件.
+#define f9rc_ClientLogFlag_Config   static_cast<f9rc_ClientLogFlag>(0x0400)
+#else
+#define f9rc_ClientLogFlag_Request  ((f9rc_ClientLogFlag)0x0100)
+#define f9rc_ClientLogFlag_Report   ((f9rc_ClientLogFlag)0x0200)
+#define f9rc_ClientLogFlag_Config   ((f9rc_ClientLogFlag)0x0400)
+#endif
 
 typedef struct {
    uint32_t HostId_;
@@ -241,25 +209,16 @@ typedef struct {
 
    /// 下單要求的表單數量.
    f9OmsRc_TableIndex            RequestLayoutCount_;
-   char                          Reserved2___[2];
+   char                          Padding2__[2];
    /// 下單要求的表單指標陣列.
    const f9OmsRc_Layout* const*  RequestLayoutArray_;
-
-   /// 收到的表格資料, 以字串形式表示.
-   /// 每個表格用底下形式提供:
-   /// \code
-   /// fon9_kCSTR_LEAD_TABLE("\x02") + TableNamed\n
-   /// FieldNames\n     使用 fon9_kCSTR_CELLSPL("\x01") 分隔
-   /// FieldValues\n    可能有 0..n 行
-   /// \endcode
-   fon9_CStrView                 TablesStrView_;
-   const f9oms_GvTable* const*   TableList_;
-   f9OmsRc_TableIndex            TableCount_;
-   char                          Reserved2a___[2];
+   /// OmsApi 登入成功後, 收到的相關權限資料.
+   f9sv_GvTables                 RightsTables_;
 
    /// 下單流量管制.
    uint16_t                      FcReqCount_;
    uint16_t                      FcReqMS_;
+   char                          Padding4__[4]; 
    /// 可用櫃號列表.
    fon9_CStrView                 OrdTeams_;
 } f9OmsRc_ClientConfig;
@@ -278,15 +237,14 @@ typedef struct {
    const fon9_CStrView*    FieldArray_;
 } f9OmsRc_ClientReport;
 
-typedef void (f9OmsRc_CALL *f9OmsRc_FnOnLinkEv)(f9OmsRc_ClientSession*, f9io_State st, fon9_CStrView info);
-typedef void (f9OmsRc_CALL *f9OmsRc_FnOnConfig)(f9OmsRc_ClientSession*, const f9OmsRc_ClientConfig* cfg);
-typedef void (f9OmsRc_CALL *f9OmsRc_FnOnReport)(f9OmsRc_ClientSession*, const f9OmsRc_ClientReport* rpt);
-typedef void (f9OmsRc_CALL *f9OmsRc_FnOnFlowControl)(f9OmsRc_ClientSession*, unsigned usWait);
+typedef void (f9OmsRc_CALL *f9OmsRc_FnOnConfig)(f9rc_ClientSession*, const f9OmsRc_ClientConfig* cfg);
+typedef void (f9OmsRc_CALL *f9OmsRc_FnOnReport)(f9rc_ClientSession*, const f9OmsRc_ClientReport* rpt);
+typedef void (f9OmsRc_CALL *f9OmsRc_FnOnFlowControl)(f9rc_ClientSession*, unsigned usWait);
 
-/// OmsRc API 客戶端用戶的事件處理程序.
+/// OmsRc API 客戶端用戶的事件處理程序及必要參數.
 typedef struct {
-   /// 連線有關的事件: 連線失敗, 連線後斷線.
-   f9OmsRc_FnOnLinkEv   FnOnLinkEv_;
+   f9rc_FunctionNoteParams    BaseParams_;
+   const f9omstw_ErrCodeTx*   ErrCodeTx_;
 
    /// 通知時機:
    /// - 當登入成功後, Server 回覆現在交易日, 使用者設定.
@@ -320,70 +278,25 @@ typedef struct {
 
    /// 當下單遇到流量管制時通知.
    /// 如果這裡為 NULL, 則由 API 「等候流量解除」然後「送單」, 之後才返回.
-   /// 您也可以在送單前自主呼叫 f9OmsRc_FcReqCheck() 取得流量管制需要等候的時間.
+   /// 您也可以在送單前自主呼叫 f9OmsRc_CheckFcRequest() 取得流量管制需要等候的時間.
    f9OmsRc_FnOnFlowControl FnOnFlowControl_;
-} f9OmsRc_ClientHandler;
-
-/// OmsRc API 建立與主機連線時所需要的參數.
-typedef struct {
-   const f9OmsRc_ClientHandler*  Handler_;
-   const char*                   UserId_;
-   const char*                   Password_;
-   const char*                   DevName_;
-   const char*                   DevParams_;
-   void*                         UserData_;
-   f9rc_RcFlag                   RcFlags_;
-   f9OmsRc_ClientLogFlag         LogFlags_;
-   char                          Reserved7___[5];
-   const f9omstw_ErrCodeTx*      ErrCodeTx_;
 } f9OmsRc_ClientSessionParams;
+
+inline void f9OmsRc_InitClientSessionParams(f9rc_ClientSessionParams* f9rcCliParams, f9OmsRc_ClientSessionParams* omsRcParams) {
+   f9rc_InitClientSessionParams(f9rcCliParams, omsRcParams, f9rc_FunctionCode_OmsApi);
+}
 
 //--------------------------------------------------------------------------//
 
-/// 啟動 f9OmsRc 函式庫.
-/// - 請使用時注意: 不考慮 multi thread 同時呼叫 f9OmsRc_Initialize()/f9OmsRc_Finalize();
-/// - 可重覆呼叫 f9OmsRc_Initialize(), 但須有對應的 f9OmsRc_Finalize();
-///   最後一個 f9OmsRc_Finalize() 被呼叫時, 結束函式庫.
-/// - 啟動 Device factory.
-/// - 啟動 LogFile: 
-///   - if (logFileFmt == NULL) 表示不改變 log 的輸出位置, 預設 log 輸出在 console.
-///   - if (*logFileFmt == '\0') 則 logFileFmt = "./logs/{0:f+'L'}/f9OmsRc.log";
-///     {0:f+'L'} 表示使用 local time 的 YYYYMMDD.
-/// - 若返回非 0:
-///   - ENOSYS: 已經呼叫 f9OmsRc_Finalize() 系統結束.
-///   - 期他為 log 檔開啟失敗的原因(errno).
+/// 啟動 f9OmsRc(fon9 OMS Rc client) 函式庫.
+/// - 請使用時注意: 禁止 multi thread 同時呼叫 f9OmsRc_Initialize()/fon9_Finalize();
+/// - 可重覆呼叫 f9OmsRc_Initialize(), 但須有對應的 fon9_Finalize();
+///   最後一個 fon9_Finalize() 被呼叫時, 結束函式庫.
+/// - 其餘請參考 fon9_Initialize();
+/// - 然後透過 f9rc_CreateClientSession() 建立 Session;
+///   - 建立 Session 時, 必須提供 f9OmsRc_ClientSessionParams; 參數.
+///   - 且需要經過 f9OmsRc_InitClientSessionParams() 初始化.
 f9OmsRc_API_FN(int) f9OmsRc_Initialize(const char* logFileFmt);
-
-/// 結束 f9OmsRc 函式庫.
-/// 結束前必須先將所有建立的物件刪除:
-/// - f9OmsRc_CreateSession() => f9OmsRc_DestroySession();
-/// - 結束系統後, 無法透過 f9OmsRc_Initialize() 重啟, 若要重啟, 必須結束程式重新執行.
-f9OmsRc_API_FN(void) f9OmsRc_Finalize(void);
-
-/// 建立一個下單連線物件, 當您不再使用時, 應呼叫 f9OmsRc_DestroySession(*result) 銷毀.
-/// - 除了 params->UserData_ 可以為任意值(包含NULL), 其他指標若為 NULL, 則直接 crash!
-/// - params->DevName_: 通訊設備名稱, 例如: "TcpClient";
-/// - params->DevParams_: 通訊設備參數, 例如: "192.168.1.1:6601"; "dn=localhost:6601"
-/// - 有可能在返回前就觸發事件, 但此時 *result 必定已經填妥已建立的 Session.
-/// - retval 1 成功 *result 儲存 Session;
-/// - retval 0 失敗: devName 不正確, 或尚未呼叫 f9OmsRc_Initialize();
-f9OmsRc_API_FN(int)
-f9OmsRc_CreateSession(f9OmsRc_ClientSession** result,
-                      const f9OmsRc_ClientSessionParams* params);
-
-/// 銷毀一個下單連線物件.
-/// 在返回前, 仍然可能在其他 thread 收到事件.
-/// isWait = 1 表示要等確定銷毀後才返回.
-/// isWait = 0 表示在返回後仍可能收到事件, 如果您是在事件通知時呼叫, 則不能等候銷毀(會造成死結).
-f9OmsRc_API_FN(void)
-f9OmsRc_DestroySession(f9OmsRc_ClientSession* ses, int isWait);
-
-inline void f9OmsRc_DestroySession_Wait(f9OmsRc_ClientSession* ses) {
-   f9OmsRc_DestroySession(ses, 1);
-}
-inline void f9OmsRc_DestroySession_NoWait(f9OmsRc_ClientSession* ses) {
-   f9OmsRc_DestroySession(ses, 0);
-}
 
 /// 用指定名稱取得「下單表單格式」.
 /// - cfg 必須是在 FnOnConfig_ 事件裡面提供的那個;
@@ -392,7 +305,7 @@ inline void f9OmsRc_DestroySession_NoWait(f9OmsRc_ClientSession* ses) {
 /// - 可自行設定 retval->IdxUserFields_[], 不可更改 retval 的其他 members;
 /// - 您也可以透過 cfg->RequestLayoutArray_[] 循序搜尋 layout.
 f9OmsRc_API_FN(f9OmsRc_Layout*)
-f9OmsRc_GetRequestLayout(f9OmsRc_ClientSession* ses,
+f9OmsRc_GetRequestLayout(f9rc_ClientSession* ses,
                          const f9OmsRc_ClientConfig* cfg,
                          const char* reqName);
 
@@ -401,35 +314,39 @@ f9OmsRc_GetRequestLayout(f9OmsRc_ClientSession* ses,
 /// - 這裡取得的 layout 將在下次 FnOnConfig_ 事件之後銷毀.
 /// - 可自行設定 retval->IdxUserFields_[], 不可更改 retval 的其他 members;
 f9OmsRc_API_FN(f9OmsRc_Layout*)
-f9OmsRc_GetReportLayout(f9OmsRc_ClientSession* ses,
+f9OmsRc_GetReportLayout(f9rc_ClientSession* ses,
                         const f9OmsRc_ClientConfig* cfg,
                         unsigned rptTableId);
 
 /// 訂閱回報, ses 與 cfg 必須是 FnOnConfig_ 事件通知提供的.
 f9OmsRc_API_FN(void)
-f9OmsRc_SubscribeReport(f9OmsRc_ClientSession* ses,
+f9OmsRc_SubscribeReport(f9rc_ClientSession* ses,
                         const f9OmsRc_ClientConfig* cfg,
                         f9OmsRc_SNO from,
                         f9OmsRc_RptFilter filter);
 
 /// 傳送下單要求: 已組好的字串形式.
-f9OmsRc_API_FN(void)
-f9OmsRc_SendRequestString(f9OmsRc_ClientSession* ses,
+/// \retval 1=true  下單要求已送出.
+/// \retval 0=false 無法下單: 沒有呼叫過 f9OmsRc_Initialize();
+///                 或建立 ses 時, 沒有提供 f9OmsRc_ClientSessionParams 參數.
+f9OmsRc_API_FN(int)
+f9OmsRc_SendRequestString(f9rc_ClientSession* ses,
                           const f9OmsRc_Layout* reqLayout,
                           const fon9_CStrView reqStr);
 
 /// 傳送下單要求: 已填妥下單欄位字串陣列: reqFieldArray[0 .. reqLayout->FieldCount_);
-f9OmsRc_API_FN(void)
-f9OmsRc_SendRequestFields(f9OmsRc_ClientSession* ses,
+/// \retval 1=true  下單要求已送出.
+/// \retval 0=false 無法下單: 沒有呼叫過 f9OmsRc_Initialize();
+///                 或建立 ses 時, 沒有提供 f9OmsRc_ClientSessionParams 參數.
+f9OmsRc_API_FN(int)
+f9OmsRc_SendRequestFields(f9rc_ClientSession* ses,
                           const f9OmsRc_Layout* reqLayout,
                           const fon9_CStrView* reqFieldArray);
 
 /// 傳送下單要求之前, 可以自行檢查流量.
 /// 傳回需要等候的 microseconds. 傳回 0 表示不需管制.
 f9OmsRc_API_FN(unsigned)
-f9OmsRc_FcReqCheck(f9OmsRc_ClientSession* ses);
-
-//--------------------------------------------------------------------------//
+f9OmsRc_CheckFcRequest(f9rc_ClientSession* ses);
 
 #ifdef __cplusplus
 }//extern "C"

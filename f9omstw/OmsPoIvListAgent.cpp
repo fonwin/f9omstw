@@ -8,7 +8,7 @@
 namespace fon9 { namespace seed {
 
 fon9::StrView OmsIvKeyField::GetTypeId(fon9::NumOutBuf&) const {
-   return fon9::StrView{fon9_kCSTR_UDFieldMaker_Head fon9_kCSTR_UDFieldMaker_OmsIvKey};
+   return fon9::StrView{fon9_kCSTR_UDStrFieldMaker_Head fon9_kCSTR_UDFieldMaker_OmsIvKey};
 }
 
 // static fon9::seed::FieldSP OmsIvKeyFieldMaker(fon9::StrView& fldcfg, char chSpl, char chTail) {

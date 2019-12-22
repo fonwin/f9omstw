@@ -83,7 +83,7 @@ typedef struct {
 
 fon9_WARN_DISABLE_PADDING;
 typedef struct {
-   f9OmsRc_ClientSession*        Session_;
+   f9rc_ClientSession*           Session_;
    const f9OmsRc_ClientConfig*   Config_;
    f9OmsRc_CoreTDay              CoreTDay_;
    f9OmsRc_SNO                   LastSNO_;
@@ -92,12 +92,12 @@ typedef struct {
 } UserDefine;
 fon9_WARN_POP;
 //--------------------------------------------------------------------------//
-void OnClientLinkEv(f9OmsRc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
+void OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
    (void)st; (void)info;
    UserDefine* ud = ses->UserData_;
    ud->Config_ = NULL;
 }
-void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
+void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    UserDefine* ud = ses->UserData_;
    ud->Config_ = cfg;
    if (f9OmsRc_IsCoreTDayChanged(&ud->CoreTDay_, &cfg->CoreTDay_)) {
@@ -106,7 +106,7 @@ void OnClientConfig(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg)
    }
    f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 }
-void OnClientReport(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
+void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    UserDefine* ud = ses->UserData_;
    if (fon9_LIKELY(rpt->Layout_)) {
       if (rpt->ReportSNO_ == 0) {
@@ -118,7 +118,7 @@ void OnClientReport(f9OmsRc_ClientSession* ses, const f9OmsRc_ClientReport* rpt)
    }
    ud->LastSNO_ = rpt->ReportSNO_;
 }
-void OnClientFcReq(f9OmsRc_ClientSession* ses, unsigned usWait) {
+void OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
    // 也可不提供此 function: f9OmsRc_ClientHandler.FnOnFlowControl_ = NULL;
    // 則由 API 判斷超過流量時: 等候解除流量管制 => 送出下單要求 => 返回下單要求呼叫端.
    printf("OnClientFcReq|ses=%p|wait=%u us\n", ses, usWait);
@@ -129,7 +129,7 @@ void PrintRequest(const f9OmsRc_Layout* pReqLayout, const RequestRec* req) {
    printf("[%u] %s\n", pReqLayout->LayoutId_, pReqLayout->LayoutName_.Begin_);
    for (unsigned iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
       const f9OmsRc_LayoutField* fld = &pReqLayout->FieldArray_[iFld];
-      printf("\t[%2u] %-6s %-10s = '%s'\n", iFld, fld->TypeId_, fld->Name_.Begin_, req->Fields_[iFld]);
+      printf("\t[%2u] %-6s %-10s = '%s'\n", iFld, fld->TypeId_, fld->Named_.Name_.Begin_, req->Fields_[iFld]);
    }
 }
 void PrintConfig(const UserDefine* ud) {
@@ -141,7 +141,7 @@ void PrintConfig(const UserDefine* ud) {
    const f9OmsRc_ClientConfig* cfg = ud->Config_;
    printf("HostId = %u\n", cfg->CoreTDay_.HostId_);
    printf("TDay   = %u/%u\n", cfg->CoreTDay_.YYYYMMDD_, cfg->CoreTDay_.UpdatedCount_);
-   printf("Tables =\n%s\n", cfg->TablesStrView_.Begin_);
+   printf("Tables =\n%s\n", cfg->RightsTables_.OrigStrView_.Begin_);
 
    for (unsigned iReqLayout = 0; iReqLayout < cfg->RequestLayoutCount_; ++iReqLayout)
       PrintRequest(cfg->RequestLayoutArray_[iReqLayout], &ud->RequestRecs_[iReqLayout]);
@@ -194,7 +194,7 @@ int FetchFieldIndex(char** pcmd, const f9OmsRc_Layout* pReqLayout) {
       char ch = **pcmd;
       **pcmd = '\0';
       for (iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
-         if (strcmp(pReqLayout->FieldArray_[iFld].Name_.Begin_, fldName) == 0)
+         if (strcmp(pReqLayout->FieldArray_[iFld].Named_.Name_.Begin_, fldName) == 0)
             goto __FOUND_FIELD;
       }
       printf("Field not found: %s\n", fldName);
@@ -256,7 +256,7 @@ __BREAK_PUT_FIELDS:
 }
 //--------------------------------------------------------------------------//
 typedef struct {
-   f9OmsRc_ClientSession*  Session_;
+   f9rc_ClientSession*     Session_;
    const f9OmsRc_Layout*   ReqLayout_;
    RequestRec*             ReqRec_;
    unsigned long           IntervalMS_;
@@ -386,6 +386,40 @@ void SendRequest(UserDefine* ud, char* cmd) {
           usEnd - usBeg, args.Times_, (usEnd - usBeg) / (double)args.Times_);
 }
 //--------------------------------------------------------------------------//
+void OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig* cfg) {
+   (void)ses;
+   printf("OnSvConfig: FcQry=%u/%u|MaxSubrCount=%u\n" "{%s}\n",
+          cfg->FcQryCount_, cfg->FcQryMS_, cfg->MaxSubrCount_,
+          cfg->RightsTables_.OrigStrView_.Begin_);
+}
+void OnSvReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   (void)ses;
+   printf("OnSvReport(UserDefine=%u), result=%d\n"
+          "treePath={%s}, seedKey={%s}, tab{%s/%u}\n",
+         (unsigned)((uintptr_t)rpt->UserData_),
+          rpt->ResultCode_,
+          rpt->TreePath_.Begin_,
+          rpt->SeedKey_.Begin_,
+          rpt->Tab_->Named_.Name_.Begin_,
+          rpt->Tab_->Named_.Index_);
+   if (rpt->Seed_) {
+      const f9sv_Field* fld = rpt->Tab_->FieldArray_;
+      unsigned fldidx = rpt->Tab_->FieldCount_;
+      if (fldidx) {
+         for (;;) {
+            char  buf[1024];
+            printf("%s=[%s]", fld->Named_.Name_.Begin_,
+                   f9sv_GetField_StrN(rpt->Seed_, fld, buf, sizeof(buf)));
+            if (--fldidx <= 0)
+               break;
+            printf("|");
+            ++fld;
+         }
+         printf("\n");
+      }
+   }
+}
+//--------------------------------------------------------------------------//
 const char  kCSTR_LogFileFmt[] =
 "   LogFileFmt:\n"
 "     '' = ./logs/{0:f+'L'}/f9OmsRc.log\n"
@@ -399,11 +433,11 @@ const char  kCSTR_LogFileFmt[] =
 "       d = DD = Day\n"
 "       +'L' = to localtime\n";
 const char  kCSTR_LogFlags[] =
-"   LogFlags:\n"
-"     1 = f9OmsRc_ClientLogFlag_Request & Config\n"
-"     2 = f9OmsRc_ClientLogFlag_Report  & Config\n"
-"     4 = f9OmsRc_ClientLogFlag_Config\n"
-"     8 = f9OmsRc_ClientLogFlag_Link\n";
+"   LogFlags(hex):\n"
+"     1 = f9rc_ClientLogFlag_Link\n"
+"     100 = f9rc_ClientLogFlag_Request & Config\n"
+"     200 = f9rc_ClientLogFlag_Report  & Config\n"
+"     400 = f9rc_ClientLogFlag_Config\n";
 //--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -414,10 +448,18 @@ int main(int argc, char* argv[]) {
 #endif
    const char* logFileFmt = NULL;
 
-   f9OmsRc_ClientSessionParams  sesParams;
-   memset(&sesParams, 0, sizeof(sesParams));
-   sesParams.DevName_ = "TcpClient";
-   sesParams.LogFlags_ = f9OmsRc_ClientLogFlag_All;
+   f9rc_ClientSessionParams  f9rcCliParams;
+   memset(&f9rcCliParams, 0, sizeof(f9rcCliParams));
+   f9rcCliParams.DevName_ = "TcpClient";
+   f9rcCliParams.LogFlags_ = f9rc_ClientLogFlag_All;
+
+   f9OmsRc_ClientSessionParams   omsRcParams;
+   f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
+
+   f9rcCliParams.FnOnLinkEv_ = &OnClientLinkEv;
+   omsRcParams.FnOnConfig_ = &OnClientConfig;
+   omsRcParams.FnOnReport_ = &OnClientReport;
+   omsRcParams.FnOnFlowControl_ = &OnClientFcReq;
 
    const char** pargv = (const char**)argv;
    for (int L = 1; L < argc;) {
@@ -432,30 +474,30 @@ int main(int argc, char* argv[]) {
       L += 2;
       ++pargv;
       switch (parg[1]) {
-      case 'l':   logFileFmt = *pargv;           break;
-      case 'f':   sesParams.LogFlags_ = (f9OmsRc_ClientLogFlag)strtoul(*pargv, NULL, 16);    break;
-      case 'u':   sesParams.UserId_ = *pargv;    break;
-      case 'p':   sesParams.Password_ = *pargv;  break;
-      case 'n':   sesParams.DevName_ = *pargv;   break;
-      case 'a':   sesParams.DevParams_ = *pargv; break;
+      case 'l':   logFileFmt = *pargv;               break;
+      case 'f':   f9rcCliParams.LogFlags_ = (f9rc_ClientLogFlag)strtoul(*pargv, NULL, 16);    break;
+      case 'u':   f9rcCliParams.UserId_ = *pargv;    break;
+      case 'p':   f9rcCliParams.Password_ = *pargv;  break;
+      case 'n':   f9rcCliParams.DevName_ = *pargv;   break;
+      case 'a':   f9rcCliParams.DevParams_ = *pargv; break;
       case 't':
-         f9omstw_FreeOmsErrMsgTx(sesParams.ErrCodeTx_);
-         sesParams.ErrCodeTx_ = f9omstw_LoadOmsErrMsgTx1(*pargv);
+         f9omstw_FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
+         omsRcParams.ErrCodeTx_ = f9omstw_LoadOmsErrMsgTx1(*pargv);
          break;
       case '?':   goto __USAGE;
       default:    goto __UNKNOWN_ARGUMENT;
       }
    }
-   if(sesParams.UserId_ == NULL
-   || sesParams.DevName_ == NULL
-   || sesParams.DevParams_ == NULL) {
+   if(f9rcCliParams.UserId_ == NULL
+   || f9rcCliParams.DevName_ == NULL
+   || f9rcCliParams.DevParams_ == NULL) {
 __USAGE:
       printf("Usage:\n"
              "-l LogFileFmt\n"
              "   default is log to console\n"
              "%s"
              "-f LogFlags(hex)\n"
-             "   default is ff = all of below.\n"
+             "   default is ffff = all of below.\n"
              "%s"
              "-n DevName\n"
              "   default is TcpClient\n"
@@ -469,20 +511,23 @@ __USAGE:
       return 3;
    }
    char  passwd[1024];
-   if (sesParams.Password_ == NULL) {
+   if (f9rcCliParams.Password_ == NULL) {
       fon9_getpass(stdout, "Password: ", passwd, sizeof(passwd));
-      sesParams.Password_ = passwd;
+      f9rcCliParams.Password_ = passwd;
    }
    // ----------------------------
    f9OmsRc_Initialize(logFileFmt);
 
-   f9OmsRc_ClientHandler cliHandler = {&OnClientLinkEv, &OnClientConfig, &OnClientReport, &OnClientFcReq};
-   sesParams.Handler_ = &cliHandler;
+   f9sv_ClientSessionParams   svRcParams;
+   f9sv_InitClientSessionParams(&f9rcCliParams, &svRcParams);
+   svRcParams.FnOnConfig_ = &OnSvConfig;
+   f9sv_Initialize(NULL);
+   fon9_Finalize();
 
    UserDefine  ud;
    memset(&ud, 0, sizeof(ud));
-   sesParams.UserData_ = &ud;
-   f9OmsRc_CreateSession(&ud.Session_, &sesParams);
+   f9rcCliParams.UserData_ = &ud;
+   f9rc_CreateClientSession(&ud.Session_, &f9rcCliParams);
    // ----------------------------
    char  cmdbuf[4096];
    for (;;) {
@@ -504,7 +549,7 @@ __USAGE:
          SendRequest(&ud, pend);
       else if (strcmp(pbeg, "lf") == 0) {
          if (pend) {
-            ud.Session_->LogFlags_ = (f9OmsRc_ClientLogFlag)strtoul(pend, &pend, 16);
+            ud.Session_->LogFlags_ = (f9rc_ClientLogFlag)strtoul(pend, &pend, 16);
             pend = StrTrimHead(pend);
          }
          printf("LogFlags = %x\n", ud.Session_->LogFlags_);
@@ -512,9 +557,37 @@ __USAGE:
             if ((pend[0] == '\'' && pend[1] == '\'')
                 || (pend[0] == '"' && pend[1] == '"'))
                pend = "";
-            f9OmsRc_Initialize(pend);
-            f9OmsRc_Finalize();
+            fon9_Initialize(pend);
+            fon9_Finalize();
          }
+      }
+      else if (strcmp(pbeg, "q") == 0) { // query: treePath key tabName
+         if (pend == NULL) {
+            puts("q: require 'treePath'");
+            continue;
+         }
+         f9sv_SeedName seedName;
+         memset(&seedName, 0, sizeof(seedName));
+         seedName.TreePath_ = StrCutSpace(pend, &pend);
+         if (pend == NULL) {
+            puts("q: require 'key'");
+            continue;
+         }
+         seedName.SeedKey_ = StrCutSpace(pend, &pend);
+         if (pend) {
+            if (isdigit((unsigned char)*pend))
+               seedName.TabIndex_ = (f9sv_TabSize)strtoul(pend, NULL, 10);
+            else
+               seedName.TabName_ = pend;
+         }
+         static f9sv_ReportHandler handler = {&OnSvReport, NULL};
+         handler.UserData_ = ((char*)handler.UserData_) + 1;
+         f9sv_Result res = f9sv_Query(ud.Session_, &seedName, handler);
+         printf("Query(Id=%u): [%s][%s][%s/%d], result=%d\n",
+                (unsigned)((uintptr_t)handler.UserData_), seedName.TreePath_, seedName.SeedKey_,
+                (seedName.TabName_ ? seedName.TabName_ : "<nil>"),
+                seedName.TabIndex_,
+                res);
       }
       else if (strcmp(pbeg, "?") == 0 || strcmp(pbeg, "help") == 0)
          printf("quit\n"
@@ -531,6 +604,8 @@ __USAGE:
                 "%s"
                 "%s"
                 "\n"
+                "q treePath key tabName\n"
+                "\n"
                 "? or help\n"
                 "   This info.\n",
                 kCSTR_LogFlags, kCSTR_LogFileFmt);
@@ -539,8 +614,8 @@ __USAGE:
    }
    // ----------------------------
 __QUIT:
-   f9OmsRc_DestroySession_Wait(ud.Session_);
-   f9OmsRc_Finalize();
-   f9omstw_FreeOmsErrMsgTx(sesParams.ErrCodeTx_);
+   f9rc_DestroyClientSession_Wait(ud.Session_);
+   fon9_Finalize();
+   f9omstw_FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
    puts("OmsRcClient test quit.");
 }

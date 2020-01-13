@@ -13,7 +13,7 @@ namespace f9omstw {
 
 /// OMS 所需的資源, 集中在此處理.
 /// - 這裡的資源都 **不是** thread safe!
-class OmsResource : public fon9::seed::NamedSapling {
+class OmsResource : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(OmsResource);
 
 public:
@@ -64,15 +64,10 @@ protected:
 
    template <class... NamedArgsT>
    OmsResource(OmsCore& core, NamedArgsT&&... namedargs)
-      : fon9::seed::NamedSapling(new fon9::seed::MaTree("Tables"), std::forward<NamedArgsT>(namedargs)...)
+      : fon9::seed::NamedMaTree(std::forward<NamedArgsT>(namedargs)...)
       , Core_(core) {
    }
    ~OmsResource();
-
-   void AddNamedSapling(fon9::seed::TreeSP sapling, fon9::Named&& named) {
-      static_cast<fon9::seed::MaTree*>(this->Sapling_.get())->
-         Add(new fon9::seed::NamedSapling(std::move(sapling), std::move(named)));
-   }
 
    /// 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    void Plant();

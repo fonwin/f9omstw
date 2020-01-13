@@ -8,12 +8,8 @@
 
 namespace f9omstw {
 
-TwsTradingLineMgrLg::LgMgr::LgMgr(fon9::Named&& named)
-   : base(new fon9::seed::MaTree{"Lg"}, std::move(named)) {
-}
-//--------------------------------------------------------------------------//
 TwsTradingLineMgrLg::TwsTradingLineMgrLg(OmsCoreMgr& coreMgr, std::string name)
-   : base(new fon9::seed::MaTree{"LgList"}, std::move(name))
+   : base(std::move(name))
    , CoreMgr_(coreMgr) {
    coreMgr.TDayChangedEvent_.Subscribe(&this->SubrTDayChanged_,
       std::bind(&TwsTradingLineMgrLg::OnTDayChanged, this, std::placeholders::_1));
@@ -87,9 +83,9 @@ TwsTradingLineMgrLgSP TwsTradingLineMgrLg::Plant(OmsCoreMgr&                core
             fon9::StrView_ToNormalizeStr(fon9::StrTrimRemoveQuotes(title)),
             fon9::StrView_ToNormalizeStr(fon9::StrTrimRemoveQuotes(cfgln))
             )}};
-         static_cast<fon9::seed::MaTree*>(retval->Sapling_.get())->Add(lgMgr);
+         retval->Sapling_->Add(lgMgr);
 
-         fon9::seed::MaTree& mgrTree = *static_cast<fon9::seed::MaTree*>(lgMgr->Sapling_.get());
+         fon9::seed::MaTree& mgrTree = *lgMgr->Sapling_;
          argsIoTse.Name_.assign(lgMgr->Name_ + "_TSE");
          lgMgr->TseTradingLineMgr_ = CreateTwsTradingLineMgr(mgrTree, cfgpath, argsIoTse, f9fmkt_TradingMarket_TwSEC);
          argsIoTse.IoServiceSrc_ = lgMgr->TseTradingLineMgr_;

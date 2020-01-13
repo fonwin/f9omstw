@@ -11,8 +11,7 @@
 #include "f9omstw/OmsTools.hpp"
 #include "f9omstw/OmsIvSymb.hpp" // for OmsScResource{}
 
-#include "fon9/buffer/DcQueueList.hpp"
-#include "fon9/buffer/FwdBufferList.hpp"
+#include "fon9/FileReadAll.hpp"
 #include "fon9/seed/RawWr.hpp"
 #include "fon9/Log.hpp"
 
@@ -215,22 +214,8 @@ struct OmsBackend::Loader {
    }
    fon9::File::Result ReloadAll(fon9::File& fd, const fon9::File::SizeType fsize) {
       fon9::LinePeeker     lnPeeker;
-      fon9::DcQueueList    rxbuf;
       fon9::File::SizeType fpos = 0, lnpos = 0;
-
-      for (;;) {
-         fon9::FwdBufferNode* node = fon9::FwdBufferNode::Alloc(32 * 1024);
-         auto res = fd.Read(fpos, node->GetDataEnd(), node->GetRemainSize());
-         if (res.IsError()) {
-            FreeNode(node);
-            fon9_LOG_FATAL("OmsBackend.OpenReload.Read|pos=", fpos);
-            return res;
-         }
-         if (res.GetResult() <= 0)
-            return res;
-         fpos += res.GetResult();
-         node->SetDataEnd(node->GetDataEnd() + res.GetResult());
-         rxbuf.push_back(node);
+      fon9::File::Result   res = fon9::FileReadAll(fd, fpos, [&](fon9::DcQueue& rxbuf, fon9::File::Result& rout){
          size_t exsz = 0;
          while (const char* pln = lnPeeker.PeekUntil(rxbuf, *fon9_kCSTR_ROWSPL)) {
             fon9::StrView ln{pln, lnPeeker.LineSize_ - 1}; // -1 移除 *fon9_kCSTR_ROWSPL;
@@ -256,9 +241,14 @@ struct OmsBackend::Loader {
                exsz = 0;
             }
          } // while lnPeeker
-         if ((fpos += exsz) >= fsize)
-            return fon9::File::Result{fsize};
-      } // for() read block.
+         if ((fpos += exsz) < fsize)
+            return true;
+         rout = fon9::File::Result{fsize};
+         return false;
+      });
+      if (res.IsError())
+         fon9_LOG_FATAL("OmsBackend.OpenReload.Read|pos=", fpos, '|', res);
+      return res;
    }
    void MakeLayout(fon9::RevBufferList& rbuf, const fon9::seed::Layout& layout) {
       size_t idx = layout.GetTabCount();

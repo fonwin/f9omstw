@@ -6,12 +6,14 @@
 #include "f9twf/ExgTmpTypes.hpp"
 #include "fon9/CharAryL.hpp"
 #include "fon9/Decimal.hpp"
+#include "fon9/fmkt/FmktTypes.hpp"
 
 namespace f9omstw {
 
 /// 配合 P08 的小數位最大值: 小數最多 9 位.
-using OmsTwfPri = fon9::Decimal<int64_t, 9>;
-using OmsTwfAmt = fon9::Decimal<int64_t, 9>;
+/// 但也要配合 fmkt 的 Pri = Decimal<int64_t, 8>; 這樣 symb->PriceOrigDiv_ 才能共用;
+using OmsTwfPri = fon9::fmkt::Pri;
+using OmsTwfAmt = fon9::fmkt::Amt;
 using OmsTwfQty = f9twf::TmpQty_t;
 using OmsTwfSymbol = f9twf::SymbolId;
 using OmsTwfPosEff = f9twf::ExgPosEff;

@@ -29,18 +29,18 @@ using TwsTradingLineMgrLgSP = fon9::intrusive_ptr<TwsTradingLineMgrLg>;
 ///      - "LgV_OTC_cfg"
 ///      - "LgV_TSE_io"
 ///      - "LgV_TSE_cfg"
-class TwsTradingLineMgrLg : public fon9::seed::NamedSapling {
+class TwsTradingLineMgrLg : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineMgrLg);
-   using base = fon9::seed::NamedSapling;
+   using base = fon9::seed::NamedMaTree;
    OmsCoreMgr&    CoreMgr_;
    fon9::SubConn  SubrTDayChanged_{};
    void OnTDayChanged(OmsCore& core);
 public:
-   class LgMgr : public fon9::seed::NamedSapling {
+   class LgMgr : public fon9::seed::NamedMaTree {
       fon9_NON_COPY_NON_MOVE(LgMgr);
-      using base = fon9::seed::NamedSapling;
+      using base = fon9::seed::NamedMaTree;
    public:
-      LgMgr(fon9::Named&& named);
+      using base::base;
       TwsTradingLineMgrSP  TseTradingLineMgr_;
       TwsTradingLineMgrSP  OtcTradingLineMgr_;
    };

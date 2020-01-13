@@ -8,8 +8,8 @@ namespace f9omstw {
 OmsResource::~OmsResource() {
 }
 void OmsResource::Plant() {
-   this->AddNamedSapling(this->Symbs_, fon9::Named{"Symbs"});
-   this->AddNamedSapling(this->Brks_, fon9::Named{"Brks"});
+   this->Sapling_->AddNamedSapling(this->Symbs_, fon9::Named{"Symbs"});
+   this->Sapling_->AddNamedSapling(this->Brks_, fon9::Named{"Brks"});
 }
 
 } // namespaces

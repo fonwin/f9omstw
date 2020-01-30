@@ -5,73 +5,16 @@
 #include "f9omstw/OmsToolsC.h" // f9omstw_IncStrAlpha();
 #include "f9omstw/OmsMakeErrMsg.h"
 #include "fon9/ConsoleIO.h"
+#include "fon9/CTools.h"
 
-fon9_BEFORE_INCLUDE_STD;
 #include <stdio.h>
-#include <inttypes.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+
 #ifdef fon9_WINDOWS
-#  include <crtdbg.h>
-#  include <thr/xtimec.h>
-   inline void SleepMS(DWORD ms) {
-      Sleep(ms);
-   }
-   inline uint64_t GetSystemUS() {
-      #define DELTA_EPOCH_IN_USEC  11644473600000000ui64
-      FILETIME  ft;
-      GetSystemTimePreciseAsFileTime(&ft);
-      return((((uint64_t)(ft.dwHighDateTime) << 32) | ft.dwLowDateTime) + 5) / 10 - DELTA_EPOCH_IN_USEC;
-   }
-#else // fon9_WINDOWS..else
-#  include <unistd.h>
-#  include <sys/time.h>
-   inline void SleepMS(useconds_t ms) {
-      usleep(ms * 1000);
-   }
-   inline uint64_t GetSystemUS() {
-      struct timeval tv;
-      gettimeofday(&tv, (struct timezone*)NULL);
-      return tv.tv_sec * (uint64_t)1000000 + tv.tv_usec;
-   }
+#include <crtdbg.h>
 #endif
-fon9_AFTER_INCLUDE_STD;
-//--------------------------------------------------------------------------//
-char* StrTrimHead(char* pbeg) {
-   while (*pbeg != '\0' && isspace((unsigned char)*pbeg))
-      ++pbeg;
-   return pbeg;
-}
-char* StrTrimTail(char* pbeg, char* pend) {
-   while (pend != pbeg) {
-      if (!isspace((unsigned char)(*--pend)))
-         return pend + 1;
-   }
-   return pend;
-}
-char* StrCutSpace(char* pbeg, char** pnext) {
-   char* pspl = pbeg = StrTrimHead(pbeg);
-   while (*++pspl) {
-      if (isspace((unsigned char)*pspl)) {
-         *pspl = '\0';
-         *pnext = StrTrimHead(pspl + 1);
-         return pbeg;
-      }
-   }
-   *pnext = NULL;
-   return pbeg;
-}
-const char* StrFetchNoTrim(const char* pbeg, const char** ppend, const char* delims) {
-   const char* pspl = pbeg;
-   while (*pspl) {
-      if (strchr(delims, *pspl))
-         break;
-      ++pspl;
-   }
-   *ppend = pspl;
-   return pbeg;
-}
 //--------------------------------------------------------------------------//
 #define kMaxFieldCount  64
 #define kMaxValueSize   64
@@ -122,7 +65,7 @@ void OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
    // 也可不提供此 function: f9OmsRc_ClientHandler.FnOnFlowControl_ = NULL;
    // 則由 API 判斷超過流量時: 等候解除流量管制 => 送出下單要求 => 返回下單要求呼叫端.
    printf("OnClientFcReq|ses=%p|wait=%u us\n", ses, usWait);
-   SleepMS((usWait + 999) / 1000);
+   fon9_SleepMS((usWait + 999) / 1000);
 }
 //--------------------------------------------------------------------------//
 void PrintRequest(const f9OmsRc_Layout* pReqLayout, const RequestRec* req) {
@@ -153,7 +96,7 @@ const f9OmsRc_Layout* GetRequestLayout(UserDefine* ud, char** cmd) {
       return NULL;
    }
    // Req(Id or Name)
-   const char* reqName = (*cmd ? StrCutSpace(*cmd, cmd) : "");
+   const char* reqName = (*cmd ? fon9_StrCutSpace(*cmd, cmd) : "");
    if (isdigit(*reqName)) {
       unsigned id = strtoul(reqName, NULL, 10);
       if (id <= 0 || ud->Config_->RequestLayoutCount_ < id) {
@@ -190,7 +133,7 @@ int FetchFieldIndex(char** pcmd, const f9OmsRc_Layout* pReqLayout) {
       }
    }
    else {
-      const char* fldName = StrFetchNoTrim(*pcmd, (const char**)pcmd, "= \t");
+      const char* fldName = fon9_StrFetchNoTrim(*pcmd, (const char**)pcmd, "= \t");
       char ch = **pcmd;
       **pcmd = '\0';
       for (iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
@@ -202,12 +145,12 @@ int FetchFieldIndex(char** pcmd, const f9OmsRc_Layout* pReqLayout) {
    __FOUND_FIELD:
       **pcmd = ch;
    }
-   *pcmd = StrTrimHead(*pcmd);
+   *pcmd = fon9_StrTrimHead(*pcmd);
    if (**pcmd != '=') {
       printf("Loss '=' for field.");
       return -1;
    }
-   *pcmd = StrTrimHead(*pcmd + 1);
+   *pcmd = fon9_StrTrimHead(*pcmd + 1);
    return (int)iFld;
 }
 void SetRequest(UserDefine* ud, char* cmd) {
@@ -231,14 +174,14 @@ void SetRequest(UserDefine* ud, char* cmd) {
             goto __BREAK_PUT_FIELDS;
          }
          *cmd = '\0';
-         cmd = StrTrimHead(cmd + 1);
+         cmd = fon9_StrTrimHead(cmd + 1);
          if (*cmd == '|')
             ++cmd;
          break;
       default:
-         val = (char*)StrFetchNoTrim(cmd, (const char**)&cmd, "|");
+         val = (char*)fon9_StrFetchNoTrim(cmd, (const char**)&cmd, "|");
          int isEOS = (*cmd == '\0');
-         *StrTrimTail(val, cmd) = '\0';
+         *fon9_StrTrimTail(val, cmd) = '\0';
          if (isEOS)
             cmd = NULL;
          break;
@@ -247,7 +190,7 @@ void SetRequest(UserDefine* ud, char* cmd) {
       req->Fields_[iFld][sizeof(req->Fields_[iFld]) - 1] = '\0';
       if (!cmd)
          break;
-      cmd = StrTrimHead(cmd + 1);
+      cmd = fon9_StrTrimHead(cmd + 1);
    }
 __BREAK_PUT_FIELDS:
    MakeRequestStr(pReqLayout, req);
@@ -276,7 +219,7 @@ uint64_t SendGroup(char* cmd, const SendArgs args) {
       reqFieldArray[L].Begin_ = args.ReqRec_->Fields_[L];
       reqFieldArray[L].End_ = memchr(args.ReqRec_->Fields_[L], '\0', sizeof(args.ReqRec_->Fields_[L]));
    }
-   const char* groupName = StrCutSpace(cmd, &cmd);
+   const char* groupName = fon9_StrCutSpace(cmd, &cmd);
    LoopField   loopFields[kMaxFieldCount];
    unsigned    loopFieldCount = 0;
    fon9_CStrView* pAutoOrdNo = NULL; // OrdNo 自動累加.
@@ -294,9 +237,9 @@ uint64_t SendGroup(char* cmd, const SendArgs args) {
             ++loopFieldCount;
             for (;;) {
                fon9_CStrView* val = &fld->Values_[fld->ValueCount_++];
-               val->Begin_ = StrFetchNoTrim(StrTrimHead(cmd), &val->End_, ",|");
+               val->Begin_ = fon9_StrFetchNoTrim(fon9_StrTrimHead(cmd), &val->End_, ",|");
                char chSpl = *(cmd = (char*)val->End_);
-               val->End_ = StrTrimTail((char*)val->Begin_, cmd);
+               val->End_ = fon9_StrTrimTail((char*)val->Begin_, cmd);
                *((char*)val->End_) = '\0';
                if (chSpl == '\0')
                   goto __CMD_PARSE_END;
@@ -312,7 +255,7 @@ uint64_t SendGroup(char* cmd, const SendArgs args) {
       }
    }
 __CMD_PARSE_END:;
-   uint64_t usBeg = GetSystemUS();
+   uint64_t usBeg = fon9_GetSystemUS();
    fon9_CStrView* pClOrdId = (args.ReqLayout_->IdxClOrdId_ >= 0) ? &reqFieldArray[args.ReqLayout_->IdxClOrdId_] : NULL;
    fon9_CStrView* pUsrDef = (args.ReqLayout_->IdxUsrDef_ >= 0) ? &reqFieldArray[args.ReqLayout_->IdxUsrDef_] : NULL;
    for (unsigned long L = 0; L < args.Times_; ++L) {
@@ -328,10 +271,10 @@ __CMD_PARSE_END:;
       if (pClOrdId)
          pClOrdId->End_ = pClOrdId->Begin_ + sprintf((char*)pClOrdId->Begin_, "%s:%lu", groupName, L + 1);
       if (pUsrDef)
-         pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, GetSystemUS());
+         pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, fon9_GetSystemUS());
       f9OmsRc_SendRequestFields(args.Session_, args.ReqLayout_, reqFieldArray);
       if (args.IntervalMS_ > 0)
-         SleepMS(args.IntervalMS_);
+         fon9_SleepMS(args.IntervalMS_);
    }
    if (pClOrdId)
       *(char*)(pClOrdId->Begin_) = '\0';
@@ -353,10 +296,10 @@ void SendRequest(UserDefine* ud, char* cmd) {
       args.Times_ = 1;
    args.IntervalMS_ = 0;
    if (cmd) {
-      cmd = StrTrimHead(cmd);
+      cmd = fon9_StrTrimHead(cmd);
       if (*cmd == '/') { // times/msInterval
          args.IntervalMS_ = strtoul(cmd + 1, &cmd, 10);
-         cmd = StrTrimHead(cmd);
+         cmd = fon9_StrTrimHead(cmd);
       }
    }
    fon9_CStrView  reqstr;
@@ -369,17 +312,17 @@ void SendRequest(UserDefine* ud, char* cmd) {
    }
    uint64_t usBeg;
    if (cmd == NULL || *cmd == '\0') {
-      usBeg = GetSystemUS();
+      usBeg = fon9_GetSystemUS();
       for (unsigned long L = 0; L < args.Times_; ++L) {
          f9OmsRc_SendRequestString(args.Session_, args.ReqLayout_, reqstr);
          if (args.IntervalMS_ > 0)
-            SleepMS(args.IntervalMS_);
+            fon9_SleepMS(args.IntervalMS_);
       }
    }
    else if ((usBeg = SendGroup(cmd, args)) <= 0)
       return;
 
-   uint64_t usEnd = GetSystemUS();
+   uint64_t usEnd = fon9_GetSystemUS();
    printf("Begin: %" PRIu64 ".%06" PRIu64 "\n", usBeg / 1000000, usBeg % 1000000);
    printf("  End: %" PRIu64 ".%06" PRIu64 "\n", usEnd / 1000000, usEnd % 1000000);
    printf("Spent: %" PRIu64 " us / %lu times = %lf\n",
@@ -534,11 +477,11 @@ __USAGE:
       printf("> ");
       if (!fgets(cmdbuf, sizeof(cmdbuf), stdin))
          break;
-      char* pend = StrTrimTail(cmdbuf, memchr(cmdbuf, '\0', sizeof(cmdbuf)));
+      char* pend = fon9_StrTrimTail(cmdbuf, memchr(cmdbuf, '\0', sizeof(cmdbuf)));
       if (pend == cmdbuf)
          continue;
       *pend = '\0';
-      char* pbeg = StrCutSpace(cmdbuf, &pend);
+      char* pbeg = fon9_StrCutSpace(cmdbuf, &pend);
       if (strcmp(pbeg, "quit") == 0)
          goto __QUIT;
       else if (strcmp(pbeg, "cfg") == 0)
@@ -550,7 +493,7 @@ __USAGE:
       else if (strcmp(pbeg, "lf") == 0) {
          if (pend) {
             ud.Session_->LogFlags_ = (f9rc_ClientLogFlag)strtoul(pend, &pend, 16);
-            pend = StrTrimHead(pend);
+            pend = fon9_StrTrimHead(pend);
          }
          printf("LogFlags = %x\n", ud.Session_->LogFlags_);
          if (pend && *pend) {
@@ -568,12 +511,12 @@ __USAGE:
          }
          f9sv_SeedName seedName;
          memset(&seedName, 0, sizeof(seedName));
-         seedName.TreePath_ = StrCutSpace(pend, &pend);
+         seedName.TreePath_ = fon9_StrCutSpace(pend, &pend);
          if (pend == NULL) {
             puts("q: require 'key'");
             continue;
          }
-         seedName.SeedKey_ = StrCutSpace(pend, &pend);
+         seedName.SeedKey_ = fon9_StrCutSpace(pend, &pend);
          if (pend) {
             if (isdigit((unsigned char)*pend))
                seedName.TabIndex_ = (f9sv_TabSize)strtoul(pend, NULL, 10);

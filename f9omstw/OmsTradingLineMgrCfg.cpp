@@ -23,15 +23,13 @@ struct OmsTradingLineMgrCfgSeed::CfgOrdTeams : public MaConfigSeed {
    }
 };
 //--------------------------------------------------------------------------//
-fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
 OmsTradingLineMgrCfgSeed::OmsTradingLineMgrCfgSeed(OmsTradingLineMgrBase& linemgr, std::string name)
-   : base(new MaConfigTree(*this, MaConfigSeed::MakeLayout("TradingLineMgrCfg")),
-          std::move(name))
+   : base(std::move(name))
    , LineMgr_(linemgr) {
-   auto& configSapling = this->GetConfigSapling();
-   configSapling.Add(new CfgOrdTeams{configSapling});
+   auto configSapling = new MaConfigTree(*this, MaConfigSeed::MakeLayout("TradingLineMgrCfg"));
+   this->SetConfigSapling(configSapling);
+   configSapling->Add(new CfgOrdTeams{*configSapling});
 }
-fon9_MSC_WARN_POP;
 
 void OmsTradingLineMgrCfgSeed::BindConfigFile(fon9::StrView cfgpath) {
    base::BindConfigFile(fon9::FilePath::AppendPathTail(cfgpath) + this->Name_ + ".f9gv", true);

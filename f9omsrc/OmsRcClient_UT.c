@@ -6,6 +6,7 @@
 #include "f9omstw/OmsMakeErrMsg.h"
 #include "fon9/ConsoleIO.h"
 #include "fon9/CTools.h"
+#include "fon9/CtrlBreakHandler.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -32,9 +33,17 @@ typedef struct {
    f9OmsRc_SNO                   LastSNO_;
    // 為了簡化測試, 最多支援 n 個下單要求.
    RequestRec  RequestRecs_[16];
+
+   /// SvConfig_->RightsTables_ 只能在 OnSvConfig() 事件裡面安全的使用,
+   /// 其他地方使用 SvConfig_->RightsTables_ 都不安全.
+   const f9sv_ClientConfig*   SvConfig_;
+   void*                      LastQueryUserData_;
 } UserDefine;
 fon9_WARN_POP;
 //--------------------------------------------------------------------------//
+void PrintEvSplit(const char* evName) {
+   printf("========== %s: ", evName);
+}
 void OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
    (void)st; (void)info;
    UserDefine* ud = ses->UserData_;
@@ -64,7 +73,8 @@ void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
 void OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
    // 也可不提供此 function: f9OmsRc_ClientHandler.FnOnFlowControl_ = NULL;
    // 則由 API 判斷超過流量時: 等候解除流量管制 => 送出下單要求 => 返回下單要求呼叫端.
-   printf("OnClientFcReq|ses=%p|wait=%u us\n", ses, usWait);
+   PrintEvSplit("OnClientFcReq");
+   printf("ses=%p|wait=%u us\n", ses, usWait);
    fon9_SleepMS((usWait + 999) / 1000);
 }
 //--------------------------------------------------------------------------//
@@ -330,42 +340,111 @@ void SendRequest(UserDefine* ud, char* cmd) {
 }
 //--------------------------------------------------------------------------//
 void OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig* cfg) {
-   (void)ses;
-   printf("OnSvConfig: FcQry=%u/%u|MaxSubrCount=%u\n" "{%s}\n",
+   PrintEvSplit("OnSvConfig");
+   printf("FcQry=%u/%u|MaxSubrCount=%u\n" "{%s}\n",
           cfg->FcQryCount_, cfg->FcQryMS_, cfg->MaxSubrCount_,
           cfg->RightsTables_.OrigStrView_.Begin_);
+   UserDefine* ud = ses->UserData_;
+   ud->SvConfig_ = cfg;
+   puts("====================");
 }
-void OnSvReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
-   (void)ses;
-   printf("OnSvReport(UserDefine=%u), result=%d\n"
-          "treePath={%s}, seedKey={%s}, tab{%s/%u}\n",
-         (unsigned)((uintptr_t)rpt->UserData_),
-          rpt->ResultCode_,
+void PrintSeedValues(const f9sv_ClientReport* rpt) {
+   if (rpt->Seed_ == NULL)
+      return;
+   const f9sv_Field* fld = rpt->Tab_->FieldArray_;
+   unsigned fldidx = rpt->Tab_->FieldCount_;
+   if (fldidx <= 0)
+      return;
+   for (;;) {
+      char  buf[1024];
+      printf("%s=[%s]", fld->Named_.Name_.Begin_,
+             f9sv_GetField_StrN(rpt->Seed_, fld, buf, sizeof(buf)));
+      if (--fldidx <= 0)
+         break;
+      printf("|");
+      ++fld;
+   }
+   printf("\n");
+}
+void PrintSvReport(const char* evName, const f9sv_ClientReport* rpt) {
+   PrintEvSplit(evName);
+   printf("UserData=%u, result=%d:%s\n"
+          "treePath=[%s], seedKey=[%s], tab=[%s|%u]\n",
+          (unsigned)((uintptr_t)rpt->UserData_),
+          rpt->ResultCode_, f9sv_GetSvResultMessage(rpt->ResultCode_),
           rpt->TreePath_.Begin_,
           rpt->SeedKey_.Begin_,
           rpt->Tab_->Named_.Name_.Begin_,
           rpt->Tab_->Named_.Index_);
-   if (rpt->Seed_) {
-      const f9sv_Field* fld = rpt->Tab_->FieldArray_;
-      unsigned fldidx = rpt->Tab_->FieldCount_;
-      if (fldidx) {
-         for (;;) {
-            char  buf[1024];
-            printf("%s=[%s]", fld->Named_.Name_.Begin_,
-                   f9sv_GetField_StrN(rpt->Seed_, fld, buf, sizeof(buf)));
-            if (--fldidx <= 0)
-               break;
-            printf("|");
-            ++fld;
-         }
-         printf("\n");
+   PrintSeedValues(rpt);
+   puts("====================");
+}
+void OnSvQueryReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   PrintSvReport("OnSv.QueryReport", rpt);
+   UserDefine* ud = ses->UserData_;
+   ud->LastQueryUserData_ = rpt->UserData_;
+}
+void OnSvSubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   (void)ses;
+   if (rpt->Seed_ == NULL) { // 訂閱結果通知.
+      if (rpt->ResultCode_ == f9sv_Result_NoError) {
+         // 訂閱成功.
+      }
+      else {
+         // 訂閱失敗.
       }
    }
+   PrintSvReport("OnSv.SubscribeReport", rpt);
+}
+void OnSvUnsubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   (void)ses;
+   PrintSvReport("OnSv.UnsubscribeReport", rpt);
+}
+//--------------------------------------------------------------------------//
+typedef f9sv_Result (fon9_CAPI_CALL *fnSvCmd)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler);
+
+int SvCommand(fnSvCmd fnSvCmd, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler) {
+   if (cmdln == NULL) {
+      printf("%s: require 'treePath'\n", svCmdName);
+      return 0;
+   }
+   f9sv_SeedName seedName;
+   memset(&seedName, 0, sizeof(seedName));
+   seedName.TreePath_ = fon9_StrCutSpace(cmdln, &cmdln);
+   if (cmdln == NULL) {
+      printf("%s: require 'key'\n", svCmdName);
+      return 0;
+   }
+   char* seedKey;
+   seedName.SeedKey_ = seedKey = fon9_StrCutSpace(cmdln, &cmdln);
+   if (seedKey[0] == '\\' && seedKey[2] == '\0') {
+      if (seedKey[1] == 't') { // 輸入2字元 "\\t" => 送出1字元 "\t" => subr tree.
+         seedKey[0] = '\t';
+         seedKey[1] = '\0';
+      }
+   }
+   if (cmdln) {
+      if (isdigit((unsigned char)*cmdln))
+         seedName.TabIndex_ = (f9sv_TabSize)strtoul(cmdln, NULL, 10);
+      else
+         seedName.TabName_ = cmdln;
+   }
+   handler->UserData_ = ((char*)handler->UserData_) + 1;
+
+   f9sv_Result res = fnSvCmd(ud->Session_, &seedName, *handler);
+   printf("---------- %s: UserData=%u, return=%d:%s\n"
+          "treePath=[%s], seedKey=[%s], tab=[%s|%u]\n"
+          "--------------------\n",
+          svCmdName, (unsigned)((uintptr_t)handler->UserData_),
+          res, f9sv_GetSvResultMessage(res),
+          seedName.TreePath_, seedName.SeedKey_,
+          seedName.TabName_, seedName.TabIndex_);
+   return 1;
 }
 //--------------------------------------------------------------------------//
 const char  kCSTR_LogFileFmt[] =
 "   LogFileFmt:\n"
-"     '' = ./logs/{0:f+'L'}/f9OmsRc.log\n"
+"     '' = ./logs/{0:f+'L'}/fon9cli.log\n"
 "     time format: {0:?}\n"
 "       L = YYYYMMDDHHMMSS\n"
 "       f = YYYYMMDD\n"
@@ -386,24 +465,24 @@ int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)
    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
    //_CrtSetBreakAlloc(176);
-   SetConsoleCP(CP_UTF8);
-   SetConsoleOutputCP(CP_UTF8);
 #endif
-   const char* logFileFmt = NULL;
+   fon9_SetConsoleUTF8();
+   fon9_SetupCtrlBreakHandler();
+   // ----------------------------
 
    f9rc_ClientSessionParams  f9rcCliParams;
    memset(&f9rcCliParams, 0, sizeof(f9rcCliParams));
    f9rcCliParams.DevName_ = "TcpClient";
    f9rcCliParams.LogFlags_ = f9rc_ClientLogFlag_All;
+   f9rcCliParams.FnOnLinkEv_ = &OnClientLinkEv;
 
    f9OmsRc_ClientSessionParams   omsRcParams;
    f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
-
-   f9rcCliParams.FnOnLinkEv_ = &OnClientLinkEv;
    omsRcParams.FnOnConfig_ = &OnClientConfig;
    omsRcParams.FnOnReport_ = &OnClientReport;
    omsRcParams.FnOnFlowControl_ = &OnClientFcReq;
 
+   const char*  logFileFmt = NULL;
    const char** pargv = (const char**)argv;
    for (int L = 1; L < argc;) {
       const char* parg = *++pargv;
@@ -459,21 +538,21 @@ __USAGE:
       f9rcCliParams.Password_ = passwd;
    }
    // ----------------------------
-   f9OmsRc_Initialize(logFileFmt);
-
    f9sv_ClientSessionParams   svRcParams;
    f9sv_InitClientSessionParams(&f9rcCliParams, &svRcParams);
    svRcParams.FnOnConfig_ = &OnSvConfig;
-   f9sv_Initialize(NULL);
-   fon9_Finalize();
 
    UserDefine  ud;
    memset(&ud, 0, sizeof(ud));
    f9rcCliParams.UserData_ = &ud;
+
+   f9OmsRc_Initialize(logFileFmt);
+   f9sv_Initialize(NULL);
+   fon9_Finalize();
    f9rc_CreateClientSession(&ud.Session_, &f9rcCliParams);
    // ----------------------------
    char  cmdbuf[4096];
-   for (;;) {
+   while (fon9_AppBreakMsg == NULL) {
       printf("> ");
       if (!fgets(cmdbuf, sizeof(cmdbuf), stdin))
          break;
@@ -505,32 +584,23 @@ __USAGE:
          }
       }
       else if (strcmp(pbeg, "q") == 0) { // query: treePath key tabName
-         if (pend == NULL) {
-            puts("q: require 'treePath'");
-            continue;
+         static f9sv_ReportHandler queryHandler = {&OnSvQueryReport, NULL};
+         if (SvCommand(&f9sv_Query, pend, "q:query", &ud, &queryHandler)) {
+            // 等候查詢結果, 或一小段時間(沒結果則放棄等候).
+            for (unsigned L = 0; L < 100; ++L) {
+               if (ud.LastQueryUserData_ == queryHandler.UserData_)
+                  break;
+               fon9_SleepMS(10);
+            }
          }
-         f9sv_SeedName seedName;
-         memset(&seedName, 0, sizeof(seedName));
-         seedName.TreePath_ = fon9_StrCutSpace(pend, &pend);
-         if (pend == NULL) {
-            puts("q: require 'key'");
-            continue;
-         }
-         seedName.SeedKey_ = fon9_StrCutSpace(pend, &pend);
-         if (pend) {
-            if (isdigit((unsigned char)*pend))
-               seedName.TabIndex_ = (f9sv_TabSize)strtoul(pend, NULL, 10);
-            else
-               seedName.TabName_ = pend;
-         }
-         static f9sv_ReportHandler handler = {&OnSvReport, NULL};
-         handler.UserData_ = ((char*)handler.UserData_) + 1;
-         f9sv_Result res = f9sv_Query(ud.Session_, &seedName, handler);
-         printf("Query(Id=%u): [%s][%s][%s/%d], result=%d\n",
-                (unsigned)((uintptr_t)handler.UserData_), seedName.TreePath_, seedName.SeedKey_,
-                (seedName.TabName_ ? seedName.TabName_ : "<nil>"),
-                seedName.TabIndex_,
-                res);
+      }
+      else if (strcmp(pbeg, "s") == 0) { // subscribe: treePath key tabName
+         static f9sv_ReportHandler  subrHandler = {&OnSvSubscribeReport, NULL};
+         SvCommand(&f9sv_Subscribe, pend, "s:subr", &ud, &subrHandler);
+      }
+      else if (strcmp(pbeg, "u") == 0) { // unsubscribe: treePath key tabName
+         static f9sv_ReportHandler  unsubrHandler = {&OnSvUnsubscribeReport, NULL};
+         SvCommand(&f9sv_Unsubscribe, pend, "u:unsubr", &ud, &unsubrHandler);
       }
       else if (strcmp(pbeg, "?") == 0 || strcmp(pbeg, "help") == 0)
          printf("quit\n"
@@ -560,5 +630,5 @@ __QUIT:
    f9rc_DestroyClientSession_Wait(ud.Session_);
    fon9_Finalize();
    f9omstw_FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
-   puts("OmsRcClient test quit.");
+   printf("OmsRcClient test quit.%s\n", fon9_AppBreakMsg ? fon9_AppBreakMsg : "");
 }

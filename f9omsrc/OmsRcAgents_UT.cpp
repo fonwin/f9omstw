@@ -21,7 +21,7 @@
 #include "fon9/ConfigLoader.hpp"
 #include "fon9/io/TestDevice.hpp"
 #include "fon9/io/SimpleManager.hpp"
-#include "fon9/rc/RcFuncConn.hpp"
+#include "fon9/rc/RcFuncConnServer.hpp"
 #include "fon9/auth/SaslScramSha256Server.hpp"
 #include "fon9/DefaultThreadPool.hpp"
 //--------------------------------------------------------------------------//

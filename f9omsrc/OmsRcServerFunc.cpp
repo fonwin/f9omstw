@@ -6,7 +6,7 @@
 #include "f9omstw/OmsPoIvListAgent.hpp"
 #include "f9omstw/OmsPoUserRightsAgent.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
-#include "fon9/rc/RcFuncConn.hpp"
+#include "fon9/rc/RcFuncConnServer.hpp"
 #include "fon9/io/Device.hpp"
 
 namespace f9omstw {

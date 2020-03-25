@@ -114,6 +114,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsScBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsSymb.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp" />
@@ -161,6 +162,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsResource.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsScBase.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSubac.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsSymb.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsSymbTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp" />
@@ -177,6 +179,9 @@
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\libfon9\libfon9.vcxproj">
       <Project>{6b9031a7-02e1-4171-8ca5-9f780be21806}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omstw\CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

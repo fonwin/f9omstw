@@ -32,7 +32,7 @@ inline uint32_t OmsGetReportQtyUnit(OmsOrder& order, OmsResource& res, ReportT& 
    case OmsReportQtyStyle::BoardLot:
       break;
    }
-   return fon9::fmkt::GetTwsSymbShUnit(order.GetSymb(res, rpt.Symbol_));
+   return fon9::fmkt::GetSymbTwsShUnit(order.GetSymb(res, rpt.Symbol_));
 }
 
 //--------------------------------------------------------------------------//

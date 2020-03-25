@@ -44,7 +44,7 @@ void InitTestCore(TestCore& core) {
       "40005:Rerun=2|AtNewDone=Y|UseNewLine=Y|Memo=ORDER NOT FOUND\n"
       "40010:St=ExchangeNoLeavesQty\n"
    );
-   core.GetResource().Symbs_->FetchSymb(kSYMID)->PriceOrigDiv_ = 1;
+   core.GetResource().Symbs_->FetchOmsSymb(kSYMID)->PriceOrigDiv_ = 1;
    core.OpenReload(gArgc, gArgv, "OmsTwfReportQuote_UT.log");
 }
 

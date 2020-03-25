@@ -208,7 +208,7 @@ __REQUEST_DELETE:
          }
 
          if (fon9_LIKELY(twsApCode != f9tws::TwsApCode::OddLot))
-            fixQty /= f9fmkt::GetTwsSymbShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
+            fixQty /= f9fmkt::GetSymbTwsShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
          // if (fon9_UNLIKELY(fixQty > 999)) {
          //    runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
          //    return SendResult::RejectRequest;

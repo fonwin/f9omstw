@@ -26,7 +26,7 @@ void InitTestCore(TestCore& core) {
       "40004:Rerun=2|AtNewDone=Y|Memo=商品處理中，暫時不接受委託\n"
       "40010:St=ExchangeNoLeavesQty\n"
    );
-   core.GetResource().Symbs_->FetchSymb(kSYMID)->PriceOrigDiv_ = 1;
+   core.GetResource().Symbs_->FetchOmsSymb(kSYMID)->PriceOrigDiv_ = 1;
    core.OpenReload(gArgc, gArgv, "OmsTwfReport_UT.log");
 
 #define kErrCode_0                  "|ErrCode=0"

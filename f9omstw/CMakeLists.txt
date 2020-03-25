@@ -25,6 +25,7 @@ set(f9omstw_src
  OmsIvacTree.cpp
  OmsSubac.cpp
  OmsIvSymb.cpp
+ OmsSymb.cpp
  OmsSymbTree.cpp
  OmsErrCodeActTree.cpp
 

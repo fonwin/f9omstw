@@ -32,12 +32,12 @@ const char* OmsTwsRequestIni::IsIniFieldEqual(const OmsRequestBase& req) const {
 const OmsRequestIni* OmsTwsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
    if (this->Market_ == f9fmkt_TradingMarket_Unknown || this->SessionId_ == f9fmkt_TradingSessionId_Unknown) {
       if (!scRes.Symb_)
-         scRes.Symb_ = res.Symbs_->GetSymb(ToStrView(this->Symbol_));
+         scRes.Symb_ = res.Symbs_->GetOmsSymb(ToStrView(this->Symbol_));
       if (this->SessionId_ == f9fmkt_TradingSessionId_Unknown) {
          if (this->Pri_.IsNull() && (this->PriType_ == f9fmkt_PriType_Limit || this->PriType_ == f9fmkt_PriType_Unknown))
             this->SessionId_ = f9fmkt_TradingSessionId_FixedPrice;
          else {
-            auto shUnit = fon9::fmkt::GetTwsSymbShUnit(scRes.Symb_.get());
+            auto shUnit = fon9::fmkt::GetSymbTwsShUnit(scRes.Symb_.get());
             if (this->Qty_ < shUnit)
                this->SessionId_ = f9fmkt_TradingSessionId_OddLot;
             else

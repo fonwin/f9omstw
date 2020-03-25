@@ -25,9 +25,9 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
       for (auto& p08 : p08recs) {
          if (p08.ShortId_.empty())
             continue;
-         const auto         shortId = ToStrView(p08.ShortId_);
-         fon9::fmkt::SymbSP symb = symbsTree.FetchSymb(shortId).get();
-         TwfExgSymbBasic*   symbP08 = dynamic_cast<TwfExgSymbBasic*>(symb.get());
+         const auto        shortId = ToStrView(p08.ShortId_);
+         OmsSymbSP         symb = symbsTree.FetchOmsSymb(shortId);
+         TwfExgSymbBasic*  symbP08 = dynamic_cast<TwfExgSymbBasic*>(symb.get());
          if (symbP08 == nullptr)
             continue;
          fon9::StrView newLongId = ToStrView(p08.LongId_);

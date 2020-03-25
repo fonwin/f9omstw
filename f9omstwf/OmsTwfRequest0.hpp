@@ -6,8 +6,8 @@
 #ifndef __f9omstwf_OmsTwfRequest0_hpp__
 #define __f9omstwf_OmsTwfRequest0_hpp__
 #include "f9omstw/OmsRequestTrade.hpp"
+#include "f9omstw/OmsSymb.hpp"
 #include "f9omstwf/OmsTwfTypes.hpp"
-#include "fon9/fmkt/Symb.hpp"
 
 namespace f9omstw {
 
@@ -43,7 +43,7 @@ struct OmsTwfRequestIniDat0 {
 class OmsTwfRequestIni0 : public OmsRequestIni, public OmsTwfRequestIniDat0 {
    fon9_NON_COPY_NON_MOVE(OmsTwfRequestIni0);
    using base = OmsRequestIni;
-   fon9::fmkt::SymbSP   SymbLeg2_;
+   OmsSymbSP   SymbLeg2_;
 
 public:
    template <class... ArgsT>
@@ -52,7 +52,7 @@ public:
       , OmsTwfRequestIniDat0{rtype} {
    }
    
-   fon9::fmkt::Symb* SymbLeg2() const {
+   OmsSymb* SymbLeg2() const {
       return this->SymbLeg2_.get();
    }
 
@@ -68,7 +68,7 @@ public:
    /// - 如果是複式單, 則會重設 this->SymbLeg2(); this->CombOp_; this->CombSide_;
    /// - this->BeforeReq_CheckOrdKey(); 會呼叫此處.
    /// - 而「回報」、「系統重啟」會在 OmsOrder::GetSymb() 時, 透過 OmsOrder::FindSymb() 呼叫次處.
-   fon9::fmkt::SymbSP RegetSymb(OmsResource& res);
+   OmsSymbSP RegetSymb(OmsResource& res);
 };
 
 } // namespaces

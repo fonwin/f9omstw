@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
    polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second = f9omstw::OmsIvRight::DenyTradingChgPri;
    f9omstw::OmsRequestPolicySP poUser = polcfg.MakePolicy(coreResource);
    //---------------------------------------------
-   auto symb = coreResource.Symbs_->FetchSymb("1101");
+   auto symb = coreResource.Symbs_->FetchOmsSymb("1101");
    symb->TradingMarket_ = f9fmkt_TradingMarket_TwSEC;
    symb->ShUnit_ = 1000;
    TestMarketSessionId(coreResource, f9fmkt_TradingMarket_TwSEC, f9fmkt_TradingSessionId_FixedPrice,
@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
    TestCase(testCore, poAdmin, OmsErrCode_Bad_MarketId_SymbNotFound,
             "TwsNew|Kind=C|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
-   symb = coreResource.Symbs_->FetchSymb("BADMK");
+   symb = coreResource.Symbs_->FetchOmsSymb("BADMK");
    symb->TradingMarket_ = f9fmkt_TradingMarket_Unknown;
    std::cout << "[TEST ] admin.RequestIni(ChgQty, Bad Symbol market)";
    TestCase(testCore, poAdmin, OmsErrCode_Bad_SymbMarketId,

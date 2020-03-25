@@ -6,7 +6,7 @@
 #include "f9omstw/OmsRequestTrade.hpp"
 #include "f9omstw/OmsReportFilled.hpp"
 #include "f9omstw/OmsIvSymb.hpp"
-#include "fon9/fmkt/Symb.hpp"
+#include "f9omstw/OmsSymb.hpp"
 
 namespace f9omstw {
 
@@ -15,11 +15,11 @@ fon9_WARN_DISABLE_PADDING;
 /// - 放在 OmsOrder 裡面.
 /// - 當委託有異動時, 可以快速調整風控計算, 不用再查一次表格.
 struct OmsScResource {
-   fon9::fmkt::SymbSP   Symb_;
-   OmsIvBaseSP          Ivr_;
-   OmsIvSymbSP          IvSymb_;
+   OmsSymbSP   Symb_;
+   OmsIvBaseSP Ivr_;
+   OmsIvSymbSP IvSymb_;
    /// 委託風控計算價格, 小數位樹有風控計算模組決定.
-   int64_t              OrdPri_{0};
+   int64_t     OrdPri_{0};
 
    void CheckMoveFrom(OmsScResource&& rhs) {
       if (!this->Symb_)    this->Symb_   = std::move(rhs.Symb_);
@@ -54,7 +54,7 @@ protected:
    /// - 當 this->GetSymb() 時, 若 this->ScResource_.Symb_.get() == nullptr;
    /// - 則透過 this->ScResource_.Symb_ = this->FindSymb() 尋找商品.
    /// - 預設: return res.Symbs_->GetSymb(symbid);
-   virtual fon9::fmkt::SymbSP FindSymb(OmsResource& res, const fon9::StrView& symbid);
+   virtual OmsSymbSP FindSymb(OmsResource& res, const fon9::StrView& symbid);
 
 public:
    /// 若透過類似 ObjSupplier 的機制, 無法提供建構時參數.
@@ -90,8 +90,8 @@ public:
    OmsBrk* GetBrk(OmsResource& res) const;
 
    template <class SymbId>
-   fon9::fmkt::Symb* GetSymb(OmsResource& res, const SymbId& symbid);
-   fon9::fmkt::Symb* GetSymb(OmsResource& res, const fon9::StrView& symbid);
+   OmsSymb* GetSymb(OmsResource& res, const SymbId& symbid);
+   OmsSymb* GetSymb(OmsResource& res, const fon9::StrView& symbid);
 
    /// 透過 this->Creator_->MakeOrderRawImpl() 建立委託異動資料.
    /// - 通常配合 OmsRequestRunnerInCore 建立 runner; 然後執行下單(或回報)步驟.

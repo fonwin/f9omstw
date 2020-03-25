@@ -289,7 +289,7 @@ TwsTradingLineTmp2019::SendResult TwsTradingLineTmp2019::SendRequest(f9fmkt::Tra
          pkt010->IvacNoFlag_ = ' ';
       pkt010->OType_ = ordraw.OType_;
       if (fon9_LIKELY(qty)) {
-         qty /= f9fmkt::GetTwsSymbShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
+         qty /= f9fmkt::GetSymbTwsShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
          fon9::Pic9ToStrRev<pkt010->Qty3_.size()>(pkt010->Qty3_.end(), qty);
       }
       else

@@ -46,7 +46,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
    const OmsTwfRequestIni0* iniReq0  = static_cast<const OmsTwfRequestIni0*>(order.Initiator());
    // 因為需要知道 symb->PriceOrigDiv_ 才能正確的填價格欄位;
    // 所以如果沒有 symb, 就無法下單.
-   fon9::fmkt::Symb* symb = order.GetSymb(runner->Resource_, iniReq0->Symbol_);
+   OmsSymb* symb = order.GetSymb(runner->Resource_, iniReq0->Symbol_);
    if (fon9_UNLIKELY(symb == nullptr)) {
       runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_SymbNotFound, nullptr);
       return SendResult::RejectRequest;
@@ -55,7 +55,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_SymbDecimalLocator, nullptr);
       return SendResult::RejectRequest;
    }
-   fon9::fmkt::Symb*          symbLeg2 = iniReq0->SymbLeg2();
+   OmsSymb*                   symbLeg2 = iniReq0->SymbLeg2();
    const f9twf::TmpSymbolType symType = this->LineArgs_.IsUseSymNum_
       ? f9twf::TmpSymbolType::ShortNum
       : (iniReq0->Market() == f9fmkt_TradingMarket_TwFUT

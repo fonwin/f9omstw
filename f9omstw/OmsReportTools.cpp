@@ -10,7 +10,7 @@ void OmsBadLeavesWriteLog(OmsReportRunnerInCore& inCoreRunner, int leavesQty) {
                   fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
 }
 int32_t OmsGetSymbolPriMul(OmsReportChecker& checker, fon9::StrView symbid) {
-   if (auto symb = checker.Resource_.Symbs_->GetSymb(symbid)) {
+   if (auto symb = checker.Resource_.Symbs_->GetOmsSymb(symbid)) {
       if (symb->PriceOrigDiv_ > 0)
          return fon9::signed_cast(symb->PriceOrigDiv_);
       checker.ReportAbandon("OmsGetSymbolPriMul: Bad symbol PriceOrigDiv.");

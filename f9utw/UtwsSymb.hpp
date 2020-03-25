@@ -2,15 +2,15 @@
 // \author fonwinz@gmail.com
 #ifndef __f9utw_UtwsSymb_hpp__
 #define __f9utw_UtwsSymb_hpp__
-#include "fon9/fmkt/Symb.hpp"
+#include "f9omstw/OmsSymb.hpp"
 #include "f9omstwf/OmsTwfExgSymbBasic.hpp"
 
 namespace f9omstw {
 
 /// 這裡提供一個 OMS 商品基本資料的範例.
-class UtwsSymb : public fon9::fmkt::Symb, public TwfExgSymbBasic {
+class UtwsSymb : public OmsSymb, public TwfExgSymbBasic {
    fon9_NON_COPY_NON_MOVE(UtwsSymb);
-   using base = fon9::fmkt::Symb;
+   using base = OmsSymb;
 public:
    using base::base;
 
@@ -19,7 +19,7 @@ public:
 
    static fon9::seed::LayoutSP MakeLayout(fon9::seed::TreeFlag flags);
 
-   static fon9::fmkt::SymbSP SymbMaker(const fon9::StrView& symbid) {
+   static OmsSymbSP SymbMaker(const fon9::StrView& symbid) {
       return new UtwsSymb{symbid};
    }
 };

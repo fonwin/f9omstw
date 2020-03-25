@@ -11,7 +11,7 @@ class OmsTwfOrder0 : public OmsOrder {
    using base = OmsOrder;
 
 protected:
-   fon9::fmkt::SymbSP FindSymb(OmsResource& res, const fon9::StrView& symbid) override;
+   OmsSymbSP FindSymb(OmsResource& res, const fon9::StrView& symbid) override;
    ~OmsTwfOrder0();
 
 public:

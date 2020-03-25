@@ -20,9 +20,9 @@ const char* OmsTwfRequestIni0::IsIniFieldEqual(const OmsRequestBase& req) const 
    }
    return "RequestTwfIni0";
 }
-fon9::fmkt::SymbSP OmsTwfRequestIni0::RegetSymb(OmsResource& res) {
+OmsSymbSP OmsTwfRequestIni0::RegetSymb(OmsResource& res) {
    fon9::StrView symbid = ToStrView(this->Symbol_);
-   auto retval = res.Symbs_->GetSymb(symbid);
+   auto retval = res.Symbs_->GetOmsSymb(symbid);
    if (retval)
       return retval;
    f9twf::ExgCombSymbId combId;
@@ -30,9 +30,9 @@ fon9::fmkt::SymbSP OmsTwfRequestIni0::RegetSymb(OmsResource& res) {
       return nullptr;
    this->CombOp_ = combId.CombOp_;
    this->CombSide_ = combId.CombSide_;
-   retval = res.Symbs_->GetSymb(ToStrView(combId.LegId1_));
+   retval = res.Symbs_->GetOmsSymb(ToStrView(combId.LegId1_));
    if (retval) {
-      if ((this->SymbLeg2_ = res.Symbs_->GetSymb(ToStrView(combId.LegId2_))).get() == nullptr)
+      if ((this->SymbLeg2_ = res.Symbs_->GetOmsSymb(ToStrView(combId.LegId2_))).get() == nullptr)
          return nullptr;
    }
    return retval;

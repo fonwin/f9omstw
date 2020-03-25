@@ -9,7 +9,7 @@ namespace f9omstw {
 
 OmsTwfOrder0::~OmsTwfOrder0() {
 }
-fon9::fmkt::SymbSP OmsTwfOrder0::FindSymb(OmsResource& res, const fon9::StrView& symbid) {
+OmsSymbSP OmsTwfOrder0::FindSymb(OmsResource& res, const fon9::StrView& symbid) {
    auto retval = base::FindSymb(res, symbid);
    if (retval)
       return retval;
@@ -20,7 +20,7 @@ fon9::fmkt::SymbSP OmsTwfOrder0::FindSymb(OmsResource& res, const fon9::StrView&
    f9twf::ExgCombSymbId combId;
    if (fon9_UNLIKELY(!combId.Parse(symbid) || combId.CombOp_ == f9twf::TmpCombOp::Single))
       return nullptr;
-   return res.Symbs_->GetSymb(ToStrView(combId.LegId1_));
+   return res.Symbs_->GetOmsSymb(ToStrView(combId.LegId1_));
 }
 
 OmsTwfOrderRaw0::~OmsTwfOrderRaw0() {

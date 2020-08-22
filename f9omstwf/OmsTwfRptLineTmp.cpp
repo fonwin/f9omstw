@@ -103,7 +103,7 @@ static void SetupReport0Symbol(OmsRequestBase& rpt, f9twf::TmpFcmId ivacFcmId,
             case true:
                if (*(id = leg1p08->ShortId_.LenChars()) != 0)
                   break;
-               // *id == 0: 沒有 ShortId, 則使用 LongId.
+               /* fall through */ // *id == 0: 沒有 ShortId, 則使用 LongId.
             default:
                id = leg1p08->LongId_.LenChars();
                break;

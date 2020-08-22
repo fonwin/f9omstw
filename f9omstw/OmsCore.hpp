@@ -106,5 +106,28 @@ public:
 };
 fon9_WARN_POP;
 
+//--------------------------------------------------------------------------//
+
+template <class TreeBase>
+inline void OmsSapling<TreeBase>::OnTreeOp(fon9::seed::FnTreeOp fnCallback) {
+   fon9::intrusive_ptr<OmsSapling> pthis{this};
+   this->OmsCore_.RunCoreTask([pthis, fnCallback](OmsResource&) {
+      pthis->base::OnTreeOp(std::move(fnCallback));
+   });
+}
+template <class TreeBase>
+inline void OmsSapling<TreeBase>::OnParentSeedClear() {
+   fon9::intrusive_ptr<OmsSapling> pthis{this};
+   this->OmsCore_.RunCoreTask([pthis](OmsResource&) {
+      pthis->base::OnParentSeedClear();
+   });
+}
+template <class TreeBase>
+inline bool OmsSapling<TreeBase>::IsInOmsThread(fon9::seed::Tree* tree) {
+   if (OmsSapling* pthis = dynamic_cast<OmsSapling*>(tree))
+      return pthis->OmsCore_.IsThisThread();
+   return false;
+}
+
 } // namespaces
 #endif//__f9omstw_OmsCore_hpp__

@@ -216,7 +216,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
             pkr1bf->ExecType_ = f9twf::TmpExecType::ChgQty;
             break;
          }
-         // assert(qty == 0); 不用 break; 使用刪單功能.
+         /* fall through */ // assert(qty == 0); 不用 break; 使用刪單功能.
       case f9fmkt_RxKind_RequestDelete:
          pkr1bf->ExecType_ = f9twf::TmpExecType::Delete;
          break;
@@ -324,7 +324,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
             pkr1bf->ExecType_ = f9twf::TmpExecType::ChgQty;
             break;
          }
-         // assert(bidQty == 0 && offerQty == 0); 不用 break; 使用刪單功能.
+         /* fall through */ // assert(bidQty == 0 && offerQty == 0); 不用 break; 使用刪單功能.
       case f9fmkt_RxKind_RequestDelete:
          pkr1bf->ExecType_ = f9twf::TmpExecType::Delete;
          break;

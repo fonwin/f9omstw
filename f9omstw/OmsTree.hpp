@@ -50,24 +50,10 @@ public:
       , OmsCore_(omsCore) {
    }
 
-   void OnTreeOp(fon9::seed::FnTreeOp fnCallback) override {
-      fon9::intrusive_ptr<OmsSapling> pthis{this};
-      this->OmsCore_.RunCoreTask([pthis, fnCallback](OmsResource&) {
-         pthis->base::OnTreeOp(std::move(fnCallback));
-      });
-   }
-   void OnParentSeedClear() override {
-      fon9::intrusive_ptr<OmsSapling> pthis{this};
-      this->OmsCore_.RunCoreTask([pthis](OmsResource&) {
-         pthis->base::OnParentSeedClear();
-      });
-   }
+   void OnTreeOp(fon9::seed::FnTreeOp fnCallback) override;
+   void OnParentSeedClear() override;
 
-   static bool IsInOmsThread(fon9::seed::Tree* tree) {
-      if (OmsSapling* pthis = dynamic_cast<OmsSapling*>(tree))
-         return pthis->OmsCore_.IsThisThread();
-      return false;
-   }
+   static bool IsInOmsThread(fon9::seed::Tree* tree);
 };
 
 } // namespaces

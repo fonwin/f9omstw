@@ -43,6 +43,7 @@ void OmsTwfSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
       break;
    case f9fmkt_TradingMarket_TwOPT:
       idx = f9twf::ExgSystemTypeToIndex(idx ? f9twf::ExgSystemType::OptAfterHour : f9twf::ExgSystemType::OptNormal);
+      break;
    default:
       runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
       return;

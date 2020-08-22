@@ -143,7 +143,7 @@ void RunTestCore(FnBeforeAddReq fnBeforeAddReq,
             rxItem = RunReport(*core, nullptr, rptstr);
             break;
          }
-         // "+N.RptName" 接續前第N筆的異動.
+         /* fall through */ // "+N.RptName" 接續前第N筆的異動.
       case '-':
          fnBeforeAddReq(core, pol);
          rxItem = GetReference(*core, snoCurr, snoVect, rptstr);

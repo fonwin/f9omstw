@@ -137,8 +137,11 @@ class OmsOrderRaw : public OmsRxItem {
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, UpdateOrderSt_) == fon9_OffsetOf(OmsOrderRaw, UpdateOrderSt_),
+      fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");
+      static_assert(offsetof(Derived, UpdateOrderSt_) == offsetof(OmsOrderRaw, UpdateOrderSt_),
                     "'OmsOrderRaw' must be the first base class in derived.");
+      fon9_GCC_WARN_POP;
+
       MakeFieldsImpl(flds);
    }
 

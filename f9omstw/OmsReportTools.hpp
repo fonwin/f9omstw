@@ -249,7 +249,7 @@ bool OmsAssignQtysFromReportBfAf(OmsReportRunnerInCore& inCoreRunner, OrdQtysT& 
       return true;
    }
    // 刪改失敗(NoLeavesQty), 但有「在途成交」或「遺漏改量」(LeavesQty > 0), 應先等補齊後再處理.
-   const bool  isReportRejected = f9fmkt_TradingRequestSt_IsAnyRejected(rpt.ReportSt());
+   const auto  isReportRejected = f9fmkt_TradingRequestSt_IsAnyRejected(rpt.ReportSt());
    if (fon9_UNLIKELY(isReportRejected)) {
       assert(rptBeforeQty == rptAfterQty); // 失敗的刪改, 數量不會變動, 所以必定 rptBeforeQty == rptAfterQty;
       if (inCoreRunner.OrderRaw_.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {

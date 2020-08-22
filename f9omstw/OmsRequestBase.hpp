@@ -93,8 +93,11 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, RxKind_) == fon9_OffsetOf(OmsRequestBase, RxKind_),
+      fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");
+      static_assert(offsetof(Derived, RxKind_) == offsetof(OmsRequestBase, RxKind_),
                     "'OmsRequestBase' must be the first base class in derived.");
+      fon9_GCC_WARN_POP;
+
       MakeFieldsImpl(flds);
    }
    /// 在 flds 增加 ReportSt 及 ErrCode 欄位, 這裡沒有呼叫 MakeFields().
@@ -106,6 +109,9 @@ protected:
       this->RxItemFlags_ |= OmsRequestFlag_ReportIn;
    }
    void MakeReportReqUID(fon9::DayTime exgTime, uint32_t beforeQty);
+   void MakeReportReqUID(fon9::TimeStamp exgTime, uint32_t beforeQty) {
+      MakeReportReqUID(fon9::GetDayTime(exgTime), beforeQty);
+   }
 
    /// 執行「刪改查」下單步驟前, 取出此筆要求要操作的原始新單要求.
    /// - 如果有提供 pIniSNO 且 *pIniSNO != 0, 則 this.OrdKey 如果有填則必須正確, 如果沒填則自動填入正確值.

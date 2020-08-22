@@ -20,7 +20,7 @@ struct OmsTwfOrderRawDat9 {
 
    /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
       this->LastFilledTime_.AssignNull();
    }
    /// 先從 prev 複製全部, 然後修改:

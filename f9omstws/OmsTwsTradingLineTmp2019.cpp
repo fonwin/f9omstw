@@ -256,8 +256,8 @@ TwsTradingLineTmp2019::SendResult TwsTradingLineTmp2019::SendRequest(f9fmkt::Tra
          pktmp->SetFuncMsg("0300");
          break;
       }
-      // qty == 0: 不用 break; 使用刪單功能.
    }
+   /* fall through */ // qty == 0: 不用 break; 使用刪單功能.
    case f9fmkt_RxKind_RequestDelete:
       pktmp->SetFuncMsg("0400");
       break;

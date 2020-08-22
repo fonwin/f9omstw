@@ -48,8 +48,11 @@ class OmsRequestTrade : public OmsRequestBase,
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, SesName_) == fon9_OffsetOf(OmsRequestTrade, SesName_),
+      fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");
+      static_assert(offsetof(Derived, SesName_) == offsetof(OmsRequestTrade, SesName_),
                     "'OmsRequestTrade' must be the first base class in derived.");
+      fon9_GCC_WARN_POP;
+
       MakeFieldsImpl(flds);
    }
 
@@ -131,8 +134,11 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, IvacNo_) == fon9_OffsetOf(OmsRequestIni, IvacNo_),
-                    "'OmsRequestIni' must be the first base class in derived.");
+      fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");
+      static_assert(offsetof(Derived, IvacNo_) == offsetof(OmsRequestIni, IvacNo_),
+                    "'OmsRequestTrade' must be the first base class in derived.");
+      fon9_GCC_WARN_POP;
+
       MakeFieldsImpl(flds);
    }
 
@@ -187,8 +193,11 @@ class OmsRequestUpd : public OmsRequestTrade {
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, IniSNO_) == fon9_OffsetOf(OmsRequestUpd, IniSNO_),
+      fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");
+      static_assert(offsetof(Derived, IniSNO_) == offsetof(OmsRequestUpd, IniSNO_),
                     "'OmsRequestUpd' must be the first base class in derived.");
+      fon9_GCC_WARN_POP;
+
       MakeFieldsImpl(flds);
    }
 

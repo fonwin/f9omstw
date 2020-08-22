@@ -34,8 +34,11 @@ class OmsReportFilled : public OmsRequestBase {
 protected:
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
-      static_assert(fon9_OffsetOf(Derived, IniSNO_) == fon9_OffsetOf(OmsReportFilled, IniSNO_),
+      fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");
+      static_assert(offsetof(Derived, IniSNO_) == offsetof(OmsReportFilled, IniSNO_),
                     "'OmsReportFilled' must be the first base class in derived.");
+      fon9_GCC_WARN_POP;
+
       MakeFieldsImpl(flds);
    }
    void InitializeForReportIn() {

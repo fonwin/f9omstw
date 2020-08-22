@@ -56,7 +56,7 @@ struct OmsTwsOrderRawDat {
 
    /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
       this->LastExgTime_.AssignNull();
       this->LastFilledTime_.AssignNull();
       this->LastPriTime_.AssignNull();

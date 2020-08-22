@@ -22,7 +22,7 @@ struct OmsTwsRequestIniDat {
    OmsTwsQty            Qty_;
 
    OmsTwsRequestIniDat() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
       this->Pri_.AssignNull();
    }
 };

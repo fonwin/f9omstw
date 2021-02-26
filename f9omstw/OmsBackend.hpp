@@ -143,7 +143,7 @@ public:
    OmsRxSNO LastSNO() const {
       return this->LastSNO_;
    }
-   /// 最後回報的序號, 如果在 Recover 事件裡面, 可取得正確的值.
+   /// 最後回報的序號, 在 Recover 事件裡面, 可取得正確的值, 否則僅供參考.
    OmsRxSNO PublishedSNO() const {
       return this->PublishedSNO_;
    }

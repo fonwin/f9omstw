@@ -209,7 +209,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
             return SendResult::RejectRequest;
          }
          if (fon9_UNLIKELY(fon9::signed_cast(qty) < 0)) {
-            runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
+            runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_ChgQty, nullptr);
             return SendResult::RejectRequest;
          }
          if (fon9_LIKELY(qty > 0)) {
@@ -317,7 +317,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
             return SendResult::RejectRequest;
          }
          if (fon9_UNLIKELY(fon9::signed_cast(bidQty) < 0 || fon9::signed_cast(offerQty) < 0)) {
-            runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
+            runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_ChgQty, nullptr);
             return SendResult::RejectRequest;
          }
          if (fon9_LIKELY(bidQty > 0 || offerQty > 0)) {

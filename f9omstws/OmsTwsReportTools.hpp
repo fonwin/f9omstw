@@ -50,7 +50,8 @@ inline f9fmkt_TradingSessionId GetFixSessionId(const fon9::fix::FixParser::FixFi
       default:
       case f9tws::TwsApCode::Regular:
          break;
-      case f9tws::TwsApCode::OddLot:
+      case f9tws::TwsApCode::OddLot2:
+      case f9tws::TwsApCode::OddLotC:
          return f9fmkt_TradingSessionId_OddLot;
       case f9tws::TwsApCode::FixedPrice:
          return f9fmkt_TradingSessionId_FixedPrice;

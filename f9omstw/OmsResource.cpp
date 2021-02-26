@@ -5,6 +5,9 @@
 
 namespace f9omstw {
 
+OmsResource::UsrDefObj::~UsrDefObj() {
+}
+
 OmsResource::~OmsResource() {
 }
 void OmsResource::Plant() {

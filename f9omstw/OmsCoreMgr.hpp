@@ -9,6 +9,7 @@
 namespace f9omstw {
 
 using OmsTDayChangedHandler = std::function<void(OmsCore&)>;
+using OmsEventHandler = std::function<void(OmsResource&, const OmsEvent&, bool isReload)>;
 
 using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
 using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
@@ -23,10 +24,10 @@ using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
 
 /// 如果有 Lg 的需求, 則進入下單流程前, 必須先填好 OmsRequestTrade::LgOut_;
 /// 填入 OmsRequestTrade::LgOut_; 的時機:
-/// (1) 收單程序(例如:OmsRcServerFunc.cpp#L196): 使用 PolicyConfig_.UserRights_.LgOut_;
+/// (1) 收單程序, 例如: OmsRcServerFunc.cpp 使用 PolicyConfig_.UserRights_.LgOut_;
 /// (2) 若收單程序沒填, 則透過 OmsCoreMgr::FnSetRequestLgOut_ 處理.
-///     - 在 OmsCore.cpp#L50 進入 OmsRequestRunnerInCore 之前呼叫 OmsCoreMgr::FnSetRequestLgOut_.
-///     - 如果 OmsCoreMgr::FnSetRequestLgOut_ == nullptr, 則不再有機會改變 LgOut_;
+///     - 在 OmsCore.cpp 進入 OmsRequestRunnerInCore 之前呼叫 OmsCoreMgr::FnSetRequestLgOut_();
+///     - 如果 OmsCoreMgr::FnSetRequestLgOut_ == nullptr, 則不再有機會改變 OmsRequestTrade::LgOut_;
 ///     - 這裡提供一個使用 OmsIvac::LgOut_; 的範例 OmsSetRequestLgOut_UseIvac()
 void OmsSetRequestLgOut_UseIvac(OmsResource& res, OmsRequestTrade& req, OmsOrder& order);
 using FnSetRequestLgOut = void (*)(OmsResource&, OmsRequestTrade&, OmsOrder&);
@@ -71,6 +72,10 @@ public:
 
    using TDayChangedEvent = fon9::Subject<OmsTDayChangedHandler>;
    TDayChangedEvent  TDayChangedEvent_;
+
+   /// 重新載入時的 OmsEvent 比 TDayChangedEvent_ 還要早觸發.
+   using OmsEventHandlerSubject = fon9::Subject<OmsEventHandler>;
+   OmsEventHandlerSubject  OmsEvent_;
 
    /// 取得 CurrentCore, 僅供參考.
    /// - 返回前有可能會收到 TDayChanged 事件.
@@ -118,8 +123,17 @@ public:
 
    /// 更新風控: 委託資料有異動時. 預設: do nothing.
    virtual void UpdateSc(OmsRequestRunnerInCore& runner);
-   /// 重算風控: Backend.Reload 重新載入時. 預設: do nothing.
+   /// 重算風控: Backend.Reload 重新載入後, 從第一筆委託往後, 載入重算.
+   /// 預設: do nothing.
    virtual void RecalcSc(OmsResource& resource, OmsOrder& order);
+
+   /// OmsCore 通知收到 OmsEvent;
+   /// 預設: do nothing.
+   virtual void OnEventInCore(OmsResource& resource, OmsEvent& omsEvent, fon9::RevBuffer& rbuf);
+
+   /// Backend.Reload 重新載入後, 重新處理 OmsEvent.
+   /// 預設: do nothing.
+   virtual void ReloadEvent(OmsResource& resource, const OmsEvent& omsEvent);
 };
 fon9_WARN_POP;
 

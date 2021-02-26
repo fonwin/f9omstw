@@ -36,4 +36,7 @@ add_subdirectory(f9omstw)
 add_subdirectory(f9omstws)
 add_subdirectory(f9omstwf)
 add_subdirectory(f9omsrc)
-add_subdirectory(f9utw)
+
+if(CMAKE_F9OMSTW_BUILD_UNIT_TEST)
+   add_subdirectory(f9utw)
+endif()

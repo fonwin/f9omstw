@@ -13,6 +13,11 @@ namespace f9omstw {
 
 /// OMS 所需的資源, 集中在此處理.
 /// - 這裡的資源都 **不是** thread safe!
+/// - 初始化在: 
+///   OmsCoreMgrSeed::AddCore()
+///   → CreateCore
+///   → OmsCoreMgrSeed::InitCoreTables() 由衍生者撰寫, 建立自訂物件:
+///     Symbs_; Brks_; UsrDef_;
 class OmsResource : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(OmsResource);
 
@@ -24,6 +29,13 @@ public:
 
    using BrkTreeSP = fon9::intrusive_ptr<OmsBrkTree>;
    BrkTreeSP   Brks_;
+
+   struct UsrDefObj : public fon9::intrusive_ref_counter<UsrDefObj> {
+      char  Padding____[4];
+      virtual ~UsrDefObj();
+   };
+   using UsrDefSP = fon9::intrusive_ptr<UsrDefObj>;
+   UsrDefSP UsrDef_;
 
    OmsBackend           Backend_;
    OmsOrdTeamGroupMgr   OrdTeamGroupMgr_;

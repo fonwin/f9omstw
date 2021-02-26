@@ -191,7 +191,7 @@ typedef struct {
    /// 相同 TDay 的啟動次數.
    uint32_t UpdatedCount_;
 } f9OmsRc_CoreTDay;
-inline int f9OmsRc_IsCoreTDayChanged(const f9OmsRc_CoreTDay* a, const f9OmsRc_CoreTDay* b) {
+static inline int f9OmsRc_IsCoreTDayChanged(const f9OmsRc_CoreTDay* a, const f9OmsRc_CoreTDay* b) {
    return a->HostId_ != b->HostId_
       || a->YYYYMMDD_ != b->YYYYMMDD_
       || a->UpdatedCount_ != b->UpdatedCount_;
@@ -282,7 +282,7 @@ typedef struct {
    f9OmsRc_FnOnFlowControl FnOnFlowControl_;
 } f9OmsRc_ClientSessionParams;
 
-inline void f9OmsRc_InitClientSessionParams(f9rc_ClientSessionParams* f9rcCliParams, f9OmsRc_ClientSessionParams* omsRcParams) {
+static inline void f9OmsRc_InitClientSessionParams(f9rc_ClientSessionParams* f9rcCliParams, f9OmsRc_ClientSessionParams* omsRcParams) {
    f9rc_InitClientSessionParams(f9rcCliParams, omsRcParams, f9rc_FunctionCode_OmsApi);
 }
 

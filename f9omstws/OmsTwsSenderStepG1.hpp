@@ -14,6 +14,9 @@ class TwsTradingLineMgrG1 {
    OmsCoreMgr&    CoreMgr_;
    fon9::SubConn  SubrTDayChanged_{};
    void OnTDayChanged(OmsCore& core);
+   void OnOmsEvent(OmsResource& res, const OmsEvent&);
+   void SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, f9fmkt_TradingSessionSt sesSt);
+
 public:
    TwsTradingLineMgrSP  TseTradingLineMgr_;
    TwsTradingLineMgrSP  OtcTradingLineMgr_;

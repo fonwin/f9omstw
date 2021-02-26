@@ -36,7 +36,20 @@ void AssignTwsReportMessage(OmsTwsReport& rpt, const fon9::fix::FixParser& fixms
    if (fixfld == nullptr || fixfld->Value_.empty())
       return;
    rpt.Message_.assign(fixfld->Value_);
-   OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(fixfld->Value_, 0u));
+   unsigned char  ch0 = static_cast<unsigned char>(fixfld->Value_.Get1st());
+   OmsErrCode     ec;
+   if(fon9_LIKELY(fon9::isdigit(ch0)))
+      ec = static_cast<OmsErrCode>(fon9::StrTo(fixfld->Value_, 0u));
+   else {
+      switch (ch0) {
+      case 'C': // 盤中零股錯誤碼=Cxxx: ec = xxx + 500
+         ec = static_cast<OmsErrCode>(500 + fon9::StrTo(fon9::StrView{fixfld->Value_.begin() + 1, fixfld->Value_.end()}, 0u));
+         break;
+      default:
+         ec = OmsErrCode_NoError;
+         break;
+      }
+   }
    if (ec != OmsErrCode_NoError)
       ec = static_cast<OmsErrCode>(ec + (f9fmkt_TradingMarket_TwOTC == rpt.Market()
                                          ? OmsErrCode_FromTwOTC : OmsErrCode_FromTwSEC));

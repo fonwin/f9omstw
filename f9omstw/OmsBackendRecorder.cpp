@@ -153,6 +153,16 @@ struct OmsBackend::Loader {
       order->EndUpdate(*ordraw, nullptr);
       return nullptr;
    }
+   const char* MakeEvent(fon9::StrView ln, const FieldsRec& flds) {
+      auto  evfac = static_cast<OmsEventFactory*>(flds.Factory_);
+      auto  omsEvent = evfac->MakeReloadEvent();
+      if (omsEvent.get() == nullptr)
+         return "MakeEvent:Cannot make OmsEvent.";
+      omsEvent->SetRxSNO(this->LastSNO_);
+      StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*omsEvent}, ln);
+      this->Items_.AppendHistory(*omsEvent);
+      return nullptr;
+   }
 
    using FieldMap = std::map<fon9::CharVector, FieldsRec>;
    FieldMap       FieldMap_;
@@ -177,6 +187,10 @@ struct OmsBackend::Loader {
          else if (auto* reqfac = this->Resource_.Core_.Owner_->RequestFactoryPark().GetFactory(tag)) {
             flds.Factory_ = reqfac;
             flds.FnMaker_ = &Loader::MakeRequest;
+         }
+         else if (auto* evfac = this->Resource_.Core_.Owner_->EventFactoryPark().GetFactory(tag)) {
+            flds.Factory_ = evfac;
+            flds.FnMaker_ = &Loader::MakeEvent;
          }
          else
             return;
@@ -289,8 +303,10 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
 
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
       if (items->RxHistory_.size() <= loader.LastSNO_) // 可能資料檔有不認識的 factory name 造成的.
-         items->RxHistory_.resize(loader.LastSNO_ + 1);
-      for (OmsRxSNO sno = loader.LastSNO_; sno > 0; --sno) {
+         items->RxHistory_.resize(loader.LastSNO_ + 1);// 因 RxHistory_ 使用陣列, 所以需要強制調整儲存空間, 才能直接用序號對應.
+      // 依序從第1筆開始, 通知 core 重算風控 RecalcSc.
+      // 因為重算過程可能與「下單要求、委託異動、事件」的發生順序有關, 所以需要「從頭、依序」檢查.
+      for (OmsRxSNO sno = 1; sno <= loader.LastSNO_; ++sno) {
          auto* icur = items->RxHistory_[sno];
          if (icur == nullptr)
             continue;
@@ -305,8 +321,13 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
             }
          }
          const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
-         if (req == nullptr)
+         if (req == nullptr) {
+            if (const OmsEvent* ev = static_cast<const OmsEvent*>(icur->CastToEvent())) {
+               resource.Core_.Owner_->ReloadEvent(resource, *ev);
+               resource.Core_.Owner_->OmsEvent_.Publish(resource, *ev, true);
+            }
             continue;
+         }
          if ((ordraw = req->LastUpdated()) == nullptr)
             continue;
          order = &ordraw->Order();
@@ -336,6 +357,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
    fon9::RevBufferList rbuf{128};
    loader.MakeLayout(rbuf, resource.Core_.Owner_->RequestFactoryPark());
    loader.MakeLayout(rbuf, resource.Core_.Owner_->OrderFactoryPark());
+   loader.MakeLayout(rbuf, resource.Core_.Owner_->EventFactoryPark());
    fon9::RevPrint(rbuf, "===== OMS start @ ", fon9::UtcNow(), " | ", logFileName, " =====\n");
    if (fsize > 0)
       fon9::RevPrint(rbuf, '\n');

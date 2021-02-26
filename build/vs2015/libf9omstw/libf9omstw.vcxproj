@@ -86,7 +86,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsErrCodeAct.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsErrCodeActTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsEventFactory.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsEventSessionSt.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsImporter.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvacTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvBase.hpp" />
@@ -137,6 +139,8 @@
     <ClCompile Include="..\..\..\f9omstw\OmsErrCodeAct.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsErrCodeActTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsEventSessionSt.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsImporter.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp" />
@@ -172,6 +176,17 @@
     <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.00xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.10xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.20xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.22xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.27xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.30xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.32xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.37xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.40xxx.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.All.cfg" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCodeAct.cfg" />
     <None Include="..\..\..\README.md" />
     <None Include="..\..\..\ReportIn.md" />
   </ItemGroup>

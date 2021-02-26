@@ -31,7 +31,7 @@ typedef struct {
    const f9OmsRc_ClientConfig*   Config_;
    f9OmsRc_CoreTDay              CoreTDay_;
    f9OmsRc_SNO                   LastSNO_;
-   // 為了簡化測試, 最多支援 n 個下單要求.
+   // 為了簡化測試, 最多支援 n 種下單表格(下單要求).
    RequestRec  RequestRecs_[16];
 
    /// SvConfig_->RightsTables_ 只能在 OnSvConfig() 事件裡面安全的使用,
@@ -563,6 +563,30 @@ __USAGE:
       char* pbeg = fon9_StrCutSpace(cmdbuf, &pend);
       if (strcmp(pbeg, "quit") == 0)
          goto __QUIT;
+      else if (strcmp(pbeg, "wc") == 0) { // wait connect. default=5 secs. 0 = 1 secs;
+         puts("Waiting for connection...");
+         unsigned secs = (pend ? strtoul(pend, NULL, 10) : 5u);
+         while (ud.Config_ == NULL) {
+            fon9_SleepMS(1000);
+            if (secs <= 0)
+               break;
+            printf("%u \r", secs--);
+            fflush(stdout);
+         }
+         printf("\r%s\n", ud.Config_ ? "Connection ready." : "Wait connection timeout.");
+      }
+      else if (strcmp(pbeg, "sleep") == 0) {
+         unsigned secs = (pend ? strtoul(pend, NULL, 10) : 1u);
+         for(;;) {
+            printf("\r%u ", secs);
+            fflush(stdout);
+            fon9_SleepMS(1000);
+            if (secs <= 0)
+               break;
+            --secs;
+         }
+         printf("\r");
+      }
       else if (strcmp(pbeg, "cfg") == 0)
          PrintConfig(&ud);
       else if (strcmp(pbeg, "set") == 0)
@@ -618,6 +642,10 @@ __USAGE:
                 "%s"
                 "\n"
                 "q treePath key tabName\n"
+                "\n"
+                "wc secs"  "\t\t" "wait connect.\n"
+                "\n"
+                "sleep secs\n"
                 "\n"
                 "? or help\n"
                 "   This info.\n",

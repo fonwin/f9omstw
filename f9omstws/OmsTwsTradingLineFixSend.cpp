@@ -51,8 +51,11 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    fon9_WARN_DISABLE_SWITCH;
    switch (req.SessionId()) {
    case f9fmkt_TradingSessionId_Normal:      twsApCode = f9tws::TwsApCode::Regular;    break;
-   case f9fmkt_TradingSessionId_OddLot:      twsApCode = f9tws::TwsApCode::OddLot;     break;
    case f9fmkt_TradingSessionId_FixedPrice:  twsApCode = f9tws::TwsApCode::FixedPrice; break;
+   case f9fmkt_TradingSessionId_OddLot:
+      twsApCode = (static_cast<TwsTradingLineMgr*>(&this->FixManager_)->IsNormalTrading()
+                   ? f9tws::TwsApCode::OddLotC : f9tws::TwsApCode::OddLot2);
+      break;
    default:
       runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_SessionId, nullptr);
       return SendResult::RejectRequest;
@@ -94,23 +97,22 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
       return SendResult::RejectRequest;
    }
 
-   // ExCode=|RejStaleOrd=|IvacNoFlag=
+   pout = (req.SessionId() == f9fmkt_TradingSessionId_OddLot
+           ? RevPutStr(pout, f9fix_SPLTAGEQ(TwseExCode) "2")   // 2: 盤後零股、盤中零股.
+           : RevPutStr(pout, f9fix_SPLTAGEQ(TwseExCode) "0")); // 0: 一般、盤後定價.
+   // |RejStaleOrd=|IvacNoFlag=
    if ((*--pout = iniReq->IvacNoFlag_.Chars_[0]) == '\0') // IvacNoFlag 也許要從 curReq 取得?
       *pout = ' ';                                        // 暫時不考慮 iniReq, curReq 來源不同.
 
    fon9::StrView       msgType;
    const f9fmkt_RxKind rxKind = curReq->RxKind();
    if (fon9_UNLIKELY(rxKind == f9fmkt_RxKind_RequestQuery)) {
-      pout = RevPutStr(pout,
-                       f9fix_SPLTAGEQ(TwseExCode) "0"
-                       f9fix_SPLTAGEQ(TwseIvacnoFlag));
+      pout = RevPutStr(pout, f9fix_SPLTAGEQ(TwseIvacnoFlag));
       msgType = f9fix_SPLFLDMSGTYPE(OrderStatusRequest);
    }
    else {
-      pout = RevPutStr(pout,
-                       f9fix_SPLTAGEQ(TwseRejStaleOrd) "N"
-                       f9fix_SPLTAGEQ(TwseExCode)      "0" // '0'=Regular, '3'=Foreign stock’s order price over up/down limit flag.
-                       f9fix_SPLTAGEQ(TwseIvacnoFlag));
+      pout = RevPutStr(pout, f9fix_SPLTAGEQ(TwseRejStaleOrd) "N"
+                             f9fix_SPLTAGEQ(TwseIvacnoFlag));
       if (fon9_UNLIKELY(rxKind == f9fmkt_RxKind_RequestDelete)) {
 __REQUEST_DELETE:
          msgType = f9fix_SPLFLDMSGTYPE(OrderCancelRequest);
@@ -126,7 +128,6 @@ __REQUEST_DELETE:
          f9fmkt_PriType fixPriType;
          if (fon9_LIKELY(rxKind == f9fmkt_RxKind_RequestNew)) {
             msgType = f9fix_SPLFLDMSGTYPE(NewOrderSingle);
-            // 20200323 支援 TimeInForce.
             switch (iniReq->TimeInForce_) {
             case f9fmkt_TimeInForce_ROD:
                pout = RevPutStr(pout, f9fix_SPLTAGEQ(TimeInForce) f9fix_kVAL_TimeInForce_Day);
@@ -147,9 +148,8 @@ __REQUEST_DELETE:
             fixPriType = lastOrd->LastPriType_;
          }
          else if (fon9_LIKELY(rxKind == f9fmkt_RxKind_RequestChgQty)) {
-            // OrderQty = 整股:欲刪數量, 零股:剩餘數量.
-            // 20200323 零股也改成:欲刪數量, 那時應將 isWantToKill 設為 true;
-            const bool isWantToKill = (twsApCode != f9tws::TwsApCode::OddLot);
+            // OrderQty = 整股:欲刪數量, 零股:欲刪數量(20200323之前為剩餘數量).
+            const bool isWantToKill = true;
             fixQty = static_cast<OmsTwsQty>(GetTwsRequestChgQty(*runner, curReq, lastOrd, isWantToKill));
             if(fixQty == 0)
                goto __REQUEST_DELETE;
@@ -159,13 +159,13 @@ __REQUEST_DELETE:
             msgType = f9fix_SPLFLDMSGTYPE(OrderReplaceRequest);
          }
          else if (fon9_LIKELY(rxKind == f9fmkt_RxKind_RequestChgPri)) {
-            if (auto* chgQtyReq = dynamic_cast<const OmsTwsRequestChg*>(curReq)) {
-               fixPri = chgQtyReq->Pri_;
-               fixPriType = chgQtyReq->PriType_;
+            if (auto* chgPriReq = dynamic_cast<const OmsTwsRequestChg*>(curReq)) {
+               fixPri = chgPriReq->Pri_;
+               fixPriType = chgPriReq->PriType_;
             }
-            else if (auto* chgQtyIniReq = dynamic_cast<const OmsTwsRequestIni*>(curReq)) {
-               fixPri = chgQtyIniReq->Pri_;
-               fixPriType = chgQtyIniReq->PriType_;
+            else if (auto* chgPriIniReq = dynamic_cast<const OmsTwsRequestIni*>(curReq)) {
+               fixPri = chgPriIniReq->Pri_;
+               fixPriType = chgPriIniReq->PriType_;
             }
             else {
                runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_UnknownRequestType, nullptr);
@@ -207,13 +207,8 @@ __REQUEST_DELETE:
             return SendResult::RejectRequest;
          }
 
-         if (fon9_LIKELY(twsApCode != f9tws::TwsApCode::OddLot))
+         if (fon9_LIKELY(req.SessionId() != f9fmkt_TradingSessionId_OddLot))
             fixQty /= f9fmkt::GetSymbTwsShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
-         // if (fon9_UNLIKELY(fixQty > 999)) {
-         //    runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
-         //    return SendResult::RejectRequest;
-         // }
-         // pout = fon9::Pic9ToStrRev<3>(pout, fixQty); // 20200323: OrderQty 為6碼, 修改前為3碼.
          pout = fon9::UIntToStrRev(pout, fixQty);
          pout = RevPutStr(pout, f9fix_SPLTAGEQ(OrderQty));
       }

@@ -32,6 +32,18 @@ OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileNam
    return res;
 }
 //--------------------------------------------------------------------------//
+void OmsCore::EventToCoreImpl(OmsEventSP&& omsEvent) {
+   this->RunCoreTask([omsEvent](OmsResource& res) {
+      res.Core_.EventInCore(OmsEventSP{omsEvent});
+   });
+}
+void OmsCore::EventInCore(OmsEventSP&& omsEvent) {
+   fon9::RevBufferList rbuf{128};
+   this->Owner_->OnEventInCore(*this, *omsEvent, rbuf);
+   this->Backend_.Append(*omsEvent, std::move(rbuf));
+   this->Owner_->OmsEvent_.Publish(*static_cast<OmsResource*>(this), *omsEvent, false);
+}
+//--------------------------------------------------------------------------//
 bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
    if (fon9_LIKELY(runner.Request_->IsReportIn() || runner.ValidateInUser()))
       return this->MoveToCoreImpl(std::move(runner));

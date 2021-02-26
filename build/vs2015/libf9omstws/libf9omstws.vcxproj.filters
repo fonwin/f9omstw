@@ -44,10 +44,10 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineTmp2019.cpp">
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepLg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepLg.cpp">
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsImpT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -88,11 +88,14 @@
     <ClInclude Include="..\..\..\f9omstws\OmsTwsRequestTools.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstws\OmsTwsTradingLineTmp2019.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepLg.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsImpT.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omstws\CMakeLists.txt" />
   </ItemGroup>
 </Project>

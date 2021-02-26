@@ -570,6 +570,8 @@ void ApiSesCfg::OnReport(OmsCore& core, const OmsRxItem& item) {
       return;
    fon9::RevBufferList  rbuf{128};
    if (this->MakeReportMessage(rbuf, item) && item.RxSNO() != 0) {
+      // this->ReportMessage_ 使用 clear 之後 append 的方式,
+      // 在 this->ReportMessage_ 已分配空間足夠的情況下, 可能可以少一次記憶體分配.
       this->ReportMessage_.clear();
       fon9::BufferAppendTo(rbuf.MoveOut(), this->ReportMessage_);
       this->ReportMessageFor_ = &item;

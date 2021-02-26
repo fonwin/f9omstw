@@ -19,7 +19,7 @@ inline OmsTwsRequestChg::QtyType GetTwsRequestChgQty(OmsRequestRunnerInCore& run
    if (auto* chgQtyIniReq = dynamic_cast<const OmsTwsRequestIni*>(curReq)) {
       if (fon9::signed_cast(chgQtyIniReq->Qty_) >= 0)
          return fon9::signed_cast(chgQtyIniReq->Qty_);
-      runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
+      runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_ChgQty, nullptr);
       return -1;
    }
    runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_UnknownRequestType, nullptr);

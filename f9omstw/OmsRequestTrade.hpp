@@ -201,6 +201,10 @@ protected:
       MakeFieldsImpl(flds);
    }
 
+   /// this->BeforeReqInCore(); 呼叫此處取得 order;
+   /// 衍生者也可呼叫此處取得 order, 然後檢查是否可繼續下單步驟, 或 runner.RequestAbandon();
+   OmsOrder* BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsResource& res);
+
 public:
    using base::base;
    OmsRequestUpd() = default;

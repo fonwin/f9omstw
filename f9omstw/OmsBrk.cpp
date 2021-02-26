@@ -7,23 +7,31 @@
 namespace f9omstw {
 
 OmsIvac* OmsBrk::FetchIvac(IvacNo ivacNo) {
-   IvacNC ivn = IvacNoToNC(ivacNo);
-   if (ivn > IvacNC::Max)
-      return nullptr;
-   OmsIvacSP& sp = this->Ivacs_[ivn];
-   if (sp)
-      return sp->IvacNo_ == ivacNo ? sp.get() : nullptr;
-   // TODO: 檢查 ivacNo 的 check code 是否正確?
-   sp = this->MakeIvac(ivacNo);
-   return sp.get();
+   if (OmsIvacSP* psp = this->GetIvacSP(ivacNo)) {
+      if (OmsIvac* pivac = psp->get())
+         return pivac->IvacNo_ == ivacNo ? pivac : nullptr;
+      // 建立 ivac 之前, 是否需要檢查 ivacNo 的 check code 是否正確?
+      // => 不檢查, 增加 ForceFetchIvac(); 用來重建「確定檢查碼正確」的帳號.
+      return (*psp = this->MakeIvac(ivacNo)).get();
+   }
+   return nullptr;
+}
+OmsIvac* OmsBrk::ForceFetchIvac(IvacNo ivacNo) {
+   if (OmsIvacSP* psp = this->GetIvacSP(ivacNo)) {
+      if (OmsIvac* pivac = psp->get())
+         if (pivac->IvacNo_ == ivacNo) // 帳號檢查碼正確 => pivac 可以直接使用.
+            return pivac;
+      // 帳號資料不存在, 或檢查碼不正確, 則建立新的.
+      return (*psp = this->MakeIvac(ivacNo)).get();
+   }
+   return nullptr;
 }
 OmsIvacSP OmsBrk::RemoveIvac(IvacNo ivacNo) {
-   IvacNC ivn = IvacNoToNC(ivacNo);
-   if (ivn > IvacNC::Max)
-      return nullptr;
-   OmsIvacSP& sp = this->Ivacs_[ivn];
-   if (sp && sp->IvacNo_ == ivacNo)
-      return std::move(sp);
+   if (OmsIvacSP* psp = this->GetIvacSP(ivacNo)) {
+      if (OmsIvac* pivac = psp->get()) // 帳號存在
+         if (pivac->IvacNo_ == ivacNo) // 且檢查碼正確 => 才算是找到要移除的帳號.
+            return std::move(*psp);    // => 此時才能將指定的帳號移除.
+   }
    return nullptr;
 }
 //--------------------------------------------------------------------------//

@@ -122,7 +122,7 @@ public:
    void OnOmsCoreChanged(OmsResource& coreResource) {
       if (this->SetOmsCore(coreResource, Locker{this->TradingSvr_})) {
          // 交易日改變了, 交易線路應該要刪除後重建, 因為大部分的交易線路 log 必須換日.
-         this->DisposeAndReopen("OmsCore.TDayChanged");
+         this->OnTDayChanged(coreResource.Core_.TDay(), "OmsCore.TDayChanged");
          // 如果在 tsvr unlock 之後, IoManagerTree::DisposeAndReopen() 之前.
          // IoManagerTree 進入 EmitOnTimer() 開啟了 devices;
          // 在進入 IoManagerTree::DisposeAndReopen() 時, 會立即關閉!

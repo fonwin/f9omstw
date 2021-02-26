@@ -10,9 +10,9 @@ namespace f9omstw {
 
 class OmsTwsRequestIni;
 
-using OmsTwsPri = fon9::Decimal<uint32_t, 2>;
+using OmsTwsPri = fon9::Decimal<uint32_t, 4>;
 using OmsTwsQty = uint32_t;
-using OmsTwsAmt = fon9::Decimal<uint64_t, 2>;
+using OmsTwsAmt = fon9::Decimal<uint64_t, 4>;
 using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
 using OmsTwsOType = f9tws::TwsOType;
 
@@ -30,6 +30,9 @@ union OmsTwsQtyBS {
    OmsTwsQty      BS_[2];
 
    OmsTwsQtyBS() {
+      this->Clear();
+   }
+   void Clear() {
       fon9::ForceZeroNonTrivial(this);
    }
 };
@@ -43,6 +46,9 @@ union OmsTwsAmtBS {
    OmsTwsAmt      BS_[2];
 
    OmsTwsAmtBS() {
+      this->Clear();
+   }
+   void Clear() {
       fon9::ForceZeroNonTrivial(this);
    }
 };
@@ -57,11 +63,42 @@ struct OmsTwsAmtTX {
                  OmsTwsTradingSessionIdx_Odd == 2,
                  "Check OmsTwsTradingSessionIdx.");
 
+   void Clear() {
+      this->Normal_.Clear();
+      this->Fixed_.Clear();
+      this->Odd_.Clear();
+   }
+
    OmsTwsAmtBS& AmtTX(OmsTwsTradingSessionIdx idx) {
       return (&this->Normal_)[idx];
    }
    const OmsTwsAmtBS& AmtTX(OmsTwsTradingSessionIdx idx) const {
       return (&this->Normal_)[idx];
+   }
+};
+
+/// 市價單的下單行為.
+enum class ActMarketPri : char {
+   /// 直接使用市價送交易所.
+   Market = 0,
+   /// 使用漲跌停限價.
+   Limit = 'L',
+   /// 拒絕下單.
+   Reject = 'J',
+};
+
+struct OmsTwsPriRefs {
+   f9omstw::OmsTwsPri   PriRef_{};
+   f9omstw::OmsTwsPri   PriUpLmt_{};
+   f9omstw::OmsTwsPri   PriDnLmt_{};
+   ActMarketPri         ActMarketPri_;
+   char                 Padding___[3];
+
+   void ClearPriRefs() {
+      fon9::ForceZeroNonTrivial(this);
+   }
+   void CopyFromPriRefs(const OmsTwsPriRefs& rhs) {
+      *this = rhs;
    }
 };
 

@@ -47,7 +47,11 @@ protected:
 
    /// 執行 runner.ValidateInUser();  成功之後,
    /// 由衍生者實作將 runner 移到 core 執行.
+   /// - 可能用一個大鎖, 鎖定保護之後, 直接呼叫執行 RunInCore();
+   /// - 也可能用 MessageQueue 丟到另一個 thread 執行 RunInCore();
    virtual bool MoveToCoreImpl(OmsRequestRunner&& runner) = 0;
+   /// 預設使用 this->RunCoreTask() 呼叫 this->EventInCore();
+   virtual void EventToCoreImpl(OmsEventSP&& omsEvent);
 
    /// - 回報, runner.Request_->IsReportIn():
    ///   runner.Request_->RunReportInCore(OmsReportChecker{std::move(runner)}, *this);
@@ -58,6 +62,9 @@ protected:
    ///     則在 step->RunRequest() 之前, 會先建立委託書號對照.
    ///   - step->RunRequest(OmsRequestRunnerInCore{...});
    void RunInCore(OmsRequestRunner&& runner);
+   /// - 處發 this->Owner_->OnEventInCore();
+   /// - 呼叫 this->Backend_.Append();
+   void EventInCore(OmsEventSP&& omsEvent);
 
 public:
    const OmsCoreMgrSP   Owner_;
@@ -80,6 +87,10 @@ public:
    ///            在返回前可能已在另一 thread (或 this_thread) 執行完畢, 且可能已有回報通知.
    ///            當然也有可能尚未執行, 或正在執行.
    bool MoveToCore(OmsRequestRunner&& runner);
+   /// 到 core 處理 OmsEvent.
+   void EventToCore(OmsEventSP&& omsEvent) {
+      this->EventToCoreImpl(std::move(omsEvent));
+   }
 
    virtual void RunCoreTask(OmsCoreTask&& task) = 0;
 

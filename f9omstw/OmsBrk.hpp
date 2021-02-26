@@ -72,6 +72,13 @@ class OmsBrk : public OmsIvBase {
    };
    void InitializeMarketAry();
 
+   OmsIvacSP* GetIvacSP(IvacNo ivacNo) {
+      IvacNC ivn = IvacNoToNC(ivacNo);
+      if (ivn > IvacNC::Max)
+         return nullptr;
+      return &this->Ivacs_[ivn];
+   }
+
 protected:
    OmsIvacMap Ivacs_;
 
@@ -89,10 +96,14 @@ public:
    }
    ~OmsBrk();
 
-   // 除非 ivac->IvacNo_ 檢查碼有錯, 或確實無此帳號, 否則不應刪除 ivac, 因為:
-   // - 若已有正確委託, 則該委託風控異動時, 仍會使用移除前的 OmsIvacSP.
-   // - 若之後又建立一筆相同 IvacNo 的資料, 則會與先前移除的 OmsIvacSP 不同!
+   /// 除非 ivac->IvacNo_ 檢查碼有錯, 或確實無此帳號, 否則不應刪除 ivac, 因為:
+   /// - 若已有正確委託, 則該委託風控異動時, 仍會使用移除前的 OmsIvacSP.
+   /// - 若之後又建立一筆相同 IvacNo 的資料, 則會與先前移除的 OmsIvacSP 不同!
    OmsIvacSP RemoveIvac(IvacNo ivacNo);
+   /// 若 this->Ivacs_.Get(IvacNoToNC(ivacNo)) 已存在, 但 檢查碼 不符, 則移除後重建新的.
+   /// 通常用在帳號資料匯入, 此時檢查碼必定正確.
+   /// 先前的錯誤檢查碼的帳號資料, 可能是手動建立, 或錯誤的下單要求產生的, 移除不會有問題.
+   OmsIvac* ForceFetchIvac(IvacNo ivacNo);
    OmsIvac* FetchIvac(IvacNo ivacNo);
    OmsIvac* GetIvac(IvacNC ivacNC) const {
       if (auto* p = this->Ivacs_.Get(ivacNC))

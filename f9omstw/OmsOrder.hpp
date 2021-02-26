@@ -18,7 +18,7 @@ struct OmsScResource {
    OmsSymbSP   Symb_;
    OmsIvBaseSP Ivr_;
    OmsIvSymbSP IvSymb_;
-   /// 委託風控計算價格, 小數位樹有風控計算模組決定.
+   /// 委託風控計算價格, 小數位數由風控計算模組決定.
    int64_t     OrdPri_{0};
 
    void CheckMoveFrom(OmsScResource&& rhs) {

@@ -16,6 +16,7 @@ set(f9omstw_src
  OmsScBase.cpp
  OmsTradingLineMgr.cpp
  OmsTradingLineMgrCfg.cpp
+ OmsImporter.cpp
 
  OmsTree.cpp
  OmsIvBase.cpp
@@ -38,6 +39,7 @@ set(f9omstw_src
  OmsOrder.cpp
  OmsOrderFactory.cpp
  OmsEventFactory.cpp
+ OmsEventSessionSt.cpp
  OmsReportFilled.cpp
  OmsReportRunner.cpp
  OmsReportTools.cpp
@@ -51,8 +53,8 @@ set(f9omstw_src
 add_library(f9omstw_s STATIC ${f9omstw_src})
 target_link_libraries(f9omstw_s fon9_s pthread dl)
 
-# ------------------------------------------------
 # 使用 f9utw 的測試環境, 進行 omstw 的 unit test.
+# 因 f9utw 提供全部可用的下單要求及委託, 所以也可提供給一般用途的程式使用, 例如: OmsLogAnalyser;
 set (f9utw_src
  ../f9omstws/OmsTwsRequest.cpp
  ../f9omstws/OmsTwsOrder.cpp
@@ -67,26 +69,32 @@ set (f9utw_src
 add_library(f9utw_s STATIC ${f9utw_src})
 target_link_libraries(f9utw_s f9omstws_s f9omstwf_s f9omstw_s fon9_s pthread dl)
 
-add_executable(OmsRequestPolicy_UT ../f9omstw/OmsRequestPolicy_UT.cpp)
-target_link_libraries(OmsRequestPolicy_UT f9omstw_s f9utw_s)
-
-add_executable(OmsOrdNoMap_UT ../f9omstw/OmsOrdNoMap_UT.cpp)
-target_link_libraries(OmsOrdNoMap_UT f9omstw_s f9utw_s)
-
-add_executable(OmsRequestTrade_UT ../f9omstw/OmsRequestTrade_UT.cpp)
-target_link_libraries(OmsRequestTrade_UT f9omstw_s f9utw_s)
-
-add_executable(OmsReqOrd_UT ../f9omstw/OmsReqOrd_UT.cpp)
-target_link_libraries(OmsReqOrd_UT f9omstw_s f9utw_s)
-
-add_executable(OmsReport_UT ../f9omstw/OmsReport_UT.cpp)
-target_link_libraries(OmsReport_UT f9omstw_s f9utw_s)
-
 add_executable(OmsLogAnalyser ../f9omstw/OmsLogAnalyser.cpp)
 target_link_libraries(OmsLogAnalyser f9omstw_s f9utw_s)
 
-add_executable(OmsTwfReport_UT ../f9omstwf/OmsTwfReport_UT.cpp)
-target_link_libraries(OmsTwfReport_UT f9omstw_s f9utw_s)
+#########################################################################
+############################### Unit Test ###############################
+if(CMAKE_F9OMSTW_BUILD_UNIT_TEST)
+   add_executable(OmsRequestPolicy_UT ../f9omstw/OmsRequestPolicy_UT.cpp)
+   target_link_libraries(OmsRequestPolicy_UT f9omstw_s f9utw_s)
 
-add_executable(OmsTwfReportQuote_UT ../f9omstwf/OmsTwfReportQuote_UT.cpp)
-target_link_libraries(OmsTwfReportQuote_UT f9omstw_s f9utw_s)
+   add_executable(OmsOrdNoMap_UT ../f9omstw/OmsOrdNoMap_UT.cpp)
+   target_link_libraries(OmsOrdNoMap_UT f9omstw_s f9utw_s)
+
+   add_executable(OmsRequestTrade_UT ../f9omstw/OmsRequestTrade_UT.cpp)
+   target_link_libraries(OmsRequestTrade_UT f9omstw_s f9utw_s)
+
+   add_executable(OmsReqOrd_UT ../f9omstw/OmsReqOrd_UT.cpp)
+   target_link_libraries(OmsReqOrd_UT f9omstw_s f9utw_s)
+
+   add_executable(OmsReport_UT ../f9omstw/OmsReport_UT.cpp)
+   target_link_libraries(OmsReport_UT f9omstw_s f9utw_s)
+
+   add_executable(OmsTwfReport_UT ../f9omstwf/OmsTwfReport_UT.cpp)
+   target_link_libraries(OmsTwfReport_UT f9omstw_s f9utw_s)
+
+   add_executable(OmsTwfReportQuote_UT ../f9omstwf/OmsTwfReportQuote_UT.cpp)
+   target_link_libraries(OmsTwfReportQuote_UT f9omstw_s f9utw_s)
+endif()
+############################## Unit Test END ############################
+#########################################################################

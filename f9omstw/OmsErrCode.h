@@ -61,13 +61,16 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_RxKind = 200,
    /// 買賣別問題.
    OmsErrCode_Bad_Side = 201,
-   /// 新單: 新單數量問題, 超過上限? 非整股數量?
-   /// 改單: 期望的改後數量有誤: 不可增量, 或期望的改後數量與現在(LeavesQty+CumQty)相同.
-   OmsErrCode_Bad_Qty = 202,
+   /// 改單期望的改後數量有誤: 不可增量,或期望的改後數量與現在(LeavesQty+CumQty)相同.
+   OmsErrCode_Bad_ChgQty = 202,
    /// 下單價格問題.
    OmsErrCode_Bad_Pri = 203,
    OmsErrCode_Bad_PriType = 204,
    OmsErrCode_Bad_TimeInForce = 205,
+   /// 商品不支援市價單.
+   OmsErrCode_Symb_NoMarketPri = 206,
+   /// 不支援改價. (定價交易無改價功能, 或系統不支援改價);
+   OmsErrCode_Symb_NoChgPri = 207,
 
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 300,
@@ -76,6 +79,10 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Order not found, or RequestIni not allowed.
    /// 補單操作, 必須有 AllowAddReport 權限.
    OmsErrCode_DenyAddReport = 302,
+   /// 不支援使用 OmsRequestIni 執行刪改查.
+   /// RequestIni 必須是 f9fmkt_RxKind_RequestNew;
+   /// 此錯誤碼不一定會發生, 由實際下單步驟決定是否支援.
+   OmsErrCode_IniMustRequestNew = 303,
 
    /// 客戶端(例:RcClient) 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
    OmsErrCode_OverFlowControl = 400,

@@ -39,6 +39,9 @@
     <Filter Include="Source Files\_request">
       <UniqueIdentifier>{f3685643-ae1e-4f22-87f3-3b8c1cf04246}</UniqueIdentifier>
     </Filter>
+    <Filter Include="OmsErrCode">
+      <UniqueIdentifier>{85ba3876-6c0b-41e6-8d4c-73ca7841b7d6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp">
@@ -191,6 +194,12 @@
     <ClInclude Include="..\..\..\f9omstw\OmsSymb.hpp">
       <Filter>Header Files\_sc_tables %28trees%29</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsEventSessionSt.hpp">
+      <Filter>Header Files\_ord_rpt_evt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsImporter.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -325,10 +334,49 @@
     <ClCompile Include="..\..\..\f9omstw\OmsSymb.cpp">
       <Filter>Source Files\_sc_tables %28trees%29</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsEventSessionSt.cpp">
+      <Filter>Source Files\_ord_rpt_evt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsImporter.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\README.md" />
     <None Include="..\..\..\ReportIn.md" />
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.00xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.10xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.20xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.22xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.27xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.30xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.32xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.37xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.40xxx.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCode.All.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
+    <None Include="..\..\..\OmsErrCode\OmsErrCodeAct.cfg">
+      <Filter>OmsErrCode</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\..\..\f9omstw\CMakeLists.txt" />

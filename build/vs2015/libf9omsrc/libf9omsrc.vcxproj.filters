@@ -64,5 +64,32 @@
     <None Include="..\..\..\f9omsrc\forms\README.md">
       <Filter>forms</Filter>
     </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiEvInfo.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiEvSesSt.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf0Req.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf0Rpt.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf1Req.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf1Rpt.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf7Req.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf7Rpt.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwsAll.cfg">
+      <Filter>forms</Filter>
+    </None>
   </ItemGroup>
 </Project>

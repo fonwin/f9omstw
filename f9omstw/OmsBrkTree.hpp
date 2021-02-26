@@ -96,6 +96,16 @@ public:
       }
       return nullptr;
    }
+   OmsIvBase* ForceFetchIvr(fon9::StrView brkid, IvacNo ivacNo, fon9::StrView subacNo) {
+      if (auto* brk = this->GetBrkRec(brkid)) {
+         if (auto* ivac = brk->ForceFetchIvac(ivacNo)) {
+            if (subacNo.empty())
+               return ivac;
+            return ivac->FetchSubac(subacNo);
+         }
+      }
+      return nullptr;
+   }
 
    void InThr_OnTreeOp(fon9::seed::FnTreeOp fnCallback) override;
    void InThr_OnParentSeedClear() override;

@@ -165,7 +165,7 @@ public:
       if (reqQty > 0) {
          if (fon9_LIKELY(isWantToKill)) {
             if ((reqQty = fon9::signed_cast(leavesQty + cumQty) - reqQty) <= 0) {
-               this->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Qty, nullptr);
+               this->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_ChgQty, nullptr);
                return -1;
             }
          }

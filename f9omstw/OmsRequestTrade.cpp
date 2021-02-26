@@ -164,13 +164,18 @@ void OmsRequestUpd::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestUpd, IniSNO));
    base::MakeFields<OmsRequestUpd>(flds);
 }
-OmsOrderRaw* OmsRequestUpd::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
+OmsOrder* OmsRequestUpd::BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsResource& res) {
    assert(this == runner.Request_.get());
    if (const OmsRequestIni* iniReq = this->BeforeReq_GetInitiator(runner, res)) {
       OmsOrder& order = iniReq->LastUpdated()->Order();
       if (order.Initiator()->BeforeReq_CheckIvRight(runner, res))
-         return order.BeginUpdate(*runner.Request_);
+         return &order;
    }
+   return nullptr;
+}
+OmsOrderRaw* OmsRequestUpd::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
+   if(auto* order = this->BeforeReqInCore_GetOrder(runner, res))
+      return order->BeginUpdate(*this);
    return nullptr;
 }
 

@@ -88,6 +88,15 @@
   <ItemGroup>
     <None Include="..\..\..\f9omsrc\forms\ApiAll.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiBase.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiEvInfo.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiEvSesSt.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf0Req.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf0Rpt.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf1Req.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf1Rpt.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf7Req.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf7Rpt.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwsAll.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwsReq.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwsRpt.cfg" />
     <None Include="..\..\..\f9omsrc\forms\Api_zh.cfg" />

@@ -70,8 +70,11 @@ public:
          return false;
       }
       // args:
-      // - IoTse={上市交易線路 IoService 參數} 可使用 IoTse=/MaIo 表示與 /MaIo 共用 IoService
-      // - IoOtc={上櫃交易線路 IoService 參數} 可使用 IoOtc=/MaIo 或 IoTse 表示共用 IoService
+      // - 使用線路群組:
+      //   - Lg=線路群組設定檔.
+      // - 不使用線路群組:
+      //   - IoTse={上市交易線路 IoService 參數} 可使用 IoTse=/MaIo 表示與 /MaIo 共用 IoService
+      //   - IoOtc={上櫃交易線路 IoService 參數} 可使用 IoOtc=/MaIo 或 IoTse 表示共用 IoService
       // - 「IoService 設定參數」請參考: IoServiceArgs.hpp
       // - BrkId=起始券商代號
       // - BrkCount=券商數量
@@ -139,16 +142,16 @@ public:
       OmsTwfReport8FactorySP twfRpt8Factory = new OmsTwfReport8Factory("TwfRptQR", twfOrd7Factory);
       OmsTwfReport9FactorySP twfRpt9Factory = new OmsTwfReport9Factory("TwfRptQ", twfOrd9Factory);
       // ------------------------------------------------------------------
+      const std::string logpath = fon9::seed::SysEnv_GetLogFileFmtPath(*coreMgrSeed->Root_);
       ioargsTse.SessionFactoryPark_ = ioargsOtc.SessionFactoryPark_
          = fon9::seed::FetchNamedPark<fon9::SessionFactoryPark>(coreMgr, "FpSession");
-      const std::string logpath = fon9::seed::SysEnv_GetLogFileFmtPath(*coreMgrSeed->Root_);
       ioargsTse.SessionFactoryPark_->Add(
          new TwsTradingLineFixFactory(coreMgr, *twsRptFactory, *twsFilFactory,
                                       logpath, fon9::Named{"FIX44"}));
       // 預計新版 TMP 下單, Named 使用 "TMP2"
-      ioargsTse.SessionFactoryPark_->Add(
-         new TwsTradingLineTmpFactory2019(coreMgr, *twsRptFactory, *twsFilFactory,
-                                          logpath, fon9::Named{"TMP"}));
+      // ioargsTse.SessionFactoryPark_->Add(
+      //    new TwsTradingLineTmpFactory2019(coreMgr, *twsRptFactory, *twsFilFactory,
+      //                                     logpath, fon9::Named{"TMP"}));
       // ------------------------------------------------------------------
       const std::string     cfgpath = fon9::seed::SysEnv_GetConfigPath(*coreMgrSeed->Root_).ToString();
       TwsTradingLineMgrLgSP lgMgr;

@@ -143,7 +143,7 @@ void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    ud->CheckSum_ += rpt->ReportSNO_ + rpt->ReferenceSNO_ + 1;
    if (fon9_LIKELY(rpt->Layout_)) {
       if (rpt->Layout_->IdxClOrdId_ >= 0) // 只有下單要求有 ClOrdId 欄位.
-         ud->LastClOrdId_ = strtoul(rpt->FieldArray_[rpt->Layout_->IdxClOrdId_].Begin_, NULL, 10);
+         ud->LastClOrdId_ = (unsigned)strtoul(rpt->FieldArray_[rpt->Layout_->IdxClOrdId_].Begin_, NULL, 10);
       if (ud->State_ != OmsRcCliSt_Recovering) {
          if (rpt->ReportSNO_) // 正常回報.
             ud->LastSNO_ = rpt->ReportSNO_;

@@ -288,6 +288,9 @@ static inline void f9OmsRc_InitClientSessionParams(f9rc_ClientSessionParams* f9r
 
 //--------------------------------------------------------------------------//
 
+/// 取得 f9OmsRc API 版本字串.
+f9OmsRc_API_FN(const char*) f9OmsRc_ApiVersionInfo(void);
+
 /// 啟動 f9OmsRc(fon9 OMS Rc client) 函式庫.
 /// - 請使用時注意: 禁止 multi thread 同時呼叫 f9OmsRc_Initialize()/fon9_Finalize();
 /// - 可重覆呼叫 f9OmsRc_Initialize(), 但須有對應的 fon9_Finalize();

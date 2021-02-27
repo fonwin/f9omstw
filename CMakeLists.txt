@@ -19,6 +19,19 @@ set(CXX_FLAGS
  -std=c++11
  )
 string(REPLACE ";" " " CMAKE_CXX_FLAGS "${CXX_FLAGS}")
+
+set(C_FLAGS
+ -g
+ -Wall
+ -Wextra
+ -Wconversion
+ -Wpointer-arith
+ -Wshadow
+ -Wwrite-strings
+ -fexec-charset=UTF-8
+ )
+string(REPLACE ";" " " CMAKE_C_FLAGS "${C_FLAGS}")
+
 include_directories(.)
 include_directories(../fon9)
 

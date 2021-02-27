@@ -1,0 +1,215 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{33CB4898-6ED8-48CE-B1C9-F6757960FB83}</ProjectGuid>
+    <RootNamespace>libf9omsrcapi</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
+    <IntDir>$(OutDir)$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)..\..\..\output\$(SolutionName)\$(PlatformArchitecture)\$(Configuration)\</OutDir>
+    <IntDir>$(OutDir)$(ProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG;fon9_NODLL</PreprocessorDefinitions>
+    </ClCompile>
+    <PreBuildEvent>
+      <Command>cd ..\..\..\f9omsrc
+call ..\..\fon9\make_proj_verinfo.bat</Command>
+    </PreBuildEvent>
+    <Link>
+      <ModuleDefinitionFile>../../../f9omsrc/f9OmsRcApi.def</ModuleDefinitionFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>EnableAllWarnings</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;fon9_NODLL</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>../../../f9omsrc/f9OmsRcApi.def</ModuleDefinitionFile>
+    </Link>
+    <PreBuildEvent>
+      <Command>cd ..\..\..\f9omsrc
+call ..\..\fon9\make_proj_verinfo.bat</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Appender.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Assert.c" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\auth\SaslClient.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\auth\SaslScramSha256Client.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Base64.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\BitvDecode.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\BitvEncode.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Blob.c" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\BufferList.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\BufferNode.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\BufferNodeWaiter.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\DcQueue.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\DcQueueList.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\MemBlock.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\RevBuffer.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\RevBufferList.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ByteVector.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\CmdArgs.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ConfigLoader.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ConfigParser.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ConsoleIO.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\CountDownLatch.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\crypto\Sha256.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\CTools.c" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\CtrlBreakHandler.c" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\CyclicBarrier.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\DecBase.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\DefaultThreadPool.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\DllHandle.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ErrC.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\File.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\FileAppender.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\FilePath.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\FlowCounter.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\fmkt\TradingRequest.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\FmtDef.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoFactory.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoFactoryDgram.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoFactoryTcpClient.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoManager.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Device.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\DgramBase.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\IoBase.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\IoServiceArgs.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Manager.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\RecvBuffer.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SendBuffer.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Server.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Session.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Socket.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketAddress.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketAddressDN.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketClientConfig.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketClientDevice.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketConfig.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\TcpClientBase.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpDgram.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpService.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpSocket.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpSocketClient.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpTcpClient.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Log.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\LogFile.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Named.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Outcome.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Random.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\Rc.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcClientApi.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcClientSession.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcFuncConn.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcFuncConnClient.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcMdRtsDecoder.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitor.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClient.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientCAPI.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientReq.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSession.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvc.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvStreamDecoder.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\RevFormat.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\SchTask.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Field.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldBytes.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldChars.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldCharsL.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldDyBlob.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldMaker.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldSchCfgStr.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Layout.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\MaTree.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\NamedPark.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Plugins.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\PodOp.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Raw.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SeedAcl.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SeedBase.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SeedSubr.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SysEnv.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Tab.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Tree.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\TreeOp.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\SimpleFactory.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\StrTo.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\StrTools.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\sys\OnWindowsMainExit.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ThreadId.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ThreadTools.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\TimedFileName.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\TimeInterval.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Timer.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\TimeStamp.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\Tools.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ToStr.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\ToStrFmt.cpp" />
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcClient.cpp" />
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcClientApi.cpp" />
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcClientApiVer.c" />
+    <ClCompile Include="..\..\..\f9omstw\OmsMakeErrMsg.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\f9omsrc\f9OmsRcApi.def" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

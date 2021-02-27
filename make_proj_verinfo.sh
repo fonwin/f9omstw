@@ -26,5 +26,7 @@ BUILDTM=`date +"%Y.%m.%d-%H%M"`
 
 PROJ=`basename "${PWD}"`
 
-echo "#define proj_NAME    \"${PROJ}\"" > proj_verinfo.h
-echo "#define proj_VERSION \"${PROJ}=${MySln_HASH}|fon9=${FON9_HASH}|f9omstw=${F9OMSTW_HASH}|build=${BUILDTM}\"" >> proj_verinfo.h
+echo "#ifndef proj_NAME"                                                                                              > proj_verinfo.h
+echo "#define proj_NAME    \"${PROJ}\""                                                                              >> proj_verinfo.h
+echo "#endif"                                                                                                        >> proj_verinfo.h
+echo "#define proj_VERSION proj_NAME \"=${MySln_HASH}|fon9=${FON9_HASH}|f9omstw=${F9OMSTW_HASH}|build=${BUILDTM}\""  >> proj_verinfo.h

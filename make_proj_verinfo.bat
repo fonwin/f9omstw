@@ -24,6 +24,7 @@ FOR /F "tokens=*" %%g IN ('git rev-parse "--short=12" HEAD') DO SET MySln_HASH=%
 SET pwd=%CD%
 For %%A in ("%pwd%") do SET PROJ=%%~nxA
 
-echo #define proj_NAME    "%PROJ%"> proj_verinfo.h
-echo #define proj_VERSION "%PROJ%=%MySln_HASH%|fon9=%FON9_HASH%|f9omstw=%F9OMSTW_HASH%|build=%ldt%">> proj_verinfo.h
-
+echo #ifndef proj_NAME>                                                                                   proj_verinfo.h
+echo #define proj_NAME    "%PROJ%">>                                                                      proj_verinfo.h
+echo #endif>>                                                                                             proj_verinfo.h
+echo #define proj_VERSION proj_NAME "=%MySln_HASH%|fon9=%FON9_HASH%|f9omstw=%F9OMSTW_HASH%|build=%ldt%">> proj_verinfo.h

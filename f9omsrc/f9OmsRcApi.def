@@ -1,0 +1,40 @@
+﻿LIBRARY libf9omsrcapi
+EXPORTS
+      fon9_Initialize;
+      fon9_Finalize;
+      ; fon9_wassert;
+
+      fon9_getpass;
+      fon9_StrTrimHead;
+      fon9_StrTrimTail;
+      fon9_StrCutSpace;
+      fon9_StrFetchNoTrim;
+      fon9_SetupCtrlBreakHandler;
+      fon9_AppBreakMsg;
+      fon9_CreateIoManager;
+      fon9_DestroyIoManager;
+
+      f9rc_Initialize;
+      f9rc_GetRcClientIoManager;
+      f9rc_CreateClientSession;
+      f9rc_DestroyClientSession;
+
+      f9sv_Initialize;
+      f9sv_Query;
+      f9sv_Subscribe;
+      f9sv_Unsubscribe;
+      f9sv_GetSvResultMessage;
+      f9sv_GetField_Str;
+      f9sv_AddStreamDecoder_MdRts;
+
+      f9omstw_IncStrAlpha;
+      f9omstw_LoadOmsErrMsgTx;
+      f9omstw_LoadOmsErrMsgTx1;
+      f9omstw_FreeOmsErrMsgTx;
+
+      f9OmsRc_ApiVersionInfo;
+      f9OmsRc_Initialize;
+      f9OmsRc_GetRequestLayout;
+      f9OmsRc_SendRequestFields;
+      f9OmsRc_SendRequestString;
+      f9OmsRc_SubscribeReport;

@@ -1,0 +1,456 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\_base">
+      <UniqueIdentifier>{7ff96d8d-b721-42a9-bacd-a40307506f7a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_base\_AlNum">
+      <UniqueIdentifier>{34019d85-5a84-4ed3-9087-9fd6e763c2d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_base\_Tools / Utility">
+      <UniqueIdentifier>{90f97302-7b8f-4ccb-85ab-15d9bec0069e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_base\_Thread">
+      <UniqueIdentifier>{406c0009-ec44-4176-8097-e7fef8dab81d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_base\_File">
+      <UniqueIdentifier>{fc829492-06f1-44f2-bfa4-08d480c8dd79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_base\_Bitv / Serialize">
+      <UniqueIdentifier>{78c5e86e-31d7-42a9-8538-5fed717f836e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\buffer">
+      <UniqueIdentifier>{d8432666-1ce7-4f25-90f2-0cd786bbc8d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\crypto">
+      <UniqueIdentifier>{2ec7aa3c-5d4b-4363-b93a-eac9b3175544}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\framework">
+      <UniqueIdentifier>{7b5ad462-e65e-4b8c-af71-9ddc8f8a4437}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\io">
+      <UniqueIdentifier>{7fc77706-0033-4943-91b6-ad407070967b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\io\_base">
+      <UniqueIdentifier>{14ff1568-84e7-4090-9a43-3ccd167f6ef6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\io\_socket">
+      <UniqueIdentifier>{89780c45-1d77-4315-8b3e-4e19ebaeeff8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\io\win">
+      <UniqueIdentifier>{83ff8fb0-2808-45dd-860d-2c0c935a1693}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\rc">
+      <UniqueIdentifier>{ca7bf53c-8e2f-4324-987f-40413ba18177}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\rc\_SeedVisitorClient">
+      <UniqueIdentifier>{2ba37a7a-442b-4fae-8fb5-f4812247aab1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\seed">
+      <UniqueIdentifier>{3b5cade4-a914-4e88-a7be-112a63be358b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\seed\_base">
+      <UniqueIdentifier>{47c7c1a3-dc63-4d10-be34-6ff4ff7e0546}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\seed\_fields">
+      <UniqueIdentifier>{53eed023-5ddc-4f41-8ca4-63bf79320739}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\seed\_trees">
+      <UniqueIdentifier>{e13e2971-982f-4c1b-ac46-5bac568ccd6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\seed\_tools">
+      <UniqueIdentifier>{2eadecfd-9448-4bec-ab72-b29071eb7a37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sys">
+      <UniqueIdentifier>{a32d884b-d4fc-41ce-b522-0a2332195b63}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\f9omstw">
+      <UniqueIdentifier>{654fcb46-f130-4de1-b66b-8066bcf5013c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\f9omsrc">
+      <UniqueIdentifier>{8dccd3de-1a38-4284-8414-0598ebedcc67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\auth">
+      <UniqueIdentifier>{63616e9f-cb0e-486a-a262-7de5d5adba06}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fmkt">
+      <UniqueIdentifier>{072f7066-ffe7-4565-bd7b-b558c2aa689e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\fon9\fon9\RevFormat.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\DecBase.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\FmtDef.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\StrTo.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\StrTools.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\TimeInterval.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\TimeStamp.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ToStr.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ToStrFmt.cpp">
+      <Filter>Source Files\_base\_AlNum</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Assert.c">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Base64.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Blob.c">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ByteVector.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\CmdArgs.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ConfigLoader.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ConfigParser.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ConsoleIO.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\CTools.c">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\CtrlBreakHandler.c">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\DllHandle.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ErrC.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\FlowCounter.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Log.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Outcome.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Named.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Random.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\SimpleFactory.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Tools.cpp">
+      <Filter>Source Files\_base\_Tools / Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\CountDownLatch.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\CyclicBarrier.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\SchTask.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ThreadId.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\DefaultThreadPool.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\ThreadTools.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Timer.cpp">
+      <Filter>Source Files\_base\_Thread</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\Appender.cpp">
+      <Filter>Source Files\_base\_File</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\File.cpp">
+      <Filter>Source Files\_base\_File</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\FileAppender.cpp">
+      <Filter>Source Files\_base\_File</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\FilePath.cpp">
+      <Filter>Source Files\_base\_File</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\LogFile.cpp">
+      <Filter>Source Files\_base\_File</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\TimedFileName.cpp">
+      <Filter>Source Files\_base\_File</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\BitvEncode.cpp">
+      <Filter>Source Files\_base\_Bitv / Serialize</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\BitvDecode.cpp">
+      <Filter>Source Files\_base\_Bitv / Serialize</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\BufferList.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\BufferNode.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\BufferNodeWaiter.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\DcQueue.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\DcQueueList.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\MemBlock.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\RevBuffer.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\buffer\RevBufferList.cpp">
+      <Filter>Source Files\buffer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\crypto\Sha256.cpp">
+      <Filter>Source Files\crypto</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoFactory.cpp">
+      <Filter>Source Files\framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoFactoryDgram.cpp">
+      <Filter>Source Files\framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoFactoryTcpClient.cpp">
+      <Filter>Source Files\framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\framework\IoManager.cpp">
+      <Filter>Source Files\framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Device.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\IoBase.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\IoServiceArgs.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Manager.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\RecvBuffer.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SendBuffer.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Server.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Session.cpp">
+      <Filter>Source Files\io\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\Socket.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketAddress.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketAddressDN.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketClientConfig.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketClientDevice.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\SocketConfig.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\TcpClientBase.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\DgramBase.cpp">
+      <Filter>Source Files\io\_socket</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpDgram.cpp">
+      <Filter>Source Files\io\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpService.cpp">
+      <Filter>Source Files\io\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpSocket.cpp">
+      <Filter>Source Files\io\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpSocketClient.cpp">
+      <Filter>Source Files\io\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\io\win\IocpTcpClient.cpp">
+      <Filter>Source Files\io\win</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\Rc.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcClientApi.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcClientSession.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcFuncConn.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcFuncConnClient.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitor.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSession.cpp">
+      <Filter>Source Files\rc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClient.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientReq.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcMdRtsDecoder.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientCAPI.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvc.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvStreamDecoder.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\PodOp.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Tab.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Layout.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Raw.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SeedBase.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Tree.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\TreeOp.cpp">
+      <Filter>Source Files\seed\_base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldCharsL.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Field.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldBytes.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldChars.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldDyBlob.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldMaker.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\NamedPark.cpp">
+      <Filter>Source Files\seed\_trees</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\MaTree.cpp">
+      <Filter>Source Files\seed\_trees</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SysEnv.cpp">
+      <Filter>Source Files\seed\_trees</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\Plugins.cpp">
+      <Filter>Source Files\seed\_tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SeedAcl.cpp">
+      <Filter>Source Files\seed\_tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\sys\OnWindowsMainExit.cpp">
+      <Filter>Source Files\sys</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c">
+      <Filter>Source Files\f9omstw</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsMakeErrMsg.cpp">
+      <Filter>Source Files\f9omstw</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcClient.cpp">
+      <Filter>Source Files\f9omsrc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcClientApi.cpp">
+      <Filter>Source Files\f9omsrc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcClientApiVer.c">
+      <Filter>Source Files\f9omsrc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\SeedSubr.cpp">
+      <Filter>Source Files\seed\_tools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\seed\FieldSchCfgStr.cpp">
+      <Filter>Source Files\seed\_fields</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\auth\SaslScramSha256Client.cpp">
+      <Filter>Source Files\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\auth\SaslClient.cpp">
+      <Filter>Source Files\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\fmkt\TradingRequest.cpp">
+      <Filter>Source Files\fmkt</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\f9omsrc\f9OmsRcApi.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>

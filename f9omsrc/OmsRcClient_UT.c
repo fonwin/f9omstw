@@ -108,7 +108,7 @@ const f9OmsRc_Layout* GetRequestLayout(UserDefine* ud, char** cmd) {
    // Req(Id or Name)
    const char* reqName = (*cmd ? fon9_StrCutSpace(*cmd, cmd) : "");
    if (isdigit(*reqName)) {
-      unsigned id = strtoul(reqName, NULL, 10);
+      unsigned id = (unsigned)strtoul(reqName, NULL, 10);
       if (id <= 0 || ud->Config_->RequestLayoutCount_ < id) {
          printf("Unknown request id = %s\n", reqName);
          return NULL;
@@ -136,7 +136,7 @@ void MakeRequestStr(const f9OmsRc_Layout* pReqLayout, RequestRec* req) {
 int FetchFieldIndex(char** pcmd, const f9OmsRc_Layout* pReqLayout) {
    unsigned iFld;
    if (isdigit((unsigned char)**pcmd)) {
-      iFld = strtoul(*pcmd, pcmd, 10);
+      iFld = (unsigned)strtoul(*pcmd, pcmd, 10);
       if (iFld >= pReqLayout->FieldCount_) {
          printf("Unknwon field index = %u\n", iFld);
          return -1;
@@ -173,7 +173,7 @@ void SetRequest(UserDefine* ud, char* cmd) {
    if (cmd == NULL)
       goto __BREAK_PUT_FIELDS;
    for (;;) {
-      if ((int)(iFld = FetchFieldIndex(&cmd, pReqLayout)) < 0)
+      if ((int)(iFld = (unsigned)FetchFieldIndex(&cmd, pReqLayout)) < 0)
          break;
       char* val;
       switch (*cmd) {
@@ -284,7 +284,7 @@ __CMD_PARSE_END:;
          pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, fon9_GetSystemUS());
       f9OmsRc_SendRequestFields(args.Session_, args.ReqLayout_, reqFieldArray);
       if (args.IntervalMS_ > 0)
-         fon9_SleepMS(args.IntervalMS_);
+         fon9_SleepMS((unsigned)args.IntervalMS_);
    }
    if (pClOrdId)
       *(char*)(pClOrdId->Begin_) = '\0';
@@ -301,7 +301,7 @@ void SendRequest(UserDefine* ud, char* cmd) {
    args.ReqRec_ = &ud->RequestRecs_[args.ReqLayout_->LayoutId_ - 1];
    args.Session_ = ud->Session_;
 
-   args.Times_ = (cmd ? strtoul(cmd, &cmd, 10) : 1);
+   args.Times_ = (cmd ? strtoul(cmd, &cmd, 10) : 1u);
    if (args.Times_ == 0)
       args.Times_ = 1;
    args.IntervalMS_ = 0;
@@ -326,7 +326,7 @@ void SendRequest(UserDefine* ud, char* cmd) {
       for (unsigned long L = 0; L < args.Times_; ++L) {
          f9OmsRc_SendRequestString(args.Session_, args.ReqLayout_, reqstr);
          if (args.IntervalMS_ > 0)
-            fon9_SleepMS(args.IntervalMS_);
+            fon9_SleepMS((unsigned)args.IntervalMS_);
       }
    }
    else if ((usBeg = SendGroup(cmd, args)) <= 0)
@@ -336,7 +336,7 @@ void SendRequest(UserDefine* ud, char* cmd) {
    printf("Begin: %" PRIu64 ".%06" PRIu64 "\n", usBeg / 1000000, usBeg % 1000000);
    printf("  End: %" PRIu64 ".%06" PRIu64 "\n", usEnd / 1000000, usEnd % 1000000);
    printf("Spent: %" PRIu64 " us / %lu times = %lf\n",
-          usEnd - usBeg, args.Times_, (usEnd - usBeg) / (double)args.Times_);
+          usEnd - usBeg, args.Times_, (double)(usEnd - usBeg) / (double)args.Times_);
 }
 //--------------------------------------------------------------------------//
 void OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig* cfg) {
@@ -401,9 +401,9 @@ void OnSvUnsubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt
    PrintSvReport("OnSv.UnsubscribeReport", rpt);
 }
 //--------------------------------------------------------------------------//
-typedef f9sv_Result (fon9_CAPI_CALL *fnSvCmd)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler);
+typedef f9sv_Result (fon9_CAPI_CALL *FnSvCmd)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler);
 
-int SvCommand(fnSvCmd fnSvCmd, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler) {
+int SvCommand(FnSvCmd fnSvCmd, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler) {
    if (cmdln == NULL) {
       printf("%s: require 'treePath'\n", svCmdName);
       return 0;
@@ -468,6 +468,7 @@ int main(int argc, char* argv[]) {
 #endif
    fon9_SetConsoleUTF8();
    fon9_SetupCtrlBreakHandler();
+   printf("f9OmsRc API library version info: %s\n", f9OmsRc_ApiVersionInfo());
    // ----------------------------
 
    f9rc_ClientSessionParams  f9rcCliParams;
@@ -565,9 +566,9 @@ __USAGE:
          goto __QUIT;
       else if (strcmp(pbeg, "wc") == 0) { // wait connect. default=5 secs. 0 = 1 secs;
          puts("Waiting for connection...");
-         unsigned secs = (pend ? strtoul(pend, NULL, 10) : 5u);
+         unsigned secs = (pend ? (unsigned)strtoul(pend, NULL, 10) : 5u);
          while (ud.Config_ == NULL) {
-            fon9_SleepMS(1000);
+            fon9_SleepMS(1000u);
             if (secs <= 0)
                break;
             printf("%u \r", secs--);
@@ -576,11 +577,11 @@ __USAGE:
          printf("\r%s\n", ud.Config_ ? "Connection ready." : "Wait connection timeout.");
       }
       else if (strcmp(pbeg, "sleep") == 0) {
-         unsigned secs = (pend ? strtoul(pend, NULL, 10) : 1u);
+         unsigned secs = (pend ? (unsigned)strtoul(pend, NULL, 10) : 1u);
          for(;;) {
             printf("\r%u ", secs);
             fflush(stdout);
-            fon9_SleepMS(1000);
+            fon9_SleepMS(1000u);
             if (secs <= 0)
                break;
             --secs;
@@ -602,7 +603,7 @@ __USAGE:
          if (pend && *pend) {
             if ((pend[0] == '\'' && pend[1] == '\'')
                 || (pend[0] == '"' && pend[1] == '"'))
-               pend = "";
+               *pend = '\0';
             fon9_Initialize(pend);
             fon9_Finalize();
          }
@@ -614,7 +615,7 @@ __USAGE:
             for (unsigned L = 0; L < 100; ++L) {
                if (ud.LastQueryUserData_ == queryHandler.UserData_)
                   break;
-               fon9_SleepMS(10);
+               fon9_SleepMS(10u);
             }
          }
       }

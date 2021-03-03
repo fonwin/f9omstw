@@ -135,6 +135,12 @@ public:
       Items::ConstLocker items{this->Items_};
       return(sno > this->LastSNO_ ? nullptr : items->RxHistory_[sno]);
    }
+   const OmsRxItem* GetItem(OmsRxSNO sno, const Locker& items) const {
+      return(sno > this->LastSNO_ ? nullptr : items->RxHistory_[sno]);
+   }
+   Locker Lock() {
+      return Locker{this->Items_};
+   }
    /// 只會在 OmsCore 保護下執行.
    OmsRxSNO FetchSNO(OmsRxItem& item) {
       return item.SetRxSNO(++this->LastSNO_);

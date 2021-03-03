@@ -77,8 +77,8 @@ void OmsCoreMgr::RecalcSc(OmsResource& resource, OmsOrder& order) {
 void OmsCoreMgr::OnEventInCore(OmsResource& resource, OmsEvent& omsEvent, fon9::RevBuffer& rbuf) {
    (void)resource; (void)omsEvent; (void)rbuf;
 }
-void OmsCoreMgr::ReloadEvent(OmsResource& resource, const OmsEvent& omsEvent) {
-   (void)resource; (void)omsEvent;
+void OmsCoreMgr::ReloadEvent(OmsResource& resource, const OmsEvent& omsEvent, const OmsBackend::Locker& reloadItems) {
+   (void)resource; (void)omsEvent; (void)reloadItems;
 }
 
 } // namespaces

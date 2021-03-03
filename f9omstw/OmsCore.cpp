@@ -41,7 +41,7 @@ void OmsCore::EventInCore(OmsEventSP&& omsEvent) {
    fon9::RevBufferList rbuf{128};
    this->Owner_->OnEventInCore(*this, *omsEvent, rbuf);
    this->Backend_.Append(*omsEvent, std::move(rbuf));
-   this->Owner_->OmsEvent_.Publish(*static_cast<OmsResource*>(this), *omsEvent, false);
+   this->Owner_->OmsEvent_.Publish(*static_cast<OmsResource*>(this), *omsEvent, nullptr/*isReload*/);
 }
 //--------------------------------------------------------------------------//
 bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {

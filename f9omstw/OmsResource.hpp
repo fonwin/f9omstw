@@ -122,5 +122,10 @@ inline OmsIvBase* FetchScResourceIvr(OmsResource& res, OmsOrder& order, const Om
    return nullptr;
 }
 
+//--------------------------------------------------------------------------//
+
+/// 凍結 lastSNO 之前的委託剩餘量: 設定 ordraw->IsFrozeScLeaves_ = true;
+void FrozeScLeaves(OmsBackend& backend, OmsRxSNO lastSNO, const OmsBackend::Locker* locker);
+
 } // namespaces
 #endif//__f9omstw_OmsResource_hpp__

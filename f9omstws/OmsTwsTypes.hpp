@@ -91,7 +91,7 @@ struct OmsTwsPriRefs {
    f9omstw::OmsTwsPri   PriRef_{};
    f9omstw::OmsTwsPri   PriUpLmt_{};
    f9omstw::OmsTwsPri   PriDnLmt_{};
-   ActMarketPri         ActMarketPri_;
+   ActMarketPri         ActMarketPri_{};
    char                 Padding___[3];
 
    void ClearPriRefs() {

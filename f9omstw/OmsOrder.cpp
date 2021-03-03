@@ -105,6 +105,7 @@ void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    this->UpdateOrderSt_ = this->Order_->LastOrderSt();
    this->OrdNo_ = prev.OrdNo_;
    this->ErrCode_ = OmsErrCode_NoError;
+   this->IsFrozeScLeaves_ = prev.IsFrozeScLeaves_;
 }
 void OmsOrderRaw::OnOrderReject() {
 }

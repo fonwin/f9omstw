@@ -323,8 +323,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
          if (req == nullptr) {
             if (const OmsEvent* ev = static_cast<const OmsEvent*>(icur->CastToEvent())) {
-               resource.Core_.Owner_->ReloadEvent(resource, *ev);
-               resource.Core_.Owner_->OmsEvent_.Publish(resource, *ev, true);
+               resource.Core_.Owner_->ReloadEvent(resource, *ev, items);
+               resource.Core_.Owner_->OmsEvent_.Publish(resource, *ev, &items);
             }
             continue;
          }

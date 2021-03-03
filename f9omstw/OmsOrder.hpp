@@ -165,7 +165,10 @@ public:
    OmsOrdNo                OrdNo_{nullptr};
    /// 用在「報價回報」時, 若僅回報單邊, 則透過此處表明此次回報 Bid 或 Offer.
    f9fmkt_Side             QuoteReportSide_{f9fmkt_Side_Unknown};
-   char                    padding___[2];
+   /// 剩餘量的改變不可再影響風控統計; 通常在收盤事件, 設定此旗標;
+   /// 若之後有成交回報, 或其他刪改回報, 都不可再改變風控剩餘未成交量.
+   mutable bool            IsFrozeScLeaves_{false};
+   char                    padding___[1];
    // -----
 
    /// 異動時的本機時間.

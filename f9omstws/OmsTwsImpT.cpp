@@ -2,12 +2,15 @@
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsImpT.hpp"
 #include "f9omstw/OmsEventSessionSt.hpp"
+#include "f9tws/TwsTools.hpp"
 
 namespace f9omstw {
 
 ImpT30::Loader::Loader(OmsCoreSP core, size_t itemCount, ImpT30& owner)
    : OmsFileImpLoader{core}
-   , Ofs_(owner.Ofs_) {
+   , Ofs_(owner.Ofs_)
+   , ExtLmtRate_(owner.ExtLmtRate_ ? owner.ExtLmtRate_->To<double>() : 0.0)
+   , DefaultActMarketPri_(owner.DefaultActMarketPri_ ? *owner.DefaultActMarketPri_ : ActMarketPri::Market) {
    this->ImpItems_.resize(itemCount);
 }
 ImpT30::Loader::~Loader() {
@@ -22,6 +25,63 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
    item.PriRefs_.PriUpLmt_ = OmsTwsPri::Make<4>(fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.PriUpLmt_, 9}, 0u));
    item.PriRefs_.PriRef_   = OmsTwsPri::Make<4>(fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.PriRef_,   9}, 0u));
    item.PriRefs_.PriDnLmt_ = OmsTwsPri::Make<4>(fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.PriDnLmt_, 9}, 0u));
+   if (this->Ofs_.GnDayTrade_ > 0) {
+      if (const char ch = pbuf[this->Ofs_.GnDayTrade_])
+         item.PriRefs_.GnDayTrade_ = (ch == ' ' ? GnDayTrade::Reject : static_cast<GnDayTrade>(ch));
+   }
+   item.PriRefs_.ActMarketPri_ = this->DefaultActMarketPri_;
+
+   if (item.PriRefs_.PriDnLmt_ <= OmsTwsPri{1,2}
+    && item.PriRefs_.PriUpLmt_ >= OmsTwsPri{9995,0}) {
+      if (this->ExtLmtRate_ == 0.0) // 交易所沒有漲跌停限制, 且沒有設定 ExtLmtRate, 則禁止市價單.
+         item.PriRefs_.ActMarketPri_ = ActMarketPri::Reject;
+      else {
+         f9tws::TwsSymbKindLvPriStep lv;
+         lv.Setup(item.StkNo_);
+
+         fon9::fmkt::Pri up{10000,0};
+         fon9::fmkt::Pri dn{};
+         fon9::fmkt::Pri ref{item.PriRefs_.PriRef_.GetOrigValue(), item.PriRefs_.PriRef_.Scale};
+         CalcLmt(lv.LvPriSteps_, ref, this->ExtLmtRate_, &up, &dn);
+
+         if (item.PriRefs_.ActMarketPri_ == ActMarketPri::Market) {
+            // 因交易所沒有漲跌停限制時, 禁止市價單, 所以此處使用 ActMarketPri::Limit,
+            // 當市價下單時, 由風控改為漲跌停的限價下單.
+            item.PriRefs_.ActMarketPri_ = ActMarketPri::Limit;
+         }
+         item.PriRefs_.PriUpLmt_.Assign(up);
+         item.PriRefs_.PriDnLmt_.Assign(dn);
+      }
+   }
+#ifdef _DEBUG // 檢查 CalcLmt() 計算是否正確.
+   else if (this->ExtLmtRate_ != 0) {
+      f9tws::TwsSymbKindLvPriStep lv;
+      lv.Setup(item.StkNo_);
+      // 排除權證的原因: 權證的漲跌停是以標的股漲跌停金額乘以權證行使比例計算，而不是以權證前一交易日的10%為基準。
+      // 不排除: 國內成分槓桿及反向ETF:
+      //          f9tws_SymbKind_ETF_L, f9tws_SymbKind_ETF_I, f9tws_SymbKind_ETN_L, f9tws_SymbKind_ETN_I
+      //        漲跌幅限制則須以原本的10%乘上該ETF的報酬倍數。
+      //        就印出這類商品的計算結果吧, 以免沒印東西出來, 好像沒執行檢查!
+      if (lv.Kind_ < f9tws_SymbKind_W_BEGIN || f9tws_SymbKind_W_LAST < lv.Kind_) {
+         fon9::fmkt::Pri up{10000,0};
+         fon9::fmkt::Pri dn{};
+         fon9::fmkt::Pri ref{item.PriRefs_.PriRef_.GetOrigValue(), item.PriRefs_.PriRef_.Scale};
+         CalcLmt(lv.LvPriSteps_, ref, this->ExtLmtRate_, &up, &dn);
+         OmsTwsPri dnCalc{fon9::unsigned_cast(dn.GetOrigValue()), dn.Scale};
+         OmsTwsPri upCalc{fon9::unsigned_cast(up.GetOrigValue()), up.Scale};
+         if ((item.PriRefs_.PriDnLmt_ != dnCalc || item.PriRefs_.PriUpLmt_ != upCalc)) {
+            puts(fon9::RevPrintTo<std::string>("|StkNo=", item.StkNo_,
+                                               "|kind=", lv.Kind_,
+                                               "|up=", item.PriRefs_.PriUpLmt_,
+                                               "|dn=", item.PriRefs_.PriDnLmt_,
+                                               "|ref=", item.PriRefs_.PriRef_,
+                                               "|calc.up=", upCalc,
+                                               "|calc.dn=", dnCalc
+                                               ).c_str());
+         }
+      }
+   }
+#endif
 }
 
 fon9::seed::FileImpLoaderSP ImpT30::OnBeforeLoad(fon9::RevBuffer& rbufDesp, uint64_t addSize, fon9::seed::FileImpMonitorFlag monFlag) {

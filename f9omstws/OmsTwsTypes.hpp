@@ -86,13 +86,25 @@ enum class ActMarketPri : char {
    /// 拒絕下單.
    Reject = 'J',
 };
+fon9_DEFINE_EnumChar_StrTo_toupper(ActMarketPri);
+
+enum class GnDayTrade : char {
+   /// 為空白時(轉檔時填入'\0')，表示該證券不可現股當沖。
+   Reject = 0,
+   /// 值為Y時，表示該證券可先買後賣現股當沖。
+   MustBuyFirst = 'Y',
+   /// 值為X時，表示該證券可先買後賣或先賣後買現股當沖。
+   BothSide = 'X',
+};
+fon9_DEFINE_EnumChar_StrTo_toupper(GnDayTrade);
 
 struct OmsTwsPriRefs {
    f9omstw::OmsTwsPri   PriRef_{};
    f9omstw::OmsTwsPri   PriUpLmt_{};
    f9omstw::OmsTwsPri   PriDnLmt_{};
    ActMarketPri         ActMarketPri_{};
-   char                 Padding___[3];
+   GnDayTrade           GnDayTrade_{};
+   char                 Padding___[2];
 
    void ClearPriRefs() {
       fon9::ForceZeroNonTrivial(this);

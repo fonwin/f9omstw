@@ -16,24 +16,31 @@ constexpr auto kBrkIdSize = f9tws::BrkId::size();
 //--------------------------------------------------------------------------//
 fon9_WARN_DISABLE_PADDING;
 struct PriRefSrcOfs {
-   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_;
+   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_;
 
    // T30: StkNo[6], 6:PriUpLmt[9], 15:PriRef[9], 24:PriDnLmt[9]...
-   static const PriRefSrcOfs& GetOfsT30() {
-      static PriRefSrcOfs  ofsT30{100, 15,  6, 24};
-      return ofsT30;
+   static constexpr PriRefSrcOfs GetOfsT30TSE() {
+      return PriRefSrcOfs{100, 15,  6, 24, 86/*GnDayTrade*/};
    }
+   static constexpr PriRefSrcOfs GetOfsT30OTC() {
+      return PriRefSrcOfs{100, 15,  6, 24, 87/*GnDayTrade*/};
+   }
+   // 盤後零股價格檔.
    // O40: StkNo[6], Name[16], 22:PriUpLmt[9], 31:PriDnLmt[9], 40:PriRef[9]...
-   static const PriRefSrcOfs& GetOfsO40() {
-      static PriRefSrcOfs  ofsO40 = {60, 40, 22, 31};
-      return ofsO40;
+   static constexpr PriRefSrcOfs GetOfsO40() {
+      return PriRefSrcOfs{60, 40, 22, 31, 0};
+   }
+   // 盤中零股價格檔.
+   // O60: StkNo[6], 6:PriUpLmt[9], 15:PriDnLmt[9], 24:PriRef[9], 33:GnDayTrade...
+   static constexpr PriRefSrcOfs GetOfsO60() {
+      return PriRefSrcOfs{50, 24, 6, 15, 33};
    }
 };
 //--------------------------------------------------------------------------//
 // 'ImpT30': layout of class may have changed from a previous version of the compiler due to better packing of member 'ImpT30::PriRefs_'
 fon9_MSC_WARN_DISABLE_NO_PUSH(4371);
 
-/// 匯入漲跌參考價: 整股T30、零股O40.
+/// 匯入漲跌參考價: 整股T30、零股O40,O60.
 class ImpT30 : public OmsFileImpSeed {
    fon9_NON_COPY_NON_MOVE(ImpT30);
    using base = OmsFileImpSeed;
@@ -41,12 +48,18 @@ class ImpT30 : public OmsFileImpSeed {
 public:
    const f9fmkt_TradingMarket Market_;
    const PriRefSrcOfs         Ofs_;
+   /// 為沒有漲跌停的商品提供額外的價格限制;
+   const OmsTwsPri* const     ExtLmtRate_;
+   /// 市價下單時的預設行為;
+   const ActMarketPri* const  DefaultActMarketPri_;
 
    template <class... ArgsT>
-   ImpT30(f9fmkt_TradingMarket mkt, const PriRefSrcOfs& ofs, ArgsT&&... args)
+   ImpT30(f9fmkt_TradingMarket mkt, const PriRefSrcOfs& ofs, const OmsTwsPri* extLmtRate, const ActMarketPri* defaultActMarketPri, ArgsT&&... args)
       : base(fon9::seed::FileImpMonitorFlag::Reload, std::forward<ArgsT>(args)...)
       , Market_(mkt)
-      , Ofs_(ofs) {
+      , Ofs_(ofs)
+      , ExtLmtRate_(extLmtRate)
+      , DefaultActMarketPri_(defaultActMarketPri) {
    }
 
 protected:
@@ -57,6 +70,8 @@ protected:
    struct Loader : public OmsFileImpLoader {
       fon9_NON_COPY_NON_MOVE(Loader);
       const PriRefSrcOfs   Ofs_;
+      double               ExtLmtRate_;
+      const ActMarketPri   DefaultActMarketPri_;
       std::vector<ImpItem> ImpItems_;
       Loader(OmsCoreSP core, size_t itemCount, ImpT30& owner);
       ~Loader();

@@ -39,7 +39,8 @@ struct OmsTwsOrderRawDat {
 
    /// 實際送交易所的 OType, 應在新單的風控流程填妥.
    OmsTwsOType    OType_;
-   char           padding_____[2];
+   /// 透過哪個 PvcId(SocketId) 送給交易所.
+   fon9::CharAryF<2> OutPvcId_;
 
    /// 20200323支援改價, 所以 Order 必須記錄最後成功的價格.
    /// - 新增委託時, 使用 OmsTwsRequestIni;

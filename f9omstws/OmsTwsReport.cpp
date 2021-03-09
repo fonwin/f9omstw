@@ -17,6 +17,7 @@ void OmsTwsReport::MakeFields(fon9::seed::Fields& flds) {
 //--------------------------------------------------------------------------//
 static inline void AdjustReportQtys(OmsOrder& order, OmsResource& res, OmsTwsReport& rpt) {
    if (auto shUnit = OmsGetReportQtyUnit(order, res, rpt)) {
+      rpt.QtyStyle_ = OmsReportQtyStyle::OddLot;
       rpt.Qty_ *= shUnit;
       rpt.BeforeQty_ *= shUnit;
    }

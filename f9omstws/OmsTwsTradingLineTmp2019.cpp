@@ -220,7 +220,7 @@ TwsTradingLineTmp2019::SendResult TwsTradingLineTmp2019::SendRequest(f9fmkt::Tra
    OmsRequestRunnerInCore* runner = static_cast<TwsTradingLineMgr*>(&this->LineMgr_)
       ->MakeRunner(tmpRunner, *curReq, 256u);
 
-   const OmsTwsOrderRaw&   ordraw = *static_cast<const OmsTwsOrderRaw*>(&runner->OrderRaw_);
+   OmsTwsOrderRaw&         ordraw = *static_cast<OmsTwsOrderRaw*>(&runner->OrderRaw_);
    OmsOrder&               order = ordraw.Order();
    const OmsTwsRequestIni* iniReq = static_cast<const OmsTwsRequestIni*>(order.Initiator());
    assert(iniReq != nullptr);
@@ -270,6 +270,7 @@ TwsTradingLineTmp2019::SendResult TwsTradingLineTmp2019::SendRequest(f9fmkt::Tra
    }
    fon9_WARN_POP;
    // TradeHead
+   ordraw.OutPvcId_ = this->LineArgs_.SocketId_;
    pktmp->BrkId_.CopyFrom(iniReq->BrkId_.begin(), pktmp->BrkId_.size());
    pktmp->PvcID_ = this->LineArgs_.SocketId_;
    pktmp->OrdNo_ = *static_cast<const f9tws::OrdNo*>(&ordraw.OrdNo_);

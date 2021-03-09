@@ -27,6 +27,9 @@ public:
    IvacNo            IvacNo_;
    OmsTwsSymbol      Symbol_;
    f9fmkt_Side       Side_;
+   /// 通常用在建立回報時設定,
+   /// 在更新 ordraw 時: 會先將 this->Qty_ 調整成股數, 並將此欄改為 OmsReportQtyStyle::OddLot;
+   /// 讓後續的處理可以不用考慮此欄.
    OmsReportQtyStyle QtyStyle_{OmsReportQtyStyle::BySessionId};
    char              padding__[4];
 

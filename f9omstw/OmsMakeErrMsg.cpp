@@ -5,6 +5,7 @@
 #include "fon9/ConfigLoader.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/seed/Raw.hpp"
+#include "fon9/Log.hpp"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,7 +33,13 @@ struct f9omstw_ErrCodeTx {
 static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9::StrView lang) {
    f9omstw_ErrCodeTx* retval = new f9omstw_ErrCodeTx;
    fon9::ConfigLoader cfgldr{std::string{}};
-   cfgldr.CheckLoad(cfgstr);
+   try {
+      cfgldr.CheckLoad(cfgstr);
+   }
+   catch (fon9::ConfigLoader::Err& e) {
+      fon9_LOG_ERROR("LoadOmsErrMsgTx|", e);
+      return nullptr;
+   }
    cfgstr = &cfgldr.GetCfgStr();
    fon9::StrView msg1st;
    std::string   flddesc;

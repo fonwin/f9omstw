@@ -9,6 +9,7 @@ namespace f9omstw {
 void OmsTwsOrderRaw::MakeFields(fon9::seed::Fields& flds) {
    base::MakeFields<OmsTwsOrderRaw>(flds);
    flds.Add(fon9_MakeField2(OmsTwsOrderRaw, OType));
+   flds.Add(fon9_MakeField2(OmsTwsOrderRaw, OutPvcId));
 
    flds.Add(fon9_MakeField2(OmsTwsOrderRaw, LastExgTime));
    flds.Add(fon9_MakeField2(OmsTwsOrderRaw, BeforeQty));

@@ -168,7 +168,16 @@ public:
    /// 剩餘量的改變不可再影響風控統計; 通常在收盤事件, 設定此旗標;
    /// 若之後有成交回報, 或其他刪改回報, 都不可再改變風控剩餘未成交量.
    mutable bool            IsFrozeScLeaves_{false};
-   char                    padding___[1];
+   // -----
+   enum Flag : uint8_t {
+      Flag_IsRequestFirstUpdate = 0x01,
+   };
+   Flag  Flags_{};
+
+   /// this->Request() 的第一次 ordraw 異動.
+   bool IsRequestFirstUpdate() const {
+      return((this->Flags_ & Flag_IsRequestFirstUpdate) != Flag{});
+   }
    // -----
 
    /// 異動時的本機時間.
@@ -193,6 +202,7 @@ public:
    uint32_t UpdSeq()  const { return this->UpdSeq_; }
 
    /// 延續 prev 的異動.
+   /// - 一般而言 prev 來自 order->Tail();
    /// - 從 prev 複製必要的內容, 例: this->OrdNo_ = prev.OrdNo_;
    /// - this->UpdateOrderSt_ = this->Order_->LastOrderSt();
    /// - 設定(清除)部分欄位, 例如: this->ErrCode_ = OmsErrCode_NoError;

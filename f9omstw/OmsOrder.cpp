@@ -89,6 +89,7 @@ void OmsOrderRaw::InitializeByStarter(OmsOrder& order, const OmsRequestBase& sta
    this->SessionId_ = starter.SessionId();
    this->Request_ = &starter;
    this->Order_ = &order;
+   this->Flags_ = Flag_IsRequestFirstUpdate;
 }
 void OmsOrderRaw::InitializeByTail(const OmsOrderRaw& tail, const OmsRequestBase& req) {
    assert(tail.Next_ == nullptr && tail.Order_->Tail() == &tail);
@@ -106,6 +107,8 @@ void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    this->OrdNo_ = prev.OrdNo_;
    this->ErrCode_ = OmsErrCode_NoError;
    this->IsFrozeScLeaves_ = prev.IsFrozeScLeaves_;
+   if (this->Request_->LastUpdated() == nullptr)
+      this->Flags_ = static_cast<Flag>(this->Flags_ | Flag_IsRequestFirstUpdate);
 }
 void OmsOrderRaw::OnOrderReject() {
 }

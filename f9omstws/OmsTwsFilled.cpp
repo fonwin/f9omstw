@@ -20,8 +20,10 @@ void OmsTwsFilled::MakeFields(fon9::seed::Fields& flds) {
 }
 //--------------------------------------------------------------------------//
 static inline void AdjustReportQtys(OmsOrder& order, OmsResource& res, OmsTwsFilled& rpt) {
-   if (auto shUnit = OmsGetReportQtyUnit(order, res, rpt))
+   if (auto shUnit = OmsGetReportQtyUnit(order, res, rpt)) {
+      rpt.QtyStyle_ = OmsReportQtyStyle::OddLot;
       rpt.Qty_ *= shUnit;
+   }
 }
 char* OmsTwsFilled::RevFilledReqUID(char* pout) {
    if (this->Side_ != f9fmkt_Side{})

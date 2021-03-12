@@ -170,14 +170,14 @@ inline void OmsUpdateOrderSt_WhenRecalcLeaves0(OmsReportRunnerInCore& inCoreRunn
    // Bid/Offer 應使用: OmsUpdateOrderSt_WhenRecalcLeaves0_Quote();
    assert(&inCoreRunner.OrderRaw_ == &ordQtys);
    inCoreRunner.OrderRaw_.UpdateOrderSt_ = (ordQtys.AfterQty_ == 0
-                                            ? f9fmkt_OrderSt_Canceled
+                                            ? f9fmkt_OrderSt_UserCanceled
                                             : f9fmkt_OrderSt_AsCanceled);
 }
 template <class OrdQuoteQtysT>
 inline void OmsUpdateOrderSt_WhenRecalcLeaves0_Quote(OmsReportRunnerInCore& inCoreRunner, OrdQuoteQtysT& ordQuoteQtys) {
    if (ordQuoteQtys.Bid_.LeavesQty_ == 0 && ordQuoteQtys.Offer_.LeavesQty_ == 0)
       inCoreRunner.OrderRaw_.UpdateOrderSt_ = (ordQuoteQtys.Bid_.AfterQty_ == 0 && ordQuoteQtys.Offer_.AfterQty_ == 0
-                                            ? f9fmkt_OrderSt_Canceled
+                                            ? f9fmkt_OrderSt_UserCanceled
                                             : f9fmkt_OrderSt_AsCanceled);
 }
 

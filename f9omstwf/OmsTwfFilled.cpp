@@ -138,7 +138,7 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
       if(this->ErrCode() == kERCODE_Canceling)
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_Canceling, f9fmkt_TradingRequestSt_ExchangeCanceling);
       else
-         inCoreRunner.UpdateSt(f9fmkt_OrderSt_Canceled, f9fmkt_TradingRequestSt_ExchangeCanceled);
+         inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeCanceled, f9fmkt_TradingRequestSt_ExchangeCanceled);
    }
    else { // 期交所自動取消報價.
       assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
@@ -160,7 +160,7 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
          return;
       }
       inCoreRunner.UpdateSt((ordraw.Bid_.LeavesQty_ <= 0 && ordraw.Offer_.LeavesQty_ <= 0
-                             ? f9fmkt_OrderSt_Canceled : ordraw.Order().LastOrderSt()),
+                             ? f9fmkt_OrderSt_ExchangeCanceled : ordraw.Order().LastOrderSt()),
                             f9fmkt_TradingRequestSt_ExchangeCanceled);
    }
 }

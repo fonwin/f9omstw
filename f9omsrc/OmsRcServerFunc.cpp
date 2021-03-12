@@ -260,9 +260,6 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
 void OmsRcServerNote::Handler::ClearResource() {
    this->State_ = HandlerSt::Disposing;
    this->Core_->ReportSubject().Unsubscribe(&this->RptSubr_);
-   if (this->Device_->OpImpl_GetState() == fon9::io::State::LinkReady) {
-      if (0);// TODO: 移除 fon9::rc SeedVisitor 裡面 OmsCore/* 的權限.
-   }
 }
 void OmsRcServerNote::Handler::StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter) {
    if (this->State_ > HandlerSt::Recovering) // 重覆訂閱/回補/解構中?
@@ -363,13 +360,11 @@ void OmsRcServerNote::PolicyRunner::operator()(OmsResource& res) {
    handler->Device_->OpQueue_.AddTask(PolicyRunner{*this});
 }
 void OmsRcServerNote::PolicyRunner::operator()(fon9::io::Device& dev) {
+   assert(dynamic_cast<ApiSession*>(dev.Session_.get()) != nullptr);
    auto& ses = *static_cast<ApiSession*>(dev.Session_.get());
    auto* note = static_cast<OmsRcServerNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi));
    if (note && note->Handler_ == this->get())
       note->SendConfig(ses);
-   if (auto* seedNote = ses.GetNote(f9rc_FunctionCode_SeedVisitor)) {
-      if (0);// TODO: 設定 fon9::rc SeedVisitor 裡面 OmsCore/Brks/BrkId/IvacNo/SubacNo 的權限.
-   }
 }
 //--------------------------------------------------------------------------//
 void FnPutApiField_ApiSesName(const ApiReqFieldCfg& cfg, const ApiReqFieldArg& arg) {

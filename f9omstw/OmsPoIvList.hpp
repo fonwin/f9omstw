@@ -81,6 +81,9 @@ public:
    friend fon9::StrView ToStrView(const OmsIvKey& v) {
       return ToStrView(*static_cast<const base*>(&v));
    }
+
+   /// 帳號移除前方的 '0'
+   fon9::CharVector ToShortStr(char chSpl) const;
 };
 
 /// 使用者登入後, 可取得「可用帳號列表」.

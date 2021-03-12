@@ -2,6 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsPoIvListAgent.hpp"
 #include "fon9/auth/PolicyMaster.hpp"
+#include "fon9/auth/PolicyAcl.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/BitvArchive.hpp"
 
@@ -81,8 +82,8 @@ class PolicyIvListTree : public fon9::auth::MasterPolicyTree {
    static fon9::seed::LayoutSP MakeLayout() {
       using namespace fon9::seed;
       return new Layout1(fon9_MakeField2(fon9::auth::PolicyItem, PolicyId),
-         new Tab(fon9::Named{"IvList"}, Fields{}, MakeOmsIvListLayout(), TabFlag::Writable | TabFlag::HasSapling),
-         TreeFlag::AddableRemovable);
+                         new Tab(fon9::Named{"IvList"}, Fields{}, MakeOmsIvListLayout(), TabFlag::Writable | TabFlag::HasSapling),
+                         TreeFlag::AddableRemovable);
    }
 
 public:
@@ -107,8 +108,60 @@ public:
 };
 //--------------------------------------------------------------------------//
 OmsPoIvListAgent::OmsPoIvListAgent(fon9::seed::MaTree* authMgrAgents, std::string name)
-   : base(new PolicyIvListTree{}, std::move(name)) {
-   (void)authMgrAgents;
+   : base(new PolicyIvListTree{}, std::move(name))
+   , PoAclAgent_{authMgrAgents->Get<fon9::auth::PolicyAclAgent>(fon9_kCSTR_PolicyAclAgent_Name)} {
+   if (this->PoAclAgent_)
+      this->PoAclConn_ = this->PoAclAgent_->PoAclAdjusters_.Subscribe(
+         std::bind(&OmsPoIvListAgent::PoAclAdjust, this, std::placeholders::_1, std::placeholders::_2));
+}
+OmsPoIvListAgent::~OmsPoIvListAgent() {
+   if (this->PoAclAgent_)
+      this->PoAclAgent_->PoAclAdjusters_.Unsubscribe(&this->PoAclConn_);
+}
+void OmsPoIvListAgent::PoAclAdjust(const fon9::auth::AuthResult& authr, fon9::auth::PolicyAclAgent::PolicyConfig& res) {
+   PolicyConfig ivList;
+   if (!this->GetPolicy(authr, ivList) || ivList.empty())
+      return;
+   std::vector<fon9::CharVector> ivKeys;
+   ivKeys.resize(ivList.size());
+   size_t idx = 0;
+   for (const auto& i : ivList) {
+      const OmsIvRight rights = i.second;
+      if ((rights & OmsIvRight::DenyTradingAll) == OmsIvRight::DenyTradingAll
+          && !IsEnumContains(rights, OmsIvRight::AllowAddReport)
+          && !IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
+          && !IsEnumContains(rights, OmsIvRight::IsAdmin)) {
+         // 沒權限.
+         continue;
+      }
+      ivKeys[idx++] = i.first.ToShortStr('/');
+   }
+   if (idx == 0)
+      return;
+   ivKeys.resize(idx);
+
+   const fon9::StrView    kIvac{"{Ivac}"};
+   fon9::seed::AccessList acl;
+   for (const auto& v : res.Acl_) {
+      fon9::StrView aclKey{ToStrView(v.first)};
+      const char*   pfind = aclKey.Find(*kIvac.begin());
+      const auto    ptailSz = aclKey.end() - pfind - fon9::signed_cast(kIvac.size());
+      if (pfind && ptailSz >= 0 && memcmp(pfind + 1, kIvac.begin() + 1, kIvac.size() - 1) == 0) {
+         for (const fon9::CharVector& ikey : ivKeys) {
+            fon9::CharVector nkey;
+            char* pkey = static_cast<char*>(nkey.alloc(aclKey.size() - kIvac.size() + ikey.size()));
+            auto  sz = static_cast<size_t>(pfind - aclKey.begin());
+            memcpy(pkey, aclKey.begin(), sz);
+            memcpy(pkey += sz, ikey.cbegin(), ikey.size());
+            memcpy(pkey += ikey.size(), pfind + kIvac.size(), fon9::unsigned_cast(ptailSz));
+            acl.kfetch(nkey).second = v.second;
+         }
+      }
+      else {
+         acl.insert(v);
+      }
+   }
+   res.Acl_ = std::move(acl);
 }
 
 bool OmsPoIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {

@@ -3,7 +3,7 @@
 #ifndef __f9omstw_OmsPoIvListAgent_hpp__
 #define __f9omstw_OmsPoIvListAgent_hpp__
 #include "f9omstw/OmsPoIvList.hpp"
-#include "fon9/auth/AuthMgr.hpp"
+#include "fon9/auth/PolicyAcl.hpp"
 #include "fon9/seed/FieldString.hpp"
 
 namespace fon9 { namespace seed {
@@ -53,9 +53,15 @@ namespace f9omstw {
 class OmsPoIvListAgent : public fon9::auth::PolicyAgent {
    fon9_NON_COPY_NON_MOVE(OmsPoIvListAgent);
    using base = fon9::auth::PolicyAgent;
+   using PoAclAgentSP = fon9::intrusive_ptr<fon9::auth::PolicyAclAgent>;
+   PoAclAgentSP   PoAclAgent_;
+   fon9::SubConn  PoAclConn_{};
+
+   void PoAclAdjust(const fon9::auth::AuthResult& authr, fon9::auth::PolicyAclAgent::PolicyConfig& res);
 
 public:
    OmsPoIvListAgent(fon9::seed::MaTree* authMgrAgents, std::string name);
+   ~OmsPoIvListAgent();
 
    #define fon9_kCSTR_OmsPoIvListAgent_Name    "OmsPoIvList"
    /// 在 authMgr.Agents_ 上面新增一個 OmsPoIvListAgent.

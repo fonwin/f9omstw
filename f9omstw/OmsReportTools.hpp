@@ -102,7 +102,7 @@ inline auto OmsAssignLastPrisFromReport(OrderRawT* ordraw, const ReportT* rpt)
        || (rpt->PriType_ == f9fmkt_PriType{} && rpt->Pri_.IsNull()))
       return;
    if (!ordraw->LastPriTime_.IsNull() && rpt->RxKind() != f9fmkt_RxKind_RequestNew) {
-      if (rpt->PriType_ == f9fmkt_PriType_Limit && rpt->Pri_.IsNullOrZero())
+      if (rpt->PriType_ == f9fmkt_PriType_Limit && rpt->Pri_.IsNull())
          return; // rpt 的價格不正確, 不更新 ordraw->LastPri*
       if (ordraw->LastPriTime_ >= rpt->ExgTime_)
          return;
@@ -121,7 +121,8 @@ inline auto OmsAssignLastPrisFromReport(OrderRawT* ordraw, const ReportT* rpt)
    else {
       ordraw->LastPriType_ = rpt->PriType_;
    }
-   ordraw->LastPri_ = rpt->Pri_;
+   if (!rpt->Pri_.IsNull())
+      ordraw->LastPri_ = rpt->Pri_;
    OmsAssignLastTimeInForceFromReport(ordraw, rpt);
 }
 inline void OmsAssignLastPrisFromReport(...) {

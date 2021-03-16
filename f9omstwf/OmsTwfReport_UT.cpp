@@ -142,18 +142,18 @@ void TestSpecialFilled(TestCoreSP& core) {
 // - 新單合併成交(沒有額外的新單回報) -----
 kTwfNew,
 kChkOrderNewSending,
-"v1." kTwfFil(1,                                                                     2,201,kTIME1) "|PriOrd=202",
-kChkOrderST(ExchangeAccepted,         10,10,10,kTIME1) kOrdPri(R,202,kTIME1),
-kChkOrder(PartFilled,PartFilled,      10, 8, 8,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
+"v1." kTwfFil(1,                                                                2,201,kTIME1) "|PriOrd=202",
+kChkOrderST(ExchangeAccepted,    10,10,10,kTIME1) kOrdPri(R,202,kTIME1),
+kChkOrder(PartFilled,PartFilled, 10, 8, 8,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
 "+1." kTwfFil(2,0,0,kTIME2) "|QtyCanceled=8", // 成交2口後, 交易所主動刪除剩餘的8口.
-kChkOrder(Canceled,ExchangeCanceled,   8, 0, 0,kTIME2) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
+kChkOrderST(ExchangeCanceled,     8, 0, 0,kTIME2) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
 // - 新單合併成交, 部分成交, 部分刪單 -----
 kTwfNew,
 kChkOrderNewSending,
 "v1." kTwfFil(1,2,201, kTIME1) "|QtyCanceled=8|PriOrd=202", // 成交2口, 交易所主動刪除剩餘的8口. 期交所使用一筆回報.
-kChkOrderST(ExchangeAccepted,         10,10,10,kTIME1) kOrdPri(R,202,kTIME1),
-kChkOrder(PartFilled,PartFilled,      10, 8, 8,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
-kChkOrder(Canceled,ExchangeCanceled,   8, 0, 0,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
+kChkOrderST(ExchangeAccepted,    10,10,10,kTIME1) kOrdPri(R,202,kTIME1),
+kChkOrder(PartFilled,PartFilled, 10, 8, 8,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
+kChkOrderST(ExchangeCanceled,     8, 0, 0,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(2,402,kTIME1),
    };
    RunTestList(core, "Special filled(Normal-order)", cstrTestListNormal);
 
@@ -169,18 +169,18 @@ kChkOrder(ReportPending,ExchangeCanceled, 8, 8, 8,kTIME1) kOrdPri(R,200,kTIME1) 
 // 補足1口, 然後處理交易所刪除7口.
 "+1." kTwfFil(3,                                                                        1,200,kTIME3),
 kChkOrder(PartFilled,PartFilled,          8, 7, 7,kTIME1) kOrdPri(R,200,kTIME1) kOrdCum(3,602,kTIME3),
-kChkOrder(Canceled,ExchangeCanceled,      7, 0, 0,kTIME2) kOrdPri(R,200,kTIME1) kOrdCum(3,602,kTIME3),
+kChkOrderST(ExchangeCanceled,             7, 0, 0,kTIME2) kOrdPri(R,200,kTIME1) kOrdCum(3,602,kTIME3),
 // - 新單合併成交2/交易所刪7(遺漏1) => 補足1 -----
 kTwfNew,
 kChkOrderNewSending,
 "v1." kTwfFil(1,2,201, kTIME1) "|QtyCanceled=7|PriOrd=202", // 成交2口, 交易所主動刪除剩餘的7口(遺漏1口). 期交所使用一筆回報.
-kChkOrderST(ExchangeAccepted,         10,10,10,kTIME1) kOrdPri(R,202,kTIME1),
-kChkOrder(ReportPending,PartFilled,   10,10,10,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(0,0,""),
+kChkOrderST(ExchangeAccepted,       10,10,10,kTIME1) kOrdPri(R,202,kTIME1),
+kChkOrder(ReportPending,PartFilled, 10,10,10,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(0,0,""),
 // 補足1口, 然後處理:成交2 及 刪除7.
 "+1." kTwfFil(3,                                                                     1,200,kTIME3),
-kChkOrder(PartFilled,PartFilled,      10, 9, 9,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(1,200,kTIME3),
-kChkOrder(PartFilled,PartFilled,       9, 7, 7,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(3,602,kTIME1),
-kChkOrder(Canceled,ExchangeCanceled,   7, 0, 0,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(3,602,kTIME1),
+kChkOrder(PartFilled,PartFilled,    10, 9, 9,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(1,200,kTIME3),
+kChkOrder(PartFilled,PartFilled,     9, 7, 7,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(3,602,kTIME1),
+kChkOrderST(ExchangeCanceled,        7, 0, 0,kTIME1) kOrdPri(R,202,kTIME1) kOrdCum(3,602,kTIME1),
 
 // - 新單合併成交, 但沒有 order.Initiator() -----
 // 新單合併成交回報要如何處理? 由回報接收端決定:
@@ -189,14 +189,14 @@ kChkOrder(Canceled,ExchangeCanceled,   7, 0, 0,kTIME1) kOrdPri(R,202,kTIME1) kOr
 // 這裡驗證: 方法2.
 ">AllocOrdNo=f-N-8610-A",
 "+"   kTwfFil(1,1,201,kTIME1) "|QtyCanceled=7|PriOrd=203", // 成交1口, 交易所主動刪除剩餘的7口(遺漏1口,且無order.Initiator).
-kChkOrder(ReportPending,PartFilled,  0, 0, 0,"") "|LastTimeInForce=|LastPriTime=|LastPri=0|LastPriType=" kOrdCum(0,0,""),
+kChkOrder(ReportPending,PartFilled, 0, 0, 0,"") "|LastTimeInForce=|LastPriTime=|LastPri=0|LastPriType=" kOrdCum(0,0,""),
 // 回報補單: 新單10口; 因(成交1 及 刪除7)仍遺漏2口,所以繼續等.
-"+1." kTwfRpt(ExchangeAccepted,N,   10,10,   kTIME0) kPriLmt(R,200),
-kChkOrderST(ExchangeAccepted,        0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
+"+1." kTwfRpt(ExchangeAccepted,N,  10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,       0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
 "+1." kTwfFil(2,                                                                   2,200,kTIME2),
-kChkOrder(PartFilled,PartFilled,    10, 8, 8,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(2,400,kTIME2),
-kChkOrder(PartFilled,PartFilled,     8, 7, 7,kTIME0) kOrdPri(R,203,kTIME1) kOrdCum(3,601,kTIME1),
-kChkOrder(Canceled,ExchangeCanceled, 7, 0, 0,kTIME1) kOrdPri(R,203,kTIME1) kOrdCum(3,601,kTIME1),
+kChkOrder(PartFilled,PartFilled,   10, 8, 8,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(2,400,kTIME2),
+kChkOrder(PartFilled,PartFilled,    8, 7, 7,kTIME0) kOrdPri(R,203,kTIME1) kOrdCum(3,601,kTIME1),
+kChkOrderST(ExchangeCanceled,       7, 0, 0,kTIME1) kOrdPri(R,203,kTIME1) kOrdCum(3,601,kTIME1),
    };
    RunTestList(core, "Special filled(OutofOrder)", cstrTestListOutofOrder);
 
@@ -210,11 +210,11 @@ kChkOrder(Canceled,ExchangeCanceled, 7, 0, 0,kTIME1) kOrdPri(R,203,kTIME1) kOrdC
 kTwfNew,
 kChkOrderNewSending,
 "v1." kTwfFil(1,2,201, kTIME1) "|QtyCanceled=8|ErrCode=40047",
-kChkOrderST(ExchangeAccepted,       10,10,10,kTIME1) kOrdPri(R,200,kTIME1),
-kChkOrder(PartFilled,PartFilled,    10, 8, 8,kTIME1) kOrdPri(R,200,kTIME1) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
-kChkOrderST(Canceling,               8, 0, 0,kTIME1) kOrdPri(R,200,kTIME1) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
+kChkOrderST(ExchangeAccepted,    10,10,10,kTIME1) kOrdPri(R,200,kTIME1),
+kChkOrder(PartFilled,PartFilled, 10, 8, 8,kTIME1) kOrdPri(R,200,kTIME1) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
+kChkOrderST(Canceling,            8, 0, 0,kTIME1) kOrdPri(R,200,kTIME1) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
 "+1." kTwfFil(2,0,202, kTIME2) "|ErrCode=40048", // 取消, 並提供: 上限價 or 下限價.
-kChkOrder(Canceled,ExchangeCanceled, 0, 0, 0,kTIME2) kOrdPri(R,200,kTIME1) kOrdCum(2,402,kTIME1) "|ErrCode=40048",
+kChkOrderST(ExchangeCanceled,     0, 0, 0,kTIME2) kOrdPri(R,200,kTIME1) kOrdCum(2,402,kTIME1) "|ErrCode=40048",
 // 亂序.
 kTwfNew,
 kChkOrderNewSending,
@@ -222,9 +222,9 @@ kChkOrderNewSending,
 kChkOrderST(ExchangeAccepted,             10,10,10,kTIME2) kOrdPri(R,200,kTIME2),
 kChkOrder(ReportPending,ExchangeCanceled, 10,10,10,kTIME2) kOrdPri(R,200,kTIME2),
 "+1." kTwfFil(1,2,201, kTIME1) "|QtyCanceled=8|ErrCode=40047",
-kChkOrder(PartFilled,PartFilled,    10, 8, 8,kTIME2) kOrdPri(R,200,kTIME2) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
-kChkOrderST(Canceling,               8, 0, 0,kTIME1) kOrdPri(R,200,kTIME2) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
-kChkOrder(Canceled,ExchangeCanceled, 0, 0, 0,kTIME2) kOrdPri(R,200,kTIME2) kOrdCum(2,402,kTIME1) "|ErrCode=40048",
+kChkOrder(PartFilled,PartFilled,          10, 8, 8,kTIME2) kOrdPri(R,200,kTIME2) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
+kChkOrderST(Canceling,                     8, 0, 0,kTIME1) kOrdPri(R,200,kTIME2) kOrdCum(2,402,kTIME1) "|ErrCode=40047",
+kChkOrderST(ExchangeCanceled,              0, 0, 0,kTIME2) kOrdPri(R,200,kTIME2) kOrdCum(2,402,kTIME1) "|ErrCode=40048",
    };
    RunTestList(core, "Special filled(status_code=47,48)", cstrTestList_47_48);
 }
@@ -270,14 +270,14 @@ kChkOrder(ReportPending,ExchangeNoLeaves, 0, 0,10,kTIME9) kOrdPri(R,203,kTIME5) 
 kChkOrder(ReportPending,ExchangeAccepted, 6, 4,10,kTIME4) kOrdPri(R,203,kTIME5) kErrCode_0,
 // -------------------------------------
 // 新單回報(接續 Ln#1) => 處理等候中的回報.
-"-L1." kTwfRpt(ExchangeAccepted,N,  10,10,   kTIME0) kPriLmt(R,200),
-kChkOrderST(ExchangeAccepted,       10,10,10,kTIME0) kOrdPri(R,200,kTIME0) kErrCode_0,
-kChkOrderST(ExchangeAccepted,       10, 7, 7,kTIME1) kOrdPri(R,200,kTIME0) kErrCode_0,
-kChkOrderST(ExchangeAccepted,        7, 6, 6,kTIME3) kOrdPri(R,200,kTIME0),
-kChkOrderST(ExchangeAccepted,        4, 4, 6,kTIME5) kOrdPri(R,203,kTIME5),
-kChkOrderST(ExchangeAccepted,        6, 4, 4,kTIME4) kOrdPri(R,203,kTIME5),
-kChkOrder(Canceled,ExchangeAccepted, 4, 0, 0,kTIME6) kOrdPri(R,203,kTIME5) kErrCode_0,
-kChkOrder(Canceled,ExchangeNoLeaves, 0, 0, 0,kTIME9) kOrdPri(R,203,kTIME5) kErrCode_NoLeaves,
+"-L1." kTwfRpt(ExchangeAccepted,N,       10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,            10,10,10,kTIME0) kOrdPri(R,200,kTIME0) kErrCode_0,
+kChkOrderST(ExchangeAccepted,            10, 7, 7,kTIME1) kOrdPri(R,200,kTIME0) kErrCode_0,
+kChkOrderST(ExchangeAccepted,             7, 6, 6,kTIME3) kOrdPri(R,200,kTIME0),
+kChkOrderST(ExchangeAccepted,             4, 4, 6,kTIME5) kOrdPri(R,203,kTIME5),
+kChkOrderST(ExchangeAccepted,             6, 4, 4,kTIME4) kOrdPri(R,203,kTIME5),
+kChkOrder(UserCanceled,ExchangeAccepted,  4, 0, 0,kTIME6) kOrdPri(R,203,kTIME5) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeNoLeaves,  0, 0, 0,kTIME9) kOrdPri(R,203,kTIME5) kErrCode_NoLeaves,
    };
    RunTestList(core, "Out-of-order", cstrTestList);
 }
@@ -310,15 +310,15 @@ kChkOrder(ReportPending,ExchangeAccepted,4,0,0,kTIME6) kOrdPri(R,203,kTIME5) kEr
 kChkOrder(ReportPending,ExchangeAccepted,6,4,0,kTIME4) kOrdPri(R,203,kTIME5),
 // -------------------------------------
 // 新單回報
-"+1." kTwfRpt(ExchangeAccepted,N,    10,10,   kTIME0) kPriLmt(R,200),
-kChkOrderST(ExchangeAccepted,         0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
-kChkOrder(PartFilled,PartFilled,     10, 9, 9,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(1,201,kTIME1),
-kChkOrder(PartFilled,PartFilled,      9, 7, 7,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,7, 6, 6,kTIME3) kOrdPri(R,200,kTIME0) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,4, 4, 6,kTIME5) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,6, 4, 4,kTIME4) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
-kChkOrder(Canceled,ExchangeAccepted,  4, 0, 0,kTIME6) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_0,
-kChkOrder(Canceled,ExchangeNoLeaves,  0, 0, 0,kTIME9) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
+"+1." kTwfRpt(ExchangeAccepted,N,       10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,            0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
+kChkOrder(PartFilled,PartFilled,        10, 9, 9,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(1,201,kTIME1),
+kChkOrder(PartFilled,PartFilled,         9, 7, 7,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   7, 6, 6,kTIME3) kOrdPri(R,200,kTIME0) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   4, 4, 6,kTIME5) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   6, 4, 4,kTIME4) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
+kChkOrder(UserCanceled,ExchangeAccepted, 4, 0, 0,kTIME6) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeNoLeaves, 0, 0, 0,kTIME9) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
    };
    RunTestList(core, "Out-of-order(NoNewFilled)", cstrTestList);
 }
@@ -351,15 +351,15 @@ kChkOrder(ReportPending,ExchangeAccepted,4,0,0,kTIME6) kOrdPri(R,203,kTIME5) kEr
 kChkOrder(ReportPending,ExchangeAccepted,6,4,0,kTIME4) kOrdPri(R,203,kTIME5) kErrCode_0,
 // -------------------------------------
 // 新單回報
-"+1." kTwfRpt(ExchangeAccepted,N,    10,10,   kTIME0) kPriLmt(R,200),
-kChkOrderST(ExchangeAccepted,         0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
-kChkOrderST(ExchangeAccepted,         7, 6, 9,kTIME3) kOrdPri(R,200,kTIME0),
-kChkOrder(PartFilled,PartFilled,      9, 8, 8,kTIME3) kOrdPri(R,200,kTIME0) kOrdCum(1,201,kTIME1),
-kChkOrder(PartFilled,PartFilled,      8, 6, 6,kTIME3) kOrdPri(R,200,kTIME0) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,4, 4, 6,kTIME5) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,6, 4, 4,kTIME4) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
-kChkOrder(Canceled,ExchangeAccepted,  4, 0, 0,kTIME6) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_0,
-kChkOrder(Canceled,ExchangeNoLeaves,  0, 0, 0,kTIME9) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
+"+1." kTwfRpt(ExchangeAccepted,N,       10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,            0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
+kChkOrderST(ExchangeAccepted,            7, 6, 9,kTIME3) kOrdPri(R,200,kTIME0),
+kChkOrder(PartFilled,PartFilled,         9, 8, 8,kTIME3) kOrdPri(R,200,kTIME0) kOrdCum(1,201,kTIME1),
+kChkOrder(PartFilled,PartFilled,         8, 6, 6,kTIME3) kOrdPri(R,200,kTIME0) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   4, 4, 6,kTIME5) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   6, 4, 4,kTIME4) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2),
+kChkOrder(UserCanceled,ExchangeAccepted, 4, 0, 0,kTIME6) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeNoLeaves, 0, 0, 0,kTIME9) kOrdPri(R,203,kTIME5) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
    };
    RunTestList(core, "Out-of-order(NoNewChgQty)", cstrTestList);
 }
@@ -392,15 +392,15 @@ kChkOrder(ReportPending,ExchangeNoLeaves,0,0,0,kTIME9) kOrdPri(R,203,kTIME6) kEr
 kChkOrder(ReportPending,ExchangeAccepted,6,4,0,kTIME4) kOrdPri(R,203,kTIME6) kErrCode_0,
 // -------------------------------------
 // 新單回報
-"+1." kTwfRpt(ExchangeAccepted,N,    10,10,   kTIME0) kPriLmt(R,200),
-kChkOrderST(ExchangeAccepted,         0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
-kChkOrderST(ExchangeAccepted,         7, 6, 9,kTIME3) kOrdPri(R,203,kTIME6),
-kChkOrder(PartFilled,PartFilled,      9, 8, 8,kTIME3) kOrdPri(R,203,kTIME6) kOrdCum(1,201,kTIME1),
-kChkOrder(PartFilled,PartFilled,      8, 6, 6,kTIME3) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,4, 4, 6,kTIME5) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,6, 4, 4,kTIME4) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2),
-kChkOrder(Canceled,ExchangeAccepted,  4, 0, 0,kTIME6) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2) kErrCode_0,
-kChkOrder(Canceled,ExchangeNoLeaves,  0, 0, 0,kTIME9) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
+"+1." kTwfRpt(ExchangeAccepted,N,       10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,            0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
+kChkOrderST(ExchangeAccepted,            7, 6, 9,kTIME3) kOrdPri(R,203,kTIME6),
+kChkOrder(PartFilled,PartFilled,         9, 8, 8,kTIME3) kOrdPri(R,203,kTIME6) kOrdCum(1,201,kTIME1),
+kChkOrder(PartFilled,PartFilled,         8, 6, 6,kTIME3) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   4, 4, 6,kTIME5) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   6, 4, 4,kTIME4) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2),
+kChkOrder(UserCanceled,ExchangeAccepted, 4, 0, 0,kTIME6) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeNoLeaves, 0, 0, 0,kTIME9) kOrdPri(R,203,kTIME6) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
    };
    RunTestList(core, "Out-of-order(NoNewDelete)", cstrTestList);
 }
@@ -435,15 +435,15 @@ kChkOrder(ReportPending,ExchangeNoLeaves,0,0,0,kTIME9) kOrdPri(R,203,kTIME8) kEr
 kChkOrder(ReportPending,ExchangeAccepted,6,4,0,kTIME4) kOrdPri(R,203,kTIME8) kErrCode_0,
 // -------------------------------------
 // 新單回報
-"+1." kTwfRpt(ExchangeAccepted,N,    10,10,   kTIME0) kPriLmt(R,200),
-kChkOrderST(ExchangeAccepted,         0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
-kChkOrderST(ExchangeAccepted,         7, 6, 9,kTIME3) kOrdPri(R,203,kTIME8),
-kChkOrder(PartFilled,PartFilled,      9, 8, 8,kTIME3) kOrdPri(R,203,kTIME8) kOrdCum(1,201,kTIME1),
-kChkOrder(PartFilled,PartFilled,      8, 6, 6,kTIME3) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,4, 4, 6,kTIME5) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2),
-kChkOrder(PartFilled,ExchangeAccepted,6, 4, 4,kTIME4) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2),
-kChkOrder(Canceled,ExchangeAccepted,  4, 0, 0,kTIME6) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2) kErrCode_0,
-kChkOrder(Canceled,ExchangeNoLeaves,  0, 0, 0,kTIME9) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
+"+1." kTwfRpt(ExchangeAccepted,N,       10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,            0,10,10,kTIME0) kOrdPri(R,200,kTIME0),
+kChkOrderST(ExchangeAccepted,            7, 6, 9,kTIME3) kOrdPri(R,203,kTIME8),
+kChkOrder(PartFilled,PartFilled,         9, 8, 8,kTIME3) kOrdPri(R,203,kTIME8) kOrdCum(1,201,kTIME1),
+kChkOrder(PartFilled,PartFilled,         8, 6, 6,kTIME3) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   4, 4, 6,kTIME5) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2),
+kChkOrder(PartFilled,ExchangeAccepted,   6, 4, 4,kTIME4) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2),
+kChkOrder(UserCanceled,ExchangeAccepted, 4, 0, 0,kTIME6) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeNoLeaves, 0, 0, 0,kTIME9) kOrdPri(R,203,kTIME8) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
    };
    RunTestList(core, "Out-of-order(NoNewQuery)", cstrTestList);
 }
@@ -497,10 +497,10 @@ kChkOrder(ReportPending,ExchangeNoLeaves,0,0,3,kTIMEE) kOrdPri(R,205,kTIMEC) kOr
 kChkOrder(ReportPending,ExchangeAccepted,2,0,3,kTIMED) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
 // -------------------------------------
 // 減1回報成功(補單).
-"+1." kTwfRpt(ExchangeAccepted,C,      6,5,  kTIME4) kPriLmt(R,203),
-kChkOrder(PartFilled,ExchangeAccepted, 6,5,2,kTIME4) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
-kChkOrder(Canceled,ExchangeAccepted,   2,0,0,kTIMED) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
-kChkOrder(Canceled,ExchangeNoLeaves,   0,0,0,kTIMEE) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
+"+1." kTwfRpt(ExchangeAccepted,C,        6,5,  kTIME4) kPriLmt(R,203),
+kChkOrder(PartFilled,ExchangeAccepted,   6,5,2,kTIME4) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeAccepted, 2,0,0,kTIMED) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
+kChkOrder(UserCanceled,ExchangeNoLeaves, 0,0,0,kTIMEE) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
    };
    RunTestList(core, "Out-of-order(TestNormalReport)", cstrTestList);
 }

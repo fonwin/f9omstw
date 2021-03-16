@@ -101,7 +101,7 @@
   * OmsPoIvList, 可用帳號
     * IvKey|Rights
     * IvKey = BrkId-IvacNo-SubacNo
-    * [Rights = enum class OmsIvRight](OmsPoIvList.hpp)
+    * [Rights = f9oms_IvRight](../f9omstw/OmsPoIvList.h)
   * OmsPoUserRights, 使用者權限(可用櫃號、下單流量、線路群組)
     * OrdTeams|FcReqCount|FcReqMS|LgOut
     * 如果有提供 OrdTeams, 表示 OMS 會用這些櫃號來填委託書號.

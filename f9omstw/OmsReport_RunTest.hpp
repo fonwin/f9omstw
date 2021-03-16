@@ -274,7 +274,7 @@ void RunTestList(TestCoreSP& core, const char* testName, const char* (&cstrTestL
 #define kVAL_AsCanceled       f5
 #define kVAL_Canceling        f7
 #define kVAL_ExchangeCanceled fa
-#define kVAL_Canceled         fd
+#define kVAL_UserCanceled     fd
 
 #define kVAL_ReportPending    1
 #define kVAL_ReportStale      2

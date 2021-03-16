@@ -204,7 +204,7 @@ kChkOrder(Sending,PartExchangeRejected, 0,0,50,   60,60,60, kTIME3),
 "-5=" kTwfR03(ExchangeRejected,C,                 S,40005,  kTIME4),
 kChkOrder(Sending,Sending,              50,50,50, 0,0,60,   kTIME4),
 // -- 第2次重送的結果:
-// 已達要求的重送次數, 因為新單尚未回報, 所以 OrderSt = ReportPending; 等候新單回報在送一次(因為有 AtNewDone=Y).
+// 已達要求的重送次數, 因為新單尚未回報, 所以 OrderSt = ReportPending; 等候新單回報再送一次(因為有 AtNewDone=Y).
 "-6." kTwfR03(PartExchangeRejected,C,         B,40005,          kTIME5),
 kChkOrder(ReportPending,PartExchangeRejected, 0,0,50, 60,60,60, kTIME5),
 "-7=" kTwfR03(ExchangeRejected,C,                     S,40005,  kTIME6),
@@ -212,11 +212,11 @@ kChkOrder(ReportPending,ExchangeRejected,     0,0,50, 0,0,60,   kTIME6),
 
 // - 刪單成功: ReportPending ----------
 kTwfChgQ(0,0),
-kChkOrder(Sending,Sending,                  50,50,50, 60,60,60, kTIME6),
-"-2." kTwfRptQ_Bid(PartExchangeCancel,D,    43,0,               kTIME9),
-kChkOrder(ReportPending,PartExchangeCancel, 43,0,50,  60,60,60, kTIME9),
-"-3." kTwfRptQ_Offer(ExchangeCanceled,D,              59,0,     kTIME5),
-kChkOrder(ReportPending,ExchangeCanceled,   43,0,50,  59,0,60,  kTIME5),
+kChkOrder(Sending,Sending,                   50,50,50, 60,60,60, kTIME6),
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,D,   43,0,               kTIME9),
+kChkOrder(ReportPending,PartExchangeAccepted,43,0,50,  60,60,60, kTIME9),
+"-3." kTwfRptQ_Offer(ExchangeAccepted,D,               59,0,     kTIME5),
+kChkOrder(ReportPending,ExchangeAccepted,    43,0,50,  59,0,60,  kTIME5),
 
 // - 新單回報 ----------
 "-L1." kTwfRptQ_Bid(PartExchangeAccepted,N,          50,50,              kTIME7),
@@ -231,7 +231,7 @@ kChkOrder(ExchangeAccepted,PartExchangeAccepted,     50,43,43, 60,60,60, kTIME9)
 "-L3." kTwfRptQ_Offer(ExchangeAccepted,C,                      60,59,    kTIME7),
 kChkOrder(ExchangeAccepted,ExchangeAccepted,         43,43,43, 60,59,59, kTIME7),
 // 刪單成功 ReportPending 的後續.
-kChkOrder(Canceled,ExchangeCanceled,                 43,0,0,   59,0,0,   kTIME5),
+kChkOrder(UserCanceled,ExchangeAccepted,             43,0,0,   59,0,0,   kTIME5),
    };
    RunTestList(core, "Out-of-order", cstrTestList);
 }
@@ -280,37 +280,40 @@ kChkOrder(PartFilled,PartFilled,     43,40,40, 59,59,59, kTIME2) kChkCum(3,24000
 "+L1." kTwfFil(2,                                                              S,59,8010,  kTIME4),
 kChkOrder(PartFilled,PartFilled,     40,40,40, 59,0,0,   kTIME2) kChkCum(3,24000,59,472590,kTIME4),
 // 刪單 ReportPending 的後續.
-kChkOrder(Canceled,ExchangeNoLeaves, 40,0,0,   0,0,0,    kTIME2) kChkCum(3,24000,59,472590,kTIME4),
+kChkOrder(UserCanceled,ExchangeNoLeaves,40,0,0, 0,0,0,   kTIME2) kChkCum(3,24000,59,472590,kTIME4),
    };
    RunTestList(core, "Interlaced", cstrTestList);
 }
 //--------------------------------------------------------------------------//
-// 部分失敗回報.
+// 刪改: Bid 成功, Offer 失敗.
 // Case | Bid                         | Offer                       | OrderSt
 // -----|-----------------------------|-----------------------------|--------------------
-//   1  | PartExchangeCancel          | ExchangeRejected(Leaves!=0) | ExchangeAccepted 等 Offer 的後續回報.(實務上會有此情況嗎?)
+//   1  | PartExchangeAccepted        | ExchangeRejected            | ExchangeAccepted
+//      | Bid Canceled                | Leaves!=0                   | 等 Offer 的後續回報.(實務上會有此情況嗎?)
 void TestPartR03Case1(TestCoreSP& core) {
    const char* cstrCase[] = {
 kTwfNewQ,
 kChkOrderNewSending,
 // 新單一次回報(Bid+Offer)成功, 新單只可能 Bid+Offer 都成功, 或都失敗.
 "-L1." kNewReportBothSide,
-kChkOrder(ExchangeAccepted,ExchangeAccepted,   50,50,50, 60,60,60, kTIME1),
+kChkOrder(ExchangeAccepted,ExchangeAccepted,    50,50,50, 60,60,60, kTIME1),
 // 新單成功後, 測試刪改部分失敗: 刪: Bid 成功, Offer 失敗.
 kTwfChgQ(0,0),
-kChkOrder(ExchangeAccepted,Sending,            50,50,50, 60,60,60, kTIME1),
-"-2." kTwfRptQ_Bid(PartExchangeCancel,D,       50,0,               kTIME2),
-kChkOrder(ExchangeAccepted,PartExchangeCancel, 50,0,0,   60,60,60, kTIME2),
+kChkOrder(ExchangeAccepted,Sending,             50,50,50, 60,60,60, kTIME1),
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,D,      50,0,               kTIME2),
+kChkOrder(ExchangeAccepted,PartExchangeAccepted,50,0,0,   60,60,60, kTIME2),
 // 非 NoLeavesQty 的失敗, 直接更新 RequestSt, 不改變 OrderSt, 如果是 NoLeavesQty 的失敗, 就要用 ReportPending, 等後續的補單了.
-"-3." kTwfR03(ExchangeRejected,D,                S,/*No ErrCode*/, kTIME3),
-kChkOrder(ExchangeAccepted,ExchangeRejected,   0,0,0,    60,60,60, kTIME3),
+"-3." kTwfR03(ExchangeRejected,D,                 S,/*No ErrCode*/, kTIME3),
+kChkOrder(ExchangeAccepted,ExchangeRejected,    0,0,0,    60,60,60, kTIME3),
 };
    RunTestList(core, "PartR03(Case1)", cstrCase);
 }
 
+// 刪改: Bid 失敗, Offer 成功.
 // Case | Bid                         | Offer                       | OrderSt
 // -----|-----------------------------|-----------------------------|--------------------
-//   2  | ExchangeRejected(Leaves!=0) | Canceled                    | ExchangeAccepted 等 Bid 的後續回報.(實務上會有此情況嗎?)
+//   2  | ExchangeRejected            | ExchangeAccepted            | ExchangeAccepted
+//      | Leaves!=0                   | Offer Canceled              | 等 Bid 的後續回報.(實務上會有此情況嗎?)
 void TestPartR03Case2(TestCoreSP& core) {
    const char* cstrCase[] = {
 ">AllocOrdNo=f-N-8610-A",
@@ -320,16 +323,17 @@ kTwfChgQ(0,0),
 kChkOrder(ExchangeAccepted,Sending,              50,50,50, 60,60,60, kTIME1),
 "-2." kTwfR03(PartExchangeRejected,D,            B,/*No ErrCode*/,   kTIME2),
 kChkOrder(ExchangeAccepted,PartExchangeRejected, 50,50,50, 60,60,60, kTIME2),
-"-3." kTwfRptQ_Offer(Canceled,D,                           60,0,     kTIME3),
-kChkOrder(ExchangeAccepted,Canceled,             50,50,50, 60,0,0,   kTIME3),
+"-3." kTwfRptQ_Offer(ExchangeAccepted,D,                   60,0,     kTIME3),
+kChkOrder(ExchangeAccepted,ExchangeAccepted,     50,50,50, 60,0,0,   kTIME3),
 };
    RunTestList(core, "PartR03(Case2)", cstrCase);
 }
 
+// 刪改: Bid 成功, Offer 失敗(NoLeaves,已收到成交回報).
 // Case | Bid                         | Offer                       | OrderSt
 // -----|-----------------------------|-----------------------------|--------------------
-//   3  | PartExchangeCancel          | ExchangeNoLeaves            | Canceled
-//      |                             | (Already FullFilled)        |
+//   3  | PartExchangeAccepted        | ExchangeNoLeaves            | UserCanceled
+//      | Bid Canceled                | (Already FullFilled)        |
 void TestPartR03Case3(TestCoreSP& core) {
    const char* cstrCase[] = {
 ">AllocOrdNo=f-N-8610-A",
@@ -339,18 +343,19 @@ kChkOrder(ExchangeAccepted,ExchangeAccepted, 0,50,50,  0,60,60, kTIME1),
 kChkOrder(PartFilled,PartFilled,             50,50,50, 60,0,0, kTIME1) kChkCum(0,0,60,480000,kTIME5),
 kTwfChgQ(0,0),
 kChkOrder(PartFilled,Sending,                50,50,50, 0,0,0,  kTIME1),
-"-2." kTwfRptQ_Bid(PartExchangeCancel,D,     50,0,             kTIME2),
-kChkOrder(Canceled,PartExchangeCancel,       50,0,0,   0,0,0,  kTIME2),
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,D,   50,0,             kTIME2),
+kChkOrder(UserCanceled,PartExchangeAccepted, 50,0,0,   0,0,0,  kTIME2),
 "-3." kTwfR03(ExchangeNoLeaves,D,                      S,40010,kTIME3),
-kChkOrder(Canceled,ExchangeNoLeaves,         0,0,0,    0,0,0,  kTIME3),
+kChkOrder(UserCanceled,ExchangeNoLeaves,     0,0,0,    0,0,0,  kTIME3),
 };
    RunTestList(core, "PartR03(Case3)", cstrCase);
 }
 
+// 刪改: Bid 失敗(NoLeaves,已收到成交回報), Offer 成功.
 // Case | Bid                         | Offer                       | OrderSt
 // -----|-----------------------------|-----------------------------|--------------------
-//   4  | ExchangeNoLeaves            | Canceled                    | Canceled
-//      | (Already FullFilled)        |                             |
+//   4  | ExchangeNoLeaves            | ExchangeAccepted            | UserCanceled
+//      | (Already FullFilled)        | Offer Canceled              |
 void TestPartR03Case4(TestCoreSP& core) {
    const char* cstrCase[] = {
 ">AllocOrdNo=f-N-8610-A",
@@ -362,16 +367,17 @@ kTwfChgQ(0,0),
 kChkOrder(PartFilled,Sending,                0,0,0,   60,60,60, kTIME1),
 "-2." kTwfR03(PartExchangeRejected,D,        B,40010,           kTIME2),
 kChkOrder(PartFilled,ExchangeNoLeaves,       0,0,0,   60,60,60, kTIME2),
-"-3." kTwfRptQ_Offer(Canceled,D,                      60,0,     kTIME3),
-kChkOrder(Canceled,Canceled,                 0,0,0,   60,0,0,   kTIME3),
+"-3." kTwfRptQ_Offer(ExchangeAccepted,D,              60,0,     kTIME3),
+kChkOrder(UserCanceled,ExchangeAccepted,     0,0,0,   60,0,0,   kTIME3),
 };
    RunTestList(core, "PartR03(Case4)", cstrCase);
 }
 
+// 刪改: Bid 成功, Offer 失敗(NoLeaves,尚未收到成交回報).
 // Case | Bid                         | Offer                       | OrderSt
 // -----|-----------------------------|-----------------------------|--------------------
-//   5  | PartExchangeCancel          | ExchangeNoLeaves(Lost qty)  | ReportPending (Offer)
-//      |                             | => FullFilled               | FullFilled
+//   5  | PartExchangeAccepted        | ExchangeNoLeaves(Lost qty)  | ReportPending (Offer)
+//      | Bid Canceled                | => FullFilled               | FullFilled
 void TestPartR03Case5(TestCoreSP& core) {
    const char* cstrCase[] = {
 ">AllocOrdNo=f-N-8610-A",
@@ -379,8 +385,8 @@ void TestPartR03Case5(TestCoreSP& core) {
 kChkOrder(ExchangeAccepted,ExchangeAccepted,     0,50,50,  0,60,60,  kTIME1),
 kTwfChgQ(0,0),
 kChkOrder(ExchangeAccepted,Sending,              50,50,50, 60,60,60, kTIME1),
-"-2." kTwfRptQ_Bid(PartExchangeCancel,D,         50,0,               kTIME2),
-kChkOrder(ExchangeAccepted,PartExchangeCancel,   50,0,0,   60,60,60, kTIME2),
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,D,       50,0,               kTIME2),
+kChkOrder(ExchangeAccepted,PartExchangeAccepted, 50,0,0,   60,60,60, kTIME2),
 "-3." kTwfR03(ExchangeNoLeaves,D,                          S,40010,  kTIME3),
 kChkOrder(ReportPending,ExchangeNoLeaves,        0,0,0,    0,0,60,   kTIME3),
 "+1." kTwfFil(1,                                                                       S,60,8000,  kTIME5),
@@ -390,12 +396,13 @@ kChkOrder(FullFilled,ExchangeNoLeaves,           0,0,0,    0,0,0,    kTIME3) kCh
    RunTestList(core, "PartR03(Case5)", cstrCase);
 }
 
+// 刪改: Bid 失敗(NoLeaves,尚未收到成交回報), Offer 成功.
 // Case | Bid                         | Offer                       | OrderSt
 // -----|-----------------------------|-----------------------------|--------------------
-//   6  | ExchangeNoLeaves(Lost qty)  | Canceled                    | ReportPending (Both)
-//      | All Filled                  |                             | PartFilled
+//   6  | ExchangeNoLeaves(Lost qty)  | ExchangeAccepted            | ReportPending (Both)
+//      | All Filled                  | Offer Canceled              | PartFilled
 //      |-----------------------------|-----------------------------|--------------------
-//      | ProcessPendingReport                                      | Canceled
+//      | ProcessPendingReport                                      | UserCanceled
 void TestPartR03Case6(TestCoreSP& core) {
    const char* cstrCase[] = {
 ">AllocOrdNo=f-N-8610-A",
@@ -405,11 +412,11 @@ kTwfChgQ(0,0),
 kChkOrder(ExchangeAccepted,Sending,          50,50,50, 60,60,60, kTIME1),
 "-2." kTwfR03(ExchangeNoLeaves,D,            B,40010,            kTIME3),
 kChkOrder(ReportPending,ExchangeNoLeaves,    0,0,50,   60,60,60, kTIME3),
-"-3." kTwfRptQ_Offer(ExchangeCanceled,D,               60,0,     kTIME2),
-kChkOrder(ReportPending,ExchangeCanceled,    0,0,50,   60,0,60,  kTIME2),
+"-3." kTwfRptQ_Offer(ExchangeAccepted,D,               60,0,     kTIME2),
+kChkOrder(ReportPending,ExchangeAccepted,    0,0,50,   60,0,60,  kTIME2),
 "+1." kTwfFil(1,                                                               B,50,8000,      kTIME5),
 kChkOrder(PartFilled,PartFilled,             50,0,0,   60,60,60, kTIME2) kChkCum(50,400000,0,0,kTIME5),
-kChkOrder(Canceled,ExchangeCanceled,         0,0,0,    60,0,0,   kTIME2) kChkCum(50,400000,0,0,kTIME5),
+kChkOrder(UserCanceled,ExchangeAccepted,     0,0,0,    60,0,0,   kTIME2) kChkCum(50,400000,0,0,kTIME5),
 };
    RunTestList(core, "PartR03(Case6)", cstrCase);
 }

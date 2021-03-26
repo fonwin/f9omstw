@@ -66,7 +66,6 @@ static void SetupReport0Base(OmsRequestBase& rpt, f9twf::TmpFcmId ivacFcmId, f9t
    SetupReportBase(rpt, sysType);
    f9twf::BrkId brkid = exgMaps->MapBrkFcmId_.GetBrkId(f9twf::TmpGetValueU(ivacFcmId));
    rpt.BrkId_.CopyFrom(brkid.begin(), brkid.size());
-   if (0); if (ivacFcmId == 0) rpt.BrkId_.CopyFrom("8610", 4); // 開發階段的測試用.
 }
 // SetupReport0Base() 及 rptSymbol;
 static void SetupReport0Symbol(OmsRequestBase& rpt, f9twf::TmpFcmId ivacFcmId,
@@ -198,13 +197,16 @@ OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9
       SetupReportExt(&rpt2, &pkr2back);
       return &rpt2.Symbol_;
    }
-   // 報價委託回報: 會有2筆(Bid+Offer)連續, 要收完後再透過 Report9 回報?
+   // 報價委託回報: 會有2筆(Bid+Offer)連續, 使用 PartExchange 機制回報.
    runner.Request_ = line.Worker_.Rpt9Factory_.MakeReportIn(rxKind, line.LastRxTime());
-   runner.Request_->SetReportSt(f9fmkt_TradingRequestSt_ExchangeAccepted);
    assert(dynamic_cast<OmsTwfReport9*>(runner.Request_.get()) != nullptr);
    OmsTwfReport9&  rpt9 = *static_cast<OmsTwfReport9*>(runner.Request_.get());
    rpt9.PriStyle_ = OmsReportPriStyle::NoDecimal;
    rpt9.ExgTime_ = pkr2back.TransactTime_.ToTimeStamp();
+   // if (rxKind == f9fmkt_RxKind_RequestDelete) {
+   //    // - 交易所主動刪單? 還是 User刪單?
+   //    // - 這裡無法判斷, 所以放在 OmsTwfReport9::RunReportInCore_FromOrig() 處理;
+   // }
    switch (rpt9.Side_ = TmpSideTo(pkr2back.Side_)) { // Bid or Offer.
    default:
       break;
@@ -212,11 +214,15 @@ OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9
       rpt9.BidBeforeQty_ = f9twf::TmpGetValueU(pkr2back.BeforeQty_);
       rpt9.BidQty_ = f9twf::TmpGetValueU(pkr2back.LeavesQty_);
       rpt9.BidPri_.SetOrigValue(f9twf::TmpGetValueS(pkr2back.Price_));
+      rpt9.SetReportSt(rxKind != f9fmkt_RxKind_RequestChgPri // 只有單邊改價,所以改價回報沒有Part.
+                       ? f9fmkt_TradingRequestSt_PartExchangeAccepted
+                       : f9fmkt_TradingRequestSt_ExchangeAccepted);
       break;
    case f9fmkt_Side_Sell:
       rpt9.OfferBeforeQty_ = f9twf::TmpGetValueU(pkr2back.BeforeQty_);
       rpt9.OfferQty_ = f9twf::TmpGetValueU(pkr2back.LeavesQty_);
       rpt9.OfferPri_.SetOrigValue(f9twf::TmpGetValueS(pkr2back.Price_));
+      rpt9.SetReportSt(f9fmkt_TradingRequestSt_ExchangeAccepted);
       break;
    }
    SetupReportExt(&rpt9, &pkr2back);

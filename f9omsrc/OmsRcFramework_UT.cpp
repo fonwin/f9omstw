@@ -145,7 +145,7 @@ private:
       "iRcSv"    _ "Y" _ ""         _ "RcSessionServer" _ "Name=RcSv|Desp=f9OmsRc Tester|AuthMgr=AuthMgr|AddTo=FpSession\n"
       // 將 OmsRcServerAgent 加入 RcSv:
       "iRcSvOms" _ "Y" _ "" _ "OmsRcServerAgent" _ "OmsCore=omstw"
-                                                   "|Cfg=$TxLang={zh} $include:../../f9omsrc/forms/ApiAll.cfg"
+                                                   "|Cfg=$TxLang={zh} $include:../../f9omsrc/forms/ApiTwsAll.cfg"
                                                    "|AddTo=FpSession/RcSv\n"
       );
       auto ioMgr = this->Root_->GetSapling<fon9::IoManagerTree>("MaIo");

@@ -4,6 +4,7 @@
 #define __f9utw_UnitTestCore_hpp__
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsEventSessionSt.hpp"
 #include "f9omstw/OmsReportFactory.hpp"
 #include "f9omstw/OmsRequestPolicy.hpp"
 #include "f9omstw/OmsReportRunner.hpp"
@@ -197,6 +198,29 @@ struct UomsReqIniRiskCheck : public f9omstw::OmsRequestRunStep {
 };
 using UomsTwsIniRiskCheck = UomsReqIniRiskCheck<f9omstw::OmsTwsRequestIni, f9omstw::OmsTwsOrderRaw>;
 using UomsTwfIniRiskCheck = UomsReqIniRiskCheck<f9omstw::OmsTwfRequestIni1, f9omstw::OmsTwfOrderRaw1>;
+
+// ----------
+template <class ReqIniT, class OrdRawT>
+struct UomsReqIni9RiskCheck : public f9omstw::OmsRequestRunStep {
+   fon9_NON_COPY_NON_MOVE(UomsReqIni9RiskCheck);
+   using base = f9omstw::OmsRequestRunStep;
+   using base::base;
+
+   void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
+      assert(dynamic_cast<const ReqIniT*>(runner.OrderRaw_.Order().Initiator()) != nullptr);
+      auto& ordraw = *static_cast<OrdRawT*>(&runner.OrderRaw_);
+      auto* inireq = static_cast<const ReqIniT*>(ordraw.Order().Initiator());
+      // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
+      if (&ordraw.Request() == inireq) {
+         if (inireq->RxKind() == f9fmkt_RxKind_RequestNew) {
+            ordraw.Bid_.AfterQty_ = ordraw.Bid_.LeavesQty_ = inireq->BidQty_;
+            ordraw.Offer_.AfterQty_ = ordraw.Offer_.LeavesQty_ = inireq->OfferQty_;
+         }
+      }
+      this->ToNextStep(std::move(runner));
+   }
+};
+using UomsTwfIni9RiskCheck = UomsReqIni9RiskCheck<f9omstw::OmsTwfRequestIni9, f9omstw::OmsTwfOrderRaw9>;
 // ----------
 struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(UomsTwsExgSender);
@@ -300,6 +324,8 @@ struct TestCore : public f9omstw::OmsCore {
             new OmsTwfOrder9Factory{"TwfOrdQ"}
          ));
          this->Owner_->SetEventFactoryPark(new f9omstw::OmsEventFactoryPark(
+            new f9omstw::OmsEventInfoFactory(),
+            new f9omstw::OmsEventSessionStFactory()
          ));
          gAllocFrom = static_cast<AllocFrom>(fon9::StrTo(fon9::GetCmdArg(argc, argv, "f", "allocfrom"), 0u));
          if (!gIsLessInfo)

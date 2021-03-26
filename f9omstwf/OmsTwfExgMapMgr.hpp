@@ -12,6 +12,7 @@ class TwfExgMapMgr : public f9twf::ExgMapMgr {
    using base = f9twf::ExgMapMgr;
 protected:
    void OnP08Updated(const f9twf::P08Recs& p08recs, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) override;
+   void OnP06Updated(const f9twf::ExgMapBrkFcmId& mapBrkFcmId, MapsLocker&& lk) override;
 
 public:
    OmsCoreMgr& CoreMgr_;

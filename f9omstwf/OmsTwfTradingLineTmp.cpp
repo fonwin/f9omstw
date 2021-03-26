@@ -20,7 +20,8 @@ TwfTradingLineTmp::TwfTradingLineTmp(TwfLineTmpWorker&            worker,
       '.', f9twf::TmpGetValueU(lineArgs.SessionId_))} {
 }
 void TwfTradingLineTmp::OnExgTmp_ApReady() {
-   this->Fc_.Resize(this->MaxFlowCtrlCnt(), fon9::TimeInterval_Second(1));
+   this->Fc_.Resize(this->MaxFlowCtrlCnt(), this->LineArgs_.FcInterval_.IsNullOrZero()
+                    ? fon9::TimeInterval_Second(1) : this->LineArgs_.FcInterval_);
    this->LineMgr_.OnTradingLineReady(*this);
 }
 void TwfTradingLineTmp::OnExgTmp_ApBroken() {
@@ -71,6 +72,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
    f9twf::TmpR1Back*          pkr1back{nullptr};
    f9twf::TmpR9Back*          pkr9back{nullptr};
    f9twf::TmpSymNum*          pkSym;
+   bool                       isNeedMsgSeqNum = true;
    switch (iniReq0->RequestType_) {
    case RequestType::Normal:
       if (TmpSymbolTypeIsLong(symType)) {
@@ -89,6 +91,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       }
       break;
    case RequestType::QuoteR:
+      isNeedMsgSeqNum = false;
       if (fon9_LIKELY(lineMgr.AllocOrdNo(*runner))) {
          f9twf::TmpR7BfSym* pkr7bf;
          if (TmpSymbolTypeIsLong(symType)) {
@@ -221,6 +224,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
          pkr1bf->ExecType_ = f9twf::TmpExecType::Delete;
          break;
       case f9fmkt_RxKind_RequestQuery:
+         isNeedMsgSeqNum = false;
          pkr1bf->ExecType_ = f9twf::TmpExecType::Query;
          break;
       case f9fmkt_RxKind_RequestChgPri: // 報價: 沒有改價功能.
@@ -300,6 +304,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       const OmsTwfRequestIni9* iniReq9 = static_cast<const OmsTwfRequestIni9*>(iniReq0);
       const auto*              lastOrd = static_cast<const OmsTwfOrderRaw9*>(order.Tail());
       OmsTwfQty                bidQty{}, offerQty{};
+      OmsTwfPri                bidPri, offerPri;
       pkr9back->TimeInForce_ = f9twf::TmpTimeInForce{};
       fon9_WARN_DISABLE_SWITCH;
       switch (curReq->RxKind()) {
@@ -331,7 +336,25 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       case f9fmkt_RxKind_RequestQuery:
          pkr1bf->ExecType_ = f9twf::TmpExecType::Query;
          break;
-      case f9fmkt_RxKind_RequestChgPri: // 報價: 沒有改價功能.
+      case f9fmkt_RxKind_RequestChgPri: // 報價單邊改價.
+         if (auto* chgPriReq9 = dynamic_cast<const OmsTwfRequestChg9*>(curReq)) {
+            pkr1bf->ExecType_ = f9twf::TmpExecType::ChgPrim; // 改價 & 不改成交回報線路.
+            bidPri = chgPriReq9->BidPri_;
+            offerPri = chgPriReq9->OfferPri_;
+         }
+         else if (auto* chgPriIniReq9 = dynamic_cast<const OmsTwfRequestIni9*>(curReq)) {
+            bidPri = chgPriIniReq9->BidPri_;
+            offerPri = chgPriIniReq9->OfferPri_;
+         }
+         else {
+            runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_UnknownRequestType, nullptr);
+            return SendResult::RejectRequest;
+         }
+         if (bidPri.IsNull())
+            bidPri.Assign0();
+         if (offerPri.IsNull())
+            offerPri.Assign0();
+         break;
       default:
          runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_RxKind, nullptr);
          return SendResult::RejectRequest;
@@ -350,22 +373,20 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
          pkr1bf->ExecType_ = f9twf::TmpExecType::New;
          if (fon9_UNLIKELY(!lineMgr.AllocOrdNo(*runner)))
             return SendResult::RejectRequest;
-         bidQty = lastOrd->Bid_.LeavesQty_;
+         bidQty   = lastOrd->Bid_.LeavesQty_;
          offerQty = lastOrd->Offer_.LeavesQty_;
-         if ((iniReq9->OfferPri_.GetOrigValue() % symb->PriceOrigDiv_) != 0
-             || (iniReq9->BidPri_.GetOrigValue() % symb->PriceOrigDiv_) != 0) {
-            runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Pri, nullptr);
-            return SendResult::RejectRequest;
-         }
-         f9twf::TmpPutValue(pkr9back->BidPx_, static_cast<f9twf::TmpPrice_t>(iniReq9->BidPri_.GetOrigValue() / symb->PriceOrigDiv_));
-         f9twf::TmpPutValue(pkr9back->OfferPx_, static_cast<f9twf::TmpPrice_t>(iniReq9->OfferPri_.GetOrigValue() % symb->PriceOrigDiv_));
+         bidPri   = iniReq9->BidPri_;
+         offerPri = iniReq9->OfferPri_;
          break;
       }
       fon9_WARN_POP;
-      if (pkr1bf->ExecType_ != f9twf::TmpExecType::New) {
-         pkr9back->BidPx_.Clear();
-         pkr9back->OfferPx_.Clear();
+      if ((bidPri.GetOrigValue() % symb->PriceOrigDiv_) != 0 || (offerPri.GetOrigValue() % symb->PriceOrigDiv_) != 0) {
+         runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_Pri, nullptr);
+         return SendResult::RejectRequest;
       }
+      f9twf::TmpPutValue(pkr9back->BidPx_,   static_cast<f9twf::TmpPrice_t>(bidPri.GetOrigValue() / symb->PriceOrigDiv_));
+      f9twf::TmpPutValue(pkr9back->OfferPx_, static_cast<f9twf::TmpPrice_t>(offerPri.GetOrigValue() / symb->PriceOrigDiv_));
+
       f9twf::TmpPutValue(pkr9back->BidSize_, bidQty);
       f9twf::TmpPutValue(pkr9back->OfferSize_, offerQty);
       f9twf::TmpPutValue(pkr9back->IvacNo_, iniReq9->IvacNo_);
@@ -383,8 +404,12 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       pkr1bf->SymbolType_ = symType;
    }
    // ====================================
-   // this 已經有自己的 log, 為了速度的考量, 不再使用 runner->ExLogForUpd_; 記錄.
-   this->SendTmpAddSeqNum(now, std::move(buf));
+   // this 已經有自己的 log, 為了速度的考量, 不再使用 runner->ExLogForUpd_; 記錄送出的封包.
+   // 詢價、查詢 SeqNum 為 0;
+   if (fon9_LIKELY(isNeedMsgSeqNum))
+      this->SendTmpAddSeqNum(now, std::move(buf));
+   else
+      this->SendTmpSeqNum0(now, std::move(buf));
    runner->Update(f9fmkt_TradingRequestSt_Sending, ToStrView(this->StrSendingBy_));
    this->Fc_.ForceUsed(now);
    return SendResult::Sent;

@@ -75,6 +75,9 @@ public:
          return this->BrkRecs_[idx].get();
       return nullptr;
    }
+   size_t GetBrkCount() const {
+      return this->BrkRecs_.size();
+   }
 
    OmsIvBase* GetIvr(fon9::StrView brkid, IvacNo ivacNo, fon9::StrView subacNo) {
       if (auto* brk = this->GetBrkRec(brkid)) {

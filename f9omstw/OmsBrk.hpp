@@ -58,7 +58,7 @@ public:
    }
 };
 
-// 不同的 OMS 實現, 必須定義自己需要的 class UtwsBrk; 或 UtwfBrk;
+/// 不同的 OMS 實現, 必須定義自己需要的 class UtwsBrk; 或 UtwfBrk;
 /// 這裡做為底層提供:
 /// - 委託書號對照表: Market + Session + OrdNo
 /// - 投資人帳號資料: OmsIvacMap

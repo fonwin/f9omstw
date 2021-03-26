@@ -11,6 +11,9 @@ namespace f9omstw {
 void OmsTwfOrderRaw9::MakeFields(fon9::seed::Fields& flds) {
    base::MakeFields(flds);
    flds.Add(fon9_MakeField2(OmsTwfOrderRaw9, LastFilledTime));
+   flds.Add(fon9_MakeField2(OmsTwfOrderRaw9, LastPriTime));
+   flds.Add(fon9_MakeField2(OmsTwfOrderRaw9, LastBidPri));
+   flds.Add(fon9_MakeField2(OmsTwfOrderRaw9, LastOfferPri));
    flds.Add(fon9_MakeField(OmsTwfOrderRaw9, QuoteReportSide_, "ReportSide"));
 
    #define AddBidOfferFields(bo) \

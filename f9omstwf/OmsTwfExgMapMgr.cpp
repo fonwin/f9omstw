@@ -8,6 +8,24 @@
 
 namespace f9omstw {
 
+void TwfExgMapMgr::OnP06Updated(const f9twf::ExgMapBrkFcmId& mapBrkFcmId, MapsLocker&& lk) {
+   (void)mapBrkFcmId; (void)lk;
+   fon9::intrusive_ptr<TwfExgMapMgr> pthis{this};
+   this->CoreMgr_.CurrentCore()->RunCoreTask([pthis](OmsResource& coreResource) {
+      auto  maps = pthis->Lock();
+      for (size_t L = coreResource.Brks_->GetBrkCount(); L > 0;) {
+         if (auto* brk = coreResource.Brks_->GetBrkRec(--L)) {
+            if (auto fcmId = maps->MapBrkFcmId_.GetFcmId(ToStrView(brk->BrkId_))) {
+               brk->FcmId_ = fcmId;
+               // 理論上, brk->CmId_ 應該在建立 Brk 時就設定好.
+               // 在此做個保險: 如果沒設定, 則使用 fcmId.
+               if (brk->CmId_ == 0)
+                  brk->CmId_ = fcmId;
+            }
+         }
+      }
+   });
+}
 void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) {
    (void)src; (void)lk;
    namespace f9fmkt = fon9::fmkt;

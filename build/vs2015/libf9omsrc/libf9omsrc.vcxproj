@@ -96,6 +96,9 @@
     <None Include="..\..\..\f9omsrc\forms\ApiTwf1Rpt.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwf7Req.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwf7Rpt.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf9Req.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf9Rpt.cfg" />
+    <None Include="..\..\..\f9omsrc\forms\ApiTwfAll.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwsAll.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwsReq.cfg" />
     <None Include="..\..\..\f9omsrc\forms\ApiTwsRpt.cfg" />

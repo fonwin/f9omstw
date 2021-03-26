@@ -180,9 +180,9 @@ void OmsRequestBase::RunReportInCore_Start(OmsReportChecker&& checker) {
       RunReportInCore_OrderNotFound(std::move(checker), *ordnoMap);
 }
 bool OmsRequestBase::RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker, const OmsRequestBase& origReq) {
-   if (this->RxKind() == f9fmkt_RxKind_Unknown)
+   if (fon9_UNLIKELY(this->RxKind() == f9fmkt_RxKind_Unknown))
       this->RxKind_ = origReq.RxKind();
-   else if (this->RxKind_ != origReq.RxKind()) {
+   else if (fon9_UNLIKELY(this->RxKind_ != origReq.RxKind())) {
       if (this->RxKind_ == f9fmkt_RxKind_RequestDelete) {
          if (origReq.RxKind() == f9fmkt_RxKind_RequestChgQty) {
             // origReq 是改量, 但回報是刪單: 有可能發生,
@@ -195,7 +195,7 @@ bool OmsRequestBase::RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker
       return false;
    __RX_KIND_OK:;
    }
-   if (checker.CheckerSt_ == OmsReportCheckerSt::NotReceived)
+   if (fon9_LIKELY(checker.CheckerSt_ == OmsReportCheckerSt::NotReceived))
       return true;
    // 不確定是否有收過此回報: 檢查是否重複回報.
    if (fon9_UNLIKELY(this->ReportSt() <= origReq.LastUpdated()->RequestSt_)) {

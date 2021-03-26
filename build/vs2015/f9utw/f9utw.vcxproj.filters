@@ -64,5 +64,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\f9utw\README.md" />
+    <None Include="..\..\..\f9utw\StartupTwf.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9utw\CMakeLists.txt" />
   </ItemGroup>
 </Project>

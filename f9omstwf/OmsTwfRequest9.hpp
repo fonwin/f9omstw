@@ -45,9 +45,11 @@ class OmsTwfRequestChg9 : public OmsRequestUpd {
 public:
    /// 數量(股數): =0刪單, >0期望改後數量(含成交), <0想要減少的數量.
    using QtyType = fon9::make_signed_t<OmsTwfQty>;
-   QtyType  BidQty_{0};
-   QtyType  OfferQty_{0};
-   char     padding_____[4];
+   QtyType     BidQty_{0};
+   QtyType     OfferQty_{0};
+   char        padding_____[4];
+   OmsTwfPri   BidPri_;
+   OmsTwfPri   OfferPri_;
 
    using base::base;
    OmsTwfRequestChg9() = default;

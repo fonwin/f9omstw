@@ -57,6 +57,10 @@
       <AdditionalIncludeDirectories>..\..\..\..\fon9;..\..\..\..\f9omstw</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG</PreprocessorDefinitions>
     </ClCompile>
+    <PreBuildEvent>
+      <Command>cd ..\..\..\f9utw
+call ..\..\fon9\make_proj_verinfo.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -72,6 +76,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <PreBuildEvent>
+      <Command>cd ..\..\..\f9utw
+call ..\..\fon9\make_proj_verinfo.bat</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\fon9\fon9\framework\Fon9CoRun.cpp" />
@@ -94,6 +102,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\f9utw\README.md" />
+    <None Include="..\..\..\f9utw\StartupTwf.md" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\libf9omsrc\libf9omsrc.vcxproj">
@@ -108,6 +117,9 @@
     <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
       <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9utw\CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

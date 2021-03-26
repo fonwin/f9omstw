@@ -1,3 +1,10 @@
+# ---
+execute_process(COMMAND "../../fon9/make_proj_verinfo.sh" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                                                          RESULT_VARIABLE ret)
+if(NOT ret EQUAL 0)
+    message(FATAL_ERROR "Run make_proj_verinfo.sh ERROR: " ${ret})
+endif()
+# ---
 set(f9utw_src
  ../../fon9/fon9/framework/Fon9CoRun.cpp
  f9utw_main.cpp

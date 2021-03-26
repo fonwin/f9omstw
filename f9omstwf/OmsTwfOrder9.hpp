@@ -17,11 +17,16 @@ struct OmsTwfOrderRawDat9 {
    /// 最後一次收到的成交, 的交易所時間.
    /// 若成交回報有亂序, 則這裡不一定是最後成交時間.
    fon9::TimeStamp   LastFilledTime_;
+   /// 最後一次改價的時間.
+   fon9::TimeStamp   LastPriTime_;
+   OmsTwfPri         LastBidPri_;
+   OmsTwfPri         LastOfferPri_;
 
    /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
       fon9::ForceZeroNonTrivial(this);
       this->LastFilledTime_.AssignNull();
+      this->LastPriTime_.AssignNull();
    }
    /// 先從 prev 複製全部, 然後修改:
    /// - this->BeforeQty_ = this->AfterQty_ = this.LeavesQty_;

@@ -44,6 +44,14 @@ void OmsTwfReport3::RunReportInCore_FromOrig(OmsReportChecker&& checker, const O
       if (fon9_UNLIKELY(this->ReportSt() <= lastupd.RequestSt_))
          goto __ALREADY_DONE;
    }
+   if (const OmsTwfOrderRaw9* lastupd9 = dynamic_cast<const OmsTwfOrderRaw9*>(&lastupd)) {
+      if (this->Side_ == lastupd9->QuoteReportSide_) {
+         checker.ReportAbandon("TwfReport3: Quote Duplicate ExchangeRejected.");
+         return;
+      }
+      if (this->Side_ == f9fmkt_Side_Buy && this->ReportSt() == f9fmkt_TradingRequestSt_ExchangeRejected)
+         this->SetReportSt(f9fmkt_TradingRequestSt_PartExchangeRejected);
+   }
    OmsOrder&               order = lastupd.Order();
    OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order.BeginUpdate(origReq)};
    assert(dynamic_cast<OmsTwfOrderRaw0*>(&inCoreRunner.OrderRaw_) != nullptr);

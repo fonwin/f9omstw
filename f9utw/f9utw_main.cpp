@@ -2,8 +2,10 @@
 // \author fonwinz@gmail.com
 #include "fon9/framework/Framework.hpp"
 #include "fon9/seed/Plugins.hpp"
+#include "fon9/seed/SysEnv.hpp"
 #include "f9omstw/OmsPoIvListAgent.hpp"
 #include "f9omstw/OmsPoUserRightsAgent.hpp"
+#include "proj_verinfo.h"
 
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_NamedIoManager;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_TcpServer;
@@ -39,6 +41,20 @@ int fon9sys_BeforeStart(fon9::Framework& fon9sys) {
    f9omstw::OmsPoIvListAgent::Plant(*fon9sys.MaAuth_);
    f9omstw::OmsPoUserRightsAgent::Plant(*fon9sys.MaAuth_);
    ForceLinkSomething();
+
+   //
+   // 在 /SysEnv/Version 設定版本資訊(proj_verinfo.h):
+   //
+   // - Windows 在「Build Events/Pre-Build Event/Command Line」設定:
+   //    cd ..\..\..\f9utw
+   //    call ..\..\fon9\make_proj_verinfo.bat
+   //
+   // - Linux 在 PROJECT_NAME/CMakeLists.txt 裡面執行:
+   //    execute_process(COMMAND "../../fon9/make_proj_verinfo.sh" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+   //
+   auto sysEnv = fon9sys.Root_->Get<fon9::seed::SysEnv>(fon9_kCSTR_SysEnv_DefaultName);
+   fon9::seed::LogSysEnv(sysEnv->Add(new fon9::seed::SysEnvItem("Version", proj_VERSION)).get());
+
    return 0;
 }
 

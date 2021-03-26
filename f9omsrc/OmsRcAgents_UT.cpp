@@ -381,4 +381,5 @@ int main(int argc, char* argv[]) {
    authMgr->Storage_->Close();
    coreMgr->OnParentSeedClear();
    core->Backend_OnBeforeDestroy();
+   fon9::WaitDefaultThreadPoolQuit(fon9::GetDefaultThreadPool());
 }

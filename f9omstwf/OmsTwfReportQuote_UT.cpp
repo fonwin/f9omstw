@@ -69,7 +69,7 @@ void InitTestCore(TestCore& core) {
 
 #define kVAL_PartExchangeAccepted   a2
 #define kVAL_PartExchangeRejected   ae
-#define kVAL_PartExchangeCancel     a7
+#define kVAL_PartExchangeCanceled   a7
 #define kVAL_ExchangeCanceling      f7
 
 // [0]: '+'=Report (占用序號).
@@ -91,7 +91,7 @@ void InitTestCore(TestCore& core) {
 #define kChkOrderST(st,bidBfQty,bidAfQty,bidLeaves,offerBfQty,offerAfQty,offerLeaves,tm) \
         kChkOrder(st,st,bidBfQty,bidAfQty,bidLeaves,offerBfQty,offerAfQty,offerLeaves,tm)
 
-#define kChkOrderNewSending kChkOrder(Sending,Sending, 0,50,50, 0,60,60, "")
+#define kChkOrderNewSending kChkOrderST(Sending, 0,50,50, 0,60,60, "")
 
 // 一般而言, 前方應加上 "-2" 表示: 回報本身不占序號, 回報的要求為前2個佔序號的下單要求.
 #define kTwfRptQ_Bid(st,kind,bfQty,afQty,tm) \
@@ -127,18 +127,18 @@ void TestNormalOrder(TestCoreSP& core) {
 kTwfNewQ,
 kChkOrderNewSending,
 // 單邊(Bid)首次回報的 ReportSt 應設定為 PartExchangeAccepted
-"-2." kTwfRptQ_Bid(PartExchangeAccepted,N,           50,50,              kTIME1),
-kChkOrder(PartExchangeAccepted,PartExchangeAccepted, 50,50,50, 60,60,60, kTIME1),
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,N, 50,50,              kTIME1),
+kChkOrderST(PartExchangeAccepted,          50,50,50, 60,60,60, kTIME1),
 // 另邊(Offer)回報的 ReportSt 應設定為 ExchangeAccepted
-"-3." kTwfRptQ_Offer(ExchangeAccepted,N,                       60,60,    kTIME2),
-kChkOrder(ExchangeAccepted,ExchangeAccepted,         50,50,50, 60,60,60, kTIME2),
+"-3." kTwfRptQ_Offer(ExchangeAccepted,N,             60,60,    kTIME2),
+kChkOrderST(ExchangeAccepted,              50,50,50, 60,60,60, kTIME2),
 
 // 測試 Bid 部分成交.
 "+1." kTwfFil(1,                                                             B,3,8000,     kTIME3),
-kChkOrder(PartFilled,PartFilled,           50,47,47, 60,60,60, kTIME2) kChkCum(3,24000,0,0,kTIME3),
+kChkOrderST(PartFilled,                    50,47,47, 60,60,60, kTIME2) kChkCum(3,24000,0,0,kTIME3),
 // 測試 Offer 部分成交.
 "+1." kTwfFil(2,                                                                     S,9,8010, kTIME4),
-kChkOrder(PartFilled,PartFilled,           47,47,47, 60,51,51, kTIME2) kChkCum(3,24000,9,72090,kTIME4),
+kChkOrderST(PartFilled,                    47,47,47, 60,51,51, kTIME2) kChkCum(3,24000,9,72090,kTIME4),
 
 // 減量.
 kTwfChgQ(7,1),
@@ -150,18 +150,18 @@ kChkOrder(PartFilled,ExchangeAccepted,     40,40,40, 51,50,50, kTIME6) kChkCum(3
 
 // 期交所使用「成交回報數量=0」回報自動刪除:
 // 所以當回報線路收到「成交量=0」時, 應轉成 TwfRptQ 且 origReq = 原始新單(所以使用 "-L1").
-"-L1." kTwfRptQ_Bid(ExchangeCanceling,N,       40,0,             kTIME8),
-kChkOrder(ExchangeCanceling,ExchangeCanceling, 40,0,0, 50,50,50, kTIME8),
-"-L1." kTwfRptQ_Offer(ExchangeCanceled,N,              50,0,     kTIME9),
-kChkOrder(ExchangeCanceled,ExchangeCanceled,   0,0,0,  50,0,0,   kTIME9),
+"-L1." kTwfRptQ_Bid(ExchangeCanceling,N,   40,0,             kTIME8),
+kChkOrderST(ExchangeCanceling,             40,0,0, 50,50,50, kTIME8),
+"-L1." kTwfRptQ_Offer(ExchangeCanceled,N,          50,0,     kTIME9),
+kChkOrderST(ExchangeCanceled,              0,0,0,  50,0,0,   kTIME9),
 
 // -- 新單失敗 --------------------------
 kTwfNewQ,
 kChkOrderNewSending,
-"-2." kTwfR03(PartExchangeRejected,N,                B,40001,          kTIME1),
-kChkOrder(PartExchangeRejected,PartExchangeRejected, 50,0,0, 60,60,60, kTIME1),
-"-3." kTwfR03(ExchangeRejected,N,                     S,/*no ErrCode*/,kTIME2),
-kChkOrder(ExchangeRejected,ExchangeRejected,         0,0,0,  60,0,0,   kTIME2),
+"-2." kTwfR03(PartExchangeRejected,N, B,40001,         kTIME1),
+kChkOrderST(PartExchangeRejected,    50,0,0, 60,60,60, kTIME1),
+"-3." kTwfR03(ExchangeRejected,N,     S,/*no ErrCode*/,kTIME2),
+kChkOrderST(ExchangeRejected,        0,0,0,  60,0,0,   kTIME2),
 
 // -- Bid 新單合併成交: 先 ReportPending, 等 Offer; -----
 kTwfNewQ,
@@ -180,6 +180,34 @@ kChkOrderST(PartExchangeAccepted,          50,50,50, 60,60,60, kTIME1),
 "v1." kTwfFil(2,                                                                 S,9,8010, kTIME4),
 kChkOrderST(ExchangeAccepted,              50,50,50, 60,60,60, kTIME4),
 kChkOrderST(PartFilled,                    50,50,50, 60,51,51, kTIME4) kChkCum(0,0,9,72090,kTIME4),
+
+// -- 新單失敗: 回報接收端無法判斷是否為 PartExchangeRejected.
+kTwfNewQ,
+kChkOrderNewSending,
+"-2." kTwfR03(ExchangeRejected,N,  B,40001,         kTIME1),// 由 OmsTwfReport3::RunReportInCore_FromOrig() 處理:
+kChkOrderST(PartExchangeRejected, 50,0,0, 60,60,60, kTIME1),// 將 Bid 的 ExchangeRejected 改成 PartExchangeRejected;
+"-3." kTwfR03(ExchangeRejected,N,  S,40001,         kTIME2),
+kChkOrderST(ExchangeRejected,     0,0,0,  60,0,0,   kTIME2),
+
+// -- 新單成功後, 收到期交所刪單.
+kTwfNewQ,
+kChkOrderNewSending,
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,N,       50,50,              kTIME1),//新單成功.
+kChkOrderST(PartExchangeAccepted,                50,50,50, 60,60,60, kTIME1),
+"-3." kTwfRptQ_Offer(ExchangeAccepted,N,                   60,60,    kTIME1),
+kChkOrderST(ExchangeAccepted,                    50,50,50, 60,60,60, kTIME1),
+"-4." kTwfRptQ_Bid(PartExchangeAccepted,D,       50, 0,              kTIME3),//期交所刪單.
+kChkOrder(ExchangeAccepted,PartExchangeCanceled, 50, 0, 0, 60,60,60, kTIME3),
+"-5." kTwfRptQ_Offer(ExchangeAccepted,D,                   60, 0,    kTIME3),
+kChkOrderST(ExchangeCanceled,                     0, 0, 0, 60, 0, 0, kTIME3),
+
+// -- 新單 Sending, 沒收到新單成功, 直接收到期交所刪單: 可能因 系統異常 或 線路異常 -----
+kTwfNewQ,
+kChkOrderNewSending,                                                   // - 使用這種方式回報期交所刪單,
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,D, 50, 0,              kTIME1),//   在 OmsTwfReport9::RunReportInCore_FromOrig()
+kChkOrderST(PartExchangeCanceled,          50, 0, 0, 60,60,60, kTIME1),//   會將 st 改成 PartExchangeCanceled;
+"-3." kTwfRptQ_Offer(ExchangeAccepted,D,             60, 0,    kTIME2),
+kChkOrderST(ExchangeCanceled,               0, 0, 0, 60, 0, 0, kTIME2),
    };
    RunTestList(core, "Normal-order", cstrTestList);
 }

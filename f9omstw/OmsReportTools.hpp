@@ -125,8 +125,9 @@ inline auto OmsAssignLastPrisFromReport(OrderRawT* ordraw, const ReportT* rpt)
       ordraw->LastPri_ = rpt->Pri_;
    OmsAssignLastTimeInForceFromReport(ordraw, rpt);
 }
-inline void OmsAssignLastPrisFromReport(...) {
-}
+// 期貨報價單也有支援改價了, 為了避免 compiler 找錯, 所以拿掉此處.
+// inline void OmsAssignLastPrisFromReport(...) {
+// }
 
 /// - rpt.ExgTime_.IsNull() 則直接離開, 不更新.
 /// - 用 rpt.ExgTime_; 填入 ordraw.LastExgTime_;
@@ -288,6 +289,8 @@ __REPORT_PENDING:
    }
    // ----- 改價回報 ------------------------------------------
    if (rpt.RxKind() == f9fmkt_RxKind_RequestChgPri) {
+      if (fon9_UNLIKELY(isReportRejected))
+         return true;
       ordQtys.AfterQty_ = ordQtys.BeforeQty_ = rptAfterQty;
       if (OmsCheckReportChgPriStale(&inCoreRunner, &ordQtys, &rpt))
          return true;

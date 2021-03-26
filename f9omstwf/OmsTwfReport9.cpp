@@ -17,6 +17,34 @@ void OmsTwfReport9::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwfReport9, OfferBeforeQty));
 }
 //--------------------------------------------------------------------------//
+static inline void OmsAssignLastPrisFromReport(OmsTwfOrderRaw9* ordraw, const OmsTwfReport9* rpt) {
+   if (ordraw->UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale
+       || f9fmkt_TradingRequestSt_IsAnyRejected(rpt->ReportSt()))
+      return;
+   if (!ordraw->LastPriTime_.IsNull() && rpt->RxKind() != f9fmkt_RxKind_RequestNew) {
+      if (ordraw->LastPriTime_ >= rpt->ExgTime_)
+         return;
+      if (rpt->BidPri_.IsNullOrZero() && rpt->OfferPri_.IsNullOrZero())
+         return;
+      if (ordraw->LastBidPri_ == rpt->BidPri_ && ordraw->LastOfferPri_ == rpt->OfferPri_)
+         return;
+   }
+   // rpt 是有填價格的成功回報(新刪改查) => 一律將 Order.LastPri* 更新成交易所的最後價格.
+   ordraw->LastPriTime_ = rpt->ExgTime_;
+   if (!rpt->BidPri_.IsNullOrZero())
+      ordraw->LastBidPri_ = rpt->BidPri_;
+   if (!rpt->OfferPri_.IsNullOrZero())
+      ordraw->LastOfferPri_ = rpt->OfferPri_;
+}
+// OmsAssignQtysFromReportDCQ()=>OmsAssignQtysFromReportBfAf()=>若為改價則來到此處:
+static inline bool OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OmsTwfOrderQtys* ordPris, OmsTwfReport9* rpt) {
+   (void)ordPris;
+   OmsTwfOrderRaw9&  ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner->OrderRaw_);
+   if (!ordraw.LastPriTime_.IsNull() && ordraw.LastPriTime_ >= rpt->ExgTime_)
+      inCoreRunner->OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
+   return true;
+}
+
 static inline bool AdjustReportPrice(int32_t priMul, OmsTwfReport9& rpt) {
    switch (priMul) {
    case 0:  return true;
@@ -37,7 +65,7 @@ static inline void AdjustRequestSt_DoNothing(OmsTwfOrderRaw9& ordraw, OmsTwfRepo
    //   - 最後單邊, 由回報接收端填入 f9fmkt_TradingRequestSt_ExchangeAccepted;
    // - 自動刪單回報.
    //   - 雙邊一次回報, 不用調整 RequestSt_;
-   //   - 首次單邊, 由回報接收端填入 f9fmkt_TradingRequestSt_PartExchangeCancel;
+   //   - 首次單邊, 由回報接收端填入 f9fmkt_TradingRequestSt_PartExchangeCanceled;
    //   - 最後單邊, 由回報接收端填入 f9fmkt_TradingRequestSt_ExchangeCanceled;
 }
 static inline void OmsAssignOrderFromReportNewOrig(OmsTwfOrderRaw9& ordraw, OmsTwfReport9& rpt) {
@@ -63,13 +91,32 @@ static bool OmsAssignQtysFromReportDCQ(OmsReportRunnerInCore& inCoreRunner, OmsT
 static void OmsUpdateOrderSt_WhenRecalcLeaves0(OmsReportRunnerInCore& inCoreRunner, OmsTwfOrderQtys& ordQtys) {
    (void)ordQtys;
    assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
-   assert(&static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_)->Offer_ == &ordQtys
-          || &static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_)->Bid_ == &ordQtys);
-   OmsUpdateOrderSt_WhenRecalcLeaves0_Quote(inCoreRunner, *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_));
+   auto& ordraw9 = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+   assert(&ordraw9.Offer_ == &ordQtys || &ordraw9.Bid_ == &ordQtys);
+   OmsUpdateOrderSt_WhenRecalcLeaves0_Quote(inCoreRunner, ordraw9);
+   if (ordraw9.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeCanceled
+       && ordraw9.UpdateOrderSt_ == f9fmkt_OrderSt_UserCanceled)
+      ordraw9.UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeCanceled;
 }
 //--------------------------------------------------------------------------//
 void OmsTwfReport9::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
+   if (fon9_UNLIKELY(this->RxKind_ == f9fmkt_RxKind_RequestDelete)) {
+      if (fon9_UNLIKELY(origReq.RxKind() != f9fmkt_RxKind_RequestDelete)) {
+         // 交易所主動刪單: [報價時間到] or [有新報價時,取消舊報價]
+         this->SetReportSt(this->ReportSt() == f9fmkt_TradingRequestSt_PartExchangeAccepted
+                           ? f9fmkt_TradingRequestSt_PartExchangeCanceled
+                           : f9fmkt_TradingRequestSt_ExchangeCanceled);
+         if (this->ReportSt() == origReq.LastUpdated()->RequestSt_
+             || origReq.LastUpdated()->RequestSt_ == f9fmkt_TradingRequestSt_ExchangeCanceled) {
+            checker.ReportAbandon("TwfReport9: Duplicate ExchangeCanceled.");
+            return;
+         }
+         this->RxKind_ = origReq.RxKind();
+         goto __RUN_REPORT;
+      }
+   }
    if (fon9_LIKELY(this->RunReportInCore_FromOrig_Precheck(checker, origReq))) {
+   __RUN_REPORT:;
       OmsOrder& order = origReq.LastUpdated()->Order();
       if (!AdjustReportPrice(OmsGetReportPriMul(order, checker, *this), *this))
          return;

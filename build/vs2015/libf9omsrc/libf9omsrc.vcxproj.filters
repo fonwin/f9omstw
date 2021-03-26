@@ -91,5 +91,14 @@
     <None Include="..\..\..\f9omsrc\forms\ApiTwsAll.cfg">
       <Filter>forms</Filter>
     </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf9Rpt.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwf9Req.cfg">
+      <Filter>forms</Filter>
+    </None>
+    <None Include="..\..\..\f9omsrc\forms\ApiTwfAll.cfg">
+      <Filter>forms</Filter>
+    </None>
   </ItemGroup>
 </Project>

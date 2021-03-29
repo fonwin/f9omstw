@@ -282,6 +282,8 @@ OmsErrCodeActSP OmsReportRunnerInCore::CheckErrCodeAct(OmsReportRunnerInCore& ru
    if (OmsErrCodeActSP act = GetErrCodeAct(runner, rpt)) {
       if (act->ReqSt_)
          runner.OrderRaw_.RequestSt_ = act->ReqSt_;
+      if (act->ReErrCode_ != OmsErrCode_MaxV)
+         runner.OrderRaw_.ErrCode_ = act->ReErrCode_;
       if (runner.OrderRaw_.Request().RxKind() != f9fmkt_RxKind_RequestQuery)
          return act;
    }

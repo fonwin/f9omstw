@@ -79,7 +79,7 @@ static bool SendRequest(fon9::rc::RcClientSession* ses, const f9OmsRc_Layout* re
       fon9::TimeInterval fcWait = note->FcReq_.Fetch();
       if (fon9_LIKELY(fcWait.GetOrigValue() <= 0)) {
          ses->Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
-         if (ses->LogFlags_ & f9rc_ClientLogFlag_Request)
+         if (ses->LogFlags_ & f9oms_ClientLogFlag_Request)
             fon9_LOG_INFO("OmsRcClient.SendReq"
                           "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
                           "|tab=", reqLayout->LayoutId_, ':', reqLayout->LayoutName_,
@@ -124,7 +124,7 @@ f9OmsRc_SendRequestFields(f9rc_ClientSession*   ses,
       }
    }
    std::string logstr;
-   if (ses->LogFlags_ & f9rc_ClientLogFlag_Request)
+   if (ses->LogFlags_ & f9oms_ClientLogFlag_Request)
       logstr = fon9::BufferTo<std::string>(rbuf.cfront());
    fon9::ByteArraySizeToBitvT(rbuf, fon9::CalcDataSize(rbuf.cfront()));
    return SendRequest(static_cast<fon9::rc::RcClientSession*>(ses), reqLayout, std::move(rbuf), &logstr);

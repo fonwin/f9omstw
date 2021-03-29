@@ -69,6 +69,19 @@ void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    else { // if (rpt->Layout_ == NULL) // 回補結束.
    }
    ud->LastSNO_ = rpt->ReportSNO_;
+
+   if (rpt->Layout_ != NULL && (ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All) {
+      char  msgbuf[1024*4];
+      char* pmsg = msgbuf;
+      pmsg += sprintf(pmsg, "%u:%s", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_);
+      for (unsigned L = 0; L < rpt->Layout_->FieldCount_; ++L) {
+         pmsg += sprintf(pmsg, "|%s=%s",
+                         rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
+                         rpt->FieldArray_[L].Begin_);
+      }
+      PrintEvSplit("OnClientReport");
+      puts(msgbuf);
+   }
 }
 void OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
    // 也可不提供此 function: f9OmsRc_ClientHandler.FnOnFlowControl_ = NULL;
@@ -456,10 +469,10 @@ const char  kCSTR_LogFileFmt[] =
 "       +'L' = to localtime\n";
 const char  kCSTR_LogFlags[] =
 "   LogFlags(hex):\n"
-"     1 = f9rc_ClientLogFlag_Link\n"
-"     100 = f9rc_ClientLogFlag_Request & Config\n"
-"     200 = f9rc_ClientLogFlag_Report  & Config\n"
-"     400 = f9rc_ClientLogFlag_Config\n";
+"       1 = f9oms_ClientLogFlag_Link\n"
+"     100 = f9oms_ClientLogFlag_Request & Config\n"
+"     200 = f9oms_ClientLogFlag_Report  & Config\n"
+"     400 = f9oms_ClientLogFlag_Config\n";
 //--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)

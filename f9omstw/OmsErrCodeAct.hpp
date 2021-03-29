@@ -16,10 +16,11 @@ struct OmsErrCodeAct : public fon9::intrusive_ref_counter<OmsErrCodeAct> {
 
    const OmsErrCode        ErrCode_;
    uint16_t                RerunTimes_{0};
+   OmsErrCode              ReErrCode_{OmsErrCode_MaxV};
    f9fmkt_TradingRequestSt ReqSt_{};
    bool                    IsUseNewLine_{false};
    bool                    IsAtNewDone_{false};
-   char                    padding___[5];
+   char                    padding___[3];
 
    fon9::CharVector        OTypes_;
    fon9::CharVector        Srcs_;

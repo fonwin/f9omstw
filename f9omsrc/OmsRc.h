@@ -67,12 +67,12 @@ fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
 };
 
 fon9_ENUM(f9OmsRc_LayoutKind, uint8_t) {
-   f9OmsRc_LayoutKind_Request,
-   f9OmsRc_LayoutKind_ReportRequest,
-   f9OmsRc_LayoutKind_ReportRequestIni,
-   f9OmsRc_LayoutKind_ReportRequestAbandon,
-   f9OmsRc_LayoutKind_ReportOrder,
-   f9OmsRc_LayoutKind_ReportEvent,
+   f9OmsRc_LayoutKind_Request = 0,
+   f9OmsRc_LayoutKind_ReportRequest = 1,
+   f9OmsRc_LayoutKind_ReportRequestIni = 2,
+   f9OmsRc_LayoutKind_ReportRequestAbandon = 3,
+   f9OmsRc_LayoutKind_ReportOrder = 4,
+   f9OmsRc_LayoutKind_ReportEvent = 5,
 };
 
 typedef f9sv_Field   f9OmsRc_LayoutField;
@@ -174,15 +174,15 @@ typedef struct {
 
 #ifdef __cplusplus
 /// 記錄下單訊息 & Config.
-#define f9rc_ClientLogFlag_Request  static_cast<f9rc_ClientLogFlag>(0x0100)
+#define f9oms_ClientLogFlag_Request  static_cast<f9rc_ClientLogFlag>(0x0100)
 /// 記錄回報訊息 & Config.
-#define f9rc_ClientLogFlag_Report   static_cast<f9rc_ClientLogFlag>(0x0200)
+#define f9oms_ClientLogFlag_Report   static_cast<f9rc_ClientLogFlag>(0x0200)
 /// 登入成功後, TDayChanged, Config 相關事件.
-#define f9rc_ClientLogFlag_Config   static_cast<f9rc_ClientLogFlag>(0x0400)
+#define f9oms_ClientLogFlag_Config   static_cast<f9rc_ClientLogFlag>(0x0400)
 #else
-#define f9rc_ClientLogFlag_Request  ((f9rc_ClientLogFlag)0x0100)
-#define f9rc_ClientLogFlag_Report   ((f9rc_ClientLogFlag)0x0200)
-#define f9rc_ClientLogFlag_Config   ((f9rc_ClientLogFlag)0x0400)
+#define f9oms_ClientLogFlag_Request  ((f9rc_ClientLogFlag)0x0100)
+#define f9oms_ClientLogFlag_Report   ((f9rc_ClientLogFlag)0x0200)
+#define f9oms_ClientLogFlag_Config   ((f9rc_ClientLogFlag)0x0400)
 #endif
 
 typedef struct {

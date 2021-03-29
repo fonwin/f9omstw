@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
    if (!arg.empty())
       f9rcCliParams.LogFlags_ = static_cast<f9rc_ClientLogFlag>(fon9::HIntStrTo(arg, 0u));
    else
-      f9rcCliParams.LogFlags_ = f9rc_ClientLogFlag_Config;
+      f9rcCliParams.LogFlags_ = f9oms_ClientLogFlag_Config;
 
    f9OmsRc_ClientSessionParams   omsRcParams;
    f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);

@@ -12,6 +12,7 @@ extern "C" {
 /// 下單失敗的原因: 錯誤代碼.
 /// 0:沒有錯誤, 1..9999: OMS內部錯誤.
 fon9_ENUM(OmsErrCode, uint16_t) {
+   OmsErrCode_MaxV = 0xffff,
    OmsErrCode_NoError = 0,
 
    /// 刪改查要求, 但找不到對應的委託書.

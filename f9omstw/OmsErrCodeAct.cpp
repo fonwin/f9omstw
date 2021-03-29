@@ -14,6 +14,7 @@ namespace f9omstw {
 #define kCSTR_NewSending   "NewSending"
 #define kCSTR_St           "St"
 #define kCSTR_Rerun        "Rerun"
+#define kCSTR_ErrCode      "ErrCode"
 #define kCSTR_Memo         "Memo"
 
 static void AssignSrc(fon9::CharVector& dst, fon9::StrView src) {
@@ -92,6 +93,9 @@ const char* OmsErrCodeAct::ParseFrom(fon9::StrView cfgstr, std::string* msg) {
       else if (tag == kCSTR_Rerun) {
          this->RerunTimes_ = fon9::StrTo(value, this->RerunTimes_);
       }
+      else if (tag == kCSTR_ErrCode) {
+         this->ReErrCode_ = static_cast<OmsErrCode>(fon9::StrTo(value, fon9::cast_to_underlying(this->ReErrCode_)));
+      }
       else if (tag == kCSTR_Memo) {
          this->Memo_ = value.ToString();
       }
@@ -157,6 +161,10 @@ void RevPrint(fon9::RevBuffer& rbuf, const OmsErrCodeAct& act) {
    if (act.RerunTimes_) {
       splaux(rbuf);
       fon9::RevPrint(rbuf, kCSTR_Rerun "=", act.RerunTimes_);
+   }
+   if (act.ReErrCode_ != OmsErrCode_MaxV) {
+      splaux(rbuf);
+      fon9::RevPrint(rbuf, kCSTR_ErrCode "=", act.ReErrCode_);
    }
 }
 bool OmsErrCodeAct::CheckTime(fon9::DayTime now) const {

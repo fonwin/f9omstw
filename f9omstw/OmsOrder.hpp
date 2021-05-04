@@ -231,7 +231,6 @@ inline const OmsRequestIni* OmsOrder::Initiator() const {
       return nullptr;
    assert(dynamic_cast<const OmsRequestIni*>(this->Head_->Request_) != nullptr);
    return static_cast<const OmsRequestIni*>(this->Head_->Request_);
-
 }
 inline void OmsOrder::EndUpdate(const OmsOrderRaw& last, OmsResource* res) {
    assert(this->Tail_ == &last);

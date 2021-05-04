@@ -98,7 +98,8 @@ enum class GnDayTrade : char {
 };
 fon9_DEFINE_EnumChar_StrTo_toupper(GnDayTrade);
 
-struct OmsTwsPriRefs {
+/// 每個商品, 在不同 Trading Session 的參考資料.
+struct TrsRefs {
    f9omstw::OmsTwsPri   PriRef_{};
    f9omstw::OmsTwsPri   PriUpLmt_{};
    f9omstw::OmsTwsPri   PriDnLmt_{};
@@ -106,13 +107,71 @@ struct OmsTwsPriRefs {
    GnDayTrade           GnDayTrade_{};
    char                 Padding___[2];
 
-   void ClearPriRefs() {
+   void Clear() {
       fon9::ForceZeroNonTrivial(this);
    }
-   void CopyFromPriRefs(const OmsTwsPriRefs& rhs) {
+   void CopyFrom(const TrsRefs& rhs) {
       *this = rhs;
    }
 };
 
-} // namespaces
+/// 相關文件簽署情況.
+enum class TwsIvScSignFlag : uint8_t {
+   None = 0,
+   /// 當沖先買後賣概括授權書: DARISK.GnRvRigh_T; .GnRvRigh_O;
+   GnRvRighB = 0x01,
+   /// 當沖先買後賣風險預告書: DARISK.GnRvRisk_T; .GnRvRigh_O;
+   GnRvRiskB = 0x02,
+   /// 當沖先賣後買概括授權書: DARISK.GnRvRighBS_T; .GnRvRigh_O;
+   GnRvRighS = 0x04,
+   /// 當沖先賣後買風險預告書: DARISK.GnRvRiskBS_T; .GnRvRigh_O;
+   GnRvRiskS = 0x08,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(TwsIvScSignFlag);
+
+/// 帳號相關管控.
+enum class TwsIvScRightFlag : uint8_t {
+   /// 允許 [現股先買後賣當沖]: CUST.GnRvRigh_;
+   AllowGnRvB = 0x01,
+   /// 允許 [現股先賣後買當沖]: CUST.GnRvSBRight_;
+   AllowGnRvS = 0x02,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(TwsIvScRightFlag);
+
+struct TwsIvScCtl {
+   TwsIvScSignFlag   Signs_{};
+   TwsIvScRightFlag  Rights_{};
+
+   bool IsAllowGnRvB() const {
+      return IsEnumContainsAny(this->Rights_, TwsIvScRightFlag::AllowGnRvB | TwsIvScRightFlag::AllowGnRvS)
+         && IsEnumContainsAny(this->Signs_, TwsIvScSignFlag::GnRvRighB | TwsIvScSignFlag::GnRvRighS)
+         && IsEnumContainsAny(this->Signs_, TwsIvScSignFlag::GnRvRiskB | TwsIvScSignFlag::GnRvRiskS);
+   }
+   bool IsAllowGnRvS() const {
+      return IsEnumContains(this->Rights_, TwsIvScRightFlag::AllowGnRvS)
+         && IsEnumContains(this->Signs_, TwsIvScSignFlag::GnRvRighS)
+         && IsEnumContains(this->Signs_, TwsIvScSignFlag::GnRvRiskS);
+   }
+};
+
+//--------------------------------------------------------------------------//
+static inline char* ToStrRev(char* pout, TwsIvScSignFlag value) {
+   return fon9::HexToStrRev(pout, fon9::cast_to_underlying(value));
+}
+static inline char* ToStrRev(char* pout, TwsIvScRightFlag value) {
+   return fon9::HexToStrRev(pout, fon9::cast_to_underlying(value));
+}
+} // namespace f9omstw
+
+//--------------------------------------------------------------------------//
+#include "fon9/seed/FieldMaker.hpp"
+namespace fon9 { namespace seed {
+static inline FieldSP MakeField(Named&& named, int32_t ofs, f9omstw::TwsIvScSignFlag&) {
+   return FieldSP{new FieldIntHx<underlying_type_t<f9omstw::TwsIvScSignFlag>>{std::move(named), ofs}};
+}
+static inline FieldSP MakeField(Named&& named, int32_t ofs, f9omstw::TwsIvScRightFlag&) {
+   return FieldSP{new FieldIntHx<underlying_type_t<f9omstw::TwsIvScRightFlag>>{std::move(named), ofs}};
+}
+} } // namespace fon9, namespace seed
+
 #endif//__f9omstws_OmsTwsTypes_hpp__

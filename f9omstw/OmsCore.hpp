@@ -10,7 +10,11 @@ namespace f9omstw {
 enum class OmsCoreSt {
    /// 剛建立 OmsCore, 變成 CurrentCore 之前.
    Loading,
-   CurrentCore,
+   /// 啟動成功.
+   CurrentCoreReady,
+   /// 啟動失敗.
+   BadCore,
+   /// 解構中.
    Disposing,
 };
 
@@ -92,7 +96,10 @@ public:
       this->EventToCoreImpl(std::move(omsEvent));
    }
 
-   virtual void RunCoreTask(OmsCoreTask&& task) = 0;
+   /// \retval true   返回前, task 有可能已在 this thread 執行完畢, 或在另一個 thread 執行完畢;
+   ///                也有可能還在排隊等候執行;
+   /// \retval false  task 沒有機會被執行;
+   virtual bool RunCoreTask(OmsCoreTask&& task) = 0;
 
    bool IsThisThread() const;
 
@@ -104,6 +111,8 @@ public:
    using OmsResource::ReportRecover;
    using OmsResource::ReportSubject;
    using OmsResource::LogAppend;
+   using OmsResource::Name_;
+
    OmsRxSNO PublishedSNO() const {
       return this->Backend_.PublishedSNO();
    }

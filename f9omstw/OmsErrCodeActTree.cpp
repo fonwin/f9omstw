@@ -150,7 +150,7 @@ void ErrCodeActSeed::ReloadErrCodeAct(fon9::StrView cfgfn, fon9::seed::MaTree::L
       this->ErrCodeActs_.swap(acts);
       // unlock saplingLocker at dtor.
    }
-   msg = fon9::RevPrintTo<std::string>("Loaded at ", fon9::LocalNow(), fon9::FmtTS{"f-T."});
+   msg = fon9::RevPrintTo<std::string>("Loaded at ", fon9::LocalNow(), kFmtYMD_HH_MM_SS_us);
    lk.lock();
    if (!cfgfn.empty())
       this->SetTitle(std::move(strfn));

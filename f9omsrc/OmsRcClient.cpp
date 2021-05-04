@@ -272,7 +272,7 @@ static void LogConfig(fon9::LogLevel lv, f9rc_ClientSession* ses, const OmsRcCli
       fon9::RevPrint(rbuf_, "\n" "Tables=\n", cfg.OrigTablesStr_);
 
    fon9::RevPrint(rbuf_, "OmsRcClient.OnConfig|ses=", fon9::ToPtr(ses),
-                  "|TDay=", cfg.TDay_, fon9::FmtTS("f-t"),
+                  "|TDay=", cfg.TDay_, fon9::kFmtYMD_HMS,
                   "|SeedPath=", cfg.OmsSeedPath_,
                   "|HostId=", cfg.CoreTDay_.HostId_);
    fon9::LogWrite(lv, std::move(rbuf_));
@@ -349,7 +349,7 @@ void OmsRcClientNote::OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFu
    fon9::BitvTo(param.RecvBuffer_, this->ChangingTDay_);
    if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9oms_ClientLogFlag_Config)
       fon9_LOG_INFO("OmsRcClient.Recv|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
-                    "TDayChanged=", this->ChangingTDay_, fon9::FmtTS("f-t"));
+                    "TDayChanged=", this->ChangingTDay_, fon9::kFmtYMD_HMS);
    if (this->Config_.TDay_.GetOrigValue() == 0) {
       // 尚未收到 Config, 就先收到 TDayChanged, 等收到 Config 時, 再回 TDayConfirm;
    }
@@ -361,7 +361,7 @@ void OmsRcClientNote::OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFu
 void OmsRcClientNote::SendTDayConfirm(fon9::rc::RcSession& ses) {
    if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9oms_ClientLogFlag_Config)
       fon9_LOG_INFO("OmsRcClient.Send|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
-                    "TDayConfirm=", this->ChangingTDay_, fon9::FmtTS("f-t"));
+                    "TDayConfirm=", this->ChangingTDay_, fon9::kFmtYMD_HMS);
    fon9::RevBufferList rbuf{128};
    fon9::ToBitv(rbuf, this->ChangingTDay_);
    fon9::ToBitv(rbuf, f9OmsRc_OpKind_TDayConfirm);

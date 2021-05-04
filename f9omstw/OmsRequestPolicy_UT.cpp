@@ -55,8 +55,9 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
    ~OmsRequestPolicy_UT() {
       this->Brks_->InThr_OnParentSeedClear();
    }
-   void RunCoreTask(f9omstw::OmsCoreTask&&) override {
+   bool RunCoreTask(f9omstw::OmsCoreTask&&) override {
       assert(!"Not suppport RunCoreTask()");
+      return false;
    }
    bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override {
       assert(!"Not suppport MoveToCoreImpl()");

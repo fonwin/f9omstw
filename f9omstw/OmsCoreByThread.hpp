@@ -129,8 +129,8 @@ public:
       this->OnBeforeDestroy();
    }
 
-   void RunCoreTask(OmsCoreTask&& task) override {
-      this->EmplaceMessage(std::move(task));
+   bool RunCoreTask(OmsCoreTask&& task) override {
+      return this->EmplaceMessage(std::move(task)) <= fon9::ThreadState::ExecutingOrWaiting;
    }
 
    static OmsCoreByThreadBaseSP Creator(const FnInit& fnInit,

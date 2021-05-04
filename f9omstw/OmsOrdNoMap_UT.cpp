@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
       f9omstw::OmsResource& GetResource() {
          return *static_cast<f9omstw::OmsResource*>(this);
       }
-      void RunCoreTask(f9omstw::OmsCoreTask&&) override {}
+      bool RunCoreTask(f9omstw::OmsCoreTask&&) override { return false; }
       bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override { return false; }
    };
    TestOrdNoCore                    testCore;

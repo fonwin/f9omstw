@@ -91,6 +91,10 @@ public:
          return this->CurrentCore_->TDay();
       return fon9::TimeStamp{};
    }
+   /// 在某些情況下, 必須重新啟動 CurrentCore, 但啟動前必須先關閉 CurrentCore,
+   /// 所以在此提供一個關閉 CurrentCore 的方法,
+   /// 但您仍必須確定沒有其他人保有 OmsCoreSP, 才會真正地將 CurrentCore 刪除;
+   OmsCoreSP RemoveCurrentCore();
 
    void SetRequestFactoryPark(OmsRequestFactoryParkSP&& facPark) {
       assert(this->RequestFactoryPark_.get() == nullptr);

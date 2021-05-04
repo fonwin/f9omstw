@@ -155,54 +155,72 @@ inline bool Sc_Symbol_QtyOddLot(OmsRequestRunnerInCore& runner, RequestIniT& ini
 }
 
 //--------------------------------------------------------------------------//
-/// 庫存不足.
-#define OmsErrCode_Sc_BalQty  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 200)
+/// 現股庫存不足: Bal=庫存量|Leaves=賣未成交|Filled=賣已成交|Add=此筆新增|Over=超過數量|RFlags=A,R,S
+#define OmsErrCode_Sc_BalQty        static_cast<OmsErrCode>(OmsErrCode_FromRisk + 200)
+/// 帳號禁止現股當沖: IFlags=R,S
+#define OmsErrCode_Sc_DenyIvrGnRvB  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 201)
+/// 商品禁止現股當沖.
+#define OmsErrCode_Sc_DenySymbGnRvB static_cast<OmsErrCode>(OmsErrCode_FromRisk + 202)
+
+/// 現股賣出(OType='0',可現股當沖), 帳號自有可賣數量不足:
+/// Self=剩餘可賣量|Add=此筆新增|Over=不足量|Bal=庫存量|Filled=買進可沖成交量|Used=已賣量
+#define OmsErrCode_Sc_GnSellQty     static_cast<OmsErrCode>(OmsErrCode_FromRisk + 210)
+/// 現股當沖賣出(OType='d',但不可先賣當沖,原因請參考RFlags), 帳號自有可賣數量不足:
+/// Self=剩餘可賣量|Add=此筆新增|Over=不足量|Bal=庫存量|Filled=買進可沖成交量|Used=已賣量|RFlags=A,R,S
+///   A: 股票現股當沖旗標(X=可先賣 or Y=必須先買 or 「-」=不可現沖)
+///   R: 帳號權限: enum TwsIvScSignFlag;
+///   S: 帳號文件簽署情況: enum TwsIvScRightFlag;
+#define OmsErrCode_Sc_GnRvQty       static_cast<OmsErrCode>(OmsErrCode_FromRisk + 211)
+/// 或有券源不足:
+/// SeQty=或有券源量|Used=已用量|Self=自有可賣量|Add=此筆新增|Over=不足量
+#define OmsErrCode_Sc_BrkSeQty      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 212)
+
 
 template <class QtyT, class QtyBS>
-inline bool Sc_BalQty(OmsRequestRunnerInCore& runner, QtyT bal, QtyT leaves, QtyBS filled, QtyT add, bool isIncludeBuyFilled) {
-   const auto lhs = isIncludeBuyFilled ? (bal + filled.Get_.Buy_) : (bal);
-   const auto rhs = leaves + filled.Get_.Sell_ + add;
-   if (fon9_LIKELY(lhs >= rhs)) {
+inline bool Sc_BalQty(OmsRequestRunnerInCore& runner, OmsErrCode ec, QtyT bal, QtyT leaves, QtyT filled, QtyT add) {
+   const auto rhs = leaves + filled + add;
+   if (fon9_LIKELY(bal >= rhs)) {
       f9oms_SC_LOG(runner,
-         "Bal=", bal, "|Leaves=", leaves, "|FilledBuy=", filled.Get_.Buy_, "|FilledSell=", filled.Get_.Sell_, "|Add=", add,
-         "|Remain=", lhs - rhs);
+                   "Bal=", bal, "|Leaves=", leaves, "|Filled=", filled, "|Add=", add,
+                   "|Remain=", bal - rhs);
       return true;
    }
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_BalQty, nullptr);
    runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>(
-         "Bal=", bal, "|Leaves=", leaves, "|FilledBuy=", filled.Get_.Buy_, "|FilledSell=", filled.Get_.Sell_, "|Add=", add,
-         "|Over=", rhs - lhs);
+      "Bal=", bal, "|Leaves=", leaves, "|Filled=", filled, "|Add=", add,
+      "|Over=", rhs - bal);
    return false;
 }
 
 //--------------------------------------------------------------------------//
-/// 額度不足.
+// 「已用額度」無法單純從「剩餘量、成交量」計算:
+// - 還要考慮「當沖互抵、庫存回補」。
+// - 現股當沖為例: 可參考 https://docs.google.com/document/d/1Xpl3GMlECcQ-M2oav8lIfl43_p2uzuHhKbJKyFC9PyA/edit#heading=h.d46f7eb2xzq9
+// - 不應單純的區分「剩餘未成交額度」、「已成交額度」...
+// - 也不存在單純的「成交返還」。
+// - 所以使用「額度上限」、「已用額度」、「此筆新增」檢查就足夠了。
+// - 重點是「已用額度」的異動計算。
+
+/// 整戶額度不足.
 #define OmsErrCode_Sc_LmtAmt   static_cast<OmsErrCode>(OmsErrCode_FromRisk + 300)
-#define OmsErrCode_Sc_LmtBuy   static_cast<OmsErrCode>(OmsErrCode_FromRisk + 301)
-#define OmsErrCode_Sc_LmtSell  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 302)
-#define OmsErrCode_Sc_LmtAddBS static_cast<OmsErrCode>(OmsErrCode_FromRisk + 303)
-#define OmsErrCode_Sc_LmtSubBS static_cast<OmsErrCode>(OmsErrCode_FromRisk + 304)
+// 融資額度不足: 超過整戶融資額度上限. 超過單股融資上限.
+// 融券額度不足: 超過整戶融券額度上限. 超過單股融券上限.
+// ...
 
 template <class AmtT>
-inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner,
-                      fon9::StrView lmtName, OmsErrCode ec,
-                      AmtT lmt, AmtT used, AmtT leaves,
-                      AmtT filledUse, AmtT filledRtn,
-                      AmtT add) {
+inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, OmsErrCode ec,
+                      AmtT lmt, AmtT used, AmtT add) {
    if (lmt.IsNull())
       lmt.Assign0();
-   const auto lhs = lmt + filledRtn;
-   const auto rhs = used + leaves + filledUse + add;
-   if (fon9_LIKELY(lmt.GetOrigValue() == 0 || lhs >= rhs)) {
-      f9oms_SC_LOG(runner,
-         lmtName, '=', lmt, "|Used=", used, "|Leaves=", leaves, "|FilledRtn=", filledRtn, "|FilledUse=", filledUse, "|Add=", add,
-         "|Remain=", lhs - rhs);
+   const auto over = (used + add) - lmt;
+   if (fon9_LIKELY(lmt.GetOrigValue() == 0 || fon9::signed_cast(over.GetOrigValue()) <= 0)) {
+      f9oms_SC_LOG(runner, lmtName, '=', lmt, "|Used=", used, "|Add=", add, "|Remain=",
+                   lmt.GetOrigValue() == 0 ? lmt : (AmtT{} - over));
       return true;
    }
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, ec, nullptr);
    runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>(
-         lmtName, '=', lmt, "|Used=", used, "|Leaves=", leaves, "|FilledRtn=", filledRtn, "|FilledUse=", filledUse, "|Add=", add,
-         "|Over=", rhs - lhs);
+         lmtName, '=', lmt, "|Used=", used, "|Add=", add, "|Over=", over);
    return false;
 }
 

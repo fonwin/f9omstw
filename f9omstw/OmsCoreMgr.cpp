@@ -27,6 +27,21 @@ OmsCoreMgr::OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut)
    this->Add(this->ErrCodeActSeed_ = new ErrCodeActSeed("ErrCodeAct"));
    this->Add(&this->CurrentCoreSapling_);
 }
+OmsCoreSP OmsCoreMgr::RemoveCurrentCore() {
+   if (OmsCoreSP cur = std::move(this->CurrentCore_)) {
+      Locker locker{this->Container_};
+      if (this->CurrentCore_.get() != nullptr)
+         return nullptr;
+      this->CurrentCoreSapling_.Sapling_.reset();
+      this->CurrentCoreSapling_.SetTitle(cur->Name_ + ": Removed");
+      auto ifind = locker->find(&cur->Name_);
+      if (ifind != locker->end())
+         locker->erase(ifind);
+      cur->OnParentTreeClear(*this);
+      return cur;
+   }
+   return nullptr;
+}
 void OmsCoreMgr::OnMaTree_AfterClear() {
    ConstLocker locker{this->Container_};
    this->CurrentCore_.reset();
@@ -47,7 +62,8 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
    this->IsTDayChanging_ = true;
    for (;;) {
       OmsCoreSP cur = this->CurrentCore_;
-      cur->SetCoreSt(OmsCoreSt::CurrentCore);
+      if (cur->CoreSt() < OmsCoreSt::CurrentCoreReady)
+         cur->SetCoreSt(OmsCoreSt::CurrentCoreReady);
       if (old)
          old->SetCoreSt(OmsCoreSt::Disposing);
       treeLocker.unlock();

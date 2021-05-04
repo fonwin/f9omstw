@@ -388,8 +388,9 @@ struct TestCore : public f9omstw::OmsCore {
       return *static_cast<f9omstw::OmsResource*>(this);
    }
 
-   void RunCoreTask(f9omstw::OmsCoreTask&& task) override {
+   bool RunCoreTask(f9omstw::OmsCoreTask&& task) override {
       task(this->GetResource());
+      return true;
    }
    bool MoveToCoreImpl(f9omstw::OmsRequestRunner&& runner) override {
       // TestCore: 使用 單一 thread, 無 locker, 所以直接呼叫

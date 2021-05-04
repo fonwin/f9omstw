@@ -6,7 +6,7 @@
 struct AnItem {
    const f9omstw::OmsRequestTrade* Request_;
 
-   /// Client before send: OmsRcClient_UT.c#L330
+   /// Client before send: OmsRcClient_UT.c#L297
    fon9::TimeStamp Ts0_{fon9::TimeStamp::Null()};
    fon9::TimeStamp Ts0() const { return this->Ts0_; }
 
@@ -289,7 +289,7 @@ int main(int argc, char* argv[]) {
          this->Brks_->InThr_OnParentSeedClear();
       }
       bool MoveToCoreImpl(f9omstw::OmsRequestRunner&&) override { return true; }
-      void RunCoreTask(f9omstw::OmsCoreTask&&) override {}
+      bool RunCoreTask(f9omstw::OmsCoreTask&&) override { return false; }
       f9omstw::OmsResource& GetResource() { return *this; }
       using base::Backend_;
    };

@@ -25,8 +25,10 @@ OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileNam
    assert(forceTDay < fon9::kOneDaySeconds);
    this->TDay_ = fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay);
    auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
-   if (res.IsError())
+   if (res.IsError()) {
+      this->SetCoreSt(OmsCoreSt::BadCore);
       return res;
+   }
    this->Backend_.StartThread(this->Name_ + "_Backend");
    this->Plant();
    return res;

@@ -313,7 +313,10 @@ struct TestCore : public f9omstw::OmsCore {
    }
 
    TestCore(int argc, char* argv[], std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
-      : base(owner ? owner : new f9omstw::OmsCoreMgr{nullptr}, "seed/path", name) {
+      : TestCore(argc, argv, 0, name, owner) {
+   }
+   TestCore(int argc, char* argv[], uint32_t forceTDay, std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
+      : base(fon9::LocalNow(), forceTDay, owner ? owner : new f9omstw::OmsCoreMgr{nullptr}, "seed/path", name) {
       this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 
       if (owner.get() == nullptr) {
@@ -370,16 +373,16 @@ struct TestCore : public f9omstw::OmsCore {
          std::cout << this->Name_ << ".LastSNO = " << lastSNO << std::endl;
    }
 
-   void OpenReload(int argc, char* argv[], std::string fnDefault, uint32_t forceTDay = 0) {
+   void OpenReload(int argc, char* argv[], std::string fnDefault) {
       const auto  outfn = fon9::GetCmdArg(argc, argv, "o", "out");
       if (!outfn.empty())
          fnDefault = outfn.ToString();
-      if (forceTDay != 0) {
+      if (auto forceTDay = this->ForceTDayId()) {
          if (fnDefault.size() >= 4 && memcmp(&*(fnDefault.end() - 4), ".log", 4) == 0)
             fnDefault.resize(fnDefault.size() - 4);
          fnDefault += fon9::RevPrintTo<std::string>('.', forceTDay, ".log");
       }
-      StartResult res = this->Start(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset(), fnDefault, forceTDay);
+      StartResult res = this->Start(fnDefault);
       if (res.IsError())
          std::cout << "OmsCore.Reload error:" << fon9::RevPrintTo<std::string>(res) << std::endl;
    }

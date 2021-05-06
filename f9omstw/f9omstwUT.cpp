@@ -247,9 +247,11 @@ void OmsCoreUT::RestoreCoreTables(OmsResource& res) {
 }
 bool OmsCoreUT::AddCore(bool isRemoveLog) {
    this->ReqLast_.reset();
+   const fon9::TimeStamp tday = fon9::LocalNow();
    auto fnCoreCreator = GetOmsCoreByThreadCreator(fon9::HowWait::Block);
    OmsCoreByThreadBaseSP core = fnCoreCreator(
       std::bind(&OmsCoreUT::InitCoreTables, this, std::placeholders::_1),
+      tday, 0,
       this->CoreMgr_.get(),
       "omstw/f9omstwUT",
       "f9omstwUT"
@@ -257,12 +259,11 @@ bool OmsCoreUT::AddCore(bool isRemoveLog) {
    if (auto oldCore = this->CoreMgr_->RemoveCurrentCore())
       this->WaitCoreDone(oldCore.get());
    // 新舊 OmsCore 交接完畢, 啟動新的 OmsCore.
-   fon9::TimeStamp     tday = fon9::LocalNow();
    fon9::TimedFileName logfn(gLogPathFmt + "f9omstwUT.log", fon9::TimedFileName::TimeScale::Day);
    logfn.RebuildFileNameExcludeTimeZone(tday);
    if (isRemoveLog)
       ::remove(logfn.GetFileName().c_str());
-   core->StartToCoreMgr(tday, logfn.GetFileName(), -1/*CpuId*/);
+   core->StartToCoreMgr(logfn.GetFileName(), -1/*CpuId*/);
    this->WaitCoreDone(core.get());
    if (core->CoreSt() != OmsCoreSt::CurrentCoreReady)
       return false;

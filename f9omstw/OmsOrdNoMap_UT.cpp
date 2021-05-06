@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
    struct TestOrdNoCore : public f9omstw::OmsCore {
       fon9_NON_COPY_NON_MOVE(TestOrdNoCore);
       using base = f9omstw::OmsCore;
-      TestOrdNoCore() : base(new f9omstw::OmsCoreMgr{nullptr}, "seed/path", "OmsOrdNoMap_UT") {
+      TestOrdNoCore() : base(fon9::LocalNow(), new f9omstw::OmsCoreMgr{nullptr}, "seed/path", "OmsOrdNoMap_UT") {
          this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
          DummyBrk::MakeBrkTree(*this);
       }

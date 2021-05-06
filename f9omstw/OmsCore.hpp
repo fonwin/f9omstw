@@ -45,9 +45,7 @@ protected:
    using StartResult = OmsBackend::OpenResult;
    /// - 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    /// - 啟動 thread.
-   /// - 如果需要重新啟動 TDay core,
-   ///   則 forceTDay 必須大於上一個 TDay core 的 forceTDay, 但小於 fon9::kOneDaySeconds;
-   StartResult Start(fon9::TimeStamp tday, std::string logFileName, uint32_t forceTDay = 0);
+   virtual StartResult Start(std::string logFileName);
 
    /// 執行 runner.ValidateInUser();  成功之後,
    /// 由衍生者實作將 runner 移到 core 執行.
@@ -75,13 +73,20 @@ public:
    const std::string    SeedPath_;
 
    fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
+   /// - 如果需要重新啟動 TDay core:
+   ///   則 forceTDay 必須大於上一個 TDay core 的 forceTDay, 但小於 fon9::kOneDaySeconds;
    template <class... NamedArgsT>
-   OmsCore(OmsCoreMgrSP owner, std::string seedPath, NamedArgsT&&... namedargs)
-      : OmsResource(*this, std::forward<NamedArgsT>(namedargs)...)
+   OmsCore(fon9::TimeStamp tday, uint32_t forceTDay, OmsCoreMgrSP owner, std::string seedPath, NamedArgsT&&... namedargs)
+      : OmsResource(tday, forceTDay, *this, std::forward<NamedArgsT>(namedargs)...)
       , Owner_{std::move(owner)}
       , SeedPath_{std::move(seedPath)} {
    }
    fon9_MSC_WARN_POP;
+
+   template <class... NamedArgsT>
+   OmsCore(fon9::TimeStamp tday, OmsCoreMgrSP owner, std::string seedPath, NamedArgsT&&... namedargs)
+      : OmsCore(tday, 0, std::move(owner), std::move(seedPath), std::forward<NamedArgsT>(namedargs)...) {
+   }
 
    ~OmsCore();
 
@@ -108,6 +113,7 @@ public:
    }
 
    using OmsResource::TDay;
+   using OmsResource::ForceTDayId;
    using OmsResource::ReportRecover;
    using OmsResource::ReportSubject;
    using OmsResource::LogAppend;

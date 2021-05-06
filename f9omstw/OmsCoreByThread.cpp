@@ -7,10 +7,10 @@
 
 namespace f9omstw {
 
-bool OmsCoreByThreadBase::StartToCoreMgr(fon9::TimeStamp tday, std::string logFileName, int cpuId) {
+bool OmsCoreByThreadBase::StartToCoreMgr(std::string logFileName, int cpuId) {
    this->CpuId_ = cpuId;
    this->SetTitle(logFileName);
-   auto res = this->Start(tday, std::move(logFileName));
+   auto res = this->Start(std::move(logFileName));
    if (res.IsError())
       this->SetDescription(fon9::RevPrintTo<std::string>(res));
    else

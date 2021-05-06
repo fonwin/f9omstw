@@ -21,9 +21,7 @@ void OmsCore::SetThisThreadId() {
    assert(this->ThreadId_ == fon9::ThreadId::IdType{});
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 }
-OmsCore::StartResult OmsCore::Start(fon9::TimeStamp tday, std::string logFileName, uint32_t forceTDay) {
-   assert(forceTDay < fon9::kOneDaySeconds);
-   this->TDay_ = fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay);
+OmsCore::StartResult OmsCore::Start(std::string logFileName) {
    auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
    if (res.IsError()) {
       this->SetCoreSt(OmsCoreSt::BadCore);

@@ -213,8 +213,9 @@ int main(int argc, char* argv[]) {
    unsigned forceTDay = 0;
    auto fnMakeCore = [&core, coreMgr, &forceTDay, &argc, argv, &fnDefault]() {
       core->IsWaitQuit_ = false;
-      core.reset(new TestCore(argc, argv, fon9::RevPrintTo<std::string>("ut_", ++forceTDay), coreMgr));
-      core->OpenReload(argc, argv, fnDefault, forceTDay);
+      ++forceTDay;
+      core.reset(new TestCore(argc, argv, forceTDay, fon9::RevPrintTo<std::string>("ut_", forceTDay), coreMgr));
+      core->OpenReload(argc, argv, fnDefault);
       coreMgr->Add(&core->GetResource());
    };
    fnMakeCore();

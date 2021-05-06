@@ -22,6 +22,8 @@ class OmsResource : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(OmsResource);
 
 public:
+   const fon9::TimeStamp   TDay_;
+
    OmsCore&    Core_;
 
    using SymbTreeSP = fon9::intrusive_ptr<OmsSymbTree>;
@@ -56,6 +58,9 @@ public:
    fon9::TimeStamp TDay() const {
       return this->TDay_;
    }
+   uint32_t ForceTDayId() const {
+      return static_cast<uint32_t>((this->TDay_ - fon9::TimeStampResetHHMMSS(this->TDay_)).GetIntPart());
+   }
 
    /// 一旦要求回補, 如果想要取消, 就只能透過 consumer 返回 0 來取消.
    /// 否則就會回補到最後一筆為止.
@@ -71,14 +76,22 @@ public:
    }
 
 protected:
-   fon9::TimeStamp   TDay_;
    OmsReqUID_Builder ReqUID_Builder_;
 
+   /// - 如果需要重新啟動 TDay core:
+   ///   則 forceTDay 必須大於上一個 TDay core 的 forceTDay, 但小於 fon9::kOneDaySeconds;
    template <class... NamedArgsT>
-   OmsResource(OmsCore& core, NamedArgsT&&... namedargs)
+   OmsResource(fon9::TimeStamp tday, uint32_t forceTDay, OmsCore& core, NamedArgsT&&... namedargs)
       : fon9::seed::NamedMaTree(std::forward<NamedArgsT>(namedargs)...)
+      , TDay_{fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay)}
       , Core_(core) {
+      assert(forceTDay < fon9::kOneDaySeconds);
    }
+   template <class... NamedArgsT>
+   OmsResource(fon9::TimeStamp tday, OmsCore& core, NamedArgsT&&... namedargs)
+      : OmsResource(tday, 0, core, std::forward<NamedArgsT>(namedargs)...) {
+   }
+
    ~OmsResource();
 
    /// 將 this->Symbs_; this->Brks_; 加入 this->Sapling.

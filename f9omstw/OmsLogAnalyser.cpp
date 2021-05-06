@@ -272,7 +272,7 @@ int main(int argc, char* argv[]) {
       fon9_NON_COPY_NON_MOVE(OmsCore);
       using base = f9omstw::OmsCore;
       OmsCore(f9omstw::OmsCoreMgrSP coreMgr)
-         : base(coreMgr, "seed/path", "core") {
+         : base(fon9::LocalNow(), coreMgr, "seed/path", "core") {
          coreMgr->Add(this);
          using namespace f9omstw;
          this->Symbs_.reset(new OmsSymbTree(*this, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));

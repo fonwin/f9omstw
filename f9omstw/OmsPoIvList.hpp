@@ -16,6 +16,10 @@ enum class OmsIvRight : fon9::underlying_type_t<f9oms_IvRight> {
    DenyTradingQuery  = f9oms_IvRight_DenyTradingQuery,
    DenyTradingAll    = f9oms_IvRight_DenyTradingAll,
 
+   /// 只有在 DenyTradingAll 的情況下才需要判斷此旗標.
+   /// 因為只要允許任一種交易, 就必定允許回報.
+   AllowSubscribeReport = f9oms_IvRight_AllowSubscribeReport,
+
    /// 允許使用者建立「回報」補單.
    /// 通常用於「委託遺失(例如:新單尚未寫檔,但系統crash,重啟後委託遺失)」的補單操作。
    /// 僅允許 Admin 設定此欄, 檢查方式:
@@ -23,13 +27,8 @@ enum class OmsIvRight : fon9::underlying_type_t<f9oms_IvRight> {
    AllowAddReport = f9oms_IvRight_AllowAddReport,
 
    AllowAll = f9oms_IvRight_AllowAll,
-   DenyAll = f9oms_IvRight_DenyAll,
-
-   /// 只有在 DenyTradingAll 的情況下才需要判斷此旗標.
-   /// 因為只要允許任一種交易, 就必定允許回報.
-   AllowSubscribeReport = f9oms_IvRight_AllowSubscribeReport,
-
-   IsAdmin = f9oms_IvRight_IsAdmin,
+   DenyAll  = f9oms_IvRight_DenyAll,
+   IsAdmin  = f9oms_IvRight_IsAdmin,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsIvRight);
 

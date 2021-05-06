@@ -24,6 +24,7 @@ bool OmsCoreMgrSeed::AddCore(fon9::TimeStamp tday) {
    auto fnCoreCreator = GetOmsCoreByThreadCreator(this->HowWait_);
    OmsCoreByThreadBaseSP core = fnCoreCreator(
       std::bind(&OmsCoreMgrSeed::InitCoreTables, this, std::placeholders::_1),
+      tday, 0,
       &this->GetOmsCoreMgr(),
       rbuf.ToStrT<std::string>(),
       std::move(coreName)
@@ -32,7 +33,7 @@ bool OmsCoreMgrSeed::AddCore(fon9::TimeStamp tday) {
    fon9::TimedFileName logfn(fon9::seed::SysEnv_GetLogFileFmtPath(*this->Root_), fon9::TimedFileName::TimeScale::Day);
    // oms log 檔名與 TDay 相關, 與 TimeZone 無關, 所以要排除 TimeZone;
    logfn.RebuildFileNameExcludeTimeZone(tday);
-   return core->StartToCoreMgr(tday, logfn.GetFileName() + this->Name_ + ".log", this->CpuId_);
+   return core->StartToCoreMgr(logfn.GetFileName() + this->Name_ + ".log", this->CpuId_);
 }
 
 } // namespaces

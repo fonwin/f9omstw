@@ -14,11 +14,6 @@ class OmsFileImpLoader : public fon9::seed::FileImpLoader {
    fon9_NON_COPY_NON_MOVE(OmsFileImpLoader);
    const OmsCoreSP Core_;
    OmsResource*    CoreRes_;
-   static unsigned GetTDayYYYYMMDD(fon9::TimeStamp tday) {
-      // 因為有可能在 InitTable 時匯入資料檔,
-      // 此時使用的 OmsResource 尚未啟動, 所以還沒設定 TDay.
-      return tday.IsNullOrZero() ? 0u : fon9::GetYYYYMMDD(tday);
-   }
 public:
    /// 若 OmsCore 尚未啟動, 則 CoreYYYYMMDD_ 為 0;
    const unsigned  CoreYYYYMMDD_;
@@ -27,7 +22,7 @@ public:
    OmsFileImpLoader(OmsCoreSP core, OmsResource* coreRes)
       : Core_{core}
       , CoreRes_{coreRes}
-      , CoreYYYYMMDD_{GetTDayYYYYMMDD(coreRes ? coreRes->TDay() : core->TDay())} {
+      , CoreYYYYMMDD_{fon9::GetYYYYMMDD(coreRes ? coreRes->TDay() : core->TDay())} {
    }
    bool IsInCore() const {
       return this->CoreRes_ == nullptr;

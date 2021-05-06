@@ -27,9 +27,9 @@ protected:
    virtual void OnBeforeDestroy() = 0;
    virtual void StartThrRun() = 0;
 
-   StartResult Start(fon9::TimeStamp tday, std::string logFileName) {
+   StartResult Start(std::string logFileName) override {
       this->PendingReqs_.reserve(1024 * 10);
-      return base::Start(tday, std::move(logFileName));
+      return base::Start(std::move(logFileName));
    }
 
    void OnParentTreeClear(fon9::seed::Tree& tree) override {
@@ -50,7 +50,7 @@ public:
    /// - 設定 Title(logFileName), Description(載入失敗訊息);
    /// - 啟動 thread: this->StartThrRun();
    /// - retval: this 加入 OmsCoreMgr tree 機制.
-   bool StartToCoreMgr(fon9::TimeStamp tday, std::string logFileName, int cpuId);
+   bool StartToCoreMgr(std::string logFileName, int cpuId);
 };
 using OmsCoreByThreadBaseSP = fon9::intrusive_ptr<OmsCoreByThreadBase>;
 fon9_WARN_POP;
@@ -134,10 +134,11 @@ public:
    }
 
    static OmsCoreByThreadBaseSP Creator(const FnInit& fnInit,
+                                        fon9::TimeStamp tday, uint32_t forceTDay,
                                         OmsCoreMgrSP coreMgr,
                                         std::string seedName,
                                         std::string coreName) {
-      return new OmsCoreByThread(fnInit,
+      return new OmsCoreByThread(fnInit, tday, forceTDay,
                                  std::move(coreMgr),
                                  std::move(seedName),
                                  std::move(coreName));
@@ -146,6 +147,7 @@ public:
 using OmsCoreByThread_CV = OmsCoreByThread<fon9::WaitPolicy_CV>;
 using OmsCoreByThread_Busy = OmsCoreByThread<fon9::WaitPolicy_SpinBusy>;
 typedef OmsCoreByThreadBaseSP (*FnOmsCoreByThreadCreator)(const OmsCoreByThreadBase::FnInit& fnInit,
+                                                          fon9::TimeStamp tday, uint32_t forceTDay,
                                                           OmsCoreMgrSP coreMgr,
                                                           std::string seedName,
                                                           std::string coreName);

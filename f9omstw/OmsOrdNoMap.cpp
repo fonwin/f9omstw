@@ -80,6 +80,18 @@ __READY_GroupId:
    if (!tgCfg->IsAllowAnyOrdNo_)
       return this->Reject(runner, OmsErrCode_OrdNoMustEmpty);
    const char* peos = reinterpret_cast<const char*>(memchr(reqOrdNo.begin(), '\0', reqOrdNo.size()));
+   const auto  szReqOrdNo = (peos ? static_cast<uint8_t>(peos - reqOrdNo.begin()) : reqOrdNo.size());
+   if (!tgCfg->TeamList_.empty()) {
+      // 如果有指定櫃號列表, 則必須在列表內編號.
+      for (const OmsOrdTeam cfg : tgCfg->TeamList_) {
+         if (cfg.size() <= szReqOrdNo) {
+            if (memcmp(cfg.begin(), reqOrdNo.begin(), cfg.size()) == 0)
+               goto __ORD_TEAM_ALLOW;
+         }
+      }
+      return this->Reject(runner, OmsErrCode_OrdTeamDeny);
+   }
+__ORD_TEAM_ALLOW:;
    if (peos == nullptr) { // req = 完整委託書號.
       auto ires = this->emplace(fon9::StrView{reqOrdNo.begin(), reqOrdNo.end()}, &runner.OrderRaw_.Order());
       if (ires.second) {  // 成功將 order 設定在指定的委託書號.
@@ -88,7 +100,7 @@ __READY_GroupId:
       }
       return this->Reject(runner, OmsErrCode_OrderAlreadyExists);
    }
-   if (this->AllocByTeam(runner, OmsOrdTeam{reqOrdNo.begin(), static_cast<uint8_t>(peos - reqOrdNo.begin())}))
+   if (this->AllocByTeam(runner, OmsOrdTeam{reqOrdNo.begin(), szReqOrdNo}))
       return true;
    return this->Reject(runner, OmsErrCode_OrdNoOverflow);
 }

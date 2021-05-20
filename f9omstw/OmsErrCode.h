@@ -102,6 +102,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_OrdTeamUsedUp = 504,
    /// OmsOrdNoMap 沒找到, 可能是 Market 或 SessionId 不正確, 或系統沒設定.
    OmsErrCode_OrdNoMapNotFound = 505,
+   /// OmsOrdNoMap::AllocOrdNo(); 自編委託書號(或自選櫃號), 但使用者無此櫃號權限.
+   OmsErrCode_OrdTeamDeny = 506,
 
    // -----------------------------------------------------------------------
    /// 無可用的下單連線.

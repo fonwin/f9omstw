@@ -121,8 +121,9 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ] OrdTeamGroupId=0, No groups.";
    VerifyAllocError(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
-   reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,A"));
-   std::cout << "[TEST ] SetTeamGroup('*,adm,A').    ";
+   // 可自訂委託書號, 但櫃號只能用 'adm' 或 'X'.
+   reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,X"));
+   std::cout << "[TEST ] SetTeamGroup('*,adm,X').    ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "adm00");
    std::cout << "[TEST ]  AllocOrdNo() again.        ";
    VerifyAllocOK(runner.OrderRaw_, ordNoMap.AllocOrdNo(runner, ordNoNil), "adm01");

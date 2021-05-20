@@ -381,7 +381,7 @@ namespace OmsRcClientCS
                if (iFld < 0)
                   break;
                string val;
-               char chbr = tvstr[ifrom];
+               char chbr = (ifrom < tvstr.Length ? tvstr[ifrom] : '\0');
                switch (chbr)
                {
                   case '\'':

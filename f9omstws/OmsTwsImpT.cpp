@@ -38,13 +38,10 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
       if (this->ExtLmtRate_ == 0.0) // 交易所沒有漲跌停限制, 且沒有設定 ExtLmtRate, 則禁止市價單.
          item.Refs_.ActMarketPri_ = ActMarketPri::Reject;
       else {
-         f9tws::TwsSymbKindLvPriStep lv;
-         lv.Setup(item.StkNo_);
-
          fon9::fmkt::Pri up{10000,0};
          fon9::fmkt::Pri dn{};
          fon9::fmkt::Pri ref{item.Refs_.PriRef_.GetOrigValue(), item.Refs_.PriRef_.Scale};
-         CalcLmt(lv.LvPriSteps_, ref, this->ExtLmtRate_, &up, &dn);
+         CalcLmt(f9tws::TwsSymbKindLvPriStep{item.StkNo_}.LvPriSteps_, ref, this->ExtLmtRate_, &up, &dn);
 
          if (item.Refs_.ActMarketPri_ == ActMarketPri::Market) {
             // 因交易所沒有漲跌停限制時, 禁止市價單, 所以此處使用 ActMarketPri::Limit,

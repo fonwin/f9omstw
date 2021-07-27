@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsScBase_hpp__
 #define __f9omstw_OmsScBase_hpp__
 #include "f9omstw/OmsRequestRunner.hpp"
+#include "fon9/fmkt/FmktTools.hpp"
 #include "fon9/ConfigUtils.hpp"
 
 namespace f9omstw {
@@ -34,6 +35,8 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_OverPriDnLmt           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 105)
 /// 定價交易商品不存在(T33): 有商品資料,但定價交易收盤價不正確.
 #define OmsErrCode_Sc_SymbPriFixedNotFound   static_cast<OmsErrCode>(OmsErrCode_FromRisk + 106)
+/// 價格 Tick Size 有誤.
+#define OmsErrCode_Sc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_FromRisk + 107)
 
 /// 檢查商品委託價.
 /// - 若為市價單, 則會根據買賣別將漲跌停價填入 ordraw.LastPri_;
@@ -43,7 +46,7 @@ extern fon9::EnabledYN  gIsScLogAll;
 /// - RequestIniT 必須提供 Side_ 及 Symbol_(商品ID);
 template <class OrderRawT, class SymbT, class RequestIniT, class PriRefsT>
 inline bool Sc_Symbol_PriLmt(OmsRequestRunnerInCore& runner, OrderRawT& ordraw, const SymbT* symb, const RequestIniT& inireq, const PriRefsT* pris) {
-   if (fon9_UNLIKELY(ordraw.LastPriType_ == f9fmkt_PriType_Market)) {
+   if (fon9_LIKELY(ordraw.LastPriType_ == f9fmkt_PriType_Market)) {
       if (fon9_UNLIKELY(symb == nullptr)) {
          runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_SymbNotFound, nullptr);
          return false;
@@ -71,6 +74,12 @@ inline bool Sc_Symbol_PriLmt(OmsRequestRunnerInCore& runner, OrderRawT& ordraw, 
       }
       if (fon9_UNLIKELY(pris->PriRef_.IsNullOrZero())) {
          runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_SymbPriNotFound, nullptr);
+         return false;
+      }
+      const fon9::fmkt::Pri opri = fon9::fmkt::Pri::Make<ordraw.LastPri_.Scale>(fon9::signed_cast(ordraw.LastPri_.GetOrigValue()));
+      const fon9::fmkt::Pri tickSize = fon9::fmkt::FindPriTickSize(symb->LvPriSteps(), opri);
+      if (fon9_UNLIKELY(!(opri % tickSize).IsZero())) {
+         runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_BadPriTickSize, nullptr);
          return false;
       }
    }

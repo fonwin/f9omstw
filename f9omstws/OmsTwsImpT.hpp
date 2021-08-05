@@ -29,24 +29,24 @@ static inline TwsMarketMask GetTwsMarketMask(f9fmkt_TradingMarket mkt) {
 //--------------------------------------------------------------------------//
 fon9_WARN_DISABLE_PADDING;
 struct TrsRefSrcOfs {
-   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_;
+   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_, DenyOfs_;
 
    // T30: StkNo[6], 6:PriUpLmt[9], 15:PriRef[9], 24:PriDnLmt[9]...
    static constexpr TrsRefSrcOfs GetOfsT30TSE() {
-      return TrsRefSrcOfs{100, 15,  6, 24, 86/*GnDayTrade*/};
+      return TrsRefSrcOfs{100, 15,  6, 24, 86/*GnDayTrade*/, 41/*DenyOfs=&T30.SETTYPE.MARK-W*/};
    }
    static constexpr TrsRefSrcOfs GetOfsT30OTC() {
-      return TrsRefSrcOfs{100, 15,  6, 24, 87/*GnDayTrade*/};
+      return TrsRefSrcOfs{100, 15,  6, 24, 87/*GnDayTrade*/, 41/*DenyOfs=&T30.SETTYPE.MARK-W*/};
    }
    // 盤後零股價格檔.
    // O40: StkNo[6], Name[16], 22:PriUpLmt[9], 31:PriDnLmt[9], 40:PriRef[9]...
    static constexpr TrsRefSrcOfs GetOfsO40() {
-      return TrsRefSrcOfs{60, 40, 22, 31, 0};
+      return TrsRefSrcOfs{60, 40, 22, 31, 0, 0};
    }
    // 盤中零股價格檔.
    // O60: StkNo[6], 6:PriUpLmt[9], 15:PriDnLmt[9], 24:PriRef[9], 33:GnDayTrade...
    static constexpr TrsRefSrcOfs GetOfsO60() {
-      return TrsRefSrcOfs{50, 24, 6, 15, 33};
+      return TrsRefSrcOfs{50, 24, 6, 15, 33, 0};
    }
 };
 //--------------------------------------------------------------------------//
@@ -79,8 +79,9 @@ public:
 
 protected:
    struct ImpItem {
-      f9tws::StkNo   StkNo_;
-      TrsRefs        Refs_;
+      f9tws::StkNo      StkNo_;
+      TrsRefs           Refs_;
+      fon9::CharVector  DenyReason_; // "S1"(SETTYPE=1), "S2"(SETTYPE=2), "W1"(MARK-W=1), "W2"(MARK-W=2)...
    };
    struct Loader : public OmsFileImpLoader {
       fon9_NON_COPY_NON_MOVE(Loader);
@@ -103,8 +104,11 @@ protected:
          // 轉檔前, 先清除全部商品的 TrsRefs.
          for (auto& isymb : *symbs) {
             auto* symb = static_cast<SymbT*>(isymb.second.get());
-            if (symb->TradingMarket_ == mkt)
+            if (symb->TradingMarket_ == mkt) {
                (symb->*pRefs).Clear();
+               if (loader.Ofs_.DenyOfs_ != 0)
+                  symb->DenyReason_.clear();
+            }
          }
       }
       for (const auto& item : loader.ImpItems_) {
@@ -112,6 +116,8 @@ protected:
             auto* usymb = static_cast<SymbT*>(symb.get());
             usymb->TradingMarket_ = mkt;
             (usymb->*pRefs).CopyFrom(item.Refs_);
+            if (loader.Ofs_.DenyOfs_ != 0)
+               usymb->DenyReason_ = std::move(item.DenyReason_);
          }
       }
       SetReadyFlag(mkt);

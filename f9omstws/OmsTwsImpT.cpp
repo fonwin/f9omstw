@@ -33,6 +33,22 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
    }
    item.Refs_.ActMarketPri_ = this->DefaultActMarketPri_;
 
+   if (this->Ofs_.DenyOfs_ > 0) {
+      const char* pDenyReason = pbuf + this->Ofs_.DenyOfs_;
+      char        bufReason[2];
+      if (pDenyReason[0] != '0') { // SETTYPE;
+         bufReason[0] = 'S';
+         bufReason[1] = pDenyReason[0];
+      __SET_DENY_REASON:;
+         item.DenyReason_.assign(bufReason, 2);
+      }
+      else if (pDenyReason[1] != '0') { // MARK-W;
+         bufReason[0] = 'W';
+         bufReason[1] = pDenyReason[1];
+         goto __SET_DENY_REASON;
+      }
+   }
+
    if (item.Refs_.PriDnLmt_ <= OmsTwsPri{1,2}
     && item.Refs_.PriUpLmt_ >= OmsTwsPri{9995,0}) {
       if (this->ExtLmtRate_ == 0.0) // 交易所沒有漲跌停限制, 且沒有設定 ExtLmtRate, 則禁止市價單.

@@ -37,6 +37,8 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_SymbPriFixedNotFound   static_cast<OmsErrCode>(OmsErrCode_FromRisk + 106)
 /// 價格 Tick Size 有誤.
 #define OmsErrCode_Sc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_FromRisk + 107)
+/// 禁止下單, 使用 DenyReason= 設定原因.
+#define OmsErrCode_Sc_SymbDeny               static_cast<OmsErrCode>(OmsErrCode_FromRisk + 108)
 
 /// 檢查商品委託價.
 /// - 若為市價單, 則會根據買賣別將漲跌停價填入 ordraw.LastPri_;

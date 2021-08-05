@@ -69,9 +69,10 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
       }
       else { // en | zh
          ecstr = fon9::StrFetchTrim(cfgstr, '\n');
-         msg1st = fon9::StrFetchTrim(ecstr, '|');
+         msg1st = fon9::SbrFetchNoTrim(ecstr, '|');
          if (lang.empty() || lang == "en" || fon9::StrTrimHead(&ecstr).empty())
             ecstr = msg1st;
+         fon9::StrTrim(&ecstr);
       }
    __PARSE_MSG:;
       if (ec == OmsErrCode_NoError || ecstr.empty())
@@ -94,11 +95,11 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
             continue;
          if (pFldName == nullptr) {
             if (*(psrc - 1) == '{') // "{:fieldName:"
-               pFldName = psrc + 1;
+               pFldName = psrc + 1; //    ^ pFldName;
             continue;
          }
          if (psrc + 1 >= ecstr.end()) // "{:fieldName:" 不正確的格式.
-            continue;
+            continue;                 //             ^ psrc;
          fon9::StrView fldName{pFldName, psrc};
          if (fon9::StrTrim(&fldName).empty()) {
             pFldName = nullptr;
@@ -106,28 +107,52 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
          }
          const auto  dstRewind = (psrc - pFldName + 1);
          FieldSP     fld;
-         if (psrc[1] == '}') // "{:fieldName:}" 無格式,只需要欄位名稱,所以任意型別皆可.
+         if (psrc[1] == '}') {
+            // "{:fieldName:}" 無格式(只簡單複製原始訊息的 value), 所以只需要欄位名稱.
+            // 因為在建立輸出訊息時, 是用 fld.Description.empty(); 來決定: 是否直接取原始訊息的 value;
+            // 所以這裡任意型別皆可.
             fld.reset(new FieldChar1(fon9::Named{fldName.ToString()}, 0));
+         }
          else { // {:FieldName:...} 是否為 {:FieldName:Type:Format:} ?
             flddesc.clear();
             const char* pfmt = psrc + 1;
-            for (; pfmt != ecstr.end(); ++pfmt) {
+            const char* pend = ecstr.end();
+            for (; pfmt != pend; ++pfmt) {
                if (*pfmt != ':') {
                   flddesc.push_back(*pfmt);
                   continue;
                }
                if (!fldName.empty()) {
+                  // {:FieldName:Type:Format:}
+                  //                 ^ pfmt;
+                  // 此時: flddesc = "Type";
+                  // 底下: flddesc = "Type Name||";
+                  // 之後: pfmt    = Format(當成 field Description); 填入 flddesc 尾端;
                   flddesc.push_back(' ');
                   fldName.AppendTo(flddesc);
                   flddesc.push_back('|');
                   flddesc.push_back('|');
                   fldName.Reset(nullptr);
-                  continue;
+                  // 如果 Description 有括號, 則使用括號內容.
+                  fon9::StrView tstr{pfmt + 1, pend};
+                  fon9::StrView indesc = fon9::SbrTrimHeadFetchInside(tstr);
+                  if (indesc.IsNull()) // Description 開頭沒有括號, 則剩餘的內容為「: Description :}」.
+                     continue;
+                  // {indesc} ...dont care... :}
+                  //         ^ tstr.begin();
+                  pfmt = static_cast<const char*>(memchr(tstr.begin(), ':', pend - tstr.begin()));
+                  if (pfmt == nullptr || pfmt[1] != '}')
+                     break;
+                  // 已找到格式的結尾, 可直接 MakeField();
+                  flddesc.append(indesc.begin() - 1, tstr.begin());
+                  goto __MAKE_FIELD;
                }
                // "Format:}"
-               if (pfmt + 1 >= ecstr.end())
+               //        ^ pfmt;
+               if (pfmt + 1 >= pend)
                   break;
                if (pfmt[1] == '}') {
+               __MAKE_FIELD:;
                   fldName = &flddesc;
                   if ((fld = MakeField(fldName, '|', '\0')).get() != nullptr)
                      psrc = pfmt;
@@ -139,7 +164,7 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
          if (fld) {
             flds.Add(std::move(fld));
             *((pdst -= dstRewind) - 1) = '\0';
-            psrc += 2;
+            psrc += 2; // Skip ":}"
          }
          if (fon9_UNLIKELY(psrc == ecstr.end()))
             break;
@@ -205,7 +230,7 @@ fon9_CStrView f9omstw_MakeErrMsg(const f9omstw_ErrCodeTx* txRes,
          }
          rbuf.SetPrefixUsed(pout + 1);
          auto ival = values.find(&fld->Name_);
-         if (ival == values.end()) // OMS的訊息, 沒有提供此欄位.
+         if (ival == values.end()) // OMS的訊息字串裡面, 沒有提供此欄位.
             fon9::RevPrint(rbuf, "{:", fld->Name_, ":}");
          else if (fld->GetDescription().empty()) // 沒有格式設定.
             fon9::RevPrint(rbuf, ival->second);

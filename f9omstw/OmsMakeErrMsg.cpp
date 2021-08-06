@@ -140,7 +140,7 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
                      continue;
                   // {indesc} ...dont care... :}
                   //         ^ tstr.begin();
-                  pfmt = static_cast<const char*>(memchr(tstr.begin(), ':', pend - tstr.begin()));
+                  pfmt = static_cast<const char*>(memchr(tstr.begin(), ':', static_cast<unsigned>(pend - tstr.begin())));
                   if (pfmt == nullptr || pfmt[1] != '}')
                      break;
                   // 已找到格式的結尾, 可直接 MakeField();

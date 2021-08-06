@@ -44,12 +44,12 @@ fon9_WARN_POP;
 void PrintEvSplit(const char* evName) {
    printf("========== %s: ", evName);
 }
-void OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
+void fon9_CAPI_CALL OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_CStrView info) {
    (void)st; (void)info;
    UserDefine* ud = ses->UserData_;
    ud->Config_ = NULL;
 }
-void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
+void fon9_CAPI_CALL OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    UserDefine* ud = ses->UserData_;
    ud->Config_ = cfg;
    if (f9OmsRc_IsCoreTDayChanged(&ud->CoreTDay_, &cfg->CoreTDay_)) {
@@ -58,7 +58,7 @@ void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    }
    f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
 }
-void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
+void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    UserDefine* ud = ses->UserData_;
    if (fon9_LIKELY(rpt->Layout_)) {
       if (rpt->ReportSNO_ == 0) {
@@ -83,7 +83,7 @@ void OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
       puts(msgbuf);
    }
 }
-void OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
+void fon9_CAPI_CALL OnClientFcReq(f9rc_ClientSession* ses, unsigned usWait) {
    // 也可不提供此 function: f9OmsRc_ClientHandler.FnOnFlowControl_ = NULL;
    // 則由 API 判斷超過流量時: 等候解除流量管制 => 送出下單要求 => 返回下單要求呼叫端.
    PrintEvSplit("OnClientFcReq");
@@ -352,7 +352,7 @@ void SendRequest(UserDefine* ud, char* cmd) {
           usEnd - usBeg, args.Times_, (double)(usEnd - usBeg) / (double)args.Times_);
 }
 //--------------------------------------------------------------------------//
-void OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig* cfg) {
+void fon9_CAPI_CALL OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig* cfg) {
    PrintEvSplit("OnSvConfig");
    printf("FcQry=%u/%u|MaxSubrCount=%u\n" "{%s}\n",
           cfg->FcQryCount_, cfg->FcQryMS_, cfg->MaxSubrCount_,
@@ -392,12 +392,12 @@ void PrintSvReport(const char* evName, const f9sv_ClientReport* rpt) {
    PrintSeedValues(rpt);
    puts("====================");
 }
-void OnSvQueryReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+void fon9_CAPI_CALL OnSvQueryReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
    PrintSvReport("OnSv.QueryReport", rpt);
    UserDefine* ud = ses->UserData_;
    ud->LastQueryUserData_ = rpt->UserData_;
 }
-void OnSvSubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+void fon9_CAPI_CALL OnSvSubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
    (void)ses;
    if (rpt->Seed_ == NULL) { // 訂閱結果通知.
       if (rpt->ResultCode_ == f9sv_Result_NoError) {
@@ -409,7 +409,7 @@ void OnSvSubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) 
    }
    PrintSvReport("OnSv.SubscribeReport", rpt);
 }
-void OnSvUnsubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+void fon9_CAPI_CALL OnSvUnsubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
    (void)ses;
    PrintSvReport("OnSv.UnsubscribeReport", rpt);
 }

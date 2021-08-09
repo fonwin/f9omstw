@@ -39,6 +39,10 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_FromRisk + 107)
 /// 禁止下單, 使用 DenyReason= 設定原因.
 #define OmsErrCode_Sc_SymbDeny               static_cast<OmsErrCode>(OmsErrCode_FromRisk + 108)
+/// 原為市價單, 不可改價.
+#define OmsErrCode_Sc_MarketCannotChgPri     static_cast<OmsErrCode>(OmsErrCode_FromRisk + 109)
+/// 不可改為市價.
+#define OmsErrCode_Sc_CannotChgToMarket      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 110)
 
 /// 檢查商品委託價.
 /// - 若為市價單, 則會根據買賣別將漲跌停價填入 ordraw.LastPri_;

@@ -71,7 +71,8 @@ ErrCodeActSeed::ErrCodeActSeed(std::string name)
 //--------------------------------------------------------------------------//
 void ErrCodeActSeed::OnSeedCommand(SeedOpResult& res, StrView cmdln,
                                    FnCommandResultHandler resHandler,
-                                   MaTree::Locker&& ulk) {
+                                   MaTree::Locker&& ulk,
+                                   SeedVisitor*) {
    StrView cmd = StrFetchTrim(cmdln, &isspace);
    StrTrim(&cmdln);
    if (cmd == "reload") {

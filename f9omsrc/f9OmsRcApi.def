@@ -23,6 +23,11 @@ EXPORTS
       f9sv_Query;
       f9sv_Subscribe;
       f9sv_Unsubscribe;
+      f9sv_GridView;
+      f9sv_GridView_Parser;
+      f9sv_Write;
+      f9sv_Remove;
+      f9sv_Command;
       f9sv_GetSvResultMessage;
       f9sv_GetField_Str;
       f9sv_AddStreamDecoder_MdRts;

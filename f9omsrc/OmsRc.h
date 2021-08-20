@@ -83,6 +83,10 @@ typedef int16_t      f9OmsRc_FieldIndexS;
 /// 下單格式、回報格式.
 typedef struct {
    fon9_CStrView              LayoutName_;
+   /// 如果是委託回報格式, 則會額外提供是哪種回報造成的委託異動.
+   /// 例如: "abandon", "event", "TwsNew", "TwsChg", "TwsFil";
+   fon9_CStrView              ExParam_;
+
    const f9OmsRc_LayoutField* FieldArray_;
    f9OmsRc_FieldIndexU        FieldCount_;
 
@@ -174,15 +178,15 @@ typedef struct {
 
 #ifdef __cplusplus
 /// 記錄下單訊息 & Config.
-#define f9oms_ClientLogFlag_Request  static_cast<f9rc_ClientLogFlag>(0x0100)
+#define f9oms_ClientLogFlag_Request  static_cast<f9rc_ClientLogFlag>(0x10000)
 /// 記錄回報訊息 & Config.
-#define f9oms_ClientLogFlag_Report   static_cast<f9rc_ClientLogFlag>(0x0200)
+#define f9oms_ClientLogFlag_Report   static_cast<f9rc_ClientLogFlag>(0x20000)
 /// 登入成功後, TDayChanged, Config 相關事件.
-#define f9oms_ClientLogFlag_Config   static_cast<f9rc_ClientLogFlag>(0x0400)
+#define f9oms_ClientLogFlag_Config   static_cast<f9rc_ClientLogFlag>(0x40000)
 #else
-#define f9oms_ClientLogFlag_Request  ((f9rc_ClientLogFlag)0x0100)
-#define f9oms_ClientLogFlag_Report   ((f9rc_ClientLogFlag)0x0200)
-#define f9oms_ClientLogFlag_Config   ((f9rc_ClientLogFlag)0x0400)
+#define f9oms_ClientLogFlag_Request  ((f9rc_ClientLogFlag)0x10000)
+#define f9oms_ClientLogFlag_Report   ((f9rc_ClientLogFlag)0x20000)
+#define f9oms_ClientLogFlag_Config   ((f9rc_ClientLogFlag)0x40000)
 #endif
 
 typedef struct {

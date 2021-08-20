@@ -72,7 +72,7 @@ class OmsRcRptLayout : public OmsRcLayout {
    using base = OmsRcLayout;
 public:
    /// "abandon", "event", "TwsNew", "TwsChg", "TwsFil"
-   const fon9::CharVector  ExParam_;
+   const fon9::CharVector  ExParamV_;
 
    using RptValues = std::vector<fon9_CStrView>;
    mutable RptValues   RptValues_;
@@ -80,9 +80,10 @@ public:
    template <class... ArgsT>
    OmsRcRptLayout(fon9::StrView exParam, f9OmsRc_LayoutKind layoutKind, f9OmsRc_TableIndex layoutId, ArgsT&&... args)
       : base{layoutId, std::forward<ArgsT>(args)...}
-      , ExParam_{exParam} {
+      , ExParamV_{exParam} {
       RptValues_.resize(this->Fields_.size());
       this->LayoutKind_ = layoutKind;
+      this->ExParam_    = ToStrView(this->ExParamV_).ToCStrView();
    }
 };
 fon9_WARN_POP;

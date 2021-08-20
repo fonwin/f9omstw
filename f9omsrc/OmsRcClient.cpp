@@ -144,6 +144,7 @@ void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFu
 void OmsRcLayout::Initialize() {
    this->LayoutKind_ = f9OmsRc_LayoutKind_Request;
    fon9_CStrViewFrom(this->LayoutName_, this->Name_);
+   fon9::ZeroStruct(this->ExParam_);
 
    this->LayoutFieldVector_.resize(this->Fields_.size());
    this->FieldCount_ = static_cast<decltype(this->FieldCount_)>(this->Fields_.size());

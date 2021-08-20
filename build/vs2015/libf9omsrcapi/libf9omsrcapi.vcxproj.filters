@@ -345,9 +345,6 @@
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClient.cpp">
       <Filter>Source Files\rc\_SeedVisitorClient</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientReq.cpp">
-      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcMdRtsDecoder.cpp">
       <Filter>Source Files\rc\_SeedVisitorClient</Filter>
     </ClCompile>
@@ -446,6 +443,18 @@
     </ClCompile>
     <ClCompile Include="..\..\..\..\fon9\fon9\fmkt\TradingRequest.cpp">
       <Filter>Source Files\fmkt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcReq.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcAck.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcReqSeed.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcReqSubr.cpp">
+      <Filter>Source Files\rc\_SeedVisitorClient</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -128,8 +128,11 @@ set(f9omsrcapi_src
 
  ../../fon9/fon9/rc/RcSeedVisitorClient.cpp
  ../../fon9/fon9/rc/RcSeedVisitorClientCAPI.cpp
- ../../fon9/fon9/rc/RcSeedVisitorClientReq.cpp
  ../../fon9/fon9/rc/RcSvc.cpp
+ ../../fon9/fon9/rc/RcSvcAck.cpp
+ ../../fon9/fon9/rc/RcSvcReq.cpp
+ ../../fon9/fon9/rc/RcSvcReqSeed.cpp
+ ../../fon9/fon9/rc/RcSvcReqSubr.cpp
  ../../fon9/fon9/rc/RcSvStreamDecoder.cpp
 
  ../../fon9/fon9/seed/Layout.cpp

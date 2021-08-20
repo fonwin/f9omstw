@@ -54,6 +54,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "f9omsrc", "f9omsrc", "{28388B8A-4402-4227-A889-1635CEE35AED}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OmsRcClientCS", "..\..\f9omsrc\csapi\OmsRcClientCS\OmsRcClientCS.csproj", "{6002DBC6-F02A-4677-B69C-BFECBA015195}"
+	ProjectSection(ProjectDependencies) = postProject
+		{33CB4898-6ED8-48CE-B1C9-F6757960FB83} = {33CB4898-6ED8-48CE-B1C9-F6757960FB83}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "_UnitTest", "_UnitTest", "{FDF9A1EF-B1FF-4474-BE70-E608BBA6048E}"
 EndProject

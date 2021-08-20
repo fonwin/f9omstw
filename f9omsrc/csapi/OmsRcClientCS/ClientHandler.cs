@@ -117,11 +117,17 @@ namespace OmsRcClientCS
          }
          Console.WriteLine();
       }
-      static unsafe void PrintSvReport(string evName, ref f9sv.ClientReport rpt)
+      static unsafe void PrintSvReportResult(string evName, ref f9sv.ClientReport rpt)
       {
          PrintEvSplit(evName);
          Console.WriteLine($"UserData={rpt.UserData_}, result={SvResultCodeStr(rpt.ResultCode_)}");
          Console.WriteLine($"treePath=[{rpt.TreePath_}], seedKey=[{rpt.SeedKey_}], tab=[{rpt.Tab_->Named_.Name_}|{rpt.Tab_->Named_.Index_}]");
+         if (rpt.ExResult_.Length > 0)
+            Console.WriteLine($"exResult=[{rpt.ExResult_}]");
+      }
+      static unsafe void PrintSvReportSeed(string evName, ref f9sv.ClientReport rpt)
+      {
+         PrintSvReportResult(evName, ref rpt);
          PrintSeedValues(ref rpt);
          Console.WriteLine("====================");
       }
@@ -133,7 +139,7 @@ namespace OmsRcClientCS
       }
       internal void OnSvQueryReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
       {
-         PrintSvReport("OnSv.QueryReport", ref rpt);
+         PrintSvReportSeed("OnSv.QueryReport", ref rpt);
          this.LastQueryReportedUserData_ = rpt.UserData_;
       }
       internal void OnSvSubscribeReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
@@ -149,15 +155,45 @@ namespace OmsRcClientCS
                // 訂閱失敗.
             }
          }
-         PrintSvReport("OnSv.SubscribeReport", ref rpt);
+         PrintSvReportSeed("OnSv.SubscribeReport", ref rpt);
       }
       internal void OnSvUnsubscribeReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
       {
-         PrintSvReport("OnSv.UnsubscribeReport", ref rpt);
+         PrintSvReportSeed("OnSv.UnsubscribeReport", ref rpt);
+      }
+      internal void OnSvGridViewReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
+      {
+         PrintSvReportResult("OnSv.GridViewReport", ref rpt);
+         if (rpt.ResultCode_ == f9sv.ResultCode.NoError)
+         {
+            f9sv.ClientReport nrpt = rpt;
+            for (;;)
+            {
+               nrpt.SeedKey_ = f9sv.Api.GridView_Parser(ref nrpt, ref nrpt.ExResult_);
+               if (nrpt.SeedKey_.Begin_ == IntPtr.Zero)
+                  break;
+               Console.Write($"[{nrpt.SeedKey_}]|");
+               PrintSeedValues(ref nrpt);
+            }
+            Console.WriteLine($"{nrpt.GridViewResultCount_}/{(Int64)nrpt.GridViewTableSize_} [{(Int64)nrpt.GridViewDistanceBegin_}:{(Int64)nrpt.GridViewDistanceEnd_}]");
+         }
+         Console.WriteLine("====================");
+      }
+      internal void OnSvRemoveReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
+      {
+         PrintSvReportSeed("OnSv.RemoveReport", ref rpt);
+      }
+      internal void OnSvWriteReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
+      {
+         PrintSvReportSeed("OnSv.WriteReport", ref rpt);
+      }
+      internal void OnSvCommandReport(ref f9rc.RcClientSession ses, ref f9sv.ClientReport rpt)
+      {
+         PrintSvReportSeed("OnSv.CommandReport", ref rpt);
       }
 
-      public delegate f9sv.ResultCode FnSvCmd(f9rc.ClientSession ses, ref f9sv.SeedName seedName, f9sv.ReportHandler regHandler);
-      public bool SvCommand(FnSvCmd fnSvCmd, string[] cmds, uint cmdidx, string prompt, ref f9sv.ReportHandler handler)
+      public delegate f9sv.ResultCode FnSvCmd3(f9rc.ClientSession ses, ref f9sv.SeedName seedName, f9sv.ReportHandler regHandler);
+      public bool SvCommand3(FnSvCmd3 fnSvCmd, string[] cmds, uint cmdidx, string prompt, ref f9sv.ReportHandler handler)
       {
          handler.UserData_ = IntPtr.Add(handler.UserData_, 1);
          if (cmdidx >= cmds.Length)
@@ -175,6 +211,10 @@ namespace OmsRcClientCS
          seedName.SeedKey_ = cmds[cmdidx++];
          if (seedName.SeedKey_ == "\\t")
             seedName.SeedKey_ = "\t";
+         else if (seedName.SeedKey_ == "''" || seedName.SeedKey_ == "\"\"")
+         {
+            seedName.SeedKey_ = string.Empty;
+         }
          if (cmdidx < cmds.Length)
             seedName.TabName_ = cmds[cmdidx];
          f9sv.ResultCode res = fnSvCmd(this, ref seedName, handler);
@@ -226,6 +266,13 @@ namespace OmsRcClientCS
             msg.Append(rpt.Layout_->LayoutId_);
             msg.Append(':');
             msg.Append(rpt.Layout_->LayoutName_);
+            msg.Append('(');
+            msg.Append((uint)rpt.Layout_->LayoutKind_);
+            msg.Append(':');
+            msg.Append(rpt.Layout_->LayoutKind_);
+            msg.Append('|');
+            msg.Append(rpt.Layout_->ExParam_);
+            msg.Append(')');
             for (uint L = 0; L < rpt.Layout_->FieldCount_; ++L)
             {
                msg.Append('|');

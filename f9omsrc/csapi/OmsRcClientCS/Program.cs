@@ -178,36 +178,12 @@ namespace OmsRcClientCS
             if (cmds[0] == "wc")
             {  // wait connect. default=5 secs. 0 = 1 secs;
                Console.WriteLine("Waiting for connection...");
-               UInt32 secs = 0;
-               if (cmds.Length >= 2)
-                  UInt32.TryParse(cmds[1], out secs);
-               if (secs <= 0)
-                  secs = 5;
-               while (!cli.IsConnected)
-               {
-                  System.Threading.Thread.Sleep(1000);
-                  if (secs <= 0)
-                     break;
-                  Console.Write($"{secs--} \r");
-                  Console.Out.Flush();
-               }
-               Console.WriteLine(cli.IsConnected ? "\rConnection ready." : "\rWait connection timeout.");
+               Sleep(cmds.Length >= 2 ? cmds[1] : string.Empty, cli, 5);
+               Console.WriteLine(cli.IsConnected ? "Connection ready." : "Wait connection timeout.");
             }
             else if (cmds[0] == "sleep")
             {
-               UInt32 secs = 0;
-               if (cmds.Length >= 2)
-                  UInt32.TryParse(cmds[1], out secs);
-               for (;;)
-               {
-                  Console.Write($"\r{secs} ");
-                  Console.Out.Flush();
-                  System.Threading.Thread.Sleep(1000);
-                  if (secs <= 0)
-                     break;
-                  --secs;
-               }
-               Console.Write("\r");
+               Sleep(cmds.Length >= 2 ? cmds[1] : string.Empty, null, 1);
             }
             else if (cmds[0] == "lf")
             {
@@ -230,7 +206,7 @@ namespace OmsRcClientCS
             else if (cmds[0] == "q")
             {  // query: q treePath key tabName
                svCmdHandler.FnOnReport_ = cli.OnSvQueryReport;
-               if (cli.SvCommand(f9sv.Api.Query, cmds, 1, "q:query", ref svCmdHandler))
+               if (cli.SvCommand3(f9sv.Api.Query, cmds, 1, "q:query", ref svCmdHandler))
                {
                   // 等候查詢結果, 或一小段時間(沒結果則放棄等候).
                   for (uint L = 0; L < 100; ++L)
@@ -244,12 +220,51 @@ namespace OmsRcClientCS
             else if (cmds[0] == "s")
             {  // subscribe: s treePath key tabName
                svCmdHandler.FnOnReport_ = cli.OnSvSubscribeReport;
-               cli.SvCommand(f9sv.Api.Subscribe, cmds, 1, "s:subr", ref svCmdHandler);
+               cli.SvCommand3(f9sv.Api.Subscribe, cmds, 1, "s:subr", ref svCmdHandler);
             }
             else if (cmds[0] == "u")
             {  // unsubscribe: u treePath key tabName
                svCmdHandler.FnOnReport_ = cli.OnSvUnsubscribeReport;
-               cli.SvCommand(f9sv.Api.Unsubscribe, cmds, 1, "s:subr", ref svCmdHandler);
+               cli.SvCommand3(f9sv.Api.Unsubscribe, cmds, 1, "s:subr", ref svCmdHandler);
+            }
+            else if (cmds[0] == "gv")
+            { // GridView: gv treePath key tabName  rowCount
+               svCmdHandler.FnOnReport_ = cli.OnSvGridViewReport;
+               cli.SvCommand3((f9rc.ClientSession ses, ref f9sv.SeedName seedName, f9sv.ReportHandler regHandler) => {
+                  Int16 rowCount = 10;
+                  if (cmds.Length > 4)
+                     Int16.TryParse(cmds[4], out rowCount);
+                  return f9sv.Api.GridView(ses, ref seedName, regHandler, rowCount);
+               },
+               cmds, 1, "gv:GridView", ref svCmdHandler);
+            }
+            else if (cmds[0] == "rm")
+            { // remove: rm treePath key tabName
+               svCmdHandler.FnOnReport_ = cli.OnSvRemoveReport;
+               cli.SvCommand3(f9sv.Api.Remove, cmds, 1, "rm:remove", ref svCmdHandler);
+            }
+            else if (cmds[0] == "w")
+            { // write: w treePath key tabName    fieldName=value|fieldName2=value2|...
+               svCmdHandler.FnOnReport_ = cli.OnSvWriteReport;
+               cli.SvCommand3((f9rc.ClientSession ses, ref f9sv.SeedName seedName, f9sv.ReportHandler regHandler) => {
+                  return f9sv.Api.Write(ses, ref seedName, regHandler, cmds.Length > 4 ? cmds[4] : string.Empty);
+               },
+               cmds, 1, "w:write", ref svCmdHandler);
+            }
+            else if (cmds[0] == "run")
+            { // run: run treePath key tabName    args
+               svCmdHandler.FnOnReport_ = cli.OnSvCommandReport;
+               cli.SvCommand3((f9rc.ClientSession ses, ref f9sv.SeedName seedName, f9sv.ReportHandler regHandler) => {
+                  string cmdArgs = string.Empty;
+                  if (cmds.Length > 4)
+                  {
+                     cmdArgs = cmds[4];
+                     for (int L = 5; L < cmds.Length; ++L)
+                        cmdArgs = cmdArgs + ' ' + cmds[L];
+                  }
+                  return f9sv.Api.Command(ses, ref seedName, regHandler, cmdArgs);
+               },
+               cmds, 1, "run:command", ref svCmdHandler);
             }
             else if (cmds[0] == "cfg")
                cli.PrintConfig();
@@ -299,6 +314,27 @@ send ReqId(or ReqName) times
          if (!string.IsNullOrEmpty(fon9.Tools.CtrlMessage_))
             Console.WriteLine($"Quit: {fon9.Tools.CtrlMessage_}");
          f9oms.Api.FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
+      }
+      static void Sleep(string psec, ClientHandler waitcli, double secsDefault)
+      {
+         double secs = 0;
+         double.TryParse(psec, out secs);
+         if (secs <= 0)
+            secs = secsDefault;
+         while (waitcli == null || !waitcli.IsConnected)
+         {
+            if (secs >= 1)
+               System.Threading.Thread.Sleep(1000);
+            else
+            {
+               if (secs > 0)
+                  System.Threading.Thread.Sleep((int)(secs * 1000));
+               break;
+            }
+            Console.Write($"\r{--secs} ");
+            Console.Out.Flush();
+         }
+         Console.Write("\r");
       }
    }
 }

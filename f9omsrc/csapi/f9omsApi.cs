@@ -158,6 +158,11 @@ namespace f9oms
    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
    public struct Layout {
       public fon9.CStrView LayoutName_;
+
+   /// 如果是委託回報格式, 則會額外提供是哪種回報造成的委託異動.
+   /// 例如: "abandon", "event", "TwsNew", "TwsChg", "TwsFil";
+      public fon9.CStrView ExParam_;
+
       public unsafe LayoutField* FieldArray_;
 
       public FieldIndexU FieldCount_;

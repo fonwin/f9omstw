@@ -38,7 +38,8 @@ public:
 
    void OnSeedCommand(fon9::seed::SeedOpResult& res, fon9::StrView cmdln,
                       fon9::seed::FnCommandResultHandler resHandler,
-                      fon9::seed::MaTree::Locker&& ulk) override;
+                      fon9::seed::MaTree::Locker&& ulk,
+                      fon9::seed::SeedVisitor*) override;
 
    void ReloadErrCodeAct(fon9::StrView cfgfn, fon9::seed::MaTree::Locker&& lk);
 

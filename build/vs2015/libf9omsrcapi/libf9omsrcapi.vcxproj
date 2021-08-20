@@ -161,9 +161,12 @@ call ..\..\fon9\make_proj_verinfo.bat</Command>
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitor.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClient.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientCAPI.cpp" />
-    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSeedVisitorClientReq.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcAck.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcReq.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSession.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvc.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcReqSeed.cpp" />
+    <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvcReqSubr.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\rc\RcSvStreamDecoder.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\RevFormat.cpp" />
     <ClCompile Include="..\..\..\..\fon9\fon9\SchTask.cpp" />

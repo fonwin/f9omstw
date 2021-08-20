@@ -39,7 +39,7 @@ public:
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::nullptr_t) = delete;
 
-   /// 檢查是否有回報權限, 由收到回報的人自主檢查.
+   /// 檢查是否有回報補單權限, 由收到回報補單的人自主檢查.
    /// 檢查方式: IsEnumContains(pol.GetIvrAdminRights(), OmsIvRight::AllowAddReport);
    /// 若無權限, 返回前會先呼叫 this->RequestAbandon(nullptr, OmsErrCode_DenyAddReport);
    bool CheckReportRights(const OmsRequestPolicy& pol);

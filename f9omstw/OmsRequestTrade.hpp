@@ -212,6 +212,11 @@ public:
    OmsRxSNO IniSNO() const {
       return this->IniSNO_;
    }
+   void SetIniFrom(const OmsRequestIni& ini) {
+      assert(this->IniSNO_ == 0);
+      this->IniSNO_ = ini.RxSNO();
+      this->BrkId_ = ini.BrkId_;
+   }
 
    const OmsRequestIni* BeforeReq_GetInitiator(OmsRequestRunner& runner, OmsResource& res) {
       return base::BeforeReq_GetInitiator(runner, &this->IniSNO_, res);

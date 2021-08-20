@@ -101,7 +101,7 @@ struct OmsRequestPolicyCfg {
    OmsIvList         IvList_;
 
    OmsRequestPolicySP MakePolicy(OmsResource& res,
-                                 fon9::intrusive_ptr<OmsRequestPolicy> pol = new OmsRequestPolicy);
+                                 fon9::intrusive_ptr<OmsRequestPolicy> pol = new OmsRequestPolicy) const;
 };
 
 } // namespaces

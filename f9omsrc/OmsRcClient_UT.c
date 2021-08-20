@@ -37,7 +37,10 @@ typedef struct {
    /// SvConfig_->RightsTables_ 只能在 OnSvConfig() 事件裡面安全的使用,
    /// 其他地方使用 SvConfig_->RightsTables_ 都不安全.
    const f9sv_ClientConfig*   SvConfig_;
-   void*                      LastQueryUserData_;
+   const void*                LastQueryUserData_;
+   const void*                LastGridViewUserData_;
+   const void*                LastPutUserData_;
+   const void*                LastCommandUserData_;
 } UserDefine;
 fon9_WARN_POP;
 //--------------------------------------------------------------------------//
@@ -73,7 +76,8 @@ void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_Client
    if (rpt->Layout_ != NULL && (ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All) {
       char  msgbuf[1024*4];
       char* pmsg = msgbuf;
-      pmsg += sprintf(pmsg, "%u:%s", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_);
+      pmsg += sprintf(pmsg, "%u:%s(%u|%s)", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_
+                                          , rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_);
       for (unsigned L = 0; L < rpt->Layout_->FieldCount_; ++L) {
          pmsg += sprintf(pmsg, "|%s=%s",
                          rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
@@ -361,6 +365,7 @@ void fon9_CAPI_CALL OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig*
    ud->SvConfig_ = cfg;
    puts("====================");
 }
+
 void PrintSeedValues(const f9sv_ClientReport* rpt) {
    if (rpt->Seed_ == NULL)
       return;
@@ -379,7 +384,7 @@ void PrintSeedValues(const f9sv_ClientReport* rpt) {
    }
    printf("\n");
 }
-void PrintSvReport(const char* evName, const f9sv_ClientReport* rpt) {
+void PrintSvEvSplit(const char* evName, const f9sv_ClientReport* rpt) {
    PrintEvSplit(evName);
    printf("UserData=%u, result=%d:%s\n"
           "treePath=[%s], seedKey=[%s], tab=[%s|%u]\n",
@@ -389,6 +394,11 @@ void PrintSvReport(const char* evName, const f9sv_ClientReport* rpt) {
           rpt->SeedKey_.Begin_,
           rpt->Tab_->Named_.Name_.Begin_,
           rpt->Tab_->Named_.Index_);
+   if (rpt->ExResult_.Begin_ != rpt->ExResult_.End_)
+      printf("exResult=[%s]\n", rpt->ExResult_.Begin_);
+}
+void PrintSvReport(const char* evName, const f9sv_ClientReport* rpt) {
+   PrintSvEvSplit(evName, rpt);
    PrintSeedValues(rpt);
    puts("====================");
 }
@@ -396,6 +406,25 @@ void fon9_CAPI_CALL OnSvQueryReport(f9rc_ClientSession* ses, const f9sv_ClientRe
    PrintSvReport("OnSv.QueryReport", rpt);
    UserDefine* ud = ses->UserData_;
    ud->LastQueryUserData_ = rpt->UserData_;
+}
+void fon9_CAPI_CALL OnSvGridViewReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   PrintSvEvSplit("OnSv.GridViewReport", rpt);
+   if (rpt->ResultCode_ == f9sv_Result_NoError) {
+      fon9_CStrView exResult = rpt->ExResult_;
+      for (;;) {
+         fon9_CStrView key = f9sv_GridView_Parser(rpt, &exResult);
+         if (key.Begin_ == NULL)
+            break;
+         printf("[%s]|", key.Begin_);
+         PrintSeedValues(rpt);
+      }
+      printf("%u/%" PRId64 " [%" PRId64 ":%" PRId64 "]\n",
+             (unsigned)rpt->GridViewResultCount_, (int64_t)rpt->GridViewTableSize_,
+             (int64_t)rpt->GridViewDistanceBegin_, (int64_t)rpt->GridViewDistanceEnd_);
+   }
+   puts("====================");
+   UserDefine* ud = ses->UserData_;
+   ud->LastGridViewUserData_ = rpt->UserData_;
 }
 void fon9_CAPI_CALL OnSvSubscribeReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
    (void)ses;
@@ -413,46 +442,110 @@ void fon9_CAPI_CALL OnSvUnsubscribeReport(f9rc_ClientSession* ses, const f9sv_Cl
    (void)ses;
    PrintSvReport("OnSv.UnsubscribeReport", rpt);
 }
+void fon9_CAPI_CALL OnSvWriteReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   PrintSvReport("OnSv.WriteReport", rpt);
+   UserDefine* ud = ses->UserData_;
+   ud->LastPutUserData_ = rpt->UserData_;
+}
+void fon9_CAPI_CALL OnSvRemoveReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   (void)ses;
+   // assert(rpt->Seed_ == NULL); // f9sv_Remove() 不論成功或失敗, 都不會提供 rpt->Seed_;
+   PrintSvReport("OnSv.RemoveReport", rpt);
+}
+void fon9_CAPI_CALL OnSvCommandReport(f9rc_ClientSession* ses, const f9sv_ClientReport* rpt) {
+   PrintSvReport("OnSv.CommandReport", rpt);
+   UserDefine* ud = ses->UserData_;
+   ud->LastCommandUserData_ = rpt->UserData_;
+}
 //--------------------------------------------------------------------------//
-typedef f9sv_Result (fon9_CAPI_CALL *FnSvCmd)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler);
-
-int SvCommand(FnSvCmd fnSvCmd, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler) {
+const char* ParseSvCommand(f9sv_SeedName* seedName, char* cmdln, const char* svCmdName) {
+   memset(seedName, 0, sizeof(*seedName));
    if (cmdln == NULL) {
       printf("%s: require 'treePath'\n", svCmdName);
-      return 0;
+      return NULL;
    }
-   f9sv_SeedName seedName;
-   memset(&seedName, 0, sizeof(seedName));
-   seedName.TreePath_ = fon9_StrCutSpace(cmdln, &cmdln);
+   seedName->TreePath_ = fon9_StrCutSpace(cmdln, &cmdln);
    if (cmdln == NULL) {
       printf("%s: require 'key'\n", svCmdName);
-      return 0;
+      return NULL;
    }
    char* seedKey;
-   seedName.SeedKey_ = seedKey = fon9_StrCutSpace(cmdln, &cmdln);
-   if (seedKey[0] == '\\' && seedKey[2] == '\0') {
-      if (seedKey[1] == 't') { // 輸入2字元 "\\t" => 送出1字元 "\t" => subr tree.
+   seedName->SeedKey_ = seedKey = fon9_StrCutSpace(cmdln, &cmdln);
+   switch (seedKey[0]) {
+   case '\\':
+      if (seedKey[1] == 't' && seedKey[2] == '\0') {
+         // 輸入2字元 "\\t" => 送出1字元 "\t" => subr tree.
          seedKey[0] = '\t';
          seedKey[1] = '\0';
       }
+      break;
+   case '\'':
+   case '\"':
+      // '' or "" => 空字串;
+      if (seedKey[1] == seedKey[0] && seedKey[2] == '\0') {
+         seedKey[0] = '\0';
+      }
+      break;
    }
    if (cmdln) {
       if (isdigit((unsigned char)*cmdln))
-         seedName.TabIndex_ = (f9sv_TabSize)strtoul(cmdln, NULL, 10);
+         seedName->TabIndex_ = (f9sv_TabSize)strtoul(cmdln, &cmdln, 10);
       else
-         seedName.TabName_ = cmdln;
+         seedName->TabName_ = fon9_StrCutSpace(cmdln, &cmdln);
    }
-   handler->UserData_ = ((char*)handler->UserData_) + 1;
-
-   f9sv_Result res = fnSvCmd(ud->Session_, &seedName, *handler);
+   return cmdln ? cmdln : "";
+}
+void PrintSvCommandResult(const f9sv_SeedName* seedName, const char* svCmdName, f9sv_ReportHandler* handler, f9sv_Result res) {
    printf("---------- %s: UserData=%u, return=%d:%s\n"
           "treePath=[%s], seedKey=[%s], tab=[%s|%u]\n"
           "--------------------\n",
           svCmdName, (unsigned)((uintptr_t)handler->UserData_),
           res, f9sv_GetSvResultMessage(res),
-          seedName.TreePath_, seedName.SeedKey_,
-          seedName.TabName_, seedName.TabIndex_);
+          seedName->TreePath_, seedName->SeedKey_,
+          seedName->TabName_, seedName->TabIndex_);
+}
+// 等候結果 ud->LastQueryUserData_ or ud->LastPutUserData_, 或一小段時間(沒結果則放棄等候).
+int WaitSvCommandDone(const void** pUdUserData, const void* waitUserData) {
+   for (unsigned L = 0; L < 100; ++L) {
+      if (*pUdUserData == waitUserData)
+         return 1;
+      fon9_SleepMS(10u);
+   }
+   return 0;
+}
+
+typedef f9sv_Result (fon9_CAPI_CALL *FnSvCmd3)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler);
+int RunSvCommandFn3(FnSvCmd3 fnSvCmd3, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler,
+                   const void** udWait) {
+   f9sv_SeedName seedName;
+   if (!ParseSvCommand(&seedName, cmdln, svCmdName))
+      return 0;
+   handler->UserData_ = ((char*)handler->UserData_) + 1;
+   PrintSvCommandResult(&seedName, svCmdName, handler,
+                        fnSvCmd3(ud->Session_, &seedName, *handler));
+   if (udWait)
+      WaitSvCommandDone(udWait, handler->UserData_);
    return 1;
+}
+
+typedef f9sv_Result (fon9_CAPI_CALL *FnSvCmd4)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler,
+                                               const char* strFieldValues);
+int RunSvCommandFn4(FnSvCmd4 fnSvCmd4, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler,
+                    const void** udWait) {
+   f9sv_SeedName seedName;
+   const char*   exArgs = ParseSvCommand(&seedName, cmdln, svCmdName);
+   if (exArgs == NULL)
+      return 0;
+   handler->UserData_ = ((char*)handler->UserData_) + 1;
+   PrintSvCommandResult(&seedName, svCmdName, handler,
+                        fnSvCmd4(ud->Session_, &seedName, *handler, exArgs));
+   if (udWait)
+      WaitSvCommandDone(udWait, handler->UserData_);
+   return 1;
+}
+// -----
+f9sv_Result fon9_CAPI_CALL Proxy_f9sv_GridView(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler, const char* strReqRowCount) {
+   return f9sv_GridView(ses, seedName, handler, (int16_t)strtol(strReqRowCount, NULL, 10));
 }
 //--------------------------------------------------------------------------//
 const char  kCSTR_LogFileFmt[] =
@@ -470,9 +563,28 @@ const char  kCSTR_LogFileFmt[] =
 const char  kCSTR_LogFlags[] =
 "   LogFlags(hex):\n"
 "       1 = f9oms_ClientLogFlag_Link\n"
-"     100 = f9oms_ClientLogFlag_Request & Config\n"
-"     200 = f9oms_ClientLogFlag_Report  & Config\n"
-"     400 = f9oms_ClientLogFlag_Config\n";
+"   10000 = f9oms_ClientLogFlag_Request & Config\n"
+"   20000 = f9oms_ClientLogFlag_Report  & Config\n"
+"   40000 = f9oms_ClientLogFlag_Config\n";
+//--------------------------------------------------------------------------//
+void PromptSleep(const char* psec, const void** wait, double secsDefault) {
+   double secs = psec ? strtod(psec, NULL) : secsDefault;
+   if (secs <= 0) {
+      secs = secsDefault;
+   }
+   while (wait == NULL || *wait == NULL) {
+      if (secs >= 1)
+         fon9_SleepMS(1000u);
+      else {
+         if (secs > 0)
+            fon9_SleepMS((unsigned)(secs * 1000));
+         break;
+      }
+      printf("\r%u ", (unsigned)(--secs));
+      fflush(stdout);
+   }
+   printf("\r");
+}
 //--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -565,7 +677,7 @@ __USAGE:
    fon9_Finalize();
    f9rc_CreateClientSession(&ud.Session_, &f9rcCliParams);
    // ----------------------------
-   char  cmdbuf[4096];
+   char cmdbuf[4096];
    while (fon9_AppBreakMsg == NULL) {
       printf("> ");
       if (!fgets(cmdbuf, sizeof(cmdbuf), stdin))
@@ -579,27 +691,11 @@ __USAGE:
          goto __QUIT;
       else if (strcmp(pbeg, "wc") == 0) { // wait connect. default=5 secs. 0 = 1 secs;
          puts("Waiting for connection...");
-         unsigned secs = (pend ? (unsigned)strtoul(pend, NULL, 10) : 5u);
-         while (ud.Config_ == NULL) {
-            fon9_SleepMS(1000u);
-            if (secs <= 0)
-               break;
-            printf("%u \r", secs--);
-            fflush(stdout);
-         }
-         printf("\r%s\n", ud.Config_ ? "Connection ready." : "Wait connection timeout.");
+         PromptSleep(pend, (const void**)&ud.Config_, 5);
+         printf("%s\n", ud.Config_ ? "Connection ready." : "Wait connection timeout.");
       }
-      else if (strcmp(pbeg, "sleep") == 0) {
-         unsigned secs = (pend ? (unsigned)strtoul(pend, NULL, 10) : 1u);
-         for(;;) {
-            printf("\r%u ", secs);
-            fflush(stdout);
-            fon9_SleepMS(1000u);
-            if (secs <= 0)
-               break;
-            --secs;
-         }
-         printf("\r");
+      else if (strcmp(pbeg, "sleep") == 0) { // 可輸入 sleep 0.001 表示 1ms;
+         PromptSleep(pend, NULL, 1);
       }
       else if (strcmp(pbeg, "cfg") == 0)
          PrintConfig(&ud);
@@ -623,22 +719,31 @@ __USAGE:
       }
       else if (strcmp(pbeg, "q") == 0) { // query: treePath key tabName
          static f9sv_ReportHandler queryHandler = {&OnSvQueryReport, NULL};
-         if (SvCommand(&f9sv_Query, pend, "q:query", &ud, &queryHandler)) {
-            // 等候查詢結果, 或一小段時間(沒結果則放棄等候).
-            for (unsigned L = 0; L < 100; ++L) {
-               if (ud.LastQueryUserData_ == queryHandler.UserData_)
-                  break;
-               fon9_SleepMS(10u);
-            }
-         }
+         RunSvCommandFn3(&f9sv_Query, pend, "q:query", &ud, &queryHandler, &ud.LastQueryUserData_);
       }
       else if (strcmp(pbeg, "s") == 0) { // subscribe: treePath key tabName
          static f9sv_ReportHandler  subrHandler = {&OnSvSubscribeReport, NULL};
-         SvCommand(&f9sv_Subscribe, pend, "s:subr", &ud, &subrHandler);
+         RunSvCommandFn3(&f9sv_Subscribe, pend, "s:subr", &ud, &subrHandler, NULL);
       }
       else if (strcmp(pbeg, "u") == 0) { // unsubscribe: treePath key tabName
          static f9sv_ReportHandler  unsubrHandler = {&OnSvUnsubscribeReport, NULL};
-         SvCommand(&f9sv_Unsubscribe, pend, "u:unsubr", &ud, &unsubrHandler);
+         RunSvCommandFn3(&f9sv_Unsubscribe, pend, "u:unsubr", &ud, &unsubrHandler, NULL);
+      }
+      else if (strcmp(pbeg, "gv") == 0) { // GridView: treePath key tabName   rowCount
+         static f9sv_ReportHandler gvHandler = {&OnSvGridViewReport, NULL};
+         RunSvCommandFn4(&Proxy_f9sv_GridView, pend, "gv:GridView", &ud, &gvHandler, &ud.LastGridViewUserData_);
+      }
+      else if (strcmp(pbeg, "rm") == 0) { // remove: treePath key tabName
+         static f9sv_ReportHandler  removeHandler = {&OnSvRemoveReport, NULL};
+         RunSvCommandFn3(&f9sv_Remove, pend, "rm:remove", &ud, &removeHandler, NULL);
+      }
+      else if (strcmp(pbeg, "w") == 0) { // write: treePath key tabName    fieldName=value|fieldName2=value2|...
+         static f9sv_ReportHandler  svputHandler = {&OnSvWriteReport, NULL};
+         RunSvCommandFn4(&f9sv_Write, pend, "w:write", &ud, &svputHandler, &ud.LastPutUserData_);
+      }
+      else if (strcmp(pbeg, "run") == 0) { // run: treePath key tabName    args
+         static f9sv_ReportHandler  runHandler = {&OnSvCommandReport, NULL};
+         RunSvCommandFn4(&f9sv_Command, pend, "run:command", &ud, &runHandler, &ud.LastCommandUserData_);
       }
       else if (strcmp(pbeg, "?") == 0 || strcmp(pbeg, "help") == 0)
          printf("quit\n"

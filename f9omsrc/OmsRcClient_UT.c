@@ -473,9 +473,15 @@ const char* ParseSvCommand(f9sv_SeedName* seedName, char* cmdln, const char* svC
    seedName->SeedKey_ = seedKey = fon9_StrCutSpace(cmdln, &cmdln);
    switch (seedKey[0]) {
    case '\\':
-      if (seedKey[1] == 't' && seedKey[2] == '\0') {
-         // 輸入2字元 "\\t" => 送出1字元 "\t" => subr tree.
-         seedKey[0] = '\t';
+      if (seedKey[2] == '\0') {
+         switch (seedKey[1]) {
+         case 't': // 輸入2字元 "\\t" => 送出1字元 "\t" => subr tree.
+            seedKey[0] = '\t';
+            break;
+         case 'b':
+            seedKey[0] = '\b'; // gv 從尾端往前進.
+            break;
+         }
          seedKey[1] = '\0';
       }
       break;

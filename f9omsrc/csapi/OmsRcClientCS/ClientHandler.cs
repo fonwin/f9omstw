@@ -211,6 +211,8 @@ namespace OmsRcClientCS
          seedName.SeedKey_ = cmds[cmdidx++];
          if (seedName.SeedKey_ == "\\t")
             seedName.SeedKey_ = "\t";
+         else if (seedName.SeedKey_ == "\\b")
+            seedName.SeedKey_ = "\b";
          else if (seedName.SeedKey_ == "''" || seedName.SeedKey_ == "\"\"")
          {
             seedName.SeedKey_ = string.Empty;

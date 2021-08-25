@@ -218,7 +218,14 @@ namespace OmsRcClientCS
             seedName.SeedKey_ = string.Empty;
          }
          if (cmdidx < cmds.Length)
+         {
             seedName.TabName_ = cmds[cmdidx];
+            if (string.IsNullOrEmpty(seedName.TabName_) || Char.IsDigit(seedName.TabName_[0]))
+            {
+               uint.TryParse(seedName.TabName_, out seedName.TabIndex_);
+               seedName.TabName_ = null;
+            }
+         }
          f9sv.ResultCode res = fnSvCmd(this, ref seedName, handler);
          Console.WriteLine($"---------- {prompt}: UserData={handler.UserData_}, return={SvResultCodeStr(res)}");
          Console.WriteLine($"treePath=[{seedName.TreePath_}], seedKey=[{seedName.SeedKey_}], tab=[{seedName.TabName_}]");

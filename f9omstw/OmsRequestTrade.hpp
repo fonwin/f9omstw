@@ -238,6 +238,8 @@ public:
       }
       return true;
    }
+   /// \retval true  OrderSt < f9fmkt_OrderSt_NewSending
+   bool PreOpQueuingRequest(fon9::fmkt::TradingLineManager& from) const override;
 };
 
 } // namespaces

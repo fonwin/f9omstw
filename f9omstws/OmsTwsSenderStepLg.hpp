@@ -58,6 +58,8 @@ public:
          return retval;
       return this->LgMgrs_[0].get();
    }
+   /// 若返回 nullptr, 則會先執行 runner.Reject();
+   TwsTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
 
    /// - 使用 iocfgs.CfgFileName_ 載入設定檔
    ///   - 如果設定檔不存在, holder.SetPluginsSt(fon9::LogLevel::Error...), 返回 nullptr;

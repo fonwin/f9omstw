@@ -1,8 +1,8 @@
 ﻿// \file f9omstwf/OmsTwfRequest1.cpp
 // \author fonwinz@gmail.com
 #include "f9omstwf/OmsTwfRequest1.hpp"
-#include "f9omstw/OmsOrder.hpp"
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstwf/OmsTwfOrder1.hpp"
+#include "f9omstw/OmsTradingLineMgr.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -39,6 +39,12 @@ bool OmsTwfRequestChg1::ValidateInUser(OmsRequestRunner& reqRunner) {
    if (fon9_LIKELY(this->RequestUpd_AutoRxKind(*this, reqRunner)))
       return base::ValidateInUser(reqRunner);
    return false;
+}
+OmsTwfRequestChg1::OpQueuingRequestResult OmsTwfRequestChg1::OpQueuingRequest(fon9::fmkt::TradingLineManager& from,
+                                                                              TradingRequest& queuingRequest) {
+   if (auto* lmgr = dynamic_cast<OmsTradingLineMgrBase*>(&from))
+      return lmgr->OpQueuingRequest<OmsTwfOrderRaw1, OmsTwfRequestIni1>(*this, queuingRequest);
+   return Op_NotSupported;
 }
 
 } // namespaces

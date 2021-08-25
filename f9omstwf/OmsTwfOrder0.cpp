@@ -32,6 +32,7 @@ void OmsTwfOrderRaw0::ContinuePrevUpdate(const OmsOrderRaw& prev) {
 void OmsTwfOrderRaw0::MakeFields(fon9::seed::Fields& flds) {
    base::MakeFields<OmsTwfOrderRaw0>(flds);
    flds.Add(fon9_MakeField2(OmsTwfOrderRaw0, LastExgTime));
+   flds.Add(fon9_MakeField2(OmsTwfOrderRaw0, OutPvcId));
 }
 
 } // namespaces

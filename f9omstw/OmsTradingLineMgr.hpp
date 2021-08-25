@@ -9,11 +9,11 @@
 namespace f9omstw {
 namespace f9fmkt = fon9::fmkt;
 
-fon9_WARN_DISABLE_PADDING;
 class OmsTradingLineMgrBase {
    fon9_NON_COPY_NON_MOVE(OmsTradingLineMgrBase);
 
    OmsOrdTeamGroupId       OrdTeamGroupId_{};
+   char                    Padding____[4];
    fon9::CharVector        OrdTeamConfig_;
 
    using Locker = f9fmkt::TradingLineManager::Locker;
@@ -69,15 +69,84 @@ public:
    bool AllocOrdNo(OmsRequestRunnerInCore& runner) {
       return runner.AllocOrdNo_IniOrTgid(this->OrdTeamGroupId_);
    }
+   /// 您必須自行注意: 只有在 Running in OmsCore 時才能安全的取得 CurrRunner_;
+   OmsRequestRunnerInCore* CurrRunner() const {
+      return this->CurrRunner_;
+   }
+
+   template <class OrderRawT, class RequestIniT, class RequestUptT>
+   f9fmkt::TradingRequest::OpQueuingRequestResult OpQueuingRequest(RequestUptT& uReq, f9fmkt::TradingRequest& queuingRequest) {
+      OmsRequestRunnerInCore* currRunner = this->CurrRunner_;
+      if (!currRunner)
+         return f9fmkt::TradingRequest::Op_NotSupported;
+      if (queuingRequest.RxKind() != f9fmkt_RxKind_RequestNew || uReq.IniSNO() != queuingRequest.RxSNO())
+         return f9fmkt::TradingRequest::Op_NotTarget;
+      switch (uReq.RxKind()) {
+      default:
+      case f9fmkt_RxKind_Unknown:
+      case f9fmkt_RxKind_RequestNew:
+      case f9fmkt_RxKind_Filled:
+      case f9fmkt_RxKind_Order:
+      case f9fmkt_RxKind_Event:
+         return f9fmkt::TradingRequest::Op_NotSupported;
+
+      case f9fmkt_RxKind_RequestDelete:
+      case f9fmkt_RxKind_RequestChgQty:
+      case f9fmkt_RxKind_RequestChgPri:
+      case f9fmkt_RxKind_RequestQuery:
+         break;
+      }
+      // 是否要針對 iniReq 建立一個 ordraw 呢?
+      // auto* iniReq = dynamic_cast<RequestIniT*>(&queuingRequest);
+      // if (iniReq == nullptr)
+      //    return f9fmkt::TradingRequest::Op_NotTarget;
+      // OmsRequestRunnerInCore iniRunner{currRunner->Resource_, *iniReq->LastUpdated()->Order().BeginUpdate(*iniReq)};
+      // ...
+      // iniRunner.Update(f9fmkt_TradingRequestSt_QueuingCanceled);
+      // -----
+      assert(dynamic_cast<OrderRawT*>(&currRunner->OrderRaw_) != nullptr);
+      auto* ordraw = static_cast<OrderRawT*>(&currRunner->OrderRaw_);
+      if (uReq.RxKind() == f9fmkt_RxKind_RequestQuery) {
+         // 查詢, 不改變任何狀態: 讓回報機制直接回覆最後的 OrderRaw 即可.
+         currRunner->Update(f9fmkt_TradingRequestSt_Done);
+         return f9fmkt::TradingRequest::Op_ThisDone;
+      }
+      if (uReq.RxKind() == f9fmkt_RxKind_RequestChgPri) {
+         ordraw->LastPri_ = uReq.Pri_;
+         ordraw->LastPriType_ = uReq.PriType_;
+         currRunner->Update(f9fmkt_TradingRequestSt_Done);
+         return f9fmkt::TradingRequest::Op_ThisDone;
+      }
+      assert(uReq.RxKind() == f9fmkt_RxKind_RequestChgQty || uReq.RxKind() == f9fmkt_RxKind_RequestDelete);
+      CalcInternalChgQty(*ordraw, uReq.Qty_);
+      if (ordraw->AfterQty_ == 0) {
+         ordraw->UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
+         currRunner->Update(f9fmkt_TradingRequestSt_QueuingCanceled);
+         return f9fmkt::TradingRequest::Op_AllDone;
+      }
+      currRunner->Update(f9fmkt_TradingRequestSt_Done);
+      return f9fmkt::TradingRequest::Op_ThisDone;
+   }
+   template <typename DstT, typename SrcQtyT>
+   static void CalcInternalChgQty(DstT& dst, SrcQtyT src) {
+      if (src >= 0) {
+         dst.AfterQty_ = dst.LeavesQty_ = fon9::unsigned_cast(src);
+      }
+      else {
+         dst.AfterQty_ = dst.LeavesQty_ = static_cast<decltype(dst.LeavesQty_)>(dst.LeavesQty_ + src);
+         if (fon9::signed_cast(dst.AfterQty_) < 0) {
+            dst.AfterQty_ = dst.LeavesQty_ = 0;
+         }
+      }
+   }
 };
-fon9_WARN_POP;
 
 template <class TradingLineMgrBaseT>
 class OmsTradingLineMgrT : public TradingLineMgrBaseT
                          , public OmsTradingLineMgrBase {
    fon9_NON_COPY_NON_MOVE(OmsTradingLineMgrT);
    using base = TradingLineMgrBaseT;
-   using baseCommon = OmsTradingLineMgrBase;
+   using baseOmsTradingLineMgr = OmsTradingLineMgrBase;
 
 protected:
    inline friend void intrusive_ptr_add_ref(const OmsTradingLineMgrT* px) { intrusive_ptr_add_ref(static_cast<const base*>(px)); }
@@ -93,18 +162,18 @@ protected:
       this->OmsCore_.reset();
    }
    f9fmkt::SendRequestResult NoReadyLineReject(f9fmkt::TradingRequest& req, fon9::StrView cause) override {
-      return this->baseCommon::NoReadyLineReject(req, cause);
+      return this->baseOmsTradingLineMgr::NoReadyLineReject(req, cause);
    }
    void ClearReqQueue(Locker&& tsvr, fon9::StrView cause) override {
       assert(this->use_count() != 0); // 必定要在解構前呼叫 ClearReqQueue();
-      OmsTradingLineMgrBase::ClearReqQueue(std::move(tsvr), cause, this->OmsCore_);
+      this->baseOmsTradingLineMgr::ClearReqQueue(std::move(tsvr), cause, this->OmsCore_);
    }
 
 public:
    template <class... ArgsT>
    OmsTradingLineMgrT(const fon9::IoManagerArgs& ioargs, ArgsT&&... args)
       : base(ioargs, std::forward<ArgsT>(args)...)
-      , OmsTradingLineMgrBase(&ioargs.Name_) {
+      , baseOmsTradingLineMgr(&ioargs.Name_) {
    }
 
    void RunRequest(OmsRequestRunnerInCore&& runner) {

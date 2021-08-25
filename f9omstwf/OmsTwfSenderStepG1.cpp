@@ -28,14 +28,14 @@ void TwfTradingLineMgrG1::OnTDayChanged(OmsCore& core) {
 OmsTwfSenderStepG1::OmsTwfSenderStepG1(TwfTradingLineMgrG1& lineMgr)
    : LineMgr_(lineMgr) {
 }
-void OmsTwfSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
+TwfTradingLineMgr* TwfTradingLineMgrG1::GetLineMgr(OmsRequestRunnerInCore& runner) const {
    unsigned idx;
    switch (runner.OrderRaw_.SessionId()) {
    case f9fmkt_TradingSessionId_AfterHour: idx = 1; break;
    case f9fmkt_TradingSessionId_Normal:    idx = 0; break;
    default:
       runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_SessionId, nullptr);
-      return;
+      return nullptr;
    }
    switch (runner.OrderRaw_.Market()) {
    case f9fmkt_TradingMarket_TwFUT:
@@ -46,13 +46,22 @@ void OmsTwfSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
       break;
    default:
       runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
-      return;
+      return nullptr;
    }
-   this->LineMgr_.TradingLineMgr_[idx]->RunRequest(std::move(runner));
+   return this->TradingLineMgr_[idx].get();
+}
+void OmsTwfSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
+   if (TwfTradingLineMgr* lmgr = this->LineMgr_.GetLineMgr(runner))
+      lmgr->RunRequest(std::move(runner));
 }
 void OmsTwfSenderStepG1::RerunRequest(OmsReportRunnerInCore&& runner) {
-   if (0);// RerunRequest(): runner.ErrCodeAct_->IsUseNewLine_?
-   this->RunRequest(std::move(runner));
+   if (TwfTradingLineMgr* lmgr = this->LineMgr_.GetLineMgr(runner)) {
+      if (runner.ErrCodeAct_->IsUseNewLine_) {
+         if (auto* inireq = runner.OrderRaw_.Order().Initiator())
+            lmgr->SelectPreferNextLine(*inireq);
+      }
+      lmgr->RunRequest(std::move(runner));
+   }
 }
 
 } // namespaces

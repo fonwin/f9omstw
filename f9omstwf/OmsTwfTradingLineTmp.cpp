@@ -28,6 +28,14 @@ void TwfTradingLineTmp::OnExgTmp_ApBroken() {
    this->LineMgr_.OnTradingLineBroken(*this);
 }
 //--------------------------------------------------------------------------//
+bool TwfTradingLineTmp::IsOrigSender(const f9fmkt::TradingRequest& req) const {
+   assert(dynamic_cast<const OmsRequestTrade*>(&req) != nullptr);
+   if (const OmsOrderRaw* ordraw = static_cast<const OmsRequestTrade*>(&req)->LastUpdated()) {
+      assert(dynamic_cast<const OmsTwfOrderRaw0*>(ordraw) != nullptr);
+      return(static_cast<const OmsTwfOrderRaw0*>(ordraw)->OutPvcId_ == this->OutPvcId_);
+   }
+   return false;
+}
 TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequest& req) {
    assert(dynamic_cast<OmsRequestTrade*>(&req) != nullptr);
    assert(dynamic_cast<TwfTradingLineMgr*>(&this->LineMgr_) != nullptr);
@@ -410,6 +418,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       this->SendTmpAddSeqNum(now, std::move(buf));
    else
       this->SendTmpSeqNum0(now, std::move(buf));
+   static_cast<OmsTwfOrderRaw0*>(&runner->OrderRaw_)->OutPvcId_ = this->OutPvcId_;
    runner->Update(f9fmkt_TradingRequestSt_Sending, ToStrView(this->StrSendingBy_));
    this->Fc_.ForceUsed(now);
    return SendResult::Sent;

@@ -30,6 +30,9 @@ class OmsTwsSenderStepG1 : public OmsRequestRunStep {
    using base = OmsRequestRunStep;
    using base::base;
 
+   /// 若返回 nullptr, 則會先執行 runner.Reject();
+   TwsTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
+
 public:
    TwsTradingLineMgrG1&  LineMgr_;
    OmsTwsSenderStepG1(TwsTradingLineMgrG1&);

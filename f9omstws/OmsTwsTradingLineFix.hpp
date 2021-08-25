@@ -21,6 +21,7 @@ public:
                      f9fix::IoFixSenderSP&&              fixSender);
 
    SendResult SendRequest(f9fmkt::TradingRequest& req) override;
+   bool IsOrigSender(const f9fmkt::TradingRequest& req) const override;
 };
 
 //--------------------------------------------------------------------------//

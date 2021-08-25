@@ -3,6 +3,7 @@
 #ifndef __f9omstwf_OmsTwfOrder0_hpp__
 #define __f9omstwf_OmsTwfOrder0_hpp__
 #include "f9omstw/OmsOrder.hpp"
+#include "f9twf/ExgTmpTypes.hpp"
 
 namespace f9omstw {
 
@@ -21,7 +22,12 @@ public:
 /// 期權報價/詢價/一般委託基底.
 struct OmsTwfOrderRawDat0 {
    /// 最後交易所異動時間.
-   fon9::TimeStamp   LastExgTime_{fon9::TimeStamp::Null()};
+   fon9::TimeStamp         LastExgTime_{fon9::TimeStamp::Null()};
+   /// 為了避免與 TradingSessionId 名稱上混淆,
+   /// 所以即使期交所「線路代號」的名稱為 SessionId,
+   /// 這裡也選擇使用與 OmsTws 相同的命名.
+   f9twf::TmpSessionId_t   OutPvcId_{};
+   char                    Padding___[6];
 
    void ContinuePrevUpdate(const OmsTwfOrderRawDat0& prev) {
       memcpy(this, &prev, sizeof(*this));

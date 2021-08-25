@@ -29,6 +29,7 @@ public:
                      f9twf::ExgLineTmpLog&&       log);
 
    SendResult SendRequest(f9fmkt::TradingRequest& req) override;
+   bool IsOrigSender(const f9fmkt::TradingRequest& req) const override;
 };
 
 } // namespaces

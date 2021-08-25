@@ -20,6 +20,9 @@ public:
 
    TwfTradingLineMgrG1(OmsCoreMgr& coreMgr);
    ~TwfTradingLineMgrG1();
+
+   /// 若返回 nullptr, 則會先執行 runner.Reject();
+   TwfTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
 };
 
 class OmsTwfSenderStepG1 : public OmsRequestRunStep {

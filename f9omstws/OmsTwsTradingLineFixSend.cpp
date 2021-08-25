@@ -33,6 +33,14 @@ static inline char* RevPutStr(char* pout, fon9::StrView val) {
    return RevPutStr(pout, val.begin(), val.size());
 }
 // ----------
+bool TwsTradingLineFix::IsOrigSender(const f9fmkt::TradingRequest& req) const {
+   assert(dynamic_cast<const OmsRequestTrade*>(&req) != nullptr);
+   if (const OmsOrderRaw* ordraw = static_cast<const OmsRequestTrade*>(&req)->LastUpdated()) {
+      assert(dynamic_cast<const OmsTwsOrderRaw*>(ordraw) != nullptr);
+      return(static_cast<const OmsTwsOrderRaw*>(ordraw)->OutPvcId_ == this->LineArgs_.SocketId_);
+   }
+   return false;
+}
 TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequest& req) {
    assert(dynamic_cast<OmsRequestTrade*>(&req) != nullptr);
    assert(dynamic_cast<TwsTradingLineMgr*>(&this->FixManager_) != nullptr);

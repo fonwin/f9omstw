@@ -2,8 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsRequestRunner.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
-#include "f9omstw/OmsOrder.hpp"
-#include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsTradingLineMgr.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -177,6 +176,16 @@ OmsOrderRaw* OmsRequestUpd::BeforeReqInCore(OmsRequestRunner& runner, OmsResourc
    if(auto* order = this->BeforeReqInCore_GetOrder(runner, res))
       return order->BeginUpdate(*this);
    return nullptr;
+}
+bool OmsRequestUpd::PreOpQueuingRequest(fon9::fmkt::TradingLineManager& from) const {
+   if (auto* lmgr = dynamic_cast<OmsTradingLineMgrBase*>(&from)) {
+      if (OmsRequestRunnerInCore* currRunner = lmgr->CurrRunner()) {
+         assert(this == &currRunner->OrderRaw_.Request());
+         if (currRunner->OrderRaw_.Order().LastOrderSt() < f9fmkt_OrderSt_NewSending)
+            return true;
+      }
+   }
+   return false;
 }
 
 } // namespaces

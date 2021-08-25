@@ -310,5 +310,13 @@ TwsTradingLineTmp2019::SendResult TwsTradingLineTmp2019::SendRequest(f9fmkt::Tra
    runner->Update(f9fmkt_TradingRequestSt_Sending, ToStrView(this->StrSendingBy_));
    return SendResult::Sent;
 }
+bool TwsTradingLineTmp2019::IsOrigSender(const f9fmkt::TradingRequest& req) const {
+   assert(dynamic_cast<const OmsRequestTrade*>(&req) != nullptr);
+   if (const OmsOrderRaw* ordraw = static_cast<const OmsRequestTrade*>(&req)->LastUpdated()) {
+      assert(dynamic_cast<const OmsTwsOrderRaw*>(ordraw) != nullptr);
+      return(static_cast<const OmsTwsOrderRaw*>(ordraw)->OutPvcId_ == this->LineArgs_.SocketId_);
+   }
+   return false;
+}
 
 } // namespaces

@@ -62,6 +62,9 @@ public:
 
    /// 匯入尚未處理的刪改回報. (因為之前可能有回報亂序);
    void ProcessPendingReport(OmsResource& res) const;
+
+   OpQueuingRequestResult OpQueuingRequest(fon9::fmkt::TradingLineManager& from,
+                                           TradingRequest& queuingRequest) override;
 };
 
 } // namespaces

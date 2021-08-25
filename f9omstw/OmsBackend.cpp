@@ -187,7 +187,8 @@ void OmsBackend::LogAppend(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
 }
 void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
-   assert(runner.Resource_.Core_.IsThisThread());
+   // !this->Thread_.joinable() = Reloading;
+   assert(runner.Resource_.Core_.IsThisThread() || !this->Thread_.joinable());
    assert(runner.OrderRaw_.Order().Tail() == &runner.OrderRaw_);
 
    // 如果 isNeedsReqAppend == true: req 進入 core, 首次與 order 連結之後的異動.

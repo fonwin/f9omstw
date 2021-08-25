@@ -67,6 +67,9 @@ public:
    bool ValidateInUser(OmsRequestRunner& reqRunner) override;
 
    void ProcessPendingReport(OmsResource& res) const;
+
+   OpQueuingRequestResult OpQueuingRequest(fon9::fmkt::TradingLineManager& from,
+                                           TradingRequest& queuingRequest) override;
 };
 
 } // namespaces

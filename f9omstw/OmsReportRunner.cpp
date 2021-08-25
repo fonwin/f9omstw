@@ -140,12 +140,18 @@ OmsReportRunnerInCore::~OmsReportRunnerInCore() {
          return;
    }
 
-   if (0); // 如果是斷線後的回補回報, 是否還有需要 Rerun 呢?
+   // 如果是斷線後的回補回報, 是否還有需要 Rerun 呢?
    // - 此時 TradingLine 可能尚未回補完畢, 尚未進入 ApReady.
+   //   => 要先等 TradingLine 進入 ApReady 才能 Rerun?
    // - 斷線後到重新連線回補, 中間可能已做過其他處置.
    // - 有回補功能的連線都會面臨此問題:
    //   - 證券的 FIX Session;
    //   - 期貨的 TMP Session;
+   //
+   // => 目前就直接處理:
+   //    => 如果有其他線路, 就透過其他線路 Rerun.
+   //    => 如果沒有線路 (TradingLine重新連線後,正在回補,尚未ApReady)
+   //       => 就直接 No ready line. 拒絕吧!
 
    const auto reqst = this->OrderRaw_.RequestSt_;
    step->RerunRequest(std::move(*this));

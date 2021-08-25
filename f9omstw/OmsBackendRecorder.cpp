@@ -340,7 +340,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
             fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
             continue;
          }
-         if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing)) {
+         if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
+                           && order->LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled)) {
             // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
             // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
             // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;

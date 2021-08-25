@@ -123,28 +123,37 @@ TwsTradingLineMgrLgSP TwsTradingLineMgrLg::Plant(OmsCoreMgr&                core
 OmsTwsSenderStepLg::OmsTwsSenderStepLg(TwsTradingLineMgrLg& lineMgr)
    : LineMgr_(lineMgr) {
 }
-void OmsTwsSenderStepLg::RunRequest(OmsRequestRunnerInCore&& runner) {
+//--------------------------------------------------------------------------//
+TwsTradingLineMgr* TwsTradingLineMgrLg::GetLineMgr(OmsRequestRunnerInCore& runner) const {
    assert(dynamic_cast<const OmsRequestTrade*>(&runner.OrderRaw_.Request()) != nullptr);
-   if (auto* lgMgr = this->LineMgr_.GetLgMgr(static_cast<const OmsRequestTrade*>(&runner.OrderRaw_.Request())->LgOut_)) {
+   if (auto* lgMgr = this->GetLgMgr(static_cast<const OmsRequestTrade*>(&runner.OrderRaw_.Request())->LgOut_)) {
       fon9_WARN_DISABLE_SWITCH;
       switch (runner.OrderRaw_.Market()) {
       case f9fmkt_TradingMarket_TwSEC:
-         lgMgr->TseTradingLineMgr_->RunRequest(std::move(runner));
-         return;
+         return lgMgr->TseTradingLineMgr_.get();
       case f9fmkt_TradingMarket_TwOTC:
-         lgMgr->OtcTradingLineMgr_->RunRequest(std::move(runner));
-         return;
+         return lgMgr->OtcTradingLineMgr_.get();
       default:
          runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
-         return;
+         return nullptr;
       }
       fon9_WARN_POP;
    }
    runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_LgOut, nullptr);
+   return nullptr;
+}
+void OmsTwsSenderStepLg::RunRequest(OmsRequestRunnerInCore&& runner) {
+   if (auto* lmgr = this->LineMgr_.GetLineMgr(runner))
+      lmgr->RunRequest(std::move(runner));
 }
 void OmsTwsSenderStepLg::RerunRequest(OmsReportRunnerInCore&& runner) {
-   if (0);// RerunRequest(): runner.ErrCodeAct_->IsUseNewLine_?
-   this->RunRequest(std::move(runner));
+   if (TwsTradingLineMgr* lmgr = this->LineMgr_.GetLineMgr(runner)) {
+      if (runner.ErrCodeAct_->IsUseNewLine_) {
+         if (auto* inireq = runner.OrderRaw_.Order().Initiator())
+            lmgr->SelectPreferNextLine(*inireq);
+      }
+      lmgr->RunRequest(std::move(runner));
+   }
 }
 
 } // namespaces

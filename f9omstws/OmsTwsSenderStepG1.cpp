@@ -41,24 +41,31 @@ void TwsTradingLineMgrG1::SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_Tradi
 OmsTwsSenderStepG1::OmsTwsSenderStepG1(TwsTradingLineMgrG1& lineMgr)
    : LineMgr_(lineMgr) {
 }
-void OmsTwsSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
+TwsTradingLineMgr* OmsTwsSenderStepG1::GetLineMgr(OmsRequestRunnerInCore& runner) const {
    fon9_WARN_DISABLE_SWITCH;
    switch (runner.OrderRaw_.Market()) {
    case f9fmkt_TradingMarket_TwSEC:
-      this->LineMgr_.TseTradingLineMgr_->RunRequest(std::move(runner));
-      break;
+      return this->LineMgr_.TseTradingLineMgr_.get();
    case f9fmkt_TradingMarket_TwOTC:
-      this->LineMgr_.OtcTradingLineMgr_->RunRequest(std::move(runner));
-      break;
+      return this->LineMgr_.OtcTradingLineMgr_.get();
    default:
       runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
-      break;
+      return nullptr;
    }
    fon9_WARN_POP;
 }
+void OmsTwsSenderStepG1::RunRequest(OmsRequestRunnerInCore&& runner) {
+   if (TwsTradingLineMgr* lmgr = this->GetLineMgr(runner))
+      lmgr->RunRequest(std::move(runner));
+}
 void OmsTwsSenderStepG1::RerunRequest(OmsReportRunnerInCore&& runner) {
-   if (0);// RerunRequest(): runner.ErrCodeAct_->IsUseNewLine_?
-   this->RunRequest(std::move(runner));
+   if (TwsTradingLineMgr* lmgr = this->GetLineMgr(runner)) {
+      if (runner.ErrCodeAct_->IsUseNewLine_) {
+         if (auto* inireq = runner.OrderRaw_.Order().Initiator())
+            lmgr->SelectPreferNextLine(*inireq);
+      }
+      lmgr->RunRequest(std::move(runner));
+   }
 }
 
 } // namespaces

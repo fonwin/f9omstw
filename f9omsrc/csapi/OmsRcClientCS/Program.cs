@@ -61,6 +61,7 @@ namespace OmsRcClientCS
          fon9.IoSessionParams ioParams = new fon9.IoSessionParams();
          string f9rcIosv = string.Empty;
          string logFileFmt = null;
+         bool isChgPass = false;
 
          // ------------------------------------------------------------------
          for (int L = 0; L < args.Length; ++L)
@@ -71,6 +72,12 @@ namespace OmsRcClientCS
             char chlead = str[0];
             if ((chlead == '-' || chlead == '/') && str.Length == 2)
             {
+               // ----- 無後續參數的 arg.
+               switch (str[1])
+               {
+                  case 'c': isChgPass = true; continue;
+               }
+               // -----
                if (++L >= args.Length)
                {
                   Console.WriteLine($"Lost argument value: {str}");
@@ -126,7 +133,24 @@ namespace OmsRcClientCS
          if (string.IsNullOrEmpty(rcArgs.DevName_))
             rcArgs.DevName_ = "TcpClient";
          if (string.IsNullOrEmpty(rcArgs.Password_))
+         {
             rcArgs.Password_ = fon9.Api.getpass("Password: ");
+            Console.WriteLine();
+         }
+         if (isChgPass)
+         {
+            // 改密碼: f9rcCliParams.Password_ = oldpass + '\r' + newpass
+            string pass1 = fon9.Api.getpass("New password: ");
+            Console.WriteLine();
+            string pass2 = fon9.Api.getpass("Check new pw: ");
+            Console.WriteLine();
+            if (pass1 != pass2)
+            {
+               Console.WriteLine("New password isnot match 'Check new pw'.");
+               return;
+            }
+            rcArgs.Password_ = rcArgs.Password_ + '\r' + pass1;
+         }
 
          // ------------------------------------------------------------------
          // 初始化 fon9 相關函式庫.

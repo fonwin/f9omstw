@@ -616,6 +616,7 @@ int main(int argc, char* argv[]) {
 
    const char*  logFileFmt = NULL;
    const char** pargv = (const char**)argv;
+   int          isChgPass = 0;
    for (int L = 1; L < argc;) {
       const char* parg = *++pargv;
       switch (parg[0]) {
@@ -625,7 +626,13 @@ int main(int argc, char* argv[]) {
          printf("Unknown argument: %s\n", parg);
          goto __USAGE;
       }
-      L += 2;
+      ++L;
+      // ----- 無後續參數的 arg.
+      switch (parg[1]) {
+      case 'c':   isChgPass = 1;    continue;
+      }
+      // -----
+      ++L;
       ++pargv;
       switch (parg[1]) {
       case 'l':   logFileFmt = *pargv;               break;
@@ -667,6 +674,23 @@ __USAGE:
    char  passwd[1024];
    if (f9rcCliParams.Password_ == NULL) {
       fon9_getpass(stdout, "Password: ", passwd, sizeof(passwd));
+      f9rcCliParams.Password_ = passwd;
+   }
+   if (isChgPass) {
+      // 改密碼: f9rcCliParams.Password_ = oldpass + '\r' + newpass
+      char  pass1[1024];
+      char  pass2[1024];
+      fon9_getpass(stdout, "New password: ", pass1, sizeof(pass1));
+      fon9_getpass(stdout, "Check new pw: ", pass2, sizeof(pass2));
+      if (strcmp(pass1, pass2) != 0) {
+         puts("New password isnot match 'Check new pw'.");
+         return 3;
+      }
+      size_t pwlen = strlen(f9rcCliParams.Password_);
+      if (passwd != f9rcCliParams.Password_)
+         memcpy(passwd, f9rcCliParams.Password_, pwlen);
+      passwd[pwlen] = '\r';
+      strcpy(passwd + pwlen + 1, pass1);
       f9rcCliParams.Password_ = passwd;
    }
    // ----------------------------

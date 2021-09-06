@@ -88,7 +88,7 @@ const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, f
    if (name.empty())
       return nullptr;
    TeamNameMap::value_type* tname;
-   if (!cfgstr.empty())
+   if (!fon9::StrTrim(&cfgstr).empty())
       tname = &this->TeamNameMap_.kfetch(fon9::CharVector{name});
    else {
       auto ifind = this->TeamNameMap_.find(fon9::CharVector::MakeRef(name));
@@ -105,7 +105,7 @@ const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, f
       tgCfg->Name_.assign(name);
       tgCfg->TeamGroupId_ = tname->second;
    }
-   if (ToStrView(tgCfg->Config_) != fon9::StrTrim(&cfgstr)) {
+   if (ToStrView(tgCfg->Config_) != cfgstr) {
       tgCfg->Config_.assign(cfgstr);
       if ((tgCfg->IsAllowAnyOrdNo_ = (cfgstr.Get1st() == '*')) == true)
          cfgstr.SetBegin(cfgstr.begin() + 1);
@@ -113,7 +113,7 @@ const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, f
       ConfigToTeamList(tgCfg->TeamList_, cfgstr);
       ++tgCfg->UpdatedCount_;
    }
-   return tgCfg;
+   return tgCfg->Config_.empty() ? nullptr : tgCfg;
 }
 
 } // namespaces

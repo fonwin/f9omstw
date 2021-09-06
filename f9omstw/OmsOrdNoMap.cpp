@@ -105,9 +105,10 @@ __ORD_TEAM_ALLOW:;
    return this->Reject(runner, OmsErrCode_OrdNoOverflow);
 }
 bool OmsOrdNoMap::Reject(OmsRequestRunnerInCore& runner, OmsErrCode errc) {
-   runner.OrderRaw_.ErrCode_ = errc;
-   runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewOrdNoRejected;
-   runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_OrdNoRejected;
+   // runner.OrderRaw_.ErrCode_ = errc;
+   // runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewOrdNoRejected;
+   // runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_OrdNoRejected;
+   runner.Reject(f9fmkt_TradingRequestSt_OrdNoRejected, errc, nullptr);
    return false;
 }
 

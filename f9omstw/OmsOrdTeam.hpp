@@ -49,6 +49,8 @@ public:
    }
    /// 若 cfgstr 第一碼為 '*', 則表示有 IsAllowAnyOrdNo_ 權限.
    /// 若 name.empty() 則傳回 nullptr;
+   /// 傳回值須立即使用, 下次呼叫 SetTeamGroup() 時, 可能會失效!
+   /// 下次要用時, 應使用 retval->TeamGroupId_ 再次取得;
    const OmsOrdTeamGroupCfg* SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr);
 };
 

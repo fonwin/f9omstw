@@ -29,24 +29,42 @@ static inline TwsMarketMask GetTwsMarketMask(f9fmkt_TradingMarket mkt) {
 //--------------------------------------------------------------------------//
 fon9_WARN_DISABLE_PADDING;
 struct TrsRefSrcOfs {
-   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_, DenyOfs_;
+   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_, DenyOfs_,
+      LastMthDate_ // LAST-MTH-DATE	9(8) 上次成交日.
+      ;
 
    // T30: StkNo[6], 6:PriUpLmt[9], 15:PriRef[9], 24:PriDnLmt[9]...
    static constexpr TrsRefSrcOfs GetOfsT30TSE() {
-      return TrsRefSrcOfs{100, 15,  6, 24, 86/*GnDayTrade*/, 41/*DenyOfs=&T30.SETTYPE.MARK-W*/};
+      return TrsRefSrcOfs{100, 15,  6, 24,
+         86, // GnDayTrade
+         41, // DenyOfs=&T30.SETTYPE.MARK-W
+         33, // LastMthDate_
+      };
    }
    static constexpr TrsRefSrcOfs GetOfsT30OTC() {
-      return TrsRefSrcOfs{100, 15,  6, 24, 87/*GnDayTrade*/, 41/*DenyOfs=&T30.SETTYPE.MARK-W*/};
+      return TrsRefSrcOfs{100, 15,  6, 24,
+         87, // GnDayTrade
+         41, // DenyOfs=&T30.SETTYPE.MARK-W
+         33, // LastMthDate_
+      };
    }
    // 盤後零股價格檔.
    // O40: StkNo[6], Name[16], 22:PriUpLmt[9], 31:PriDnLmt[9], 40:PriRef[9]...
    static constexpr TrsRefSrcOfs GetOfsO40() {
-      return TrsRefSrcOfs{60, 40, 22, 31, 0, 0};
+      return TrsRefSrcOfs{60, 40, 22, 31,
+         0,  // GnDayTrade
+         0,  // DenyOfs
+         0,  // 不匯入零股最後交易日, 49, // LastMthDate_
+      };
    }
    // 盤中零股價格檔.
    // O60: StkNo[6], 6:PriUpLmt[9], 15:PriDnLmt[9], 24:PriRef[9], 33:GnDayTrade...
    static constexpr TrsRefSrcOfs GetOfsO60() {
-      return TrsRefSrcOfs{50, 24, 6, 15, 33, 0};
+      return TrsRefSrcOfs{50, 24, 6, 15,
+         33, // GnDayTrade
+         0,  // DenyOfs
+         0,  // LastMthDate_
+      };
    }
 };
 //--------------------------------------------------------------------------//
@@ -82,6 +100,7 @@ protected:
       f9tws::StkNo      StkNo_;
       TrsRefs           Refs_;
       fon9::CharVector  DenyReason_; // "S1"(SETTYPE=1), "S2"(SETTYPE=2), "W1"(MARK-W=1), "W2"(MARK-W=2)...
+      uint32_t          PrevMthYYYYMMDD_;
    };
    struct Loader : public OmsFileImpLoader {
       fon9_NON_COPY_NON_MOVE(Loader);
@@ -108,6 +127,8 @@ protected:
                (symb->*pRefs).Clear();
                if (loader.Ofs_.DenyOfs_ != 0)
                   symb->DenyReason_.clear();
+               if (loader.Ofs_.LastMthDate_ != 0)
+                  symb->PrevMthYYYYMMDD_ = 0;
             }
          }
       }
@@ -118,6 +139,8 @@ protected:
             (usymb->*pRefs).CopyFrom(item.Refs_);
             if (loader.Ofs_.DenyOfs_ != 0)
                usymb->DenyReason_ = std::move(item.DenyReason_);
+            if (loader.Ofs_.LastMthDate_ != 0)
+               usymb->PrevMthYYYYMMDD_ = item.PrevMthYYYYMMDD_;
          }
       }
       SetReadyFlag(mkt);

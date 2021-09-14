@@ -49,7 +49,19 @@ static void FnRptApiField_AbandonReason(fon9::RevBuffer& rbuf, const ApiRptField
    else
       fon9::RevPrint(rbuf, "C0");
 }
+static void FnRptApiField_IniField(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& cfg, const ApiRptFieldArg* arg) {
+   if (fon9_LIKELY(arg)) {
+      if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(arg->Item_.CastToOrder())) {
+         if (const OmsRequestIni* ini = ordraw->Order().Initiator())
+            if (const fon9::seed::Field* fld = ini->Creator().Fields_.Get(ToStrView(cfg.ExtParam_)))
+               fld->CellRevPrint(fon9::seed::SimpleRawRd{*ini}, nullptr, rbuf);
+      }
+   }
+   else
+      fon9::RevPrint(rbuf, "C0");
+}
 static FnRptApiField_Register regFnRptApiField_Abandon{
+   "IniField",       &FnRptApiField_IniField,
    "AbandonErrCode", &FnRptApiField_AbandonErrCode,
    "AbandonReason",  &FnRptApiField_AbandonReason
 };

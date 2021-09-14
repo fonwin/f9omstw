@@ -89,6 +89,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
    //             改價: OrderQty(38)同委託剩餘有效量LeavesQty(151)，其欄位值為改價成功之委託數量。
    const OmsTwsQty         afterQty    = GetFixFieldQty(rxargs.Msg_, f9fix_kTAG_LeavesQty);
    const OmsTwsQty         fixOrderQty = GetFixFieldQty(rxargs.Msg_, f9fix_kTAG_OrderQty);
+   OmsTwsQty               beforeQty = fixOrderQty;
    f9fmkt_RxKind           rptKind;
    f9fmkt_TradingRequestSt rptSt;
    switch (chExecType) {
@@ -103,7 +104,13 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       break;
    case *f9fix_kVAL_ExecType_Replace:        // "5" 改單成功.
       // 改價回覆: OrderQty#38 == LeavesQty#151，其欄位值為改價成功之委託數量。
-      rptKind = (fixOrderQty == afterQty ? f9fmkt_RxKind_RequestChgPri : f9fmkt_RxKind_RequestChgQty);
+      // 但是: 如果交易所剩餘6, 要求減量3, 成功剩餘3; 則此時:
+      //       #38=3:  [BEFORE-QUANTITY=6]-[AFTER-QUANTITY=3]後取絕對值.
+      //       #151=3: [AFTER-QUANTIT=3]
+      //       此時改量成功的 OrderQty#38 == LeavesQty#151;
+      // 因此: 無法根據 (OrderQty#38 == LeavesQty#151) 判斷交易所回覆的 RxKind;
+      beforeQty = (fixOrderQty + afterQty);
+      rptKind = f9fmkt_RxKind_Unknown;//(fixOrderQty == afterQty ? f9fmkt_RxKind_RequestChgPri : f9fmkt_RxKind_RequestChgQty);
       rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
       break;
    case *f9fix_kVAL_ExecType_Canceled:       // "4" 刪單成功.
@@ -145,7 +152,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
    rpt.SetReportSt(rptSt);
    rpt.Qty_ = afterQty;
-   rpt.BeforeQty_ = (rptKind == f9fmkt_RxKind_RequestChgQty ? (fixOrderQty + afterQty) : fixOrderQty);
+   rpt.BeforeQty_ = beforeQty;
 
    // 無法從 FIX 取得的 rpt 欄位:
    // fon9::CharAry<10>    SubacNo_;

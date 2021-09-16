@@ -30,7 +30,8 @@ static inline TwsMarketMask GetTwsMarketMask(f9fmkt_TradingMarket mkt) {
 fon9_WARN_DISABLE_PADDING;
 struct TrsRefSrcOfs {
    unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_, DenyOfs_,
-      LastMthDate_ // LAST-MTH-DATE	9(8) 上次成交日.
+      LastMthDate_,  // LAST-MTH-DATE 9(8) 上次成交日.
+      CTGCD_         // 板別, '0'=一般, '3'=TWSE:創新板(OTC:興櫃戰略新板)
       ;
 
    // T30: StkNo[6], 6:PriUpLmt[9], 15:PriRef[9], 24:PriDnLmt[9]...
@@ -39,6 +40,7 @@ struct TrsRefSrcOfs {
          86, // GnDayTrade
          41, // DenyOfs=&T30.SETTYPE.MARK-W
          33, // LastMthDate_
+         87, // GTGCD_
       };
    }
    static constexpr TrsRefSrcOfs GetOfsT30OTC() {
@@ -46,6 +48,7 @@ struct TrsRefSrcOfs {
          87, // GnDayTrade
          41, // DenyOfs=&T30.SETTYPE.MARK-W
          33, // LastMthDate_
+         88, // GTGCD_
       };
    }
    // 盤後零股價格檔.
@@ -55,6 +58,7 @@ struct TrsRefSrcOfs {
          0,  // GnDayTrade
          0,  // DenyOfs
          0,  // 不匯入零股最後交易日, 49, // LastMthDate_
+         0,  // GTGCD_
       };
    }
    // 盤中零股價格檔.
@@ -64,6 +68,7 @@ struct TrsRefSrcOfs {
          33, // GnDayTrade
          0,  // DenyOfs
          0,  // LastMthDate_
+         0,  // GTGCD_
       };
    }
 };
@@ -101,6 +106,8 @@ protected:
       TrsRefs           Refs_;
       fon9::CharVector  DenyReason_; // "S1"(SETTYPE=1), "S2"(SETTYPE=2), "W1"(MARK-W=1), "W2"(MARK-W=2)...
       uint32_t          PrevMthYYYYMMDD_;
+      // TSEC.GTGCD='0' or ' ', else=TSEC.GTGCD;
+      char              GTGCD_;
    };
    struct Loader : public OmsFileImpLoader {
       fon9_NON_COPY_NON_MOVE(Loader);
@@ -129,6 +136,8 @@ protected:
                   symb->DenyReason_.clear();
                if (loader.Ofs_.LastMthDate_ != 0)
                   symb->PrevMthYYYYMMDD_ = 0;
+               if (loader.Ofs_.CTGCD_ != 0)
+                  symb->CTGCD_ = '\0';
             }
          }
       }
@@ -141,6 +150,8 @@ protected:
                usymb->DenyReason_ = std::move(item.DenyReason_);
             if (loader.Ofs_.LastMthDate_ != 0)
                usymb->PrevMthYYYYMMDD_ = item.PrevMthYYYYMMDD_;
+            if (loader.Ofs_.CTGCD_ != 0)
+               usymb->CTGCD_ = item.GTGCD_;
          }
       }
       SetReadyFlag(mkt);
@@ -167,22 +178,33 @@ class ImpT32 : public OmsFileImpSeed {
    using base = OmsFileImpSeed;
 
 public:
+   struct T32 {
+      f9tws::StkNo      StkNo_;
+      // 每一交易單位所含股數.
+      fon9::CharAry<5>  TradeUnit_;
+      // 交易幣別代碼.
+      fon9::CharAry<3>  TradeCurrency_;
+      char              Filler_[36];
+   };
+   static_assert(sizeof(T32) == 50, "");
+
    const f9fmkt_TradingMarket Market_;
    const unsigned             LnSize_;
 
    template <class... ArgsT>
-   ImpT32(f9fmkt_TradingMarket mkt, unsigned lnSize, ArgsT&&... args)
+   ImpT32(f9fmkt_TradingMarket mkt, ArgsT&&... args)
       : base(FileImpMonitorFlag::Reload, std::forward<ArgsT>(args)...)
       , Market_(mkt)
-      , LnSize_(lnSize) {
+      , LnSize_(sizeof(T32)) {
    }
 
    static TwsMarketMask Ready_;
 
 protected:
    struct ImpItem {
-      f9tws::StkNo   StkNo_;
-      OmsTwsQty      ShUnit_;
+      f9tws::StkNo      StkNo_;
+      OmsTwsQty         ShUnit_;
+      fon9::CharAry<3>  Currency_;
    };
    struct Loader : public OmsFileImpLoader {
       fon9_NON_COPY_NON_MOVE(Loader);
@@ -213,6 +235,7 @@ protected:
             if (auto symb = res.Symbs_->FetchSymb(symbs, ToStrView(item.StkNo_))) {
                auto* usymb = static_cast<SymbT*>(symb.get());
                usymb->ShUnit_ = item.ShUnit_;
+               usymb->Currency_ = item.Currency_;
             }
          }
          SetReadyFlag(mkt);

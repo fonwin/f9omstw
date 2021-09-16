@@ -178,6 +178,7 @@ file(COPY ${slnsrc}/f9omstw/f9omstw/OmsPoIvList.h       DESTINATION ${dst_includ
 file(COPY ${slnsrc}/f9omstw/f9omstw/OmsToolsC.h         DESTINATION ${dst_include}/f9omstw)
 file(COPY ${slnsrc}/f9omstw/f9omstw/OmsMakeErrMsg.h     DESTINATION ${dst_include}/f9omstw)
 file(COPY ${slnsrc}/f9omstw/f9omstw/OmsErrCode.h        DESTINATION ${dst_include}/f9omstw)
+file(COPY ${slnsrc}/fon9/fon9/fmkt/FmktTypes.h          DESTINATION ${dst_include}/fon9/fmkt)
 file(COPY ${slnsrc}/fon9/fon9/rc/RcClientApi.h          DESTINATION ${dst_include}/fon9/rc)
 file(COPY ${slnsrc}/fon9/fon9/rc/Rc.h                   DESTINATION ${dst_include}/fon9/rc)
 file(COPY ${slnsrc}/fon9/fon9/rc/RcSeedVisitor.h        DESTINATION ${dst_include}/fon9/rc)

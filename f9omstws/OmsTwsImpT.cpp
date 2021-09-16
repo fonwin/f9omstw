@@ -51,6 +51,13 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
    if (this->Ofs_.LastMthDate_ > 0) {
       item.PrevMthYYYYMMDD_ = fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.LastMthDate_, 8}, 0u);
    }
+   if (this->Ofs_.CTGCD_ > 0) {
+      switch (item.GTGCD_ = pbuf[this->Ofs_.CTGCD_]) {
+      case ' ': case '0':
+         item.GTGCD_ = '\0';
+         break;
+      }
+   }
 
    if (item.Refs_.PriDnLmt_ <= OmsTwsPri{1,2}
     && item.Refs_.PriUpLmt_ >= OmsTwsPri{9995,0}) {
@@ -122,12 +129,15 @@ size_t ImpT32::Loader::OnLoadBlock(char* pbuf, size_t bufsz, bool isEOF) {
    return this->ParseBlock(pbuf, bufsz, isEOF, this->LnSize_);
 }
 void ImpT32::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
-   // StkNo, TradeUnit[5], TradeCurrency[3]
    (void)bufsz; (void)isEOF;
-   ImpItem& item = this->ImpItems_[this->LnCount_];
-   item.StkNo_ = *reinterpret_cast<f9tws::StkNo*>(pbuf);
-   pbuf += f9tws::StkNo::size();
-   item.ShUnit_ = fon9::StrTo(fon9::StrView{pbuf, 5}, 0u);
+   const T32* prec = reinterpret_cast<const T32*>(pbuf);
+   ImpItem&   item = this->ImpItems_[this->LnCount_];
+   item.StkNo_  = prec->StkNo_;
+   item.ShUnit_ = fon9::StrTo(ToStrView(prec->TradeUnit_), 0u);
+   if (prec->TradeCurrency_.Get1st() == ' ')
+      item.Currency_.Clear('\0');
+   else
+      item.Currency_ = prec->TradeCurrency_;
 }
 
 OmsFileImpLoaderSP ImpT32::MakeLoader(OmsFileImpTree& owner, fon9::RevBuffer& rbufDesp, uint64_t addSize, fon9::seed::FileImpMonitorFlag monFlag) {

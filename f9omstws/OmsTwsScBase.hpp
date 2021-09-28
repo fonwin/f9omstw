@@ -3,13 +3,16 @@
 #ifndef __f9omstws_OmsTwsScBase_hpp__
 #define __f9omstws_OmsTwsScBase_hpp__
 #include "f9omstws/OmsTwsRequest.hpp"
+#include "f9omstw/OmsScBase.hpp" // OmsErrCode_Sc_BadOType
 
 namespace f9omstw {
 
 struct OmsTwsScBase {
    const OmsTwsRequestIni* IniReq_;
    OmsBSIdx                BSIdx_;
+   OmsOTypeIdx             OTypeIdx_;
    OmsTwsTradingSessionIdx TradingSessionIdx_;
+   char                    Padding____[4];
 
    /// \retval OmsErrCode_NoError
    /// \retval OmsErrCode_OrderInitiatorNotFound
@@ -25,6 +28,29 @@ struct OmsTwsScBase {
       case f9fmkt_Side_Unknown:
       default:
          return OmsErrCode_Bad_Side;
+      }
+      switch (this->IniReq_->OType_) {
+      case f9tws::TwsOType::Gn:
+      case f9tws::TwsOType::DayTradeGn:
+         this->OTypeIdx_ = OmsOTypeIdx_Gn;
+         break;
+      case f9tws::TwsOType::DayTradeCD:
+         this->OTypeIdx_ = (this->BSIdx_ == OmsBSIdx_Buy
+                            ? OmsOTypeIdx_Cr
+                            : OmsOTypeIdx_Db);
+         break;
+      case f9tws::TwsOType::CrAgent:
+      case f9tws::TwsOType::CrSelf:
+         this->OTypeIdx_ = OmsOTypeIdx_Cr;
+         break;
+      case f9tws::TwsOType::DbAgent:
+      case f9tws::TwsOType::DbSelf:
+         this->OTypeIdx_ = OmsOTypeIdx_Db;
+         break;
+      default:
+      case f9tws::TwsOType::SBL5:
+      case f9tws::TwsOType::SBL6:
+         return OmsErrCode_Sc_BadOType;
       }
       switch (this->IniReq_->SessionId()) {
       case f9fmkt_TradingSessionId_Normal:

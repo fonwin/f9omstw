@@ -11,5 +11,11 @@ enum OmsBSIdx : unsigned {
    OmsBSIdx_Sell = 1,
 };
 
+enum OmsOTypeIdx : unsigned {
+   OmsOTypeIdx_Gn = 0,
+   OmsOTypeIdx_Cr = 1,
+   OmsOTypeIdx_Db = 2,
+};
+
 } // namespaces
 #endif//__f9omstw_OmsTypes_hpp__

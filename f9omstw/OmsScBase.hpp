@@ -171,7 +171,7 @@ inline bool Sc_Symbol_QtyOddLot(OmsRequestRunnerInCore& runner, RequestIniT& ini
 
 //--------------------------------------------------------------------------//
 /// 現股庫存不足: Bal=庫存量|Leaves=賣未成交|Filled=賣已成交|Add=此筆新增|Over=超過數量|RFlags=A,R,S
-#define OmsErrCode_Sc_BalQty        static_cast<OmsErrCode>(OmsErrCode_FromRisk + 200)
+#define OmsErrCode_Sc_BalQtyGn      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 200)
 /// 帳號禁止現股當沖: IFlags=R,S
 #define OmsErrCode_Sc_DenyIvrGnRvB  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 201)
 /// 商品禁止現股當沖.
@@ -191,7 +191,7 @@ inline bool Sc_Symbol_QtyOddLot(OmsRequestRunnerInCore& runner, RequestIniT& ini
 #define OmsErrCode_Sc_BrkSeQty      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 212)
 
 
-template <class QtyT, class QtyBS>
+template <class QtyT>
 inline bool Sc_BalQty(OmsRequestRunnerInCore& runner, OmsErrCode ec, QtyT bal, QtyT leaves, QtyT filled, QtyT add) {
    const auto rhs = leaves + filled + add;
    if (fon9_LIKELY(bal >= rhs)) {
@@ -200,7 +200,7 @@ inline bool Sc_BalQty(OmsRequestRunnerInCore& runner, OmsErrCode ec, QtyT bal, Q
                    "|Remain=", bal - rhs);
       return true;
    }
-   runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_BalQty, nullptr);
+   runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, ec, nullptr);
    runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>(
       "Bal=", bal, "|Leaves=", leaves, "|Filled=", filled, "|Add=", add,
       "|Over=", rhs - bal);
@@ -238,6 +238,12 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
          lmtName, '=', lmt, "|Used=", used, "|Add=", add, "|Over=", over);
    return false;
 }
+
+//--------------------------------------------------------------------------//
+/// 資庫存不足: Bal=庫存量|Leaves=賣未成交|Filled=賣已成交|Add=此筆新增|Over=超過數量
+#define OmsErrCode_Sc_BalQtyCr      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 400)
+/// 券庫存不足: Bal=庫存量|Leaves=買未成交|Filled=買已成交|Add=此筆新增|Over=超過數量
+#define OmsErrCode_Sc_BalQtyDb      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 500)
 
 //--------------------------------------------------------------------------//
 /// IsRelatedStk: 利害關係人股票禁止下單.

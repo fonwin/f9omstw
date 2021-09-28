@@ -22,34 +22,44 @@ enum OmsTwsTradingSessionIdx : unsigned {
    OmsTwsTradingSessionIdx_Odd = 2,
 };
 
-union OmsTwsQtyBS {
-   struct {
-      OmsTwsQty   Buy_;
-      OmsTwsQty   Sell_;
-   }              Get_;
-   OmsTwsQty      BS_[2];
+fon9_MSC_WARN_DISABLE(4582  // constructor is not implicitly called
+                      4587  // 'OmsTwsAmtBS::Buy_' behavior change : constructor is no longer implicitly called
+                      4201);// nonstandard extension used: nameless struct/union
+struct OmsTwsQtyBS {
+   OmsTwsQty   Buy_{0};
+   OmsTwsQty   Sell_{0};
 
    OmsTwsQtyBS() {
-      this->Clear();
    }
    void Clear() {
       fon9::ForceZeroNonTrivial(this);
+   }
+   OmsTwsQty& BS(OmsBSIdx idx) {
+      assert(idx == OmsBSIdx_Buy || idx == OmsBSIdx_Sell);
+      return *(&this->Buy_ + idx);
+   }
+   const OmsTwsQty& BS(OmsBSIdx idx) const {
+      assert(idx == OmsBSIdx_Buy || idx == OmsBSIdx_Sell);
+      return *(&this->Buy_ + idx);
    }
 };
 
-fon9_MSC_WARN_DISABLE(4582); // constructor is not implicitly called
-union OmsTwsAmtBS {
-   struct {
-      OmsTwsAmt   Buy_;
-      OmsTwsAmt   Sell_;
-   }              Get_;
-   OmsTwsAmt      BS_[2];
+struct OmsTwsAmtBS {
+   OmsTwsAmt   Buy_{};
+   OmsTwsAmt   Sell_{};
 
    OmsTwsAmtBS() {
-      this->Clear();
    }
    void Clear() {
       fon9::ForceZeroNonTrivial(this);
+   }
+   OmsTwsAmt& BS(OmsBSIdx idx) {
+      assert(idx == OmsBSIdx_Buy || idx == OmsBSIdx_Sell);
+      return *(&this->Buy_ + idx);
+   }
+   const OmsTwsAmt& BS(OmsBSIdx idx) const {
+      assert(idx == OmsBSIdx_Buy || idx == OmsBSIdx_Sell);
+      return *(&this->Buy_ + idx);
    }
 };
 fon9_MSC_WARN_POP;

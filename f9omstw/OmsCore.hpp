@@ -45,7 +45,7 @@ protected:
    using StartResult = OmsBackend::OpenResult;
    /// - 將 this->Symbs_; this->Brks_; 加入 this->Sapling.
    /// - 啟動 thread.
-   virtual StartResult Start(std::string logFileName);
+   virtual StartResult Start(std::string logFileName, fon9::TimeInterval flushInterval);
 
    /// 執行 runner.ValidateInUser();  成功之後,
    /// 由衍生者實作將 runner 移到 core 執行.

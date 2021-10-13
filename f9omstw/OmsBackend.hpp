@@ -123,7 +123,7 @@ public:
    OpenResult OpenReload(std::string logFileName, OmsResource& resource,
                          fon9::FileMode fmode = fon9::FileMode::CreatePath | fon9::FileMode::Append
                                               | fon9::FileMode::Read | fon9::FileMode::DenyWrite);
-   void StartThread(std::string thrName, fon9::TimeInterval flushInterval = fon9::TimeInterval_Millisecond(1));
+   void StartThread(std::string thrName, fon9::TimeInterval flushInterval);
    /// 通知並等候 thread 結束.
    void WaitThreadEnd();
    /// 通知並等候 thread 結束, 然後儲存剩餘的資料.

@@ -107,6 +107,7 @@ public:
       fon9::HowWait        howWait{};
       int                  cpuId = -1;
       f9twf::FcmId         cmId{};
+      fon9::TimeInterval   flushInterval{fon9::TimeInterval_Millisecond(1)};
       while (fon9::SbrFetchTagValue(args, tag, value)) {
          fon9::IoManagerArgs* ioargs;
          if (tag == "Name")
@@ -145,6 +146,8 @@ public:
             howWait = fon9::StrToHowWait(value);
          else if (tag == "Cpu")
             cpuId = fon9::StrTo(value, cpuId);
+         else if (tag == "FlushInterval")
+            flushInterval = fon9::StrTo(value, flushInterval);
          else if (tag == "Lg")
             lgCfgFileName = value;
          else if (tag == "CmId")
@@ -164,10 +167,11 @@ public:
       if (!holder.Root_->Add(coreMgrSeed))
          return false;
       coreMgrSeed->BrkIdStart_.assign(brkId);
-      coreMgrSeed->BrkCount_ = (brkCount <= 0 ? 1u : brkCount);
-      coreMgrSeed->CmId_     = cmId;
-      coreMgrSeed->CpuId_    = cpuId;
-      coreMgrSeed->HowWait_  = howWait;
+      coreMgrSeed->BrkCount_      = (brkCount <= 0 ? 1u : brkCount);
+      coreMgrSeed->CmId_          = cmId;
+      coreMgrSeed->CpuId_         = cpuId;
+      coreMgrSeed->FlushInterval_ = flushInterval;
+      coreMgrSeed->HowWait_       = howWait;
       // ------------------------------------------------------------------
       const std::string     logpath = SysEnv_GetLogFileFmtPath(*coreMgrSeed->Root_);
       const std::string     cfgpath = SysEnv_GetConfigPath(*coreMgrSeed->Root_).ToString();

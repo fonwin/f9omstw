@@ -12,8 +12,9 @@ class OmsCoreMgrSeed : public fon9::seed::NamedSapling {
    fon9_NON_COPY_NON_MOVE(OmsCoreMgrSeed);
    using base = fon9::seed::NamedSapling;
 protected:
-   int            CpuId_{-1};
-   fon9::HowWait  HowWait_{};
+   int                  CpuId_{-1};
+   fon9::HowWait        HowWait_{};
+   fon9::TimeInterval   FlushInterval_{fon9::TimeInterval_Millisecond(1)};
 
    virtual void InitCoreTables(OmsResource& res) = 0;
 

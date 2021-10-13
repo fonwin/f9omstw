@@ -74,9 +74,9 @@ void OmsBackend::ThrRun(std::string thrName) {
          quItems.swap(items->QuItems_);
          items.unlock();
          // ------------
-         // quItems: 寫檔、回報...
-         this->SaveQuItems(quItems);
-         // Report.
+         // ----- quItems: 寫檔、回報...
+         // this->SaveQuItems(quItems); // 為了加快回報速度, 所以改成: 先處理回報, 再處理存檔.
+         // ----- Report.
          for (QuItem& qi : quItems) {
             if (qi.Item_ == nullptr)
                continue;
@@ -91,8 +91,10 @@ void OmsBackend::ThrRun(std::string thrName) {
                intrusive_ptr_release(qi.Item_);
             }
          }
-         quItems.clear();
+         // ----- quItems: 寫檔、回報...
+         this->SaveQuItems(quItems);
          // ------------
+         quItems.clear();
          items.lock();
       }
       this->Items_.OnBeforeThreadEnd(items);

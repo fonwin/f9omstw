@@ -23,10 +23,19 @@ static inline void AdjustReportQtys(OmsOrder& order, OmsResource& res, OmsTwsRep
    }
 }
 //--------------------------------------------------------------------------//
+static inline void OmsTwsReport_Update(OmsTwsOrderRaw& ordraw) {
+   // 台灣證券交易的 f9fmkt_TradingRequestSt_ExchangeCanceling 用來表示:
+   // 證券進入價格穩定措施或尾盤集合競價時段，交易所主動取消留存委託簿之「市價」委託單資料並回報.
+   // 此時 OrderSt 為 f9fmkt_OrderSt_ExchangeCanceled;
+   if (ordraw.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeCanceling
+       && ordraw.UpdateOrderSt_ <= f9fmkt_OrderSt_Canceling)
+      ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeCanceled;
+}
 static inline void OmsAssignOrderFromReportNewOrig(OmsTwsOrderRaw& ordraw, OmsTwsReport& rpt) {
    if (ordraw.OType_ == OmsTwsOType{})
       ordraw.OType_ = rpt.OType_;
    ordraw.AfterQty_ = ordraw.LeavesQty_ = rpt.Qty_;
+   OmsTwsReport_Update(ordraw);
 }
 void OmsTwsReport::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
    if (fon9_LIKELY(this->RunReportInCore_FromOrig_Precheck(checker, origReq))) {
@@ -57,6 +66,7 @@ void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRu
    ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
    ordraw.OType_ = this->OType_;
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
+   OmsTwsReport_Update(ordraw);
 }
 void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
@@ -64,6 +74,7 @@ void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    OmsTwsOrderRaw&  ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
    AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this);
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
+   OmsTwsReport_Update(ordraw);
 }
 //--------------------------------------------------------------------------//
 static void OrderRawFromPendingReport(OmsResource& res, const OmsRequestBase& rpt, const OmsTwsReport* chkFields) {

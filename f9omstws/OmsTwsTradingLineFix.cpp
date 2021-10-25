@@ -130,7 +130,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       // 因為只有取消「市價」, 所以只有「新單的 ClOrdID」, 不會有「OrigClOrdID」.
       // 針對原新單要求: ExchangeCanceled;
       rptKind = f9fmkt_RxKind_RequestNew;
-      rptSt = f9fmkt_TradingRequestSt_ExchangeCanceled;
+      rptSt = f9fmkt_TradingRequestSt_ExchangeCanceling;
       break;
    // case *f9fix_kVAL_ExecType_PendingNew:     // "A"
    // case *f9fix_kVAL_ExecType_PendingCancel:  // "6"

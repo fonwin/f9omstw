@@ -4,7 +4,10 @@
 #include "f9omstwf/OmsTwfReport3.hpp"
 using namespace f9omstw;
 //--------------------------------------------------------------------------//
-#define kSYMID    "TXFL9"
+#define kSYMID_H  "TXF"
+#define kSYMID_1  "L9"
+#define kSYMID_2  "C0"
+#define kSYMID    kSYMID_H kSYMID_1
 
 void InitTestCore(TestCore& core) {
    auto  ordfac1 = core.Owner_->OrderFactoryPark().GetFactory("TwfOrd");
@@ -26,7 +29,8 @@ void InitTestCore(TestCore& core) {
       "40004:Rerun=2|AtNewDone=Y|Memo=商品處理中，暫時不接受委託\n"
       "40010:St=ExchangeNoLeavesQty\n"
    );
-   core.GetResource().Symbs_->FetchOmsSymb(kSYMID)->PriceOrigDiv_ = 1;
+   core.GetResource().Symbs_->FetchOmsSymb(kSYMID_H kSYMID_1)->PriceOrigDiv_ = 1;
+   core.GetResource().Symbs_->FetchOmsSymb(kSYMID_H kSYMID_2)->PriceOrigDiv_ = 1;
    core.OpenReload(gArgc, gArgv, "OmsTwfReport_UT.log");
 
 #define kErrCode_0                  "|ErrCode=0"
@@ -88,6 +92,8 @@ void InitTestCore(TestCore& core) {
 
 #define kTwfFil(matKey,qty,pri,tm) \
         "TwfFil" kReqBase "|MatchKey=" #matKey "|Qty=" #qty "|Pri=" #pri "|Time=" tm
+#define kTwfFil2(matKey,qty,pri1,pri2,tm) \
+        "TwfFil2" kReqBase "|MatchKey=" #matKey "|Qty=" #qty "|Pri=" #pri1 "|PriLeg2=" #pri2 "|Time=" tm
 
 #define kTwfR03(kind,tm) \
         "TwfR03" kOrdKey kRptVST(ExchangeRejected) "|Kind=" #kind "|Side=B" \
@@ -645,6 +651,24 @@ kChkOrder(ExchangeAccepted,ExchangeRejected,10,10,10,kTIMEC) kOrdPri(R,200,kTIME
    RunTestList(core, "ErrCodeAct.ReChg2", cstrTestList);
 }
 //--------------------------------------------------------------------------//
+void TestCombOrder(TestCoreSP& core) {
+#undef  kSYMID
+#define kSYMID    kSYMID_H kSYMID_1 "/" kSYMID_2
+   const char* cstrTestList[] = {
+kTwfNew,
+kChkOrderNewSending,
+"-2." kTwfRpt(ExchangeAccepted,N,     10,10,   kTIME0) kPriLmt(R,200),
+kChkOrderST(ExchangeAccepted,         10,10,10,kTIME0) kOrdPri(R,200,kTIME0),
+"+1." kTwfFil2(1,                                                                    1,201,210,kTIME1),
+kChkOrder(PartFilled,PartFilled,      10, 9, 9,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(1,  9,    kTIME1),
+"+1." kTwfFil2(2,                                                                    2,202,210,kTIME2),
+kChkOrder(PartFilled,PartFilled,       9, 7, 7,kTIME0) kOrdPri(R,200,kTIME0) kOrdCum(3, 25,    kTIME2),
+   };
+   RunTestList(core, "Combo-order", cstrTestList);
+#undef  kSYMID
+#define kSYMID    kSYMID_H kSYMID_1
+}
+//--------------------------------------------------------------------------//
 int main(int argc, char* argv[]) {
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -654,6 +678,9 @@ int main(int argc, char* argv[]) {
    InitReportUT(argc, argv);
    fon9::AutoPrintTestInfo utinfo{"OmsTwfReport"};
    TestCoreSP core;
+
+   TestCombOrder(core);
+   utinfo.PrintSplitter();
 
    TestNormalOrder(core);
    TestSpecialFilled(core);

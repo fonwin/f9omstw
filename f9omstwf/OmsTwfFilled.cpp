@@ -230,7 +230,7 @@ OmsOrderRaw* OmsTwfFilled2::RunReportInCore_FilledMakeOrder(OmsReportChecker& ch
    return base::RunReportInCore_FilledMakeOrder(checker);
 }
 void OmsTwfFilled2::RunReportInCore_FilledOrder(OmsReportChecker&& checker, OmsOrder& order) {
-   if (!AdjustReportPrice(OmsGetReportPriMul(order, checker, *this), *this))
+   if (AdjustReportPrice(OmsGetReportPriMul(order, checker, *this), *this))
       base::RunReportInCore_FilledOrder(std::move(checker), order);
 }
 void OmsTwfFilled2::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCoreRunner) const {

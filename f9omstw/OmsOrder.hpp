@@ -83,6 +83,7 @@ public:
    const OmsOrderRaw*   Head()        const  { return this->Head_; }
    const OmsOrderRaw*   Tail()        const  { return this->Tail_; }
    f9fmkt_OrderSt       LastOrderSt() const  { return this->LastOrderSt_; }
+   bool              IsWorkingOrder() const;
 
    const OmsScResource& ScResource() const   { return this->ScResource_; }
    OmsScResource&       ScResource()         { return this->ScResource_; }
@@ -217,6 +218,10 @@ public:
    /// 預設傳回 true; 表示條件符合.
    /// 範例: OmsTwsOrderRaw 檢查 OType 是否存在於 act.OTypes_;
    virtual bool CheckErrCodeAct(const OmsErrCodeAct& act) const;
+
+   /// 通常為: LeavesQty_ > 0;
+   /// 但也有例外: 詢價, 報價. 
+   virtual bool IsWorking() const = 0;
 };
 
 //--------------------------------------------------------------------------//
@@ -245,6 +250,11 @@ inline void OmsOrder::EndUpdate(const OmsOrderRaw& last, OmsResource* res) {
                         && last.RequestSt_ > f9fmkt_TradingRequestSt_LastRunStep))
          this->ProcessPendingReport(*res);
    }
+}
+inline bool OmsOrder::IsWorkingOrder() const {
+   if (const auto* tail = this->Tail_)
+      return !tail->IsFrozeScLeaves_ && tail->IsWorking();
+   return false;
 }
 
 } // namespaces

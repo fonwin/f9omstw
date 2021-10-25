@@ -59,7 +59,7 @@ void fon9_CAPI_CALL OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_Client
       ud->LastSNO_ = 0;
       ud->CoreTDay_ = cfg->CoreTDay_;
    }
-   f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
+   f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, f9OmsRc_RptFilter_RptAll);
 }
 void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    UserDefine* ud = ses->UserData_;

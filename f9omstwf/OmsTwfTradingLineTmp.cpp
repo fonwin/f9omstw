@@ -408,8 +408,10 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       f9twf::TmpPutValue(pkr1bf->OrdId_, static_cast<uint32_t>(curReq->RxSNO()));
       f9twf::TmpPutValue(pkr1bf->CmId_, brk->CmId_);
       f9twf::TmpPutValue(pkr1bf->IvacFcmId_, brk->FcmId_);
-      pkr1bf->UserDefine_.Clear(' '); // UserId? SalesNo? or ...
       pkr1bf->SymbolType_ = symType;
+      // UserDefine_: UserId? SalesNo? SubacNo? or ...
+      // pkr1bf->UserDefine_.AssignFrom(ToStrView(curReq->UserId_));
+      pkr1bf->UserDefine_.AssignFrom(ToStrView(iniReq0->SubacNo_));
    }
    // ====================================
    // this 已經有自己的 log, 為了速度的考量, 不再使用 runner->ExLogForUpd_; 記錄送出的封包.

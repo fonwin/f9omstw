@@ -39,5 +39,8 @@ bool OmsTwsOrderRaw::CheckErrCodeAct(const OmsErrCodeAct& act) const {
       return true;
    return memchr(act.OTypes_.begin(), static_cast<char>(this->OType_), act.OTypes_.size()) != nullptr;
 }
+bool OmsTwsOrderRaw::IsWorking() const {
+   return this->LeavesQty_ > 0;
+}
 
 } // namespaces

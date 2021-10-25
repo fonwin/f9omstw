@@ -36,5 +36,8 @@ void OmsTwfOrderRaw1::OnOrderReject() {
    assert(f9fmkt_OrderSt_IsFinishedRejected(this->UpdateOrderSt_));
    this->OmsTwfOrderRawDat1::OnOrderReject();
 }
+bool OmsTwfOrderRaw1::IsWorking() const {
+   return this->LeavesQty_ > 0;
+}
 
 } // namespaces

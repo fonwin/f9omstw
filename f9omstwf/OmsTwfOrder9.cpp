@@ -36,6 +36,9 @@ void OmsTwfOrderRaw9::OnOrderReject() {
    this->Bid_.OnOrderReject();
    this->Offer_.OnOrderReject();
 }
+bool OmsTwfOrderRaw9::IsWorking() const {
+   return this->Bid_.LeavesQty_ > 0 && this->Offer_.LeavesQty_ > 0;
+}
 
 //--------------------------------------------------------------------------//
 

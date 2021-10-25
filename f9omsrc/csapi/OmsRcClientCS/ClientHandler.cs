@@ -251,7 +251,7 @@ namespace OmsRcClientCS
             this.RequestRecs_[iReqLayout] = new RequestRec();
             this.RequestRecs_[iReqLayout].Fields_ = new string[cfg.RequestLayoutArray_[iReqLayout]->FieldCount_];
          }
-         f9oms.Api.SubscribeReport(ref ses, ref cfg, this.LastSNO_ + 1, f9oms.RptFilter.AllPass);
+         f9oms.Api.SubscribeReport(ref ses, ref cfg, this.LastSNO_ + 1, f9oms.RptFilter.RptAll);
       }
       internal unsafe void OnOmsClientReport(ref f9rc.RcClientSession ses, ref f9oms.ClientReport rpt)
       {

@@ -50,7 +50,7 @@ void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
       LastSNO_ = 0;
       CoreTDay_ = cfg->CoreTDay_;
    }
-   f9OmsRc_SubscribeReport(ses, cfg, LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
+   f9OmsRc_SubscribeReport(ses, cfg, LastSNO_ + 1, f9OmsRc_RptFilter_RptAll);
 }
 void OnClientReport(f9rc_ClientSession*, const f9OmsRc_ClientReport* rpt) {
    LastSNO_ = rpt->ReportSNO_;

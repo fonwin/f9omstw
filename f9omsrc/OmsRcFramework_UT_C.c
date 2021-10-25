@@ -108,7 +108,7 @@ void OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
          ud->ReqNewValues_ = calloc(lyTwsNew->FieldCount_, sizeof(fon9_CStrView));
       }
    }
-   f9OmsRc_SubscribeReport(ses, ud->Config_, ud->LastSNO_ + 1, f9OmsRc_RptFilter_AllPass);
+   f9OmsRc_SubscribeReport(ses, ud->Config_, ud->LastSNO_ + 1, f9OmsRc_RptFilter_RptAll);
 
    // 印出解析前的原始字串.
    puts(cfg->RightsTables_.OrigStrView_.Begin_);

@@ -11,7 +11,15 @@
 namespace f9omstw {
 
 using OmsTwfOrder7 = OmsTwfOrder0;
-using OmsTwfOrderRaw7 = OmsTwfOrderRaw0;
+class OmsTwfOrderRaw7 : public OmsTwfOrderRaw0 {
+   fon9_NON_COPY_NON_MOVE(OmsTwfOrderRaw7);
+   using base = OmsTwfOrderRaw0;
+public:
+   using base::base;
+   OmsTwfOrderRaw7() = default;
+   ~OmsTwfOrderRaw7();
+   bool IsWorking() const override;
+};
 
 } // namespaces
 #endif//__f9omstwf_OmsTwfOrder7_hpp__

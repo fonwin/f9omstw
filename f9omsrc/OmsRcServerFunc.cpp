@@ -264,19 +264,43 @@ void OmsRcServerNote::Handler::ClearResource() {
 void OmsRcServerNote::Handler::StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter) {
    if (this->State_ > HandlerSt::Recovering) // 重覆訂閱/回補/解構中?
       return;
-   this->State_ = HandlerSt::Recovering;
    this->RptFilter_ = filter;
+   if (from == 0)
+      this->SubscribeReport();
+   else {
+      this->State_ = HandlerSt::Recovering;
+      this->WkoRecoverSNO_ = this->Core_->PublishedSNO();
+      using namespace std::placeholders;
+      this->Core_->ReportRecover(from, std::bind(&Handler::OnRecover, HandlerSP{this}, _1, _2));
+   }
+}
+void OmsRcServerNote::Handler::SubscribeReport() {
    using namespace std::placeholders;
-   this->Core_->ReportRecover(from, std::bind(&Handler::OnRecover, HandlerSP{this}, _1, _2));
+   this->State_ = HandlerSt::Reporting;
+   this->Core_->ReportSubject().Subscribe(&this->RptSubr_, std::bind(&Handler::OnReport, HandlerSP{this}, _1, _2));
 }
 OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* item) {
    if (this->State_ != HandlerSt::Recovering)
       return 0;
    if (item) {
-      if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverLastSt) {
-         if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(item->CastToOrder())) {
-            if (ordraw->Request().LastUpdated() != ordraw)
+      // 如果在回補過程中 order 狀態改變, 要如何處理呢?
+      // - 之前沒補到的.
+      // - 或之後應該要補的(例:先前因 working order 回補了一些, 但後來 order 變成無剩餘量, 就被排除不補了!!).
+      if (this->RptFilter_) {
+         const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(item->CastToOrder());
+         if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverLastSt) {
+            if (ordraw && ordraw->Request().LastUpdated() != ordraw)
                return item->RxSNO() + 1;
+         }
+         if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverWorkingOrder) {
+            if (item->RxSNO() < this->WkoRecoverSNO_) {
+               if (ordraw == nullptr) {
+                  const OmsRequestBase* req = static_cast<const OmsRequestBase*>(item->CastToRequest());
+                  ordraw = req->LastUpdated();
+               }
+               if (ordraw && !ordraw->Order().IsWorkingOrder())
+                  return item->RxSNO() + 1;
+            }
          }
       }
       this->SendReport(*item);
@@ -291,8 +315,7 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
    static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get())->Send(
       f9rc_FunctionCode_OmsApi, std::move(rbuf));
    // 訂閱即時回報.
-   using namespace std::placeholders;
-   core.ReportSubject().Subscribe(&this->RptSubr_, std::bind(&Handler::OnReport, HandlerSP{this}, _1, _2));
+   this->SubscribeReport();
    return 0;
 }
 void OmsRcServerNote::Handler::OnReport(OmsCore&, const OmsRxItem& item) {
@@ -305,6 +328,20 @@ void OmsRcServerNote::Handler::SendReport(const OmsRxItem& item) {
       if (this->ApiSesCfg_->MakeReportMessage(rbuf, item))
          ses->Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
    }
+}
+//--------------------------------------------------------------------------//
+/// sesUserId 與 reqUserId 的關係:
+/// (1) 必須完全相同.
+/// (2) reqUserId 附屬於 sesUserId: (sesSz < reqSz), 例:
+///     sesUserId="K01"; reqUserId="K01.A1";
+static inline bool CheckReqUserId(fon9::StrView sesUserId, fon9::StrView reqUserId) {
+   const auto sesSz = sesUserId.size();
+   const auto reqSz = reqUserId.size();
+   if (sesSz > reqSz)
+      return false;
+   if (sesSz == reqSz || reqUserId.begin()[sesSz] == '.')
+      return memcmp(sesUserId.begin(), reqUserId.begin(), sesSz) == 0;
+   return false;
 }
 ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());
@@ -334,17 +371,24 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          return ses;
       }
       if ((ordraw = reqb->LastUpdated()) == nullptr) { // abandon?
+         if (this->RptFilter_ & (f9OmsRc_RptFilter_MatchOnly | f9OmsRc_RptFilter_RecoverWorkingOrder))
+            return nullptr;
          const OmsRequestTrade* reqt = static_cast<const OmsRequestTrade*>(reqb);
          if (!reqt)
             return nullptr;
-         if (ToStrView(reqt->UserId_) == sesUserId)
+         if (CheckReqUserId(sesUserId, ToStrView(reqt->UserId_)))
             return ses;
          // abandon 不考慮可用帳號回報.
          return nullptr;
       }
    }
+   if (this->RptFilter_ & f9OmsRc_RptFilter_MatchOnly) {
+      if (ordraw->RequestSt_ != f9fmkt_TradingRequestSt_Filled)
+         return nullptr;
+   }
+   // -----
    if (auto ini = ordraw->Order().Initiator())
-      if (ToStrView(ini->UserId_) == sesUserId)
+      if (CheckReqUserId(sesUserId, ToStrView(ini->UserId_)))
          return ses;
    // 如果有重啟過, Ivr_ 會在 Backend 載入時建立.
    auto rights = this->RequestPolicy_->GetIvRights(ordraw->Order().ScResource().Ivr_.get());

@@ -4,4 +4,10 @@
 
 namespace f9omstw {
 
+OmsTwfOrderRaw7::~OmsTwfOrderRaw7() {
+}
+bool OmsTwfOrderRaw7::IsWorking() const {
+   return false;
+}
+
 } // namespaces

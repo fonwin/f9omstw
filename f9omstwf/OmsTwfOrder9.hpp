@@ -53,6 +53,7 @@ public:
    void ContinuePrevUpdate(const OmsOrderRaw& prev) override;
 
    void OnOrderReject() override;
+   bool IsWorking() const override;
 };
 
 //--------------------------------------------------------------------------//

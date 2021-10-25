@@ -51,6 +51,8 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
       fon9::SubConn     RptSubr_{};
+      OmsRxSNO          WkoRecoverSNO_{};
+      void SubscribeReport();
       OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);
       void OnReport(OmsCore&, const OmsRxItem& item);
       void SendReport(const OmsRxItem& item);

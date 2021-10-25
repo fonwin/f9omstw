@@ -55,15 +55,20 @@ fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
 };
 
 fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
-   f9OmsRc_RptFilter_AllPass = 0,
+   f9OmsRc_RptFilter_RptAll = 0,
    /// 回補階段, 回補最後狀態, 例如:
    /// - 若某筆要求已收到交易所回報, 則中間過程的 Queuing, Sending 不回補.
    /// - 若某筆要求正在 Sending, 則中間過程的 Queuing 不回補.
    f9OmsRc_RptFilter_RecoverLastSt = 0x01,
+   /// 僅回補 WorkingOrder, 即時回報不考慮此旗標.
+   f9OmsRc_RptFilter_RecoverWorkingOrder = 0x02,
+
    /// Queuing 不回報(也不回補).
    f9OmsRc_RptFilter_NoQueuing = 0x10,
    /// Sending 不回報(也不回補).
    f9OmsRc_RptFilter_NoSending = 0x20,
+   /// 僅回補(回報)成交;
+   f9OmsRc_RptFilter_MatchOnly = 0x40,
 };
 
 fon9_ENUM(f9OmsRc_LayoutKind, uint8_t) {

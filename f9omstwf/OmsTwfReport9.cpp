@@ -85,7 +85,11 @@ static bool OmsAssignQtysFromReportDCQ(OmsReportRunnerInCore& inCoreRunner, OmsT
       if (!OmsAssignQtysFromReportBfAf(inCoreRunner, ordraw.Offer_, rpt, rpt.OfferBeforeQty_, rpt.OfferQty_))
          return false;
    AdjustRequestSt_DoNothing(ordraw, rpt);
-   OmsTwfMergeQuotePartReport(ordraw);
+   if (ordraw.Request().RxKind() == rpt.RxKind()) {
+      // RxKind 不同: rpt 必定是期交所刪單 => 則不用考慮 ReportPending 的合併!
+      // 所以只有 RxKind 相同才需要考慮 ReportPending 的合併!
+      OmsTwfMergeQuotePartReport(ordraw);
+   }
    return true;
 }
 static void OmsUpdateOrderSt_WhenRecalcLeaves0(OmsReportRunnerInCore& inCoreRunner, OmsTwfOrderQtys& ordQtys) {
@@ -111,7 +115,11 @@ void OmsTwfReport9::RunReportInCore_FromOrig(OmsReportChecker&& checker, const O
             checker.ReportAbandon("TwfReport9: Duplicate ExchangeCanceled.");
             return;
          }
-         this->RxKind_ = origReq.RxKind();
+         // 如果最後有改價, 則 this->RxKind_ 應維持 Delete,
+         // 這樣才能在 OmsAssignQtysFromReportBfAf() 正確處理 Qty;
+         if ((this->RxKind_ = origReq.RxKind()) == f9fmkt_RxKind_RequestChgPri) {
+            this->RxKind_ = f9fmkt_RxKind_RequestDelete;
+         }
          goto __RUN_REPORT;
       }
    }

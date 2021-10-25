@@ -211,6 +211,26 @@ kChkOrderST(ExchangeCanceled,               0, 0, 0, 60, 0, 0, kTIME2),
    };
    RunTestList(core, "Normal-order", cstrTestList);
 }
+// 新單成功 => 改價 => 期交所刪單.
+void Test_New_ChgPri_ExgDel(TestCoreSP& core) {
+   const char* cstrTestList[] = {
+kTwfNewQ,                                                                    //Ln  1:
+kChkOrderNewSending,                                                         //Ln  2:
+"-2." kTwfRptQ_Bid(PartExchangeAccepted,N,       50,50,              kTIME1),//Ln  3:新單成功.
+kChkOrderST(PartExchangeAccepted,                50,50,50, 60,60,60, kTIME1),//Ln  4:
+"-3." kTwfRptQ_Offer(ExchangeAccepted,N,                   60,60,    kTIME1),//Ln  5:
+kChkOrderST(ExchangeAccepted,                    50,50,50, 60,60,60, kTIME1),//Ln  6:
+"*1.TwfChgQ" kOrdKey "|BidPri=8001",                                         //Ln  7:改價要求.
+kChkOrder(ExchangeAccepted,Sending,              50,50,50, 60,60,60, kTIME1),//Ln  8:
+"-2." kTwfRptQ_Bid(ExchangeAccepted,P,           50,50,              kTIME2) "|BidPri=8001",    //Ln  9:
+kChkOrderST(ExchangeAccepted,                    50,50,50, 60,60,60, kTIME2) "|LastBidPri=8001",//Ln 10:
+"-3." kTwfRptQ_Bid(PartExchangeAccepted,D,       50, 0,              kTIME3),//Ln 11:期交所刪單.
+kChkOrder(ExchangeAccepted,PartExchangeCanceled, 50, 0, 0, 60,60,60, kTIME3),//Ln 12:
+"-4." kTwfRptQ_Offer(ExchangeAccepted,D,                   60, 0,    kTIME3),//Ln 13:
+kChkOrderST(ExchangeCanceled,                     0, 0, 0, 60, 0, 0, kTIME3),//Ln 14:
+   };
+   RunTestList(core, "Normal-order2", cstrTestList);
+}
 //--------------------------------------------------------------------------//
 // 下單後,亂序回報.
 void TestOutofOrder(TestCoreSP& core) {
@@ -467,6 +487,8 @@ int main(int argc, char* argv[]) {
    fon9::AutoPrintTestInfo utinfo{"OmsTwfReportQuote"};
    TestCoreSP core;
 
+   Test_New_ChgPri_ExgDel(core);
+   utinfo.PrintSplitter();
    TestNormalOrder(core);
    utinfo.PrintSplitter();
 

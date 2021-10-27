@@ -36,15 +36,11 @@ OmsRequestBase::~OmsRequestBase() {
       delete this->AbandonReason_;
    //-----------------------------
    else if (auto ordraw = this->LastUpdated()) {
-      // 何時才是刪除 Order 的適當時機?
-      if (ordraw == ordraw->Order().Tail())
+      // 發現 order 的最後一個 ordraw 時, 刪除 order;
+      // 但不能直接使用 order.Tail(); 因為有可能 order 已經死亡;
+      // 所以使用 ordraw->Next() == nullptr 來判斷「最後一個 ordraw」;
+      if (ordraw->Next() == nullptr)
          ordraw->Order().FreeThis();
-      // 或是在 ~OrderRaw() { if (this->Order_ && this == this->Order_->Tail())
-      //                         this->Order_->FreeThis(); }
-      // => 一般而言, OrderRaw 會比 Request 多, 例如:
-      //    Request => OrderRaw.Sending => OrderRaw.Accepted;
-      // => 所以放在 ~OmsRequestBase() 裡面刪除 Order.
-      //    可少判斷幾次.
    }
    //-----------------------------
 }

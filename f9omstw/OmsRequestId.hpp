@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsRequestId_hpp__
 #define __f9omstw_OmsRequestId_hpp__
 #include "f9omstw/OmsBase.hpp"
+#include "fon9/HostId.hpp"
 
 namespace f9omstw {
 
@@ -25,7 +26,7 @@ inline bool OmsIsReqUIDEmpty(const OmsRequestId& id) {
 }
 
 class OmsReqUID_Builder {
-   // [buffer.LocalHostId--------]  '-' = '\0'
+   // [buffer@LocalHostId--------]  '-' = '\0'
    //        \_ sizeof(ReqUID) _/ 
    char  Buffer_[64 + sizeof(OmsRequestId)];
 
@@ -38,10 +39,13 @@ public:
    }
 
    /// 此時若 OmsIsReqUIDEmpty(req); 則會編製 req.ReqUID_;
+   /// 不是 thread safe.
    void MakeReqUID(OmsRequestId& req, OmsRxSNO sno);
 
    /// 從 reqId 解析出 OmsRxSNO;
    static OmsRxSNO ParseRequestId(const OmsRequestId& reqId);
+   /// 從 reqId 解析出 OmsRxSNO 及 HostId;
+   static OmsRxSNO ParseReqUID(const OmsRequestId& reqId, fon9::HostId& hostid);
 };
 
 } // namespaces

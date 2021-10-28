@@ -2,7 +2,6 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsRequestId.hpp"
 #include "f9omstw/OmsRequestBase.hpp"
-#include "fon9/HostId.hpp"
 #include "fon9/ToStr.hpp"
 
 namespace f9omstw {
@@ -10,13 +9,13 @@ namespace f9omstw {
 OmsReqUID_Builder::OmsReqUID_Builder() {
    memset(this->Buffer_, 0, sizeof(this->Buffer_));
    char* pout = fon9::UIntToStrRev(this->RevStart(), fon9::LocalHostId_) - 1;
-   *pout = '.';
+   *pout = '@';
    memcpy(this->RevStart(), pout, static_cast<size_t>(this->RevStart() - pout));
 }
 void OmsReqUID_Builder::MakeReqUID(OmsRequestId& reqid, OmsRxSNO sno) {
    assert(sno != 0);
    if (OmsIsReqUIDEmpty(reqid)) {
-      // [...ReqSNO.LocalHostId--------]
+      // [...ReqSNO@LocalHostId--------]
       //     \___ sizeof(ReqUID) ___/ copyto(req.ReqUID_)
       // memcpy(,,sizeof(req->ReqUID_)) 固定大小, 可以讓 compiler 最佳化.
       memcpy(reqid.ReqUID_.data(), fon9::UIntToStrRev(this->RevStart(), sno), sizeof(reqid.ReqUID_));
@@ -24,6 +23,15 @@ void OmsReqUID_Builder::MakeReqUID(OmsRequestId& reqid, OmsRxSNO sno) {
 }
 OmsRxSNO OmsReqUID_Builder::ParseRequestId(const OmsRequestId& reqId) {
    return fon9::StrTo(fon9::StrView{reqId.ReqUID_.begin(), reqId.ReqUID_.end()}, OmsRxSNO{});
+}
+OmsRxSNO OmsReqUID_Builder::ParseReqUID(const OmsRequestId& reqId, fon9::HostId& hostid) {
+   fon9::StrView idstr{reqId.ReqUID_.begin(), reqId.ReqUID_.end()};
+   OmsRxSNO retval = fon9::StrTo(&idstr, OmsRxSNO{});
+   if (!idstr.empty()) {
+      idstr.SetBegin(idstr.begin() + 1);
+      hostid = fon9::StrTo(idstr, fon9::HostId{});
+   }
+   return retval;
 }
 
 } // namespaces

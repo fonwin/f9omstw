@@ -361,6 +361,10 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          break;
       }
       fon9_WARN_POP;
+      if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
+         if (ordraw->Request().IsReportIn())
+            return nullptr;
+      }
    }
    else {
       const OmsRequestBase* reqb = static_cast<const OmsRequestBase*>(item.CastToRequest());
@@ -369,6 +373,10 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
             return nullptr;
          // event report: 直接回報, 不檢查 UserId、可用帳號.
          return ses;
+      }
+      if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
+         if (reqb->IsReportIn())
+            return nullptr;
       }
       if ((ordraw = reqb->LastUpdated()) == nullptr) { // abandon?
          if (this->RptFilter_ & (f9OmsRc_RptFilter_MatchOnly | f9OmsRc_RptFilter_RecoverWorkingOrder))

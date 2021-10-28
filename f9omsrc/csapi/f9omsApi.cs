@@ -147,6 +147,9 @@ namespace f9oms
       NoSending = 0x20,
       /// 僅回補(回報)成交;
       MatchOnly = 0x40,
+      /// 排除外部回報, 僅本地下單要求的回報.
+      /// 成交回報: 僅回報新單為本地所下的成交.
+      NoExternal = 0x80,
    }
 
    public enum OmsLayoutKind : byte

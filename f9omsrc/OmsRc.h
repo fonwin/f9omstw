@@ -69,6 +69,9 @@ fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
    f9OmsRc_RptFilter_NoSending = 0x20,
    /// 僅回補(回報)成交;
    f9OmsRc_RptFilter_MatchOnly = 0x40,
+   /// 排除外部回報, 僅本地下單要求的回報.
+   /// 成交回報: 僅回報新單為本地所下的成交.
+   f9OmsRc_RptFilter_NoExternal = 0x80,
 };
 
 fon9_ENUM(f9OmsRc_LayoutKind, uint8_t) {

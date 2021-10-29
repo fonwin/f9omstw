@@ -176,6 +176,10 @@ inline bool Sc_Symbol_QtyOddLot(OmsRequestRunnerInCore& runner, RequestIniT& ini
 #define OmsErrCode_Sc_DenyIvrGnRvB  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 201)
 /// 商品禁止現股當沖.
 #define OmsErrCode_Sc_DenySymbGnRvB static_cast<OmsErrCode>(OmsErrCode_FromRisk + 202)
+/// 帳號[現股]只能庫存了結.
+#define OmsErrCode_Sc_OnlyClearBalGn  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 203)
+/// 帳號[信用]只能庫存了結.
+#define OmsErrCode_Sc_OnlyClearBalCD  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 204)
 
 /// 現股賣出(OType='0',可現股當沖), 帳號自有可賣數量不足:
 /// Self=剩餘可賣量|Add=此筆新增|Over=不足量|Bal=庫存量|Filled=買進可沖成交量|Used=已賣量

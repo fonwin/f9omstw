@@ -145,6 +145,10 @@ enum class TwsIvScRightFlag : uint8_t {
    AllowGnRvB = 0x01,
    /// 允許 [現股先賣後買當沖]: CUST.GnRvSBRight_;
    AllowGnRvS = 0x02,
+   /// 現股只能庫存了結: 通常用在帳號有異常風險, or 想要關閉帳號.
+   OnlyClearBalGn = 0x04,
+   /// 信用只能庫存了結: 通常用在帳號有異常風險, or 信用帳號了結時;
+   OnlyClearBalCD = 0x08,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(TwsIvScRightFlag);
 

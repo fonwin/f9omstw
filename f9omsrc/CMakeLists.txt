@@ -190,6 +190,7 @@ file(COPY ${slnsrc}/fon9/fon9/Assert.h                  DESTINATION ${dst_includ
 file(COPY ${slnsrc}/fon9/fon9/ConsoleIO.h               DESTINATION ${dst_include}/fon9)
 file(COPY ${slnsrc}/fon9/fon9/CTools.h                  DESTINATION ${dst_include}/fon9)
 file(COPY ${slnsrc}/fon9/fon9/CtrlBreakHandler.h        DESTINATION ${dst_include}/fon9)
+file(COPY ${slnsrc}/fon9/f9tws/TwsTypes.h               DESTINATION ${dst_include}/f9tws)
 
 # --------------------------------------------------------
 add_library(f9omsrcapi_s STATIC ${f9omsrcapi_src})

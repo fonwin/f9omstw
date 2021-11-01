@@ -68,6 +68,16 @@ void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRu
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
    OmsTwsReport_Update(ordraw);
 }
+
+static void OmsTwsReport_AssignFromIni(OmsTwsReport& rpt, const OmsTwsRequestIni& ini) {
+   rpt.Side_ = ini.Side_;
+   rpt.Symbol_ = ini.Symbol_;
+   rpt.IvacNo_ = ini.IvacNo_;
+   rpt.SubacNo_ = ini.SubacNo_;
+   rpt.IvacNoFlag_ = ini.IvacNoFlag_;
+   if (rpt.OType_ == OmsTwsOType{})
+      rpt.OType_ = ini.OType_;
+}
 void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
@@ -75,6 +85,10 @@ void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this);
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
    OmsTwsReport_Update(ordraw);
+   if (auto* ini = static_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator())) {
+      assert(dynamic_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator()) != nullptr);
+      OmsTwsReport_AssignFromIni(*this, *ini);
+   }
 }
 //--------------------------------------------------------------------------//
 static void OrderRawFromPendingReport(OmsResource& res, const OmsRequestBase& rpt, const OmsTwsReport* chkFields) {
@@ -85,6 +99,20 @@ void OmsTwsReport::ProcessPendingReport(OmsResource& res) const {
 }
 void OmsTwsRequestChg::ProcessPendingReport(OmsResource& res) const {
    OrderRawFromPendingReport(res, *this, nullptr);
+}
+//--------------------------------------------------------------------------//
+void OmsTwsReport::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   this->Message_.assign(message);
+   this->QtyStyle_ = OmsReportQtyStyle::OddLot;
+   if (ref) {
+      *static_cast<OmsOrdKey*>(this) = *ref;
+      if (OmsIsReqUIDEmpty(*this))
+         *static_cast<OmsRequestId*>(this) = *ref;
+      this->Market_ = ref->Market();
+      this->SessionId_ = ref->SessionId();
+      if (this->RxKind_ == f9fmkt_RxKind_Unknown)
+         this->RxKind_ = ref->RxKind();
+   }
 }
 
 } // namespaces

@@ -6,10 +6,16 @@
 
 namespace f9omstw {
 
+inline void OmsLogSplit(fon9::RevBufferList& rbuf) {
+   if (rbuf.cfront() == nullptr)
+      fon9::RevPrint(rbuf, '\n');
+   else
+      fon9::RevPrint(rbuf, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+}
 void OmsReportChecker::ReportAbandon(fon9::StrView reason) {
    assert(this->Report_->RxSNO() == 0);
    this->CheckerSt_ = OmsReportCheckerSt::Abandoned;
-   fon9::RevPrint(this->ExLog_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+   OmsLogSplit(this->ExLog_);
    if ((this->Report_->RxItemFlags() & OmsRequestFlag_ForcePublish) == OmsRequestFlag_ForcePublish) {
       this->Report_->Abandon(OmsErrCode_Bad_Report, reason.ToString());
       this->Resource_.Backend_.LogAppend(*this->Report_, std::move(this->ExLog_));
@@ -176,7 +182,7 @@ void OmsReportRunnerInCore::CalcRequestRunTimes() {
 void OmsReportRunnerInCore::UpdateReportImpl(OmsRequestBase& rpt) {
    if (&this->OrderRaw_.Request() != &rpt) {
       if (IsEnumContains(rpt.RequestFlags(), OmsRequestFlag_ReportNeedsLog)) {
-         fon9::RevPrint(this->ExLogForUpd_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+         OmsLogSplit(this->ExLogForUpd_);
          rpt.RevPrint(this->ExLogForUpd_);
       }
    }

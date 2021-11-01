@@ -112,7 +112,7 @@ typedef struct {
    f9OmsRc_FieldIndexS  IdxMarket_;
    /// FieldArray_[IdxSessionId_] = 交易時段: f9fmkt_TradingSessionId;
    f9OmsRc_FieldIndexS  IdxSessionId_;
-   /// FieldArray_[IdxBrkId_] = 勸商代號;
+   /// FieldArray_[IdxBrkId_] = 券商代號;
    f9OmsRc_FieldIndexS  IdxBrkId_;
    /// FieldArray_[IdxOrdNo_] = 委託書號;
    /// 對於一筆委託書: 市場唯一編號 = OrdKey = Market + SessionId + BrkId + OrdNo;

@@ -75,6 +75,10 @@ void OmsOrder::ProcessPendingReport(OmsResource& res) {
 //--------------------------------------------------------------------------//
 
 OmsOrderRaw::~OmsOrderRaw() {
+   if (this->Next_ == nullptr && this->Order_) {
+      assert(this->Order_->Tail() == this);
+      this->Order_->FreeThis();
+   }
 }
 void OmsOrderRaw::FreeThis() {
    delete this;

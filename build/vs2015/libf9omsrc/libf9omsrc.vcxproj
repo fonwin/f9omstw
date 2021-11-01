@@ -78,12 +78,14 @@
     <ClCompile Include="..\..\..\f9omsrc\OmsRcClientApi.cpp" />
     <ClCompile Include="..\..\..\f9omsrc\OmsRcServer.cpp" />
     <ClCompile Include="..\..\..\f9omsrc\OmsRcServerFunc.cpp" />
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcSyn.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omsrc\OmsRc.h" />
     <ClInclude Include="..\..\..\f9omsrc\OmsRcClient.hpp" />
     <ClInclude Include="..\..\..\f9omsrc\OmsRcServer.hpp" />
     <ClInclude Include="..\..\..\f9omsrc\OmsRcServerFunc.hpp" />
+    <ClInclude Include="..\..\..\f9omsrc\OmsRcSyn.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\f9omsrc\forms\ApiAll.cfg" />
@@ -106,6 +108,9 @@
     <None Include="..\..\..\f9omsrc\forms\CommonValues.cfg" />
     <None Include="..\..\..\f9omsrc\forms\README.md" />
     <None Include="..\..\..\f9omsrc\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omsrc\CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

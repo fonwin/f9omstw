@@ -6,10 +6,12 @@
 
 namespace f9omstw {
 
+#define kReqUID_SPLIT_CHAR    '@'
+
 OmsReqUID_Builder::OmsReqUID_Builder() {
    memset(this->Buffer_, 0, sizeof(this->Buffer_));
    char* pout = fon9::UIntToStrRev(this->RevStart(), fon9::LocalHostId_) - 1;
-   *pout = '@';
+   *pout = kReqUID_SPLIT_CHAR;
    memcpy(this->RevStart(), pout, static_cast<size_t>(this->RevStart() - pout));
 }
 void OmsReqUID_Builder::MakeReqUID(OmsRequestId& reqid, OmsRxSNO sno) {
@@ -27,11 +29,12 @@ OmsRxSNO OmsReqUID_Builder::ParseRequestId(const OmsRequestId& reqId) {
 OmsRxSNO OmsReqUID_Builder::ParseReqUID(const OmsRequestId& reqId, fon9::HostId& hostid) {
    fon9::StrView idstr{reqId.ReqUID_.begin(), reqId.ReqUID_.end()};
    OmsRxSNO retval = fon9::StrTo(&idstr, OmsRxSNO{});
-   if (!idstr.empty()) {
+   if (fon9_LIKELY(idstr.Get1st() == kReqUID_SPLIT_CHAR)) {
       idstr.SetBegin(idstr.begin() + 1);
       hostid = fon9::StrTo(idstr, fon9::HostId{});
+      return retval;
    }
-   return retval;
+   return OmsRxSNO{};
 }
 
 } // namespaces

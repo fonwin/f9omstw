@@ -35,17 +35,21 @@ OmsRequestBase::~OmsRequestBase() {
    if (this->RxItemFlags_ & OmsRequestFlag_Abandon)
       delete this->AbandonReason_;
    //-----------------------------
-   else if (auto ordraw = this->LastUpdated()) {
-      // 發現 order 的最後一個 ordraw 時, 刪除 order;
-      // 但不能直接使用 order.Tail(); 因為有可能 order 已經死亡;
-      // 所以使用 ordraw->Next() == nullptr 來判斷「最後一個 ordraw」;
-      if (ordraw->Next() == nullptr)
-         ordraw->Order().FreeThis();
-   }
+   // 改放到 ~OmsOrderRaw() 處理;
+   // else if (auto ordraw = this->LastUpdated()) {
+   //    // 發現 order 的最後一個 ordraw 時, 刪除 order;
+   //    // 但不能直接使用 order.Tail(); 因為有可能 order 已經死亡;
+   //    // 所以使用 ordraw->Next() == nullptr 來判斷「最後一個 ordraw」;
+   //    if (ordraw->Next() == nullptr)
+   //       ordraw->Order().FreeThis();
+   // }
    //-----------------------------
 }
 const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
+}
+void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   (void)ref; (void)message;
 }
 //--------------------------------------------------------------------------//
 OmsOrder* OmsRequestBase::SearchOrderByOrdKey(OmsResource& res) const {

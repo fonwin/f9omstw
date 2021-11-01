@@ -52,5 +52,31 @@ void OmsTwsFilled::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCor
    ordraw.LastFilledTime_ = this->Time_;
    OmsRunReportInCore_FilledUpdateCum(std::move(inCoreRunner), ordraw, this->Pri_, this->Qty_, *this);
 }
+//--------------------------------------------------------------------------//
+void OmsTwsFilled::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   (void)message;
+   this->QtyStyle_ = OmsReportQtyStyle::OddLot;
+   if (ref) {
+      *static_cast<OmsOrdKey*>(this) = *ref;
+      this->Market_ = ref->Market();
+      this->SessionId_ = ref->SessionId();
+      this->IniSNO_ = ref->RxSNO();
+      auto ini = dynamic_cast<const OmsTwsRequestIni*>(ref);
+      if (fon9_LIKELY(ini != nullptr)) {
+      ___COPY_FROM_INI:;
+         this->Symbol_ = ini->Symbol_;
+         this->IvacNo_ = ini->IvacNo_;
+         this->Side_ = ini->Side_;
+         return;
+      }
+      if (auto* ordraw = ref->LastUpdated()) {
+         if ((ini = dynamic_cast<const OmsTwsRequestIni*>(ordraw->Order().Initiator())) != nullptr)
+            goto ___COPY_FROM_INI;
+      }
+      this->Symbol_.Clear();
+      this->IvacNo_ = IvacNo{};
+      this->Side_ = f9fmkt_Side{};
+   }
+}
 
 } // namespaces

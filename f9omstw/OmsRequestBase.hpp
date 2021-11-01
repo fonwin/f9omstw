@@ -223,6 +223,13 @@ public:
    /// 預設 assert(!"Derived must override ProcessPendingReport()");
    virtual void ProcessPendingReport(OmsResource& res) const;
 
+   /// 從另一 oms 同步而來的回報, 呼叫時機: 已填入回報來源提供的欄位之後.
+   /// - 在此應從 ref 複製所需欄位.
+   /// - 設定額外來源沒有提供的欄位, 例如:
+   ///   TwsRpt.QtyStyle_; TwsRpt.Message_; ...
+   /// - 預設: do nothing;
+   virtual void OnSynReport(const OmsRequestBase* ref, fon9::StrView message);
+
 protected:
    void RunReportInCore_Start(OmsReportChecker&& checker);
 

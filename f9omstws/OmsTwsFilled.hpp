@@ -18,6 +18,7 @@ class OmsTwsFilled : public OmsReportFilled {
    OmsOrderRaw* RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) override;
    bool RunReportInCore_FilledIsFieldsMatch(const OmsRequestIni& ini) const override;
    void RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCoreRunner) const override;
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 
 public:
    fon9::DayTime     Time_;

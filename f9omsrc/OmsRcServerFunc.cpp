@@ -343,9 +343,18 @@ static inline bool CheckReqUserId(fon9::StrView sesUserId, fon9::StrView reqUser
       return memcmp(sesUserId.begin(), reqUserId.begin(), sesSz) == 0;
    return false;
 }
+static bool IsExternalReport(const OmsOrderRaw& ordraw) {
+   if (!ordraw.Request().IsReportIn())
+      return false;
+   if (ordraw.Request().RxKind() != f9fmkt_RxKind_Filled)
+      return true;
+   if (auto* ini = ordraw.Order().Initiator())
+      return ini->IsReportIn();
+   return true;
+}
 ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());
-   // 檢查 UserId, 可用帳號.
+   // 檢查: UserId, 可用帳號, this->RptFilter_;
    fon9::StrView      sesUserId = ToStrView(ses->GetUserId());
    const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(item.CastToOrder());
    if (ordraw) {
@@ -362,7 +371,7 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
       }
       fon9_WARN_POP;
       if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
-         if (ordraw->Request().IsReportIn())
+         if (IsExternalReport(*ordraw))
             return nullptr;
       }
    }
@@ -374,10 +383,6 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          // event report: 直接回報, 不檢查 UserId、可用帳號.
          return ses;
       }
-      if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
-         if (reqb->IsReportIn())
-            return nullptr;
-      }
       if ((ordraw = reqb->LastUpdated()) == nullptr) { // abandon?
          if (this->RptFilter_ & (f9OmsRc_RptFilter_MatchOnly | f9OmsRc_RptFilter_RecoverWorkingOrder))
             return nullptr;
@@ -388,6 +393,10 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
             return ses;
          // abandon 不考慮可用帳號回報.
          return nullptr;
+      }
+      if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
+         if (IsExternalReport(*ordraw))
+            return nullptr;
       }
    }
    if (this->RptFilter_ & f9OmsRc_RptFilter_MatchOnly) {

@@ -34,6 +34,7 @@ public:
    using base::base;
 
    void ProcessPendingReport(OmsResource& res) const override;
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwsReport{creator, reqKind};

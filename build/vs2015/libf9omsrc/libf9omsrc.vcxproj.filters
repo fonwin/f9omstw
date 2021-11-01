@@ -26,6 +26,9 @@
     <ClCompile Include="..\..\..\f9omsrc\OmsRcServerFunc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omsrc\OmsRcSyn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omsrc\OmsRc.h">
@@ -38,6 +41,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omsrc\OmsRcServerFunc.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omsrc\OmsRcSyn.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -100,5 +106,8 @@
     <None Include="..\..\..\f9omsrc\forms\ApiTwfAll.cfg">
       <Filter>forms</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omsrc\CMakeLists.txt" />
   </ItemGroup>
 </Project>

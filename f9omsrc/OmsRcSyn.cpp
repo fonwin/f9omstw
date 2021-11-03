@@ -67,10 +67,11 @@ public:
       this->Add(RcFunctionAgentSP{new OmsRcClientAgent});
       this->Add(RcFunctionAgentSP{new RcFuncConnClient("f9OmsRcSyn.0", "f9OmsRcSyn")});
       this->Add(RcFunctionAgentSP{new RcFuncSaslClient{}});
-      // TODO: this->RptFactoryMap_ 對照表由外部設定檔匯入.
       const OmsRequestFactoryPark& facPark = this->OmsCoreMgr_->RequestFactoryPark();
       OmsRequestFactory*           facRpt;
-      if((facRpt = facPark.GetFactory("TwsRpt")) != nullptr) {
+      // TODO: this->RptFactoryMap_ 對照表由外部設定檔匯入.
+      // ----- 台灣證券.
+      if ((facRpt = facPark.GetFactory("TwsRpt")) != nullptr) {
          this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsNew"})).second = facRpt;
          this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsChg"})).second = facRpt;
          this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsRpt"})).second = facRpt;
@@ -78,6 +79,24 @@ public:
       if ((facRpt = facPark.GetFactory("TwsFil")) != nullptr) {
          this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsFil"})).second = facRpt;
       }
+      // ----- 台灣期權: 報價單=TwfRptQ、一般單(單式、複式)=TwfRpt.
+      if ((facRpt = facPark.GetFactory("TwfRpt")) != nullptr) {
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfNew"})).second = facRpt;
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfChg"})).second = facRpt;
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfRpt"})).second = facRpt;
+      }
+      if ((facRpt = facPark.GetFactory("TwfRptQ")) != nullptr) {
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfNewQ"})).second = facRpt;
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfChgQ"})).second = facRpt;
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfRptQ"})).second = facRpt;
+      }
+      if ((facRpt = facPark.GetFactory("TwfFil")) != nullptr) {
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfFil"})).second = facRpt;
+      }
+      if ((facRpt = facPark.GetFactory("TwfFil2")) != nullptr) {
+         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfFil2"})).second = facRpt;
+      }
+      // -----
       this->SubConnTDayChanged_ = this->OmsCoreMgr_->TDayChangedEvent_.Subscribe(
          std::bind(&OmsRcSyn_SessionFactory::OnTDayChanged, this, std::placeholders::_1));
    }

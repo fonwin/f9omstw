@@ -15,6 +15,9 @@ set(f9utw_src
  UtwsSubac.cpp
  UtwsIvac.cpp
  UtwsBrk.cpp
+ UtwSpCmd.cpp
+ UtwSpCmdTwf.cpp
+ UtwSpCmdTws.cpp
 )
 include_directories(BEFORE .)
 add_executable(f9utw ${f9utw_src})

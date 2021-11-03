@@ -79,6 +79,9 @@
     <ClInclude Include="..\..\..\f9utw\UtwsIvac.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsIvSc.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsIvSymb.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwSpCmd.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwSpCmdTwf.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwSpCmdTws.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsSubac.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsSymb.hpp" />
   </ItemGroup>
@@ -88,6 +91,9 @@
     <ClCompile Include="..\..\..\f9utw\UtwsIvSc.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsIvSymb.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwOmsCore.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwSpCmd.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwSpCmdTwf.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwSpCmdTws.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsSubac.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsSymb.cpp" />
   </ItemGroup>
@@ -101,6 +107,9 @@
     <ProjectReference Include="..\libf9omstw\libf9omstw.vcxproj">
       <Project>{72e0b1ca-86cb-4145-9302-c0c0b0c00532}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9utw\CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

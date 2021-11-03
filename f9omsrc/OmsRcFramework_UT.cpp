@@ -171,8 +171,8 @@ int main(int argc, char* argv[]) {
    //---------------------------------------------
    f9OmsRc_Initialize(NULL);
    OmsRcFramework framework;
-   // 等候1秒: IoMgr 啟動 TcpServer.
-   std::this_thread::sleep_for(std::chrono::seconds(1));
+   // 等候1.5秒: IoMgr 啟動 TcpServer.
+   std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
    int retval = OmsRcFramework_UT_C_main(argc, argv);
 

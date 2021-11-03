@@ -11,8 +11,8 @@ struct OmsPoUserRightsPolicy;
 
 template <class Archive>
 static void SerializeVer(Archive& ar, fon9::ArchiveWorker<Archive, OmsPoUserRightsPolicy>& rec, unsigned ver) {
-   (void)ver; assert(ver == 0);
-   // ver = 0, 包含這2個欄位, 但此功能應由 SeedVisitor 處理.
+   (void)ver;
+   // ver = 0, 包含這2個欄位, 但此功能應由 SeedVisitor: PoAcl.FcQry* 處理.
    // 在此使用 local var, 保留與舊版想容, 若以後 OmsPoUserRightsPolicy 有新增數字欄位, 可拿來使用.
    unsigned vFcQueryCount = 0, vFcQueryMS = 0;
    ar(rec.AllowOrdTeams_,

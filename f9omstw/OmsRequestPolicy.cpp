@@ -41,7 +41,7 @@ void OmsRequestPolicy::AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIv
    }
 }
 OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr) const {
-   if (!this->IvMap_.empty()) {
+   if (fon9_LIKELY(!this->IvMap_.empty())) {
       OmsIvBase*  ivSrc = ivr;
       for (;;) {
          auto ifind = this->IvMap_.find(ivr);

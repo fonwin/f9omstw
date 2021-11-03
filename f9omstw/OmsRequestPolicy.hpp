@@ -2,13 +2,14 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstw_OmsRequestPolicy_hpp__
 #define __f9omstw_OmsRequestPolicy_hpp__
-#include "f9omstw/OmsPoIvList.hpp"
+#include "f9omstw/OmsPoIvListAgent.hpp"
 #include "f9omstw/OmsPoUserRights.hpp"
 #include "f9omstw/OmsIvBase.hpp"
 
 namespace f9omstw {
 
 /// 每次使用者登入後, 都會從「使用者管理員」 **複製** 一份下單權限的設定.
+/// 只能在 OmsCore thread 安全的使用.
 class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    fon9_NON_COPY_NON_MOVE(OmsRequestPolicy);
    OmsOrdTeamGroupId OrdTeamGroupId_{0};
@@ -98,7 +99,9 @@ OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, Om
 struct OmsRequestPolicyCfg {
    fon9::CharVector  TeamGroupName_;
    OmsUserRights     UserRights_;
-   OmsIvList         IvList_;
+
+   using IvListPolicy = OmsPoIvListAgent::PolicyConfig;
+   IvListPolicy      IvList_;
 
    OmsRequestPolicySP MakePolicy(OmsResource& res,
                                  fon9::intrusive_ptr<OmsRequestPolicy> pol = new OmsRequestPolicy) const;

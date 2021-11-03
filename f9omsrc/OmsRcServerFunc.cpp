@@ -3,7 +3,6 @@
 #include "f9omsrc/OmsRc.h"
 #include "f9omsrc/OmsRcServerFunc.hpp"
 #include "f9omstw/OmsCore.hpp"
-#include "f9omstw/OmsPoIvListAgent.hpp"
 #include "f9omstw/OmsPoUserRightsAgent.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/rc/RcFuncConnServer.hpp"
@@ -96,10 +95,13 @@ void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCore* core) {
       this->Handler_->ClearResource();
    PolicyRunner   runner{new Handler(ses.GetDevice(), this->PolicyConfig_, core, this->ApiSesCfg_)};
    this->Handler_ = runner;
-   if (core)
+   if (core) {
+      runner->SubrIvListChanged();
       core->RunCoreTask(runner);
-   else // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
+   }
+   else { // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
       this->SendConfig(ses);
+   }
 }
 void OmsRcServerNote::OnRecvStartApi(ApiSession& ses) {
    if (this->SubrTDayChanged_ != nullptr) {
@@ -107,7 +109,8 @@ void OmsRcServerNote::OnRecvStartApi(ApiSession& ses) {
       return;
    }
    fon9::io::DeviceSP   pdev = ses.GetDevice();
-   this->SubrTDayChanged_ = this->ApiSesCfg_->CoreMgr_->TDayChangedEvent_.Subscribe([pdev](OmsCore& core) {
+   this->ApiSesCfg_->CoreMgr_->TDayChangedEvent_.Subscribe(
+      &this->SubrTDayChanged_, [pdev](OmsCore& core) {
       // 通知 TDayChanged, 等候 client 回覆 TDayConfirm, 然後才正式切換.
       // 不能在此貿然更換 CurrentCore, 因為可能還有在路上針對 CurrentCore 的操作.
       // - TDay changed 事件: 通知 client, 但先不要切換 CurrentCore;
@@ -203,11 +206,12 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
          ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
          return;
       }
-      // 回報權限需要自主檢查.
-      auto* pol = this->Handler_->RequestPolicy_.get();
-      if (pol == nullptr || !runner.CheckReportRights(*pol)) {
-         ses.ForceLogout("OmsRcServer:deny input report.");
-         return;
+      // 回報(補單)權限需要自主檢查.
+      if (auto* pol = this->Handler_->RequestPolicy_.get()) {
+         if (!runner.CheckReportRights(*pol)) {
+            ses.ForceLogout("OmsRcServer:deny input report.");
+            return;
+         }
       }
       runner.Request_->SetReportNeedsLog();
       runner.Request_->SetForcePublish();
@@ -257,9 +261,32 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
       ses.ForceLogout(cstrForceLogout);
 }
 //--------------------------------------------------------------------------//
+bool OmsRcServerNote::Handler::CheckReloadIvList() {
+   if (fon9_LIKELY(!this->IvList_.IsPolicyChanged()))
+      return false;
+   auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());
+   return OmsPoIvListAgent::CheckRegetPolicy(ToStrView(ses->GetUserId()), this->IvList_);
+}
+void OmsRcServerNote::Handler::SubrIvListChanged() {
+   assert(this->PolicyChangedSubr_ == nullptr);
+   if (this->IvList_.PolicyItem_) {
+      assert(this->Core_);
+      HandlerSP pthis{this};
+      this->IvList_.PolicyItem_->AfterChangedEvent_.Subscribe(
+         &this->PolicyChangedSubr_, [pthis](const fon9::auth::PolicyItem&) {
+         pthis->Core_->RunCoreTask([pthis](OmsResource& res) {
+            if (pthis->CheckReloadIvList())
+               pthis->RequestPolicy_ = pthis->MakePolicy(res);
+         });
+      });
+   }
+}
 void OmsRcServerNote::Handler::ClearResource() {
    this->State_ = HandlerSt::Disposing;
-   this->Core_->ReportSubject().Unsubscribe(&this->RptSubr_);
+   if (this->Core_)
+      this->Core_->ReportSubject().Unsubscribe(&this->RptSubr_);
+   if (this->IvList_.PolicyItem_)
+      this->IvList_.PolicyItem_->AfterChangedEvent_.Unsubscribe(&this->PolicyChangedSubr_);
 }
 void OmsRcServerNote::Handler::StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter) {
    if (this->State_ > HandlerSt::Recovering) // 重覆訂閱/回補/解構中?
@@ -417,6 +444,7 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
 //--------------------------------------------------------------------------//
 void OmsRcServerNote::PolicyRunner::operator()(OmsResource& res) {
    Handler* handler = this->get();
+   handler->CheckReloadIvList();
    handler->RequestPolicy_ = handler->MakePolicy(res);
    handler->Device_->OpQueue_.AddTask(PolicyRunner{*this});
 }

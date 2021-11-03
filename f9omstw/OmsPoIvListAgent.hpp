@@ -74,9 +74,18 @@ public:
       return res;
    }
 
-   using PolicyConfig = OmsIvList;
+   struct PolicyConfig : public OmsIvList, public fon9::auth::PolicyItemMonitor {
+   };
    bool GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res);
-   void MakeGridView(fon9::RevBuffer& rbuf, const PolicyConfig& ivList);
+   static void RegetPolicy(fon9::StrView userId, PolicyConfig& res);
+   static bool CheckRegetPolicy(fon9::StrView userId, PolicyConfig& res) {
+      if (fon9_LIKELY(!res.IsPolicyChanged()))
+          return false;
+      RegetPolicy(userId, res);
+      return true;
+   }
+
+   void MakeGridView(fon9::RevBuffer& rbuf, const OmsIvList& ivList);
 };
 
 } // namespaces

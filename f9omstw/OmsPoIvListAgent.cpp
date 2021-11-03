@@ -60,16 +60,16 @@ class PolicyIvListTree : public fon9::auth::MasterPolicyTree {
       using base = fon9::auth::MasterPolicyItem;
       MasterItem(const fon9::StrView& policyId, fon9::auth::MasterPolicyTreeSP owner)
          : base(policyId, std::move(owner)) {
-         this->DetailPolicyTree_.reset(new DetailTree{*this});
+         this->DetailSapling_.reset(new DetailTree{*this});
       }
       void LoadPolicy(fon9::DcQueue& buf) override {
          unsigned ver = 0;
-         DetailTable::Locker pmap{static_cast<DetailTree*>(this->DetailPolicyTree_.get())->DetailTable_};
+         DetailTable::Locker pmap{static_cast<DetailTree*>(this->DetailSapling())->DetailTable_};
          fon9::BitvInArchive{buf}(ver, *pmap);
       }
       void SavePolicy(fon9::RevBuffer& rbuf) override {
          const unsigned ver = 0;
-         DetailTable::ConstLocker pmap{static_cast<DetailTree*>(this->DetailPolicyTree_.get())->DetailTable_};
+         DetailTable::ConstLocker pmap{static_cast<DetailTree*>(this->DetailSapling())->DetailTable_};
          fon9::BitvOutArchive{rbuf}(ver, *pmap);
       }
    };
@@ -95,15 +95,30 @@ public:
       struct ResultHandler {
          PolicyConfig* Result_;
          void InLocking(const fon9::auth::PolicyItem& master) {
-            (void)master;
             // this->Result_->XXX_ = static_cast<const MasterItem*>(&master)->XXX_;
+            this->Result_->PolicyChangedCount_ = master.ChangedCount();
+            this->Result_->PolicyItem_.reset(&master);
          }
          void OnUnlocked(fon9::auth::DetailPolicyTree& detailTree) {
             DetailTable::Locker pmap{static_cast<DetailTree*>(&detailTree)->DetailTable_};
-            *this->Result_ = *pmap;
+            *static_cast<OmsIvList*>(this->Result_) = *pmap;
          }
       };
       return base::GetPolicy(policyId, ResultHandler{&res});
+   }
+
+   static void RegetPolicy(PolicyConfig& res) {
+      assert(dynamic_cast<const MasterItem*>(res.PolicyItem_.get()) != nullptr);
+      const MasterItem* masterItem = static_cast<const MasterItem*>(res.PolicyItem_.get());
+      if (DetailTree* detailSapling = static_cast<DetailTree*>(masterItem->DetailSapling())) {
+         DetailTable::Locker  pmap{detailSapling->DetailTable_};
+         *static_cast<OmsIvList*>(&res) = *pmap;
+         res.PolicyChangedCount_ = masterItem->ChangedCount();
+      }
+      else {
+         res.clear();
+         res.PolicyChangedCount_ = masterItem->ChangedCount();
+      }
    }
 };
 //--------------------------------------------------------------------------//
@@ -164,19 +179,25 @@ void OmsPoIvListAgent::PoAclAdjust(const fon9::auth::AuthResult& authr, fon9::au
    res.Acl_ = std::move(acl);
 }
 
-bool OmsPoIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {
-   PolicyConfig rout;
-   if (!static_cast<PolicyIvListTree*>(this->Sapling_.get())->GetPolicy(authr.GetPolicyId(&this->Name_), rout))
-      return false;
+static void IvList_ReplaceUserId(OmsIvList& dst, fon9::StrView userId) {
+   const OmsIvList   src = std::move(dst);
    static const char kUserId[] = "{UserId}";
-   fon9::StrView userId = authr.GetUserId();
-   for (auto& v : rout) {
+   for (auto& v : src) {
       auto key{fon9::CharVectorReplace(ToStrView(v.first), kUserId, userId)};
-      res.kfetch(ToStrView(key)).second = v.second;
+      dst.kfetch(ToStrView(key)).second = v.second;
    }
+}
+bool OmsPoIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {
+   if (!static_cast<PolicyIvListTree*>(this->Sapling_.get())->GetPolicy(authr.GetPolicyId(&this->Name_), res))
+      return false;
+   IvList_ReplaceUserId(res, authr.GetUserId());
    return true;
 }
-void OmsPoIvListAgent::MakeGridView(fon9::RevBuffer& rbuf, const PolicyConfig& ivList) {
+void OmsPoIvListAgent::RegetPolicy(fon9::StrView userId, PolicyConfig& res) {
+   PolicyIvListTree::RegetPolicy(res);
+   IvList_ReplaceUserId(res, userId);
+}
+void OmsPoIvListAgent::MakeGridView(fon9::RevBuffer& rbuf, const OmsIvList& ivList) {
    auto* gvLayout = this->Sapling_->LayoutSP_->GetTab(0)->SaplingLayout_.get();
    auto* gvTab = gvLayout->GetTab(0);
    fon9::seed::SimpleMakeFullGridView(ivList, *gvTab, rbuf);

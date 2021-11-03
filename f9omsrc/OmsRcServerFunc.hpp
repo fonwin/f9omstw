@@ -41,6 +41,8 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       }
       void ClearResource();
       void StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter);
+      void SubrIvListChanged();
+      bool CheckReloadIvList();
    private:
       enum class HandlerSt {
          Preparing,
@@ -51,6 +53,7 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
       fon9::SubConn     RptSubr_{};
+      fon9::SubConn     PolicyChangedSubr_{};
       OmsRxSNO          WkoRecoverSNO_{};
       void SubscribeReport();
       OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);

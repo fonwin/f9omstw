@@ -46,6 +46,14 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    assert(dynamic_cast<TwsTradingLineMgr*>(&this->FixManager_) != nullptr);
 
    const auto now = fon9::UtcNow();
+   if (fon9_UNLIKELY(IsOverVaTimeMS(req, now))) {
+      fon9::DyObj<OmsRequestRunnerInCore> tmpRunner;
+      OmsRequestRunnerInCore* runner = static_cast<TwsTradingLineMgr*>(&this->FixManager_)
+         ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&req), 0u);
+      runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OverVaTimeMS, nullptr);
+      return SendResult::RejectRequest;
+   }
+
    const auto fcInterval = this->FlowCounter_.Check(now);
    if (fon9_UNLIKELY(fcInterval.GetOrigValue() > 0))
       return f9fmkt::ToFlowControlResult(fcInterval);

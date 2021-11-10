@@ -35,6 +35,7 @@ void OmsRequestIni::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestIni, IvacNo));
    flds.Add(fon9_MakeField2(OmsRequestIni, SubacNo));
    flds.Add(fon9_MakeField2(OmsRequestIni, SalesNo));
+   flds.Add(fon9_MakeField2(OmsRequestIni, VaTimeMS));
 }
 const char* OmsRequestIni::IsIniFieldEqual(const OmsRequestBase& req) const {
    if (auto r = dynamic_cast<const OmsRequestIni*>(&req))

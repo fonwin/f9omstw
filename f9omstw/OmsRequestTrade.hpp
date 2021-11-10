@@ -102,7 +102,10 @@ public:
 struct OmsRequestIniDat {
    IvacNo            IvacNo_;
    fon9::CharAry<10> SubacNo_;
-   fon9::CharAry<10> SalesNo_;
+   fon9::CharAry<8>  SalesNo_;
+   /// 新單有效時間, 超過時間則不送出.
+   /// 從新單建立開始計算: >0:超過多少 ms 視為過期; =0:不檢查是否過期;
+   uint16_t          VaTimeMS_;
 
    OmsRequestIniDat() {
       memset(this, 0, sizeof(*this));
@@ -182,6 +185,16 @@ public:
    ///   iniReq->BeforeReq_CheckIvRight(runner);
    bool BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res) const;
 };
+
+static inline bool IsOverVaTimeMS(const fon9::fmkt::TradingRequest& req, fon9::TimeStamp now) {
+   if (fon9_LIKELY(req.RxKind() == f9fmkt_RxKind_RequestNew)) {
+      assert(dynamic_cast<const OmsRequestIni*>(&req) != nullptr);
+      const OmsRequestIni* ini = static_cast<const OmsRequestIni*>(&req);
+      if (fon9_UNLIKELY(ini->VaTimeMS_ > 0))
+         return(now >= (ini->CrTime() + fon9::TimeInterval_Millisecond(ini->VaTimeMS_)));
+   }
+   return false;
+}
 
 class OmsRequestUpd : public OmsRequestTrade {
    fon9_NON_COPY_NON_MOVE(OmsRequestUpd);

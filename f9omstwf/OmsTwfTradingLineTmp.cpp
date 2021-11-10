@@ -39,7 +39,16 @@ bool TwfTradingLineTmp::IsOrigSender(const f9fmkt::TradingRequest& req) const {
 TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequest& req) {
    assert(dynamic_cast<OmsRequestTrade*>(&req) != nullptr);
    assert(dynamic_cast<TwfTradingLineMgr*>(&this->LineMgr_) != nullptr);
-   fon9::TimeStamp    now = fon9::UtcNow();
+
+   fon9::TimeStamp   now = fon9::UtcNow();
+   if (fon9_UNLIKELY(IsOverVaTimeMS(req, now))) {
+      fon9::DyObj<OmsRequestRunnerInCore> tmpRunner;
+      OmsRequestRunnerInCore* runner = static_cast<TwfTradingLineMgr*>(&this->LineMgr_)
+         ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&req), 0u);
+      runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OverVaTimeMS, nullptr);
+      return SendResult::RejectRequest;
+   }
+
    fon9::TimeInterval fc = this->Fc_.Check(now);
    if (fc.GetOrigValue() > 0)
       return f9fmkt::ToFlowControlResult(fc);

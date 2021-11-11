@@ -10,7 +10,14 @@
 namespace f9omstw {
 
 class OmsOrdNoMap : public fon9::intrusive_ref_counter<OmsOrdNoMap>,
-                    private fon9::Trie<fon9::TrieKeyAlNum, OmsOrder*, fon9::TrieDummyPtrValue<OmsOrder> > {
+                    private fon9::Trie<
+                                 #ifdef F9OMS_ORDNO_IS_NUM
+                                    fon9::TrieKeyNum,
+                                 #else
+                                    fon9::TrieKeyAlNum,
+                                 #endif
+                                 OmsOrder*,
+                                 fon9::TrieDummyPtrValue<OmsOrder> > {
    fon9_NON_COPY_NON_MOVE(OmsOrdNoMap);
    OmsOrdTeamGroups  TeamGroups_;
    bool AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team);

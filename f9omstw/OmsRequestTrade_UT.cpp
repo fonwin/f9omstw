@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
       .GetSession(f9fmkt_TradingSessionId_Normal)
       .GetOrdNoMap();
    f9omstw::OmsOrdNo ordno;
-   ordnoMap->GetNextOrdNo(f9omstw::OmsOrdTeam("Z"), ordno);
+   ordnoMap->GetNextOrdNo(f9omstw::OmsOrdTeam("Z"), ordno, &f9omstw_IncStrAlpha);
    std::string strOrdNo{ordno.begin(), ordno.end()};
 
    std::cout << "[TEST ] admin.Report " << strOrdNo;

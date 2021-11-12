@@ -185,7 +185,7 @@ void RunTestCore(FnBeforeAddReq fnBeforeAddReq,
                AbortAtLine(lineNo);
             }
             f9omstw::OmsOrdNo  ordno;
-            ordnoMap->GetNextOrdNo(fon9::StrTrimHead(&value), ordno);
+            ordnoMap->GetNextOrdNo(fon9::StrTrimHead(&value), ordno, &f9omstw_IncStrAlpha);
             rptstrApp = "|OrdNo=";
             rptstrApp.append(ordno.begin(), ordno.end());
          }

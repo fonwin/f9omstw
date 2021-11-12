@@ -11,6 +11,7 @@ namespace f9omstw {
 
 using OmsOrdTeam = fon9::CharAryL<OmsOrdNo::size()>;
 using OmsOrdTeamList = std::vector<OmsOrdTeam>;
+typedef int (*FnIncOrdNo)(char* pbeg, char* pend);
 
 /// cfg = 允許的委託櫃號, 使用 "," 分隔, 或使用 "-" 設定範圍.
 /// - "A-B" 表示可編號 A0000..Bzzzz
@@ -37,6 +38,11 @@ public:
    bool              IsAllowAnyOrdNo_{false};
    char              padding_____[1];
    OmsOrdTeamGroupId TeamGroupId_;
+
+   /// 序號的計算方法. 若有定義 F9OMS_ORDNO_IS_NUM 則此處設定無效;
+   /// 預設=文數字: int f9omstw_IncStrAlpha(char* pbeg, char* pend);
+   /// 純數字: int f9omstw_IncStrDec(char* pbeg, char* pend);
+   FnIncOrdNo  FnIncOrdNo_;
 };
 class OmsOrdTeamGroupMgr {
    using TeamGroupCfgs = std::vector<OmsOrdTeamGroupCfg>;

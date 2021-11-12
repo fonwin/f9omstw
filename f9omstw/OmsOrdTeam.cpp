@@ -107,8 +107,18 @@ const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, f
    }
    if (ToStrView(tgCfg->Config_) != cfgstr) {
       tgCfg->Config_.assign(cfgstr);
+
+      if (cfgstr.Get1st() == '%') {
+         tgCfg->FnIncOrdNo_ = f9omstw_IncStrDec;
+         cfgstr.SetBegin(cfgstr.begin() + 1);
+      }
+      else {
+         tgCfg->FnIncOrdNo_ = f9omstw_IncStrAlpha;
+      }
+
       if ((tgCfg->IsAllowAnyOrdNo_ = (cfgstr.Get1st() == '*')) == true)
          cfgstr.SetBegin(cfgstr.begin() + 1);
+
       tgCfg->TeamList_.clear();
       ConfigToTeamList(tgCfg->TeamList_, cfgstr);
       ++tgCfg->UpdatedCount_;

@@ -20,13 +20,14 @@ class OmsOrdNoMap : public fon9::intrusive_ref_counter<OmsOrdNoMap>,
                                  fon9::TrieDummyPtrValue<OmsOrder> > {
    fon9_NON_COPY_NON_MOVE(OmsOrdNoMap);
    OmsOrdTeamGroups  TeamGroups_;
-   bool AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team);
+   bool AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team, FnIncOrdNo fnIncOrdNo);
 public:
    OmsOrdNoMap() = default;
    ~OmsOrdNoMap();
 
-   // 尋找 team 的最後委託書號+1.
-   bool GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out);
+   /// 尋找 team 的最後委託書號+1.
+   /// 若有定義 F9OMS_ORDNO_IS_NUM, 則不理會 fnIncOrdNo 參數(一律使用 f9omstw_IncStrDec).
+   bool GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out, FnIncOrdNo fnIncOrdNo);
 
    /// 使用第 tgId 的櫃號設定分配委託書號, 不考慮 runner.OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
    bool AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId tgId);

@@ -18,6 +18,10 @@ extern "C" fon9_API fon9::seed::PluginsDesc f9p_SeedImporter;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_RcSvServerAgent;
 extern "C"          fon9::seed::PluginsDesc f9p_OmsRcServerAgent;
 
+#ifdef F9CARD
+extern "C"          fon9::seed::PluginsDesc f9p_F9Card;
+#endif
+
 void* ForceLinkSomething() {
 //
 // 提供 UtwOmsCore, 在 /MaPlugins 增加:
@@ -32,6 +36,10 @@ void* ForceLinkSomething() {
 //    iOmsRcSvr       OmsRcSvr    TcpServer   6601
 //
    static const void* forceLinkList[]{
+      #ifdef F9CARD
+         &f9p_F9Card,
+      #endif
+
       &f9p_HttpSession,
       &f9p_RcSessionServer, &f9p_OmsRcServerAgent, &f9p_RcSvServerAgent,
       &f9p_NamedIoManager, &f9p_TcpServer, &f9p_TcpClient, &f9p_FileIO, &f9p_Dgram,

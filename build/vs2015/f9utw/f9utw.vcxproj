@@ -89,6 +89,9 @@ call ..\..\fon9\make_proj_verinfo.bat</Command>
     <ClCompile Include="..\..\..\f9utw\UtwsIvac.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsIvSc.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsIvSymb.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwSpCmd.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwSpCmdTwf.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwSpCmdTws.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsSubac.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsSymb.cpp" />
   </ItemGroup>
@@ -97,6 +100,9 @@ call ..\..\fon9\make_proj_verinfo.bat</Command>
     <ClInclude Include="..\..\..\f9utw\UtwsIvac.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsIvSc.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsIvSymb.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwSpCmd.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwSpCmdTwf.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwSpCmdTws.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsSubac.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsSymb.hpp" />
   </ItemGroup>

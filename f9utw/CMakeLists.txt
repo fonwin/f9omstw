@@ -5,6 +5,16 @@ if(NOT ret EQUAL 0)
     message(FATAL_ERROR "Run make_proj_verinfo.sh ERROR: " ${ret})
 endif()
 # ---
+set(F9PATH "${CMAKE_CURRENT_SOURCE_DIR}/f9")
+if(EXISTS "${F9PATH}/net" AND IS_DIRECTORY "${F9PATH}/net")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DF9CARD")
+  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -DF9CARD")
+  set(f9_s_lib "f9_s")
+  add_subdirectory(f9)
+else()
+  unset(F9PATH)
+endif()
+# ---
 set(f9utw_src
  ../../fon9/fon9/framework/Fon9CoRun.cpp
  f9utw_main.cpp
@@ -21,4 +31,4 @@ set(f9utw_src
 )
 include_directories(BEFORE .)
 add_executable(f9utw ${f9utw_src})
-target_link_libraries(f9utw fon9_s f9tws_s f9twf_s f9omstw_s f9omstws_s f9omstwf_s f9omsrc_s)
+target_link_libraries(f9utw fon9_s f9tws_s f9twf_s f9omstw_s f9omstws_s f9omstwf_s f9omsrc_s ${f9_s_lib})

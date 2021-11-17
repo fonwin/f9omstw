@@ -1,6 +1,8 @@
 ﻿// \file f9utw/UtwOmsCore.cpp
 // \author fonwinz@gmail.com
 #include "f9utw/UnitTestCore.hpp"
+#include "f9utw/UtwSpCmdTwf.hpp"
+#include "f9utw/UtwSpCmdTws.hpp"
 #include "f9omstw/OmsCoreMgrSeed.hpp"
 #include "f9omstw/OmsEventSessionSt.hpp"
 
@@ -16,6 +18,10 @@
 #include "fon9/seed/SysEnv.hpp"
 
 namespace f9omstw {
+
+#ifndef fon9_kCSTR_UtwOmsCoreName
+#define fon9_kCSTR_UtwOmsCoreName   "UtwOmsCore"
+#endif
 
 using UomsTwsOrderFactory = OmsOrderFactoryT<OmsOrder, OmsTwsOrderRaw, kPoolObjCount>;
 using OmsTwsRequestIniFactory = OmsRequestFactoryT<OmsTwsRequestIni, kPoolObjCount>;
@@ -73,6 +79,11 @@ class UtwOmsCoreMgrSeed : public OmsCoreMgrSeed {
       res.Brks_->InitializeTwsOrdNoMap(f9fmkt_TradingMarket_TwOTC);
       res.Brks_->InitializeTwfOrdNoMap(f9fmkt_TradingMarket_TwFUT);
       res.Brks_->InitializeTwfOrdNoMap(f9fmkt_TradingMarket_TwOPT);
+      // 建立特殊指令(例:特殊刪單)管理員.
+      if (res.Core_.Owner_->RequestFactoryPark().GetFactory("TwfNew"))
+         res.Sapling_->Add(new SpCmdMgrTwf(&res.Core_, "SpCmdTwf"));
+      if (res.Core_.Owner_->RequestFactoryPark().GetFactory("TwsNew"))
+         res.Sapling_->Add(new SpCmdMgrTwf(&res.Core_, "SpCmdTws"));
    }
 
 public:
@@ -82,7 +93,8 @@ public:
       #define kCSTR_DevFpName    "FpDevice"
       auto devfp = FetchNamedPark<fon9::DeviceFactoryPark>(*holder.Root_, kCSTR_DevFpName);
       if (!devfp) { // 無法取得系統共用的 DeviceFactoryPark.
-         holder.SetPluginsSt(fon9::LogLevel::Error, "UtwOmsCore.Create|err=DeviceFactoryPark not found: " kCSTR_DevFpName);
+         holder.SetPluginsSt(fon9::LogLevel::Error,
+                             fon9_kCSTR_UtwOmsCoreName ".Create|err=DeviceFactoryPark not found: " kCSTR_DevFpName);
          return false;
       }
       // args:
@@ -108,6 +120,7 @@ public:
       int                  cpuId = -1;
       f9twf::FcmId         cmId{};
       fon9::TimeInterval   flushInterval{fon9::TimeInterval_Millisecond(1)};
+      int                  changeDayHHMMSS = -1; // 換日時間, 現貨 00:00 換日, 期權 6:00 換日;
       while (fon9::SbrFetchTagValue(args, tag, value)) {
          fon9::IoManagerArgs* ioargs;
          if (tag == "Name")
@@ -152,16 +165,20 @@ public:
             lgCfgFileName = value;
          else if (tag == "CmId")
             cmId = fon9::StrTo(value, cmId);
+         else if (tag == "ChgTDay")
+            changeDayHHMMSS = fon9::StrTo(value, changeDayHHMMSS);
          else {
-            holder.SetPluginsSt(fon9::LogLevel::Error, "UtwOmsCore.Create|err=Unknown tag: ", tag);
+            holder.SetPluginsSt(fon9::LogLevel::Error, fon9_kCSTR_UtwOmsCoreName ".Create|err=Unknown tag: ", tag);
             return false;
          }
       }
       const bool isTwsSys = brkId.size() == sizeof(f9tws::BrkId);
       if (!isTwsSys && brkId.size() != sizeof(f9twf::BrkId)) {
-         holder.SetPluginsSt(fon9::LogLevel::Error, "UtwOmsCore.Create|err=Unknown BrkId: ", brkId);
+         holder.SetPluginsSt(fon9::LogLevel::Error, fon9_kCSTR_UtwOmsCoreName ".Create|err=Unknown BrkId: ", brkId);
          return false;
       }
+      if (changeDayHHMMSS < 0)
+         changeDayHHMMSS = (isTwsSys ? 0 : 60000);
       // ------------------------------------------------------------------
       UtwOmsCoreMgrSeed* coreMgrSeed = new UtwOmsCoreMgrSeed(omsName.ToString(), holder.Root_);
       if (!holder.Root_->Add(coreMgrSeed))
@@ -306,7 +323,12 @@ public:
       }
       // ------------------------------------------------------------------
       coreMgr.ReloadErrCodeAct(fon9::ToStrView(cfgpath + "OmsErrCodeAct.cfg"));
-      coreMgrSeed->AddCore(fon9::UtcNow() + fon9::GetLocalTimeZoneOffset());
+      auto now = fon9::LocalNow();
+      int  nowHHMMSS = static_cast<int>(fon9::GetHHMMSS(now));
+      now = fon9::TimeStampResetHHMMSS(now);
+      if (nowHHMMSS < changeDayHHMMSS)
+         now -= fon9::TimeInterval_Day(1);
+      coreMgrSeed->AddCore(now);
       // ------------------------------------------------------------------
       return true;
    }
@@ -316,4 +338,4 @@ public:
 //--------------------------------------------------------------------------//
 extern "C" fon9::seed::PluginsDesc f9p_UtwOmsCore;
 fon9::seed::PluginsDesc f9p_UtwOmsCore{"", &f9omstw::UtwOmsCoreMgrSeed::Create, nullptr, nullptr,};
-static fon9::seed::PluginsPark f9pRegister{"UtwOmsCore", &f9p_UtwOmsCore};
+static fon9::seed::PluginsPark f9pRegister{fon9_kCSTR_UtwOmsCoreName, &f9p_UtwOmsCore};

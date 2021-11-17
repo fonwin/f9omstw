@@ -65,6 +65,9 @@ set (f9utw_src
  ../f9utw/UtwsIvSc.cpp
  ../f9utw/UtwsIvSymb.cpp
  ../f9utw/UtwsSymb.cpp
+ ../f9utw/UtwSpCmd.cpp
+ ../f9utw/UtwSpCmdTwf.cpp
+ ../f9utw/UtwSpCmdTws.cpp
 )
 add_library(f9utw_s STATIC ${f9utw_src})
 target_link_libraries(f9utw_s f9omstws_s f9omstwf_s f9omstw_s fon9_s pthread dl)

@@ -3,7 +3,6 @@
 #include "f9omsrc/OmsRc.h"
 #include "f9omsrc/OmsRcServerFunc.hpp"
 #include "f9omstw/OmsCore.hpp"
-#include "f9omstw/OmsPoUserRightsAgent.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/rc/RcFuncConnServer.hpp"
 #include "fon9/io/Device.hpp"
@@ -55,6 +54,11 @@ OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
       fon9::RevBufferList  rbuf{128};
       if (auto agUserRights = authr.AuthMgr_->Agents_->Get<OmsPoUserRightsAgent>(fon9_kCSTR_OmsPoUserRightsAgent_Name)) {
          agUserRights->GetPolicy(authr, this->PolicyConfig_.UserRights_, &this->PolicyConfig_.TeamGroupName_);
+         this->PolicyConfig_.OrigIvDenys_ = this->PolicyConfig_.UserRights_.IvDenys_;
+         if (auto agUserDenys = authr.AuthMgr_->Agents_->Get<OmsPoUserDenysAgent>(fon9_kCSTR_OmsPoUserDenysAgent_Name)) {
+            agUserDenys->FetchPolicy(authr, this->PolicyConfig_.PoIvDenys_);
+            this->PolicyConfig_.UserRights_.IvDenys_ |= this->PolicyConfig_.PoIvDenys_.IvDenys_;
+         }
          fon9::RevPrint(rbuf, *fon9_kCSTR_ROWSPL);
          agUserRights->MakeGridView(rbuf, this->PolicyConfig_.UserRights_);
          fon9::RevPrint(rbuf, fon9_kCSTR_LEAD_TABLE, agUserRights->Name_, *fon9_kCSTR_ROWSPL);
@@ -194,6 +198,15 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    runner.ExLog_.SetPrefixUsed(pout);
    param.RecvBuffer_.Read(pout, byteCount);
 
+   auto pol = this->Handler_->RequestPolicy_;
+   if (fon9_UNLIKELY(this->PolicyConfig_.PoIvDenys_.IsPolicyChanged())) {
+      if (pol) {
+         OmsPoUserDenysAgent::RegetPolicy(this->PolicyConfig_.PoIvDenys_);
+         pol->SetIvDenys(this->PolicyConfig_.PoIvDenys_.IvDenys_
+                         | this->PolicyConfig_.OrigIvDenys_);
+      }
+   }
+     
    runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
    if (fon9_LIKELY(runner.Request_)) {
       assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
@@ -207,11 +220,9 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
          return;
       }
       // 回報(補單)權限需要自主檢查.
-      if (auto* pol = this->Handler_->RequestPolicy_.get()) {
-         if (!runner.CheckReportRights(*pol)) {
-            ses.ForceLogout("OmsRcServer:deny input report.");
-            return;
-         }
+      if (!pol || !runner.CheckReportRights(*pol)) {
+         ses.ForceLogout("OmsRcServer:deny input report.");
+         return;
       }
       runner.Request_->SetReportNeedsLog();
       runner.Request_->SetForcePublish();
@@ -234,7 +245,7 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
       goto __RUN_REPORT;
 
    if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
-      static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(this->Handler_->RequestPolicy_);
+      static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
    __RUN_REPORT:
       if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner))))
          return;
@@ -268,12 +279,12 @@ bool OmsRcServerNote::Handler::CheckReloadIvList() {
    return OmsPoIvListAgent::CheckRegetPolicy(ToStrView(ses->GetUserId()), this->IvList_);
 }
 void OmsRcServerNote::Handler::SubrIvListChanged() {
-   assert(this->PolicyChangedSubr_ == nullptr);
+   assert(this->PoIvListSubr_ == nullptr);
    if (this->IvList_.PolicyItem_) {
       assert(this->Core_);
       HandlerSP pthis{this};
       this->IvList_.PolicyItem_->AfterChangedEvent_.Subscribe(
-         &this->PolicyChangedSubr_, [pthis](const fon9::auth::PolicyItem&) {
+         &this->PoIvListSubr_, [pthis](const fon9::auth::PolicyItem&) {
          pthis->Core_->RunCoreTask([pthis](OmsResource& res) {
             if (pthis->CheckReloadIvList())
                pthis->RequestPolicy_ = pthis->MakePolicy(res);
@@ -286,7 +297,7 @@ void OmsRcServerNote::Handler::ClearResource() {
    if (this->Core_)
       this->Core_->ReportSubject().Unsubscribe(&this->RptSubr_);
    if (this->IvList_.PolicyItem_)
-      this->IvList_.PolicyItem_->AfterChangedEvent_.Unsubscribe(&this->PolicyChangedSubr_);
+      this->IvList_.PolicyItem_->AfterChangedEvent_.Unsubscribe(&this->PoIvListSubr_);
 }
 void OmsRcServerNote::Handler::StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter) {
    if (this->State_ > HandlerSt::Recovering) // 重覆訂閱/回補/解構中?

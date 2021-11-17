@@ -95,9 +95,7 @@ public:
       struct ResultHandler {
          PolicyConfig* Result_;
          void InLocking(const fon9::auth::PolicyItem& master) {
-            // this->Result_->XXX_ = static_cast<const MasterItem*>(&master)->XXX_;
-            this->Result_->PolicyChangedCount_ = master.ChangedCount();
-            this->Result_->PolicyItem_.reset(&master);
+            this->Result_->ResetPolicyItem(master);
          }
          void OnUnlocked(fon9::auth::DetailPolicyTree& detailTree) {
             DetailTable::Locker pmap{static_cast<DetailTree*>(&detailTree)->DetailTable_};

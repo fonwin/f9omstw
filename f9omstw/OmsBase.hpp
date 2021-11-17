@@ -37,6 +37,9 @@ inline bool OmsIsOrdNoEmpty(const OmsOrdNo& ordNo) {
    return ordNo.empty1st();
 }
 
+using OmsSubacNo = fon9::CharAry<10>;
+using OmsSalesNo = fon9::CharAry<8>;
+
 class OmsIvBase;
 using OmsIvBaseSP = fon9::intrusive_ptr<OmsIvBase>;
 

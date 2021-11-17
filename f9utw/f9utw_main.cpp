@@ -51,6 +51,7 @@ void* ForceLinkSomething() {
 int fon9sys_BeforeStart(fon9::Framework& fon9sys) {
    f9omstw::OmsPoIvListAgent::Plant(*fon9sys.MaAuth_);
    f9omstw::OmsPoUserRightsAgent::Plant(*fon9sys.MaAuth_);
+   f9omstw::OmsPoUserDenysAgent::Plant(*fon9sys.MaAuth_);
    ForceLinkSomething();
 
    //

@@ -3,11 +3,18 @@
 #ifndef __f9omstw_OmsPoUserRights_hpp__
 #define __f9omstw_OmsPoUserRights_hpp__
 #include "f9omstw/OmsBase.hpp"
+#include "f9omstw/OmsPoIvList.hpp"
 #include "fon9/FlowCounter.hpp"
 
 namespace f9omstw {
 
-fon9_WARN_DISABLE_PADDING;
+enum class OmsUserRightFlag : uint8_t {
+   /// 是否允許 OmsUserRights::AllowOrdTeams_ 進行同步,
+   /// 預設為不允許.
+   AllowOrdTeamsSyn = 0x01,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(OmsUserRightFlag);
+
 /// Oms使用者權限:
 /// - 是否可自訂櫃號 or 委託書號.
 /// - 流量管制.
@@ -25,8 +32,10 @@ public:
    fon9::FlowCounterArgs   FcRequest_;
    /// 預設下單群組.
    LgOut                   LgOut_{};
+   OmsUserRightFlag        Flags_{};
+   OmsIvRight              IvDenys_{};
+   char                    Padding___[1];
 };
-fon9_WARN_POP;
 
 } // namespaces
 #endif//__f9omstw_OmsPoUserRights_hpp__

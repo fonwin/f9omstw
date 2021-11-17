@@ -4,6 +4,7 @@
 #define __f9omsrc_OmsRcServerFunc_hpp__
 #include "f9omsrc/OmsRcServer.hpp"
 #include "f9omsrc/OmsRc.h"
+#include "f9omstw/OmsPoUserRightsAgent.hpp"
 #include "fon9/FlowCounter.hpp"
 
 namespace f9omstw {
@@ -53,7 +54,7 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
       fon9::SubConn     RptSubr_{};
-      fon9::SubConn     PolicyChangedSubr_{};
+      fon9::SubConn     PoIvListSubr_{};
       OmsRxSNO          WkoRecoverSNO_{};
       void SubscribeReport();
       OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);
@@ -78,6 +79,8 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       std::string       TablesGridView_;
       fon9::FlowCounter FcReq_;
       unsigned          FcReqOverCount_{};
+      OmsIvRight                          OrigIvDenys_;
+      OmsPoUserDenysAgent::PolicyConfig   PoIvDenys_;
    };
    PolicyConfig   PolicyConfig_;
    HandlerSP      Handler_;

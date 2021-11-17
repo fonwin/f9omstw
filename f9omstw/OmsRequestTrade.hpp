@@ -100,12 +100,12 @@ public:
 //--------------------------------------------------------------------------//
 
 struct OmsRequestIniDat {
-   IvacNo            IvacNo_;
-   fon9::CharAry<10> SubacNo_;
-   fon9::CharAry<8>  SalesNo_;
+   IvacNo      IvacNo_;
+   OmsSubacNo  SubacNo_;
+   OmsSalesNo  SalesNo_;
    /// 新單有效時間, 超過時間則不送出.
    /// 從新單建立開始計算: >0:超過多少 ms 視為過期; =0:不檢查是否過期;
-   uint16_t          VaTimeMS_;
+   uint16_t    VaTimeMS_;
 
    OmsRequestIniDat() {
       memset(this, 0, sizeof(*this));

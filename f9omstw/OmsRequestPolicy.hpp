@@ -15,7 +15,9 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    OmsOrdTeamGroupId OrdTeamGroupId_{0};
    bool              IsAllowAnyOrdNo_{false};
    OmsIvRight        IvRights_{OmsIvRight::DenyAll};
-   char              padding___[6];
+   /// 額外禁止項目.
+   OmsIvRight mutable IvDenys_{};
+   char              padding___[5];
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -53,25 +55,32 @@ public:
    }
    void SetOrdTeamGroupCfg(const OmsOrdTeamGroupCfg* tg);
 
-   /// - 如果 iv 是 Subac:
+   /// 設定額外禁止項目.
+   /// 可能在 OmsPoUserRights 有異動時立即更新.
+   void SetIvDenys(OmsIvRight v) const {
+      this->IvDenys_ = (v & OmsIvRight::DenyAll);
+   }
+
+   /// - 如果 ivr 是 Subac:
    ///   - 則 subWilds 必定是 empty().
-   /// - 如果 iv 是 Ivac:
+   /// - 如果 ivr 是 Ivac:
    ///   - 如果 subWilds 是 empty(), 則不包含任何子帳權限, "BRKX-1234567" 與 "BRKX-1234567-*" 須分別設定.
    ///   - 如果 subWilds 是 "SUBAC"; 則子帳(SUBAC)部分必定有 '*' 或 '?'.
-   /// - 如果 iv 是 Brk:
+   /// - 如果 ivr 是 Brk:
    ///   - 如果 subWilds 是 empty() 或 "*"; 則表示針對該券商的全部帳號.
    ///   - 如果 subWilds 是 "1234567-SUBAC"; 帳號(1234567)部分必定有 '*' 或 '?'.
-   /// - 如果 iv 是 nullptr:
+   /// - 如果 ivr 是 nullptr:
    ///   - 如果 subWilds 是 empty() 或 "*", 則設定 this->IvRights_ = IsAdmin | rights; 不加入 this->IvMap_;
    ///   - 如果 subWilds 是 "BRKX-1234567-SUBAC"; 券商代號(BRKX)部分必定有 '*' 或 '?'.
    void AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvRight rights);
 
+   /// 返回值會額外加上 this->IvDenys_;
    OmsIvRight GetIvRights(OmsIvBase* ivr) const;
 
    /// 必須是 this->IvMap_.empty() 且 IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin) 才會傳回 this->IvRights_;
    OmsIvRight GetIvrAdminRights() const {
       return this->IvMap_.empty() && IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin)
-         ? this->IvRights_ : OmsIvRight::DenyAll;
+         ? (this->IvRights_ | this->IvDenys_) : OmsIvRight::DenyAll;
    }
 };
 using OmsRequestPolicySP = fon9::intrusive_ptr<const OmsRequestPolicy>;

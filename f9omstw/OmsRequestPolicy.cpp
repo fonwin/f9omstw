@@ -47,10 +47,10 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr) const {
          auto ifind = this->IvMap_.find(ivr);
          if (fon9_LIKELY(ifind != this->IvMap_.end())) {
             if (fon9_LIKELY(ivSrc == ivr))
-               return ifind->Rights_;
+               return ifind->Rights_ | this->IvDenys_;
             if (fon9_LIKELY(ifind->SubWilds_.empty())) {
                if (ivr == nullptr || ivr->IvKind_ == OmsIvKind::Brk)
-                  return ifind->Rights_;
+                  return ifind->Rights_ | this->IvDenys_;
                break; // 找不到 wild 的設定, 使用 this->IvRights_
             }
             fon9::RevBufferFixedSize<1024> rbuf;
@@ -63,8 +63,8 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr) const {
                   pspl = subw.end();
                if (fon9::IsStrWildMatch(ToStrView(rbuf), fon9::StrView{subw.begin(), pspl})) {
                   if (pspl + kTailSize > subw.end()) // '\n' 已到尾端: '\n' 之後沒有 IvRight; => 不會發生此情況!
-                     return ifind->Rights_;          // 直接使用 ifind->Rights_;
-                  return fon9::GetUnaligned(reinterpret_cast<const OmsIvRight*>(pspl + 1));
+                     return ifind->Rights_ | this->IvDenys_; // 直接使用 ifind->Rights_;
+                  return fon9::GetUnaligned(reinterpret_cast<const OmsIvRight*>(pspl + 1)) | this->IvDenys_;
                }
                if (pspl + kTailSize >= subw.end())
                   break;
@@ -77,7 +77,9 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr) const {
          ivr = ivr->Parent_.get();
       } // for (search ivr
    } // if (!this->IvMap_.empty()
-   return IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin) ? this->IvRights_ : OmsIvRight::DenyAll;
+   return IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin)
+      ? (this->IvRights_ | this->IvDenys_)
+      : OmsIvRight::DenyAll;
 }
 //--------------------------------------------------------------------------//
 OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks) {
@@ -123,6 +125,7 @@ OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, Om
 }
 
 OmsRequestPolicySP OmsRequestPolicyCfg::MakePolicy(OmsResource& res, fon9::intrusive_ptr<OmsRequestPolicy> pol) const {
+   pol->SetIvDenys(this->UserRights_.IvDenys_);
    pol->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
       ToStrView(this->TeamGroupName_), ToStrView(this->UserRights_.AllowOrdTeams_)));
    for (const auto& item : this->IvList_) {

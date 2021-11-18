@@ -24,15 +24,18 @@ class OmsTwfReport2 : public OmsTwfRequestIni1 {
    bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) override;
 
 public:
-   fon9::TimeStamp   ExgTime_{fon9::TimeStamp::Null()};
+   fon9::TimeStamp         ExgTime_{fon9::TimeStamp::Null()};
+   fon9::CharVector        Message_;
+   f9twf::TmpSessionId_t   OutPvcId_{};
    /// this->Qty_ 為 AfterQty;
-   OmsTwfQty         BeforeQty_{};
-   OmsReportPriStyle PriStyle_{OmsReportPriStyle::NoDecimal};
-   char              padding__[5];
+   OmsTwfQty               BeforeQty_{};
+   OmsReportPriStyle       PriStyle_{OmsReportPriStyle::NoDecimal};
+   char                    padding__[3];
 
    using base::base;
 
    void ProcessPendingReport(OmsResource& res) const override;
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwfReport2{creator, reqKind};

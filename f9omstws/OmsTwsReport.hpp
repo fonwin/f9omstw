@@ -29,7 +29,8 @@ public:
    /// 並將此欄改為 OmsReportQtyStyle::OddLot;
    /// 讓後續的處理可以不用考慮此欄.
    OmsReportQtyStyle QtyStyle_{OmsReportQtyStyle::BySessionId};
-   char              padding__[3];
+   fon9::CharAryF<2> OutPvcId_;
+   char              padding__[1];
 
    using base::base;
 

@@ -54,13 +54,9 @@ void OmsTwsFilled::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCor
 }
 //--------------------------------------------------------------------------//
 void OmsTwsFilled::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
-   (void)message;
+   base::OnSynReport(ref, message);
    this->QtyStyle_ = OmsReportQtyStyle::OddLot;
    if (ref) {
-      *static_cast<OmsOrdKey*>(this) = *ref;
-      this->Market_ = ref->Market();
-      this->SessionId_ = ref->SessionId();
-      this->IniSNO_ = ref->RxSNO();
       auto ini = dynamic_cast<const OmsTwsRequestIni*>(ref);
       if (fon9_LIKELY(ini != nullptr)) {
       ___COPY_FROM_INI:;

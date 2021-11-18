@@ -17,7 +17,9 @@ class OmsTwfReport8 : public OmsTwfRequestIni7 {
    void RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) override;
 
 public:
-   fon9::TimeStamp   ExgTime_{fon9::TimeStamp::Null()};
+   fon9::TimeStamp         ExgTime_{fon9::TimeStamp::Null()};
+   f9twf::TmpSessionId_t   OutPvcId_{};
+   char                    Padding____[6];
 
    using base::base;
 

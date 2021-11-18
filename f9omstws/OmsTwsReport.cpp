@@ -13,6 +13,7 @@ void OmsTwsReport::MakeFields(fon9::seed::Fields& flds) {
    base::AddFieldsForReport(flds);
    flds.Add(fon9_MakeField2(OmsTwsReport, ExgTime));
    flds.Add(fon9_MakeField2(OmsTwsReport, BeforeQty));
+   flds.Add(fon9_MakeField2(OmsTwsReport, OutPvcId));
 }
 //--------------------------------------------------------------------------//
 static inline void AdjustReportQtys(OmsOrder& order, OmsResource& res, OmsTwsReport& rpt) {
@@ -102,17 +103,9 @@ void OmsTwsRequestChg::ProcessPendingReport(OmsResource& res) const {
 }
 //--------------------------------------------------------------------------//
 void OmsTwsReport::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   base::OnSynReport(ref, message);
    this->Message_.assign(message);
    this->QtyStyle_ = OmsReportQtyStyle::OddLot;
-   if (ref) {
-      *static_cast<OmsOrdKey*>(this) = *ref;
-      if (OmsIsReqUIDEmpty(*this))
-         *static_cast<OmsRequestId*>(this) = *ref;
-      this->Market_ = ref->Market();
-      this->SessionId_ = ref->SessionId();
-      if (this->RxKind_ == f9fmkt_RxKind_Unknown)
-         this->RxKind_ = ref->RxKind();
-   }
 }
 
 } // namespaces

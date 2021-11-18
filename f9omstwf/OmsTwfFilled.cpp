@@ -164,6 +164,29 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
                             f9fmkt_TradingRequestSt_ExchangeCanceled);
    }
 }
+//--------------------------------------------------------------------------//
+void OmsTwfFilled::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   base::OnSynReport(ref, message);
+   this->PriStyle_ = OmsReportPriStyle::HasDecimal;
+   if (ref) {
+      auto ini = dynamic_cast<const OmsTwfRequestIni0*>(ref);
+      if (fon9_LIKELY(ini != nullptr)) {
+      ___COPY_FROM_INI:;
+         this->Symbol_ = ini->Symbol_;
+         this->IvacNo_ = ini->IvacNo_;
+         // this->Side_;
+         // this->PosEff_;
+         // this->QtyCanceled_;
+         return;
+      }
+      if (auto* ordraw = ref->LastUpdated()) {
+         if ((ini = dynamic_cast<const OmsTwfRequestIni0*>(ordraw->Order().Initiator())) != nullptr)
+            goto ___COPY_FROM_INI;
+      }
+      this->Symbol_.clear();
+      this->IvacNo_ = IvacNo{};
+   }
+}
 //-///////////////////////////////////////////////////////////////////////////
 OmsOrderRaw* OmsTwfFilled1::RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) {
    if (!AdjustReportPrice(OmsGetReportPriMul(checker, *this), *this))

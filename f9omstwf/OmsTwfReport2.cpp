@@ -13,6 +13,7 @@ void OmsTwfReport2::MakeFields(fon9::seed::Fields& flds) {
    base::AddFieldsForReport(flds);
    flds.Add(fon9_MakeField2(OmsTwfReport2, ExgTime));
    flds.Add(fon9_MakeField2(OmsTwfReport2, BeforeQty));
+   flds.Add(fon9_MakeField2(OmsTwfReport2, OutPvcId));
 }
 //--------------------------------------------------------------------------//
 static inline bool AdjustReportPrice(int32_t priMul, OmsTwfReport2& rpt) {
@@ -77,6 +78,11 @@ void OmsTwfReport2::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
    OmsTwfOrderRaw1&  ordraw = *static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_);
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
+}
+void OmsTwfReport2::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   base::OnSynReport(ref, message);
+   this->Message_.assign(message);
+   this->PriStyle_ = OmsReportPriStyle::HasDecimal;
 }
 //--------------------------------------------------------------------------//
 static void OmsTwf1_ProcessPendingReport(OmsResource& res, const OmsRequestBase& rpt, const OmsTwfReport2* chkFields) {

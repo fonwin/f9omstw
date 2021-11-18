@@ -336,6 +336,27 @@ void OmsAssignOrderFromReportDCQ(OmsReportRunnerInCore& inCoreRunner, OrderRawT&
 
 //--------------------------------------------------------------------------//
 
+template <size_t arysz, typename CharT, CharT kChFiller>
+static inline bool IsPvcIdValid(fon9::CharAry<arysz, CharT, kChFiller>& v) {
+   return !v.empty1st();
+}
+
+template <typename T>
+static inline auto IsPvcIdValid(T v)->decltype(v != 0) {
+   return v != 0;
+}
+
+template <class OrderRawT, class ReportT>
+inline auto OmsAssignReportOutPvcId(OrderRawT* ordraw, ReportT* rpt)
+->decltype(ordraw->OutPvcId_ = rpt->OutPvcId_, void()) {
+   if (IsPvcIdValid(rpt->OutPvcId_))
+      ordraw->OutPvcId_ = rpt->OutPvcId_;
+}
+inline void OmsAssignReportOutPvcId(...) {
+}
+
+//--------------------------------------------------------------------------//
+
 /// 針對「Request已存在」的回報.
 /// - 必須已排除重複回報, 例如: rpt.RunReportInCore_FromOrig_Precheck(checker, origReq);
 /// - 您必須提供: OmsAssignOrderFromReportNewOrig(OrderRawT& ordraw, ReportT& rpt);
@@ -346,6 +367,7 @@ void OmsAssignOrderFromReportDCQ(OmsReportRunnerInCore& inCoreRunner, OrderRawT&
 template <class OrderRawT, class ReportT>
 void OmsRunReportInCore_FromOrig(OmsReportChecker&& checker, OrderRawT& ordraw, ReportT& rpt) {
    OmsReportRunnerInCore inCoreRunner{std::move(checker), ordraw};
+   OmsAssignReportOutPvcId(&ordraw, &rpt);
    // ----- 新單回報 ---------------------------------------------
    if (fon9_LIKELY(rpt.RxKind() == f9fmkt_RxKind_RequestNew)) {
       OmsAssignOrderFromReportNewOrig(ordraw, rpt);
@@ -369,6 +391,7 @@ template <class OrderRawT, class ReportT>
 void OmsRunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner, OrderRawT& ordraw, ReportT& rpt) {
    ordraw.OrdNo_ = rpt.OrdNo_;
    OmsAssignTimeAndPrisFromReport(ordraw, rpt);
+   OmsAssignReportOutPvcId(&ordraw, &rpt);
    inCoreRunner.Resource_.Backend_.FetchSNO(rpt);
    inCoreRunner.UpdateReport(rpt);
 }
@@ -380,6 +403,7 @@ void OmsRunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner, Order
 /// - inCoreRunner.UpdateReport(rpt);
 template <class OrderRawT, class ReportT>
 void OmsRunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner, OrderRawT& ordraw, ReportT& rpt) {
+   OmsAssignReportOutPvcId(&ordraw, &rpt);
    if (!OmsIsOrdNoEmpty(rpt.OrdNo_))
       ordraw.OrdNo_ = rpt.OrdNo_;
    OmsAssignOrderFromReportDCQ(inCoreRunner, ordraw, rpt);

@@ -49,7 +49,16 @@ const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
 }
 void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
-   (void)ref; (void)message;
+   (void)message;
+   if (ref) {
+      *static_cast<OmsOrdKey*>(this) = *ref;
+      if (OmsIsReqUIDEmpty(*this))
+         *static_cast<OmsRequestId*>(this) = *ref;
+      this->Market_ = ref->Market();
+      this->SessionId_ = ref->SessionId();
+      if (this->RxKind_ == f9fmkt_RxKind_Unknown)
+         this->RxKind_ = ref->RxKind();
+   }
 }
 //--------------------------------------------------------------------------//
 OmsOrder* OmsRequestBase::SearchOrderByOrdKey(OmsResource& res) const {

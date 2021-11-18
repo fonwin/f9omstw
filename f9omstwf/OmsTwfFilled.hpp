@@ -31,7 +31,7 @@ public:
    /// 單式成交價, 或複式單第1腳成交價.
    OmsTwfPri         Pri_;
    OmsTwfQty         Qty_;
-   f9fmkt_Side       Side_;
+   f9fmkt_Side       Side_{};
    OmsTwfSymbol      Symbol_;
    IvacNo            IvacNo_{0};
    OmsReportPriStyle PriStyle_;
@@ -53,6 +53,7 @@ public:
 
    void RunReportInCore(OmsReportChecker&& checker) override;
    void ProcessPendingReport(OmsResource& res) const override;
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 };
 
 //--------------------------------------------------------------------------//

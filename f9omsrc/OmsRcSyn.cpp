@@ -46,6 +46,9 @@ class OmsRcSyn_SessionFactory : public SessionFactory, public RcFunctionMgr {
       return intrusive_ptr_release(this);
    }
 
+   void OnParentTreeClear(Tree&) override {
+      this->HostMap_.Lock()->clear();
+   }
    void OnTDayChanged(OmsCore& omsCore) {
       HostMapImpl hosts = std::move(*this->HostMap_.Lock());
       for (auto& ihost : hosts) {
@@ -56,6 +59,7 @@ class OmsRcSyn_SessionFactory : public SessionFactory, public RcFunctionMgr {
       }
       this->ReloadLastSNO(&omsCore);
    }
+
 public:
    const OmsCoreMgrSP   OmsCoreMgr_;
    bool                 IsOmsCoreRecovering_{};
@@ -97,7 +101,7 @@ public:
          this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfFil2"})).second = facRpt;
       }
       // -----
-      this->SubConnTDayChanged_ = this->OmsCoreMgr_->TDayChangedEvent_.Subscribe(
+      this->OmsCoreMgr_->TDayChangedEvent_.Subscribe(&this->SubConnTDayChanged_,
          std::bind(&OmsRcSyn_SessionFactory::OnTDayChanged, this, std::placeholders::_1));
    }
    ~OmsRcSyn_SessionFactory() {
@@ -262,16 +266,29 @@ static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsR
          if ((iRptFld = facRpt->Fields_.Get(fldName)) != nullptr)
             isFldAssigned[unsigned_cast(iRptFld->GetIndex())] = true;
          else {
+            // TODO: 額外欄位對照, 使用設定檔處理?
             if (memcmp(fldName.begin(), "Ini", 3) == 0)
                fldName.SetBegin(fldName.begin() + 3);
-            else if (memcmp(fldName.begin(), "Match", 5) == 0)
-               fldName.SetBegin(fldName.begin() + 5);
+            else if (memcmp(fldName.begin(), "Match", 5) == 0) {
+               if (fldName == "MatchPri1")
+                  fldName = "Pri";
+               else if (fldName == "MatchPri2")
+                  fldName = "PriLeg2";
+               else
+                  fldName.SetBegin(fldName.begin() + 5);
+            }
             else if (memcmp(fldName.begin(), "Last", 4) == 0)
                fldName.SetBegin(fldName.begin() + 4);
             else if (fldName == "ReqSt")
                fldName = "ReportSt";
             else if (fldName == "AfterQty")
                fldName = "Qty";
+            else if (fldName == "ReportSide") // 報價單欄位.
+               fldName = "Side";
+            else if (fldName == "BidAfterQty")
+               fldName = "BidQty";
+            else if (fldName == "OfferAfterQty")
+               fldName = "OfferQty";
             else {
                goto __NEXT_LAYOUT_FLD;
             }

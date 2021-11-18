@@ -12,6 +12,7 @@ void OmsTwfReport8::MakeFields(fon9::seed::Fields& flds) {
    base::MakeFields(flds);
    base::AddFieldsForReport(flds);
    flds.Add(fon9_MakeField2(OmsTwfReport8, ExgTime));
+   flds.Add(fon9_MakeField2(OmsTwfReport8, OutPvcId));
 }
 //--------------------------------------------------------------------------//
 void OmsTwfReport8::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {

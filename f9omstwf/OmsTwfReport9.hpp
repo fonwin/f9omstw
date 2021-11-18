@@ -27,6 +27,7 @@ class OmsTwfReport9 : public OmsTwfRequestIni9 {
 
 public:
    fon9::TimeStamp   ExgTime_{fon9::TimeStamp::Null()};
+   fon9::CharVector  Message_;
 
    /// this->BidQty_; this->OfferQty_; = AfterQty;
    OmsTwfQty         BidBeforeQty_{};
@@ -40,11 +41,13 @@ public:
    /// - f9fmkt_Side_Buy:     僅提供 Bid;
    /// - f9fmkt_Side_Sell:    僅提供 Offer;
    f9fmkt_Side       Side_;
-   char              padding__[2];
+
+   f9twf::TmpSessionId_t   OutPvcId_{};
 
    using base::base;
 
    void ProcessPendingReport(OmsResource& res) const override;
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwfReport9{creator, reqKind};

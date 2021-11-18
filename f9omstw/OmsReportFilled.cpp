@@ -148,6 +148,15 @@ bool OmsReportFilled::RunReportInCore_FilledIsNeedsReportPending(const OmsOrderR
 void OmsReportFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, OmsOrder& order) {
    (void)resource; (void)order;
 }
+void OmsReportFilled::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   (void)message;
+   if (ref) {
+      *static_cast<OmsOrdKey*>(this) = *ref;
+      this->Market_    = ref->Market();
+      this->SessionId_ = ref->SessionId();
+      this->IniSNO_    = ref->RxSNO();
+   }
+}
 //--------------------------------------------------------------------------//
 void OmsBadAfterWriteLog(OmsReportRunnerInCore& inCoreRunner, int afterQty) {
    fon9::RevPrint(inCoreRunner.ExLogForUpd_, "Bad.After=", afterQty,

@@ -124,6 +124,9 @@ public:
    /// if (this->RunReportInCore_FilledIsFieldsMatch(*order.Initiator()))
    ///    this->RunReportInCore_FilledUpdateCum(std::move(inCoreRunner));
    void ProcessPendingReport(OmsResource& res) const override;
+
+   /// 預設, 從 ref 複製: OmsOrdKey; Market; SessionId; IniSNO;
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 };
 
 //--------------------------------------------------------------------------//

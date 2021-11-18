@@ -227,7 +227,10 @@ public:
    /// - 在此應從 ref 複製所需欄位.
    /// - 設定額外來源沒有提供的欄位, 例如:
    ///   TwsRpt.QtyStyle_; TwsRpt.Message_; ...
-   /// - 預設: do nothing;
+   /// - 預設, 從 ref 複製:
+   ///   - OmsOrdKey; Market; SessionId;
+   ///   - OmsRequestId: 如果 OmsIsReqUIDEmpty(*this);
+   ///   - RxKind: 如果 this->RxKind_ == f9fmkt_RxKind_Unknown;
    virtual void OnSynReport(const OmsRequestBase* ref, fon9::StrView message);
 
 protected:

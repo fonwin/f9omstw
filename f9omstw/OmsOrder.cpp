@@ -38,6 +38,7 @@ OmsOrderRaw* OmsOrder::InitializeByStarter(OmsOrderFactory& creator, OmsRequestB
 OmsOrderRaw* OmsOrder::BeginUpdate(const OmsRequestBase& req) {
    OmsOrderRaw* retval = this->Creator_->MakeOrderRawImpl();
    retval->InitializeByTail(*this->Tail_, req);
+   this->TailPrev_ = this->Tail_;
    if (req.LastUpdated() == nullptr && req.RxKind() == f9fmkt_RxKind_RequestNew) {
       // req 是新單回報補單 => 必須重設 this->Head_;
       // 後續透過 this->FirstPending_ 往後處理, 最後總是會更新成正確的序列.

@@ -42,6 +42,7 @@ class OmsOrder {
    OmsOrderFactory*        Creator_{nullptr};
    const OmsOrderRaw*      Head_{nullptr};
    const OmsOrderRaw*      Tail_{nullptr};
+   const OmsOrderRaw*      TailPrev_{nullptr};
    const OmsOrderRaw*      FirstPending_{nullptr};
    f9fmkt_OrderSt          LastOrderSt_{};
    char                    padding___[7];
@@ -82,6 +83,7 @@ public:
    ///   則此時 Order().Head() 會改變, 所以 Order().Head()->UpdSeq() 不一定是 0;
    const OmsOrderRaw*   Head()        const  { return this->Head_; }
    const OmsOrderRaw*   Tail()        const  { return this->Tail_; }
+   const OmsOrderRaw*   TailPrev()    const  { return this->TailPrev_; }
    f9fmkt_OrderSt       LastOrderSt() const  { return this->LastOrderSt_; }
    bool              IsWorkingOrder() const;
 

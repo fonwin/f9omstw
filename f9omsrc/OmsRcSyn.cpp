@@ -6,10 +6,9 @@
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omsrc/OmsRcSyn.hpp"
-#include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsIoSessionFactory.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omsrc/OmsRcClient.hpp"
-#include "fon9/seed/Plugins.hpp"
 #include "fon9/rc/RcFuncConn.hpp"
 
 namespace f9omstw {
@@ -22,8 +21,9 @@ using namespace fon9::seed;
 static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg);
 static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt);
 //--------------------------------------------------------------------------//
-class OmsRcSyn_SessionFactory : public SessionFactory, public RcFunctionMgr {
+class OmsRcSyn_SessionFactory : public OmsIoSessionFactory, public RcFunctionMgr {
    fon9_NON_COPY_NON_MOVE(OmsRcSyn_SessionFactory);
+   using base = OmsIoSessionFactory;
 
    using RptFactoryMap = SortedVector<CharVector, OmsRequestFactory*>;
    RptFactoryMap  RptFactoryMap_;
@@ -49,7 +49,8 @@ class OmsRcSyn_SessionFactory : public SessionFactory, public RcFunctionMgr {
    void OnParentTreeClear(Tree&) override {
       this->HostMap_.Lock()->clear();
    }
-   void OnTDayChanged(OmsCore& omsCore) {
+   void OnTDayChanged(OmsCore& omsCore) override {
+      base::OnTDayChanged(omsCore);
       HostMapImpl hosts = std::move(*this->HostMap_.Lock());
       for (auto& ihost : hosts) {
          auto lk = ihost.second->MapSNO_.Lock();
@@ -61,13 +62,11 @@ class OmsRcSyn_SessionFactory : public SessionFactory, public RcFunctionMgr {
    }
 
 public:
-   const OmsCoreMgrSP   OmsCoreMgr_;
-   bool                 IsOmsCoreRecovering_{};
-   char                 Padding_____[7];
+   bool  IsOmsCoreRecovering_{};
+   char  Padding_____[7];
 
    OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr)
-      : SessionFactory(std::move(name))
-      , OmsCoreMgr_{std::move(omsCoreMgr)} {
+      : base(std::move(name), std::move(omsCoreMgr)) {
       this->Add(RcFunctionAgentSP{new OmsRcClientAgent});
       this->Add(RcFunctionAgentSP{new RcFuncConnClient("f9OmsRcSyn.0", "f9OmsRcSyn")});
       this->Add(RcFunctionAgentSP{new RcFuncSaslClient{}});
@@ -101,11 +100,7 @@ public:
          this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfFil2"})).second = facRpt;
       }
       // -----
-      this->OmsCoreMgr_->TDayChangedEvent_.Subscribe(&this->SubConnTDayChanged_,
-         std::bind(&OmsRcSyn_SessionFactory::OnTDayChanged, this, std::placeholders::_1));
-   }
-   ~OmsRcSyn_SessionFactory() {
-      this->OmsCoreMgr_->TDayChangedEvent_.Unsubscribe(&this->SubConnTDayChanged_);
+      this->OnAfterCtor();
    }
 
    SessionSP CreateSession(IoManager& mgr, const IoConfigItem& iocfg, std::string& errReason) override {
@@ -460,34 +455,11 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
 }
 //--------------------------------------------------------------------------//
 static bool OmsRcSyn_Start(PluginsHolder& holder, StrView args) {
-   class OmsRcSyn_ArgsParser : public SessionFactoryConfigParser {
+   class OmsRcSyn_ArgsParser : public OmsIoSessionFactoryConfigParser {
       fon9_NON_COPY_NON_MOVE(OmsRcSyn_ArgsParser);
-      using base = SessionFactoryConfigParser;
+      using base = OmsIoSessionFactoryConfigParser;
    public:
-      PluginsHolder& PluginsHolder_;
-      StrView        OmsCoreName_;
-
-      OmsRcSyn_ArgsParser(PluginsHolder& pluginsHolder)
-         : base{"OmsRcSynCli"}
-         , PluginsHolder_{pluginsHolder} {
-      }
-      bool OnUnknownTag(seed::PluginsHolder& holder, StrView tag, StrView value) {
-         if (tag == "OmsCore") {
-            this->OmsCoreName_ = value;
-            return true;
-         }
-         return base::OnUnknownTag(holder, tag, value);
-      }
-      OmsCoreMgrSP GetOmsCoreMgr() {
-         if (auto omsCoreMgr = this->PluginsHolder_.Root_->GetSapling<OmsCoreMgr>(this->OmsCoreName_))
-            return omsCoreMgr;
-         this->ErrMsg_ += "|err=Unknown OmsCore";
-         if (!this->OmsCoreName_.empty()) {
-            this->ErrMsg_.push_back('=');
-            this->OmsCoreName_.AppendTo(this->ErrMsg_);
-         }
-         return nullptr;
-      }
+      using base::base;
       SessionFactorySP CreateSessionFactory() override {
          if (auto omsCoreMgr = this->GetOmsCoreMgr()) {
             intrusive_ptr<OmsRcSyn_SessionFactory> retval{new OmsRcSyn_SessionFactory(this->Name_, std::move(omsCoreMgr))};
@@ -499,7 +471,7 @@ static bool OmsRcSyn_Start(PluginsHolder& holder, StrView args) {
          return nullptr;
       }
    };
-   return OmsRcSyn_ArgsParser{holder}.Parse(holder, args);
+   return OmsRcSyn_ArgsParser(holder, "OmsRcSynCli").Parse(args);
 }
 
 } // namespaces

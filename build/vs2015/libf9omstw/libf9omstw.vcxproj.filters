@@ -200,6 +200,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsImporter.hpp">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsIoSessionFactory.hpp">
+      <Filter>Header Files\_core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -338,6 +341,9 @@
       <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsImporter.cpp">
+      <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsIoSessionFactory.cpp">
       <Filter>Source Files\_core</Filter>
     </ClCompile>
   </ItemGroup>

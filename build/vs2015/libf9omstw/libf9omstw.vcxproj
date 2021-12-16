@@ -89,6 +89,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsEventSessionSt.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsFactoryPark.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsImporter.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsIoSessionFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvacTree.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvBase.hpp" />
@@ -141,6 +142,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsEventSessionSt.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsImporter.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsIoSessionFactory.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvac.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvacTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp" />

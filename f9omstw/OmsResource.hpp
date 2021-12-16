@@ -74,6 +74,9 @@ public:
    void LogAppend(fon9::RevBufferList&& rbuf) {
       this->Backend_.LogAppend(std::move(rbuf));
    }
+   const std::string& LogPath() const {
+      return this->Backend_.LogPath();
+   }
 
 protected:
    OmsReqUID_Builder ReqUID_Builder_;

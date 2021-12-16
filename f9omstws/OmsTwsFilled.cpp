@@ -31,6 +31,16 @@ char* OmsTwsFilled::RevFilledReqUID(char* pout) {
    memcpy(pout -= 2, this->BrkId_.begin() + sizeof(f9tws::BrkId) - 2, 2);
    return pout;
 }
+void OmsTwsFilled::RunReportInCore(OmsReportChecker&& checker) {
+   if (fon9_UNLIKELY(this->Market() == f9fmkt_TradingMarket_Unknown)) {
+      // 在某些特殊環境,成交回報可能沒提供市場別,
+      // 此時只好用 [商品的市場別].
+      if (auto symb = checker.Resource_.Symbs_->GetOmsSymb(ToStrView(this->Symbol_)))
+         this->SetMarket(symb->TradingMarket_);
+   }
+   // -----
+   base::RunReportInCore(std::move(checker));
+}
 OmsOrderRaw* OmsTwsFilled::RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) {
    OmsOrderRaw* ordraw = base::RunReportInCore_FilledMakeOrder(checker);
    if (ordraw)

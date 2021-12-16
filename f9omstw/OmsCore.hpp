@@ -7,6 +7,8 @@
 
 namespace f9omstw {
 
+class OmsEventSessionSt;
+
 enum class OmsCoreSt {
    /// 剛建立 OmsCore, 變成 CurrentCore 之前.
    Loading,
@@ -32,11 +34,21 @@ fon9_WARN_DISABLE_PADDING;
 class OmsCore : protected OmsResource {
    fon9_NON_COPY_NON_MOVE(OmsCore);
 
-   friend class OmsCoreMgr;// for: SetCoreSt();
+   friend class OmsCoreMgr;// for: SetCoreSt(); OnEventSessionSt();
    OmsCoreSt   CoreSt_{OmsCoreSt::Loading};
    void SetCoreSt(OmsCoreSt st) {
       this->CoreSt_ = st;
    }
+
+   using SessionKey = uint32_t; // MarketId + SessionId + FlowGroup
+   using MapSessionStImpl = std::map<SessionKey, f9fmkt_TradingSessionSt>;
+   using MapSessionSt = fon9::MustLock<MapSessionStImpl>;
+   MapSessionSt MapSessionSt_;
+   static SessionKey ToSessionKey(f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup) {
+      return (((static_cast<SessionKey>(mkt) << 8) + sesId) << 8) + flowGroup;
+   }
+   /// 設定 this->MapSessionSt_[];
+   void OnEventSessionSt(const OmsEventSessionSt& evSesSt, const OmsBackend::Locker* isReload);
 
 protected:
    uintptr_t   ThreadId_{};
@@ -117,6 +129,7 @@ public:
    using OmsResource::ReportRecover;
    using OmsResource::ReportSubject;
    using OmsResource::LogAppend;
+   using OmsResource::LogPath;
    using OmsResource::Name_;
 
    OmsRxSNO PublishedSNO() const {
@@ -129,6 +142,15 @@ public:
    inline friend void intrusive_ptr_release(const OmsCore* p) {
       intrusive_ptr_release(static_cast<const OmsResource*>(p));
    }
+
+   /// \retval nullptr  參數有誤.
+   /// \retval !nullptr 在 this 死亡前持續有效的指標, 這樣可以方便使用端快速取得現在的 SessionSt;
+   const f9fmkt_TradingSessionSt* GetSessionSt(f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup = 0);
+
+   /// 設定 SessionSt; 此時先前使用 GetSessionSt() 取得的指標, 可以取得新的 SessionSt;
+   /// 並使用 f9omstw_kCSTR_OmsEventSessionStFactory_Name 發行 SessionSt;
+   void PublishSessionSt(f9fmkt_TradingSessionSt sesSt,
+                         f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup = 0);
 };
 fon9_WARN_POP;
 

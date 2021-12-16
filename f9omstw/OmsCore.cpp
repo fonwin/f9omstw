@@ -4,6 +4,7 @@
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
 #include "f9omstw/OmsReportRunner.hpp"
+#include "f9omstw/OmsEventSessionSt.hpp"
 #include "fon9/ThreadId.hpp"
 
 namespace f9omstw {
@@ -30,6 +31,24 @@ OmsCore::StartResult OmsCore::Start(std::string logFileName, fon9::TimeInterval 
    this->Backend_.StartThread(this->Name_ + "_Backend", flushInterval);
    this->Plant();
    return res;
+}
+//--------------------------------------------------------------------------//
+const f9fmkt_TradingSessionSt* OmsCore::GetSessionSt(f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup) {
+   return &(*this->MapSessionSt_.Lock())[ToSessionKey(mkt, sesId, flowGroup)];
+}
+void OmsCore::PublishSessionSt(f9fmkt_TradingSessionSt sesSt,
+                               f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup) {
+   if (auto* evfac = dynamic_cast<OmsEventSessionStFactory*>(this->Owner_->EventFactoryPark().GetFactory(f9omstw_kCSTR_OmsEventSessionStFactory_Name)))
+      this->EventToCore(evfac->MakeEvent(fon9::UtcNow(), sesSt, mkt, sesId, flowGroup));
+   else
+      (*this->MapSessionSt_.Lock())[ToSessionKey(mkt, sesId, flowGroup)] = sesSt;
+}
+void OmsCore::OnEventSessionSt(const OmsEventSessionSt& evSesSt, const OmsBackend::Locker* isReload) {
+   (void)isReload;
+   (*this->MapSessionSt_.Lock())[ToSessionKey(evSesSt.Market(),
+                                              evSesSt.SessionId(),
+                                              evSesSt.FlowGroup())]
+      = evSesSt.SessionSt();
 }
 //--------------------------------------------------------------------------//
 void OmsCore::EventToCoreImpl(OmsEventSP&& omsEvent) {

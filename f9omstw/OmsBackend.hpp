@@ -83,6 +83,7 @@ class OmsBackend {
    OmsRxSNO             PublishedSNO_{0};
    fon9::File           RecorderFd_;
    fon9::TimeInterval   FlushInterval_;
+   std::string          LogPath_;
 
    enum class RecoverResult {
       Empty,
@@ -168,6 +169,10 @@ public:
    /// 將自訂內容寫入 log.
    void LogAppend(fon9::RevBufferList&& rbuf) {
       Items::Locker{this->Items_}->QuItems_.emplace_back(nullptr, std::move(rbuf));
+   }
+   /// 不是 thread safe, 必須在 OpenReload() 之後才能安全的使用.
+   const std::string& LogPath() const {
+      return this->LogPath_;
    }
 
    void ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer);

@@ -14,6 +14,7 @@
 #include "fon9/FileReadAll.hpp"
 #include "fon9/seed/RawWr.hpp"
 #include "fon9/Log.hpp"
+#include "fon9/FilePath.hpp"
 
 namespace f9omstw {
 
@@ -282,6 +283,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
    assert(!this->RecorderFd_.IsOpened());
    if (this->RecorderFd_.IsOpened())
       return OpenResult{0};
+   this->LogPath_ = fon9::FilePath::ExtractPathName(&logFileName);
    auto res = this->RecorderFd_.Open(logFileName, fmode);
    if (res.IsError()) {
    __OPEN_ERROR:
@@ -322,10 +324,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          }
          const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
          if (req == nullptr) {
-            if (const OmsEvent* ev = static_cast<const OmsEvent*>(icur->CastToEvent())) {
+            if (const OmsEvent* ev = static_cast<const OmsEvent*>(icur->CastToEvent()))
                resource.Core_.Owner_->ReloadEvent(resource, *ev, items);
-               resource.Core_.Owner_->OmsEvent_.Publish(resource, *ev, &items);
-            }
             continue;
          }
          if ((ordraw = req->LastUpdated()) == nullptr)

@@ -283,7 +283,7 @@ protected:
 
    /// 若一般(日盤)尚未收盤, 則在載入定盤交易價時, 表示日盤已收盤 => 觸發收盤事件.
    /// 所以T33匯入應設定排程時間, 避免有昨日的T33造成誤判.
-   /// EvName 使用 f9omstw_kCSTR_OmsEventSessionStFactory_Name;
+   /// 使用 core.PublishSessionSt();
    void FireEvent_SessionNormalClosed(OmsCore& core) const;
 
    template <class SymbT>

@@ -32,11 +32,9 @@ using TwsTradingLineMgrLgSP = fon9::intrusive_ptr<TwsTradingLineMgrLg>;
 class TwsTradingLineMgrLg : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineMgrLg);
    using base = fon9::seed::NamedMaTree;
-   OmsCoreMgr&    CoreMgr_;
-   fon9::SubConn  SubrTDayChanged_{};
-   fon9::SubConn  SubrOmsEvent_{};
+   OmsCoreMgr& CoreMgr_;
    void OnTDayChanged(OmsCore& core);
-   void OnOmsEvent(OmsResource& core, const OmsEvent&);
+   void OnOmsSessionStEvent(OmsResource& core, const OmsEventSessionSt& evSesSt);
    void SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, f9fmkt_TradingSessionSt sesSt);
 
 public:

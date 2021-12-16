@@ -11,10 +11,9 @@ namespace f9omstw {
 /// - 負責處理 TDay 改變事件的後續相關作業.
 class TwsTradingLineMgrG1 {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineMgrG1);
-   OmsCoreMgr&    CoreMgr_;
-   fon9::SubConn  SubrTDayChanged_{};
+   OmsCoreMgr& CoreMgr_;
    void OnTDayChanged(OmsCore& core);
-   void OnOmsEvent(OmsResource& res, const OmsEvent&);
+   void OnOmsSessionStEvent(OmsResource& res, const OmsEventSessionSt&);
    void SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, f9fmkt_TradingSessionSt sesSt);
 
 public:

@@ -11,6 +11,8 @@ namespace f9omstw {
 using OmsTDayChangedHandler = std::function<void(OmsCore&)>;
 /// isReload != nullptr 表示是 backend reload 時產生的事件.
 using OmsEventHandler = std::function<void(OmsResource&, const OmsEvent&, const OmsBackend::Locker* isReload)>;
+using OmsSessionStEventHandler = std::function<void(OmsResource&, const OmsEventSessionSt& evSesSt,
+                                                   fon9::RevBuffer* rbuf, const OmsBackend::Locker* isReload)>;
 
 using OmsRequestFactoryPark = OmsFactoryPark_WithKeyMaker<OmsRequestFactory, &OmsRequestBase::MakeField_RxSNO, fon9::seed::TreeFlag::Unordered>;
 using OmsRequestFactoryParkSP = fon9::intrusive_ptr<OmsRequestFactoryPark>;
@@ -66,6 +68,11 @@ protected:
    void OnMaTree_AfterAdd(Locker&, fon9::seed::NamedSeed& seed) override;
    void OnMaTree_AfterClear() override;
 
+   /// resource.Core_.OnEventSessionSt(evSesSt);
+   /// 並發行: OmsSessionStEvent_.Publish();
+   virtual void OnEventSessionSt(OmsResource& resource, const OmsEventSessionSt& evSesSt,
+                                 fon9::RevBuffer* rbuf, const OmsBackend::Locker* isReload);
+
 public:
    const FnSetRequestLgOut FnSetRequestLgOut_{};
 
@@ -75,8 +82,11 @@ public:
    TDayChangedEvent  TDayChangedEvent_;
 
    /// 重新載入時的 OmsEvent 比 TDayChangedEvent_ 還要早觸發.
-   using OmsEventHandlerSubject = fon9::Subject<OmsEventHandler>;
-   OmsEventHandlerSubject  OmsEvent_;
+   using OmsEventSubject = fon9::Subject<OmsEventHandler>;
+   OmsEventSubject  OmsEvent_;
+
+   using OmsSessionStEventSubject = fon9::Subject<OmsSessionStEventHandler>;
+   OmsSessionStEventSubject   OmsSessionStEvent_;
 
    /// 取得 CurrentCore, 僅供參考.
    /// - 返回前有可能會收到 TDayChanged 事件.
@@ -133,11 +143,11 @@ public:
    virtual void RecalcSc(OmsResource& resource, OmsOrder& order);
 
    /// OmsCore 通知收到 OmsEvent;
-   /// 預設: do nothing.
+   /// 預設: if (omsEvent is OmsEventSessionSt): 轉給 this-> OnEventSessionSt();
    virtual void OnEventInCore(OmsResource& resource, OmsEvent& omsEvent, fon9::RevBuffer& rbuf);
 
    /// Backend.Reload 重新載入後, 重新處理 OmsEvent.
-   /// 預設: do nothing.
+   /// 預設: if (omsEvent is OmsEventSessionSt): 轉給 this-> OnEventSessionSt();
    virtual void ReloadEvent(OmsResource& resource, const OmsEvent& omsEvent, const OmsBackend::Locker& reloadItems);
 };
 fon9_WARN_POP;

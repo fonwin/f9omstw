@@ -1,6 +1,7 @@
 ﻿// \file f9omstw/OmsCoreMgr.cpp
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsEventSessionSt.hpp"
 
 namespace f9omstw {
 
@@ -91,10 +92,20 @@ void OmsCoreMgr::RecalcSc(OmsResource& resource, OmsOrder& order) {
 }
 
 void OmsCoreMgr::OnEventInCore(OmsResource& resource, OmsEvent& omsEvent, fon9::RevBuffer& rbuf) {
-   (void)resource; (void)omsEvent; (void)rbuf;
+   if (const OmsEventSessionSt* evSesSt = dynamic_cast<const OmsEventSessionSt*>(&omsEvent)) {
+      this->OnEventSessionSt(resource, *evSesSt, &rbuf, nullptr);
+   }
 }
 void OmsCoreMgr::ReloadEvent(OmsResource& resource, const OmsEvent& omsEvent, const OmsBackend::Locker& reloadItems) {
-   (void)resource; (void)omsEvent; (void)reloadItems;
+   if (const OmsEventSessionSt* evSesSt = dynamic_cast<const OmsEventSessionSt*>(&omsEvent)) {
+      this->OnEventSessionSt(resource, *evSesSt, nullptr, &reloadItems);
+   }
+   this->OmsEvent_.Publish(resource, omsEvent, &reloadItems);
+}
+void OmsCoreMgr::OnEventSessionSt(OmsResource& resource, const OmsEventSessionSt& evSesSt,
+                                  fon9::RevBuffer* rbuf, const OmsBackend::Locker* isReload) {
+   resource.Core_.OnEventSessionSt(evSesSt, isReload);
+   this->OmsSessionStEvent_.Publish(resource, evSesSt, rbuf, isReload);
 }
 
 } // namespaces

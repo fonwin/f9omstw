@@ -14,6 +14,7 @@ class OmsTwsFilled : public OmsReportFilled {
    using base = OmsReportFilled;
 
    char* RevFilledReqUID(char* pout) override;
+   void RunReportInCore(OmsReportChecker&& checker) override;
    void RunReportInCore_FilledOrder(OmsReportChecker&& checker, OmsOrder& order) override;
    OmsOrderRaw* RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) override;
    bool RunReportInCore_FilledIsFieldsMatch(const OmsRequestIni& ini) const override;

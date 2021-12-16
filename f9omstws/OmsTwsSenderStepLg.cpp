@@ -12,14 +12,15 @@ namespace f9omstw {
 TwsTradingLineMgrLg::TwsTradingLineMgrLg(OmsCoreMgr& coreMgr, std::string name)
    : base(std::move(name))
    , CoreMgr_(coreMgr) {
-   coreMgr.TDayChangedEvent_.Subscribe(&this->SubrTDayChanged_,
+   coreMgr.TDayChangedEvent_.Subscribe(//&this->SubrTDayChanged_,
       std::bind(&TwsTradingLineMgrLg::OnTDayChanged, this, std::placeholders::_1));
-   coreMgr.OmsEvent_.Subscribe(&this->SubrOmsEvent_,
-      std::bind(&TwsTradingLineMgrLg::OnOmsEvent, this, std::placeholders::_1, std::placeholders::_2));
+   coreMgr.OmsSessionStEvent_.Subscribe(// &this->SubrOmsEvent_,
+      std::bind(&TwsTradingLineMgrLg::OnOmsSessionStEvent, this, std::placeholders::_1, std::placeholders::_2));
 }
 TwsTradingLineMgrLg::~TwsTradingLineMgrLg() {
-   this->CoreMgr_.TDayChangedEvent_.Unsubscribe(&this->SubrTDayChanged_);
-   this->CoreMgr_.OmsEvent_.Unsubscribe(&this->SubrOmsEvent_);
+   // CoreMgr 擁有 TwsTradingLineMgrLg, 所以當 TwsTradingLineMgrLg 解構時, CoreMgr_ 必定正在死亡!
+   // 因此沒必要 this->CoreMgr_.TDayChangedEvent_.Unsubscribe(&this->SubrTDayChanged_);
+   // this->CoreMgr_.OmsSessionStEvent_.Unsubscribe(&this->SubrOmsEvent_);
 }
 void TwsTradingLineMgrLg::OnTDayChanged(OmsCore& core) {
    core.RunCoreTask([this](OmsResource& resource) {
@@ -33,9 +34,8 @@ void TwsTradingLineMgrLg::OnTDayChanged(OmsCore& core) {
       }
    });
 }
-void TwsTradingLineMgrLg::OnOmsEvent(OmsResource& res, const OmsEvent& omsEvent) {
-   if (const OmsEventSessionSt* evSesSt = dynamic_cast<const OmsEventSessionSt*>(&omsEvent))
-      this->SetTradingSessionSt(res.TDay(), evSesSt->Market(), evSesSt->SessionId(), evSesSt->SessionSt());
+void TwsTradingLineMgrLg::OnOmsSessionStEvent(OmsResource& res, const OmsEventSessionSt& evSesSt) {
+   this->SetTradingSessionSt(res.TDay(), evSesSt.Market(), evSesSt.SessionId(), evSesSt.SessionSt());
 }
 void TwsTradingLineMgrLg::SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, f9fmkt_TradingSessionSt sesSt) {
    for (LgMgrSP& lgMgr : this->LgMgrs_) {

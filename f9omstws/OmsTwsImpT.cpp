@@ -1,7 +1,6 @@
 ﻿// \file f9omstws/OmsTwsImpT.cpp
 // \author fonwinz@gmail.com
 #include "f9omstws/OmsTwsImpT.hpp"
-#include "f9omstw/OmsEventSessionSt.hpp"
 #include "f9tws/TwsTools.hpp"
 
 namespace f9omstw {
@@ -174,9 +173,7 @@ OmsFileImpLoaderSP ImpT33::MakeLoader(OmsFileImpTree& owner, fon9::RevBuffer& rb
    return nullptr;
 }
 void ImpT33::FireEvent_SessionNormalClosed(OmsCore& core) const {
-   if (auto* evfac = dynamic_cast<OmsEventSessionStFactory*>(core.Owner_->EventFactoryPark().GetFactory(f9omstw_kCSTR_OmsEventSessionStFactory_Name))) {
-      core.EventToCore(evfac->MakeEvent(fon9::UtcNow(), this->Market_, f9fmkt_TradingSessionId_Normal, f9fmkt_TradingSessionSt_Closed));
-   }
+   core.PublishSessionSt(f9fmkt_TradingSessionSt_Closed, this->Market_, f9fmkt_TradingSessionId_Normal);
 }
 
 } // namespaces

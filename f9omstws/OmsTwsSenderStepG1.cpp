@@ -8,10 +8,10 @@
 namespace f9omstw {
 
 TwsTradingLineMgrG1::TwsTradingLineMgrG1(OmsCoreMgr& coreMgr) : CoreMgr_(coreMgr) {
-   coreMgr.TDayChangedEvent_.Subscribe(&this->SubrTDayChanged_,
+   coreMgr.TDayChangedEvent_.Subscribe(// &this->SubrTDayChanged_,
            std::bind(&TwsTradingLineMgrG1::OnTDayChanged, this, std::placeholders::_1));
-   coreMgr.OmsEvent_.Subscribe(// &this->SubrOmsEvent_,
-           std::bind(&TwsTradingLineMgrG1::OnOmsEvent, this, std::placeholders::_1, std::placeholders::_2));
+   coreMgr.OmsSessionStEvent_.Subscribe(// &this->SubrOmsEvent_,
+           std::bind(&TwsTradingLineMgrG1::OnOmsSessionStEvent, this, std::placeholders::_1, std::placeholders::_2));
 }
 TwsTradingLineMgrG1::~TwsTradingLineMgrG1() {
    // CoreMgr 擁有 TwsTradingLineMgrG1, 所以當 TwsTradingLineMgrG1 解構時, CoreMgr_ 必定正在死亡!
@@ -27,9 +27,8 @@ void TwsTradingLineMgrG1::OnTDayChanged(OmsCore& core) {
       }
    });
 }
-void TwsTradingLineMgrG1::OnOmsEvent(OmsResource& res, const OmsEvent& omsEvent) {
-   if (const OmsEventSessionSt* evSesSt = dynamic_cast<const OmsEventSessionSt*>(&omsEvent))
-      this->SetTradingSessionSt(res.TDay(), evSesSt->Market(), evSesSt->SessionId(), evSesSt->SessionSt());
+void TwsTradingLineMgrG1::OnOmsSessionStEvent(OmsResource& res, const OmsEventSessionSt& evSesSt) {
+   this->SetTradingSessionSt(res.TDay(), evSesSt.Market(), evSesSt.SessionId(), evSesSt.SessionSt());
 }
 void TwsTradingLineMgrG1::SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, f9fmkt_TradingSessionSt sesSt) {
    if (mkt == f9fmkt_TradingMarket_TwSEC && this->TseTradingLineMgr_)

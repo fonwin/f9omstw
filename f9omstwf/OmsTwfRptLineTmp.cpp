@@ -178,7 +178,8 @@ OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9
       rpt.PriOrd_.SetOrigValue(f9twf::TmpGetValueS(pkr2back.Price_));
       rpt.PosEff_ = pkr2back.PosEff_;
       rpt.Side_ = TmpSideTo(pkr2back.Side_);
-      rpt.MatchKey_ = f9twf::TmpGetValueU(pkr2back.RptSeq_);
+      rpt.MatchKey_ = f9twf::TmpGetValueU(pkr2back.RptSeq_)
+                    + line.OutPvcId_ * 10000000ull;
       return &rpt.Symbol_;
    }
    if (fon9_LIKELY(pkr2back.PosEff_ != f9twf::TmpPosEff::Quote)) {

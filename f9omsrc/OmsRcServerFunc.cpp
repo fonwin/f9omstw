@@ -35,37 +35,18 @@ void OmsRcServerAgent::OnSessionLinkBroken(ApiSession& ses) {
 }
 //--------------------------------------------------------------------------//
 const unsigned kFcOverCountForceLogout = 10;
-static void ResetFlowCounter(fon9::FlowCounter& fc, fon9::FlowCounterArgs fcArgs) {
-   unsigned count = fcArgs.FcCount_;
-   auto     ti = fon9::TimeInterval_Millisecond(fcArgs.FcTimeMS_);
-   if (count && ti.GetOrigValue() > 0) {
-      // 增加一點緩衝, 避免網路延遲造成退單爭議.
-      unsigned cbuf = count / 10;
-      count += (cbuf <= 0) ? 1 : cbuf;
-      ti -= ti / 10;
-   }
-   fc.Resize(count, ti);
-}
 
 OmsRcServerNote::OmsRcServerNote(ApiSesCfgSP cfg, ApiSession& ses)
    : ApiSesCfg_{std::move(cfg)} {
    if (auto* authNote = ses.GetNote<fon9::rc::RcServerNote_SaslAuth>(f9rc_FunctionCode_SASL)) {
       const fon9::auth::AuthResult& authr = authNote->GetAuthResult();
-      fon9::RevBufferList  rbuf{128};
-      if (auto agUserRights = authr.AuthMgr_->Agents_->Get<OmsPoUserRightsAgent>(fon9_kCSTR_OmsPoUserRightsAgent_Name)) {
-         agUserRights->GetPolicy(authr, this->PolicyConfig_.UserRights_, &this->PolicyConfig_.TeamGroupName_);
-         this->PolicyConfig_.OrigIvDenys_ = this->PolicyConfig_.UserRights_.IvDenys_;
-         if (auto agUserDenys = authr.AuthMgr_->Agents_->Get<OmsPoUserDenysAgent>(fon9_kCSTR_OmsPoUserDenysAgent_Name)) {
-            agUserDenys->FetchPolicy(authr, this->PolicyConfig_.PoIvDenys_);
-            this->PolicyConfig_.UserRights_.IvDenys_ |= this->PolicyConfig_.PoIvDenys_.IvDenys_;
-         }
+      fon9::RevBufferList           rbuf{128};
+      if (auto agUserRights = this->PolicyConfig_.LoadPoUserRights(authr)) {
          fon9::RevPrint(rbuf, *fon9_kCSTR_ROWSPL);
          agUserRights->MakeGridView(rbuf, this->PolicyConfig_.UserRights_);
          fon9::RevPrint(rbuf, fon9_kCSTR_LEAD_TABLE, agUserRights->Name_, *fon9_kCSTR_ROWSPL);
-         ResetFlowCounter(this->PolicyConfig_.FcReq_, this->PolicyConfig_.UserRights_.FcRequest_);
       }
-      if (auto agIvList = authr.AuthMgr_->Agents_->Get<OmsPoIvListAgent>(fon9_kCSTR_OmsPoIvListAgent_Name)) {
-         agIvList->GetPolicy(authr, this->PolicyConfig_.IvList_);
+      if (auto agIvList = this->PolicyConfig_.LoadPoIvList(authr)) {
          fon9::RevPrint(rbuf, *fon9_kCSTR_ROWSPL);
          agIvList->MakeGridView(rbuf, this->PolicyConfig_.IvList_);
          fon9::RevPrint(rbuf, fon9_kCSTR_LEAD_TABLE, agIvList->Name_, *fon9_kCSTR_ROWSPL);
@@ -97,13 +78,10 @@ void OmsRcServerNote::SendConfig(ApiSession& ses) {
 void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCore* core) {
    if (this->Handler_)
       this->Handler_->ClearResource();
-   PolicyRunner   runner{new Handler(ses.GetDevice(), this->PolicyConfig_, core, this->ApiSesCfg_)};
-   this->Handler_ = runner;
-   if (core) {
-      runner->SubrIvListChanged();
-      core->RunCoreTask(runner);
-   }
-   else { // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
+   this->Handler_.reset(new Handler(ses.GetDevice(), this->PolicyConfig_, core, this->ApiSesCfg_,
+                                    ToStrView(ses.GetUserId())));
+   if (!OmsPoRequestHandler_Start(this->Handler_)) {
+      // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
       this->SendConfig(ses);
    }
 }
@@ -199,13 +177,7 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    param.RecvBuffer_.Read(pout, byteCount);
 
    auto pol = this->Handler_->RequestPolicy_;
-   if (fon9_UNLIKELY(this->PolicyConfig_.PoIvDenys_.IsPolicyChanged())) {
-      if (pol) {
-         OmsPoUserDenysAgent::RegetPolicy(this->PolicyConfig_.PoIvDenys_);
-         pol->SetIvDenys(this->PolicyConfig_.PoIvDenys_.IvDenys_
-                         | this->PolicyConfig_.OrigIvDenys_);
-      }
-   }
+   this->PolicyConfig_.UpdateIvDenys(pol.get());
      
    runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
    if (fon9_LIKELY(runner.Request_)) {
@@ -272,32 +244,24 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
       ses.ForceLogout(cstrForceLogout);
 }
 //--------------------------------------------------------------------------//
-bool OmsRcServerNote::Handler::CheckReloadIvList() {
-   if (fon9_LIKELY(!this->IvList_.IsPolicyChanged()))
-      return false;
-   auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());
-   return OmsPoIvListAgent::CheckRegetPolicy(ToStrView(ses->GetUserId()), this->IvList_);
-}
-void OmsRcServerNote::Handler::SubrIvListChanged() {
-   assert(this->PoIvListSubr_ == nullptr);
-   if (this->IvList_.PolicyItem_) {
-      assert(this->Core_);
-      HandlerSP pthis{this};
-      this->IvList_.PolicyItem_->AfterChangedEvent_.Subscribe(
-         &this->PoIvListSubr_, [pthis](const fon9::auth::PolicyItem&) {
-         pthis->Core_->RunCoreTask([pthis](OmsResource& res) {
-            if (pthis->CheckReloadIvList())
-               pthis->RequestPolicy_ = pthis->MakePolicy(res);
-         });
-      });
-   }
-}
 void OmsRcServerNote::Handler::ClearResource() {
    this->State_ = HandlerSt::Disposing;
+   base::ClearResource();
    if (this->Core_)
       this->Core_->ReportSubject().Unsubscribe(&this->RptSubr_);
-   if (this->IvList_.PolicyItem_)
-      this->IvList_.PolicyItem_->AfterChangedEvent_.Unsubscribe(&this->PoIvListSubr_);
+}
+void OmsRcServerNote::Handler::OnRequestPolicyUpdated(OmsRequestPolicySP before) {
+   // 只有第一次取得 RequestPolicy(before == nullptr), 才需要送出 SendConfig();
+   if (before)
+      return;
+   HandlerSP handler{this};
+   this->Device_->OpQueue_.AddTask([handler](fon9::io::Device& dev) {
+      assert(dynamic_cast<ApiSession*>(dev.Session_.get()) != nullptr);
+      auto& ses = *static_cast<ApiSession*>(dev.Session_.get());
+      auto* note = static_cast<OmsRcServerNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi));
+      if (note && note->Handler_ == handler.get())
+         note->SendConfig(ses);
+   });
 }
 void OmsRcServerNote::Handler::StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter) {
    if (this->State_ > HandlerSt::Recovering) // 重覆訂閱/回補/解構中?
@@ -451,20 +415,6 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
        || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
       return ses;
    return nullptr;
-}
-//--------------------------------------------------------------------------//
-void OmsRcServerNote::PolicyRunner::operator()(OmsResource& res) {
-   Handler* handler = this->get();
-   handler->CheckReloadIvList();
-   handler->RequestPolicy_ = handler->MakePolicy(res);
-   handler->Device_->OpQueue_.AddTask(PolicyRunner{*this});
-}
-void OmsRcServerNote::PolicyRunner::operator()(fon9::io::Device& dev) {
-   assert(dynamic_cast<ApiSession*>(dev.Session_.get()) != nullptr);
-   auto& ses = *static_cast<ApiSession*>(dev.Session_.get());
-   auto* note = static_cast<OmsRcServerNote*>(ses.GetNote(f9rc_FunctionCode_OmsApi));
-   if (note && note->Handler_ == this->get())
-      note->SendConfig(ses);
 }
 //--------------------------------------------------------------------------//
 void FnPutApiField_ApiSesName(const ApiReqFieldCfg& cfg, const ApiReqFieldArg& arg) {

@@ -43,3 +43,5 @@ EXPORTS
       f9OmsRc_SendRequestFields;
       f9OmsRc_SendRequestString;
       f9OmsRc_SubscribeReport;
+      f9OmsRc_GetReportLayout;
+      f9OmsRc_CheckFcRequest;

@@ -4,8 +4,7 @@
 #define __f9omsrc_OmsRcServerFunc_hpp__
 #include "f9omsrc/OmsRcServer.hpp"
 #include "f9omsrc/OmsRc.h"
-#include "f9omstw/OmsPoUserRightsAgent.hpp"
-#include "fon9/FlowCounter.hpp"
+#include "f9omstw/OmsPoRequest.hpp"
 
 namespace f9omstw {
 
@@ -28,22 +27,21 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    fon9_NON_COPY_NON_MOVE(OmsRcServerNote);
    friend class OmsRcServerAgent;
 
-   struct Handler : public fon9::intrusive_ref_counter<Handler>, public OmsRequestPolicyCfg {
+   class Handler : public OmsPoRequestHandler {
       fon9_NON_COPY_NON_MOVE(Handler);
-      OmsRequestPolicySP         RequestPolicy_;
+      using base = OmsPoRequestHandler;
+      void OnRequestPolicyUpdated(OmsRequestPolicySP before) override;
+   public:
       const fon9::io::DeviceSP   Device_;
-      const OmsCoreSP            Core_;
       const ApiSesCfgSP          ApiSesCfg_;
-      Handler(fon9::io::DeviceSP dev, const OmsRequestPolicyCfg& cfg, OmsCoreSP core, ApiSesCfgSP apicfg)
-         : OmsRequestPolicyCfg(cfg)
+      Handler(fon9::io::DeviceSP dev, const OmsRequestPolicyCfg& cfg, OmsCoreSP core, ApiSesCfgSP apicfg,
+              const fon9::StrView& userId)
+         : base(cfg, std::move(core), userId)
          , Device_{std::move(dev)}
-         , Core_{std::move(core)}
          , ApiSesCfg_{std::move(apicfg)} {
       }
-      void ClearResource();
+      void ClearResource() override;
       void StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter);
-      void SubrIvListChanged();
-      bool CheckReloadIvList();
    private:
       enum class HandlerSt {
          Preparing,
@@ -54,7 +52,6 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
       fon9::SubConn     RptSubr_{};
-      fon9::SubConn     PoIvListSubr_{};
       OmsRxSNO          WkoRecoverSNO_{};
       void SubscribeReport();
       OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);
@@ -63,27 +60,13 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       ApiSession* IsNeedReport(const OmsRxItem& item);
    };
    using HandlerSP = fon9::intrusive_ptr<Handler>;
+   HandlerSP   Handler_;
 
-   struct PolicyRunner : public HandlerSP {
-      using HandlerSP::HandlerSP;
-      /// core.RunCoreTask() handler. run in OmsCore.
-      /// - MakePolicy(res, this->get());
-      /// - to device thread, run (*this)(dev);
-      void operator()(OmsResource& res);
-      /// Device_->OpQueue_.AddTask() handler. run in device.
-      /// - if (ses.Note.Handler_ == this)   SendConfig();
-      void operator()(fon9::io::Device& dev);
-   };
-
-   struct PolicyConfig : OmsRequestPolicyCfg {
-      std::string       TablesGridView_;
-      fon9::FlowCounter FcReq_;
-      unsigned          FcReqOverCount_{};
-      OmsIvRight                          OrigIvDenys_;
-      OmsPoUserDenysAgent::PolicyConfig   PoIvDenys_;
+   struct PolicyConfig : OmsPoRequestConfig {
+      std::string TablesGridView_;
    };
    PolicyConfig   PolicyConfig_;
-   HandlerSP      Handler_;
+
    fon9::SubConn  SubrTDayChanged_{};
    unsigned       ConfigSentCount_{};
 

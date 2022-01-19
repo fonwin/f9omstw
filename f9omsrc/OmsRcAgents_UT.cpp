@@ -29,7 +29,7 @@ struct RcFuncMgr : public fon9::rc::RcFunctionMgrRefCounter {
    fon9_NON_COPY_NON_MOVE(RcFuncMgr);
    RcFuncMgr(f9omstw::ApiSesCfgSP sesCfg, fon9::auth::AuthMgrSP authMgr) {
       this->Add(fon9::rc::RcFunctionAgentSP{new fon9::rc::RcFuncConnServer("f9rcServer.0", "fon9 RcServer", authMgr)});
-      this->Add(fon9::rc::RcFunctionAgentSP{new fon9::rc::RcFuncSaslServer{authMgr}});
+      this->Add(fon9::rc::RcFunctionAgentSP{new fon9::rc::RcFuncSaslServer(authMgr, nullptr)});
       this->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::OmsRcServerAgent{sesCfg}});
    }
    RcFuncMgr() {

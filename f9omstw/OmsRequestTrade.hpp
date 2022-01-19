@@ -64,6 +64,11 @@ public:
       : base{reqKind} {
    }
 
+   /// 收單程序, 可在建立 req 之後, 才設定是哪種下單要求.
+   void SetRxKind(f9fmkt_RxKind reqKind) {
+      this->RxKind_ = reqKind;
+   }
+
    /// 請參閱「下單流程」文件.
    /// 在建立好 req 之後的 req 驗證程序, 此時還在 user thread, 尚未進入 OmsCore.
    /// 只有「下單要求」會呼叫此處, 「回報」不會呼叫此處.
@@ -222,15 +227,18 @@ public:
    using base::base;
    OmsRequestUpd() = default;
 
+   /// IniSNO() 可以視為 RefSNO,
+   /// 對應的 req 不一定是 OmsRequestIni; 也可以是 OmsRequestUpd; 只要是 OmsRequestTrade 皆可;
    OmsRxSNO IniSNO() const {
       return this->IniSNO_;
    }
-   void SetIniFrom(const OmsRequestIni& ini) {
+   void SetIniFrom(const OmsRequestTrade& ini) {
       assert(this->IniSNO_ == 0);
       this->IniSNO_ = ini.RxSNO();
       this->BrkId_ = ini.BrkId_;
    }
-
+   /// 如果先前有呼叫過 SetIniFrom(), 則透過 IniSNO_ 取得 req->order->Initiator();
+   /// 否則使用 OrdKey 取得 order->Initiator(); 並設定 IniSNO_;
    const OmsRequestIni* BeforeReq_GetInitiator(OmsRequestRunner& runner, OmsResource& res) {
       return base::BeforeReq_GetInitiator(runner, &this->IniSNO_, res);
    }

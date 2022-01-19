@@ -203,6 +203,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsIoSessionFactory.hpp">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsPoRequest.hpp">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -345,6 +348,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsIoSessionFactory.cpp">
       <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsPoRequest.cpp">
+      <Filter>Source Files\_policy</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

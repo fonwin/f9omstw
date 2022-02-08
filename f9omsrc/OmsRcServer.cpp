@@ -52,9 +52,14 @@ static void FnRptApiField_AbandonReason(fon9::RevBuffer& rbuf, const ApiRptField
 static void FnRptApiField_IniField(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& cfg, const ApiRptFieldArg* arg) {
    if (fon9_LIKELY(arg)) {
       if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(arg->Item_.CastToOrder())) {
+      __GET_INI_REQ:;
          if (const OmsRequestIni* ini = ordraw->Order().Initiator())
             if (const fon9::seed::Field* fld = ini->Creator().Fields_.Get(ToStrView(cfg.ExtParam_)))
                fld->CellRevPrint(fon9::seed::SimpleRawRd{*ini}, nullptr, rbuf);
+      }
+      else if (const OmsRequestBase* req = static_cast<const OmsRequestBase*>(arg->Item_.CastToRequest())) {
+         if ((ordraw = req->LastUpdated()) != nullptr)
+            goto __GET_INI_REQ;
       }
    }
    else

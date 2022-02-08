@@ -34,8 +34,8 @@ extern "C" {
 
 #define f9OmsRc_API_FN(ReturnType)  extern f9OmsRc_DECL ReturnType f9OmsRc_CALL
 
-/// ErrCode 訊息翻譯服務, 透過 f9omstw/OmsMakeErrMsg.h 提供的 functions 載入、釋放.
-typedef struct f9omstw_ErrCodeTx    f9omstw_ErrCodeTx;
+// ErrCode 訊息翻譯服務, 透過 f9omstw/OmsMakeErrMsg.h 提供的 functions 載入、釋放.
+// typedef struct f9omstw_ErrCodeTx    f9omstw_ErrCodeTx;
 
 //--------------------------------------------------------------------------//
 
@@ -255,8 +255,8 @@ typedef void (f9OmsRc_CALL *f9OmsRc_FnOnFlowControl)(f9rc_ClientSession*, unsign
 
 /// OmsRc API 客戶端用戶的事件處理程序及必要參數.
 typedef struct {
-   f9rc_FunctionNoteParams    BaseParams_;
-   const f9omstw_ErrCodeTx*   ErrCodeTx_;
+   f9rc_FunctionNoteParams          BaseParams_;
+   const struct f9omstw_ErrCodeTx*  ErrCodeTx_;
 
    /// 通知時機:
    /// - 當登入成功後, Server 回覆現在交易日, 使用者設定.

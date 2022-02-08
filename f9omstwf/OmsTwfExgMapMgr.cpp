@@ -79,6 +79,11 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          symb->StrikePriceDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(
             fon9::Pic9StrTo<uint8_t>(p08.Fields_.strike_price_decimal_locator_)));
          symb->ExgSymbSeq_ = fon9::Pic9StrTo<f9twf::TmpSymbolSeq_t>(p08.Fields_.pseq_);
+         symb->EndYYYYMMDD_ = fon9::Pic9StrTo<uint32_t>(p08.Fields_.end_date_);
+         if ((symb->CallPut_ = p08.Fields_.call_put_code_.Chars_[0]) == ' ')
+            symb->CallPut_ = '\0';
+         symb->SettleYYYYMM_ = fon9::Pic9StrTo<uint32_t>(p08.Fields_.settle_date_);
+         symb->StrikePrice_.Assign(fon9::Pic9StrTo<uint32_t>(p08.Fields_.strike_price_v4_), 4u);
       }
    });
 }

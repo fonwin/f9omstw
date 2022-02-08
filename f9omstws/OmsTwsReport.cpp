@@ -41,12 +41,21 @@ static inline void OmsAssignOrderFromReportNewOrig(OmsTwsOrderRaw& ordraw, OmsTw
 void OmsTwsReport::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
    if (fon9_LIKELY(this->RunReportInCore_FromOrig_Precheck(checker, origReq))) {
       OmsOrder& order = origReq.LastUpdated()->Order();
-      AdjustReportQtys(order, checker.Resource_, *this);
+      // AdjustReportQtys(order, checker.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
 
       OmsOrderRaw& ordraw = *order.BeginUpdate(origReq);
       assert(dynamic_cast<OmsTwsOrderRaw*>(&ordraw) != nullptr);
       OmsRunReportInCore_FromOrig(std::move(checker), *static_cast<OmsTwsOrderRaw*>(&ordraw), *this);
    }
+}
+void OmsTwsReport::RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder& order) {
+   // 必須在此先調整好 this 的數量, 在 RunReportInCore_IsBfAfMatch() 才能正確判斷;
+   AdjustReportQtys(order, checker.Resource_, *this);
+   base::RunReportInCore_Order(std::move(checker), order);
+}
+void OmsTwsReport::RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) {
+   AdjustReportQtys(runner.OrderRaw_.Order(), runner.Resource_, *this);
+   base::RunReportInCore_NewOrder(std::move(runner));
 }
 //--------------------------------------------------------------------------//
 void OmsTwsReport::RunReportInCore_MakeReqUID() {
@@ -63,7 +72,7 @@ bool OmsTwsReport::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) {
 void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) {
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
    OmsTwsOrderRaw&  ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
-   AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this);
+   // AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
    ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
    ordraw.OType_ = this->OType_;
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
@@ -83,7 +92,7 @@ void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
    assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
    OmsTwsOrderRaw&  ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
-   AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this);
+   // AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
    OmsTwsReport_Update(ordraw);
    if (auto* ini = static_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator())) {

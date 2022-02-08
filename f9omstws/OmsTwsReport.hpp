@@ -12,6 +12,8 @@ namespace f9omstw {
 class OmsTwsReport : public OmsTwsRequestIni {
    fon9_NON_COPY_NON_MOVE(OmsTwsReport);
    using base = OmsTwsRequestIni;
+   void RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder& order) override;
+   void RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) override;
    void RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) override;
    void RunReportInCore_MakeReqUID() override;
    void RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) override;

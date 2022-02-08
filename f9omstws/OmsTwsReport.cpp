@@ -41,7 +41,13 @@ static inline void OmsAssignOrderFromReportNewOrig(OmsTwsOrderRaw& ordraw, OmsTw
 void OmsTwsReport::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
    if (fon9_LIKELY(this->RunReportInCore_FromOrig_Precheck(checker, origReq))) {
       OmsOrder& order = origReq.LastUpdated()->Order();
-      // AdjustReportQtys(order, checker.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
+
+      // 如果在 checker.SearchOrigRequestId() 有找到 request,
+      // 則會直接來到此處, 不會經過 RunReportInCore_Order()/RunReportInCore_NewOrder();
+      // 所以這裡要自行呼叫 AdjustReportQtys() 將數量調整成股數;
+      // 因為 AdjustReportQtys() 成功時, 會設定 this->QtyStyle_ = OmsReportQtyStyle::OddLot;
+      // 所以呼叫多次 AdjustReportQtys() 沒有問題;
+      AdjustReportQtys(order, checker.Resource_, *this);
 
       OmsOrderRaw& ordraw = *order.BeginUpdate(origReq);
       assert(dynamic_cast<OmsTwsOrderRaw*>(&ordraw) != nullptr);

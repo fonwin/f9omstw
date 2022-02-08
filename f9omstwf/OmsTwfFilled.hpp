@@ -20,6 +20,7 @@ protected:
    bool RunReportInCore_FilledIsFieldsMatch(const OmsRequestIni& ini) const override;
    void RunReportInCore_FilledBeforeNewDone(OmsResource& resource, OmsOrder& order) override;
    bool RunReportInCore_FilledIsNeedsReportPending(const OmsOrderRaw& lastOrdUpd) const override;
+   OmsOrderRaw* RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) override;
    /// 檢查是否需要處理: 剩餘刪除(部分成交).
    void CheckPartFilledQtyCanceled(OmsResource& res) const;
    void ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) const;
@@ -40,7 +41,10 @@ public:
    /// - IOC、FOK 未成交的期交所刪單.
    /// - 超過「動態價格穩定區間」的取消(status_code=47).
    OmsTwfQty         QtyCanceled_{0};
-   char              padding___[4];
+   /// 當委託不存在時, 是否放棄此次回報?
+   /// false(預設): 當委託不存在時, 會將此筆回報使用 pending 機制: 等候收到新單時再處理.
+   bool              IsAbandonOrderNotFound_{false};
+   char              padding___[3];
    /// - 用於新單合併成交時,「範圍市價」的「實際價格」.
    ///   - 一般新單回報、改價回報, 會用 OmsTwfReport 處理.
    /// - 因 R22 沒有 OrdType(PriType), 無法判斷原始委託是否為 MWP,

@@ -89,8 +89,10 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest1.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest7.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest9.hpp" />
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptFromB50.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptLineTmp.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.hpp" />
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptTools.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineMgr.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTypes.hpp" />
@@ -112,7 +114,9 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest1.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest7.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest9.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptFromB50.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptLineTmp.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptTools.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineMgr.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTypes.cpp" />

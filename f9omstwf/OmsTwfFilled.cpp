@@ -66,7 +66,8 @@ bool OmsTwfFilled::RunReportInCore_FilledIsFieldsMatch(const OmsRequestIni& ini)
       return false;
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
       assert(dynamic_cast<const OmsTwfRequestIni1*>(&ini) != nullptr);
-      return(this->Side_ == static_cast<const OmsTwfRequestIni1*>(&ini)->Side_);
+      if (this->Side_ != f9fmkt_Side_Unknown)
+         return(this->Side_ == static_cast<const OmsTwfRequestIni1*>(&ini)->Side_);
    }
    return true;
 }
@@ -100,6 +101,13 @@ bool OmsTwfFilled::RunReportInCore_FilledIsNeedsReportPending(const OmsOrderRaw&
                           ? static_cast<const OmsTwfOrderRaw9*>(&lastOrdUpd)->Bid_.LeavesQty_
                           : static_cast<const OmsTwfOrderRaw9*>(&lastOrdUpd)->Offer_.LeavesQty_));
    return leaves > (this->QtyCanceled_ + this->Qty_);
+}
+OmsOrderRaw* OmsTwfFilled::RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) {
+   if (this->IsAbandonOrderNotFound_) {
+      checker.ReportAbandon("OmsTwfFilled: Order not found.");
+      return nullptr;
+   }
+   return base::RunReportInCore_FilledMakeOrder(checker);
 }
 //--------------------------------------------------------------------------//
 void OmsTwfFilled::RunReportInCore(OmsReportChecker&& checker) {
@@ -277,7 +285,8 @@ void OmsTwfFilled2::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCo
    fon9_GCC_WARN_POP;
 
    OmsRunReportInCore_FilledUpdateCum(std::move(inCoreRunner), ordraw,
-                                      this->GetFilledPri(reqini.CombSide_), this->Qty_,
+                                      this->GetFilledPri(reqini.CombSide(inCoreRunner.Resource_)),
+                                      this->Qty_,
                                       *this);
 }
 

@@ -45,15 +45,14 @@ class OmsTwfRequestIni0 : public OmsRequestIni, public OmsTwfRequestIniDat0 {
    using base = OmsRequestIni;
    OmsSymbSP   SymbLeg2_;
 
+   using OmsTwfRequestIniDat0::CombSide_;
+   using OmsTwfRequestIniDat0::CombOp_;
+
 public:
    template <class... ArgsT>
    OmsTwfRequestIni0(RequestType rtype, ArgsT&&... args)
       : base(std::forward<ArgsT>(args)...)
       , OmsTwfRequestIniDat0{rtype} {
-   }
-   
-   OmsSymb* SymbLeg2() const {
-      return this->SymbLeg2_.get();
    }
 
    static void MakeFields(fon9::seed::Fields& flds);
@@ -69,6 +68,20 @@ public:
    /// - this->BeforeReq_CheckOrdKey(); 會呼叫此處.
    /// - 而「回報」、「系統重啟」會在 OmsOrder::GetSymb() 時, 透過 OmsOrder::FindSymb() 呼叫次處.
    OmsSymbSP RegetSymb(OmsResource& res);
+
+   /// 在使用 SymbLeg2(), CombSide_, CombOp_ 之前,
+   /// 必須先確定已呼叫過 order.GetSymb(); 否則可能無法正確取得[複式商品]資訊.
+   OmsSymb* UnsafeSymbLeg2() const {
+      return this->SymbLeg2_.get();
+   }
+   f9twf::ExgCombSide UnsafeCombSide() const {
+      return this->CombSide_;
+   }
+   f9twf::TmpCombOp UnsafeCombOp() const {
+      return this->CombOp_;
+   }
+   f9twf::ExgCombSide CombSide(OmsResource& res) const;
+   f9twf::TmpCombOp CombOp(OmsResource& res) const;
 };
 
 } // namespaces

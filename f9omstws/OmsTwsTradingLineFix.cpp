@@ -102,7 +102,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       rptKind = f9fmkt_RxKind_RequestNew;
       rptSt = f9fmkt_TradingRequestSt_ExchangeRejected;
       break;
-   case *f9fix_kVAL_ExecType_Replace:        // "5" 改單成功.
+   case *f9fix_kVAL_ExecType_Replaced:       // "5" 改單成功.
       // 改價回覆: OrderQty#38 == LeavesQty#151，其欄位值為改價成功之委託數量。
       // 但是: 如果交易所剩餘6, 要求減量3, 成功剩餘3; 則此時:
       //       #38=3:  [BEFORE-QUANTITY=6]-[AFTER-QUANTITY=3]後取絕對值.

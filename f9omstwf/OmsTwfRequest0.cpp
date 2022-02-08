@@ -20,6 +20,16 @@ const char* OmsTwfRequestIni0::IsIniFieldEqual(const OmsRequestBase& req) const 
    }
    return "RequestTwfIni0";
 }
+f9twf::ExgCombSide OmsTwfRequestIni0::CombSide(OmsResource& res) const {
+   if (this->LastUpdated())
+      this->LastUpdated()->Order().GetSymb(res, this->Symbol_);
+   return this->CombSide_;
+}
+f9twf::TmpCombOp OmsTwfRequestIni0::CombOp(OmsResource& res) const {
+   if (this->LastUpdated())
+      this->LastUpdated()->Order().GetSymb(res, this->Symbol_);
+   return this->CombOp_;
+}
 OmsSymbSP OmsTwfRequestIni0::RegetSymb(OmsResource& res) {
    fon9::StrView symbid = ToStrView(this->Symbol_);
    auto retval = res.Symbs_->GetOmsSymb(symbid);

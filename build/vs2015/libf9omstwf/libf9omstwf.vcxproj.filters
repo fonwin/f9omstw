@@ -98,6 +98,12 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfReport2.hpp">
       <Filter>Header Files\1.Normal</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptFromB50.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptTools.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTypes.cpp">
@@ -159,6 +165,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfReport2.cpp">
       <Filter>Source Files\1.Normal</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptFromB50.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptTools.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

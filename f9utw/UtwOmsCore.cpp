@@ -14,6 +14,7 @@
 #include "f9omstwf/OmsTwfSenderStepG1.hpp"
 #include "f9omstwf/OmsTwfLineTmpFactory.hpp"
 #include "f9omstwf/OmsTwfExgMapMgr.hpp"
+#include "f9omstwf/OmsTwfRptFromB50.hpp"
 
 #include "fon9/seed/SysEnv.hpp"
 
@@ -266,6 +267,15 @@ public:
          coreMgr.TDayChangedEvent_.Subscribe([twfMapMgr](OmsCore& core) {
             twfMapMgr->SetTDay(core.TDay());
          });
+         // ------------------
+         #define kCSTR_SesFpName    "FpSession"
+         auto sesfp = FetchNamedPark<fon9::SessionFactoryPark>(*holder.Root_, kCSTR_SesFpName);
+         if (!sesfp) { // 無法取得系統共用的 SessionFactoryPark.
+            holder.SetPluginsSt(fon9::LogLevel::Error,
+                                fon9_kCSTR_UtwOmsCoreName ".Create|err=SessionFactoryPark not found: " kCSTR_SesFpName);
+            return false;
+         }
+         sesfp->Add(new OmsRptFromB50_SessionFactory("FromB50", &coreMgr, *twfFil1Factory, twfMapMgr));
          // ------------------
          ioargsFutNormal.DeviceFactoryPark_     = devfp;
          ioargsOptNormal.DeviceFactoryPark_     = devfp;

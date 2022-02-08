@@ -6,9 +6,12 @@ set(f9omstwf_src
 # OmsTwfSenderStepLg.cpp
 
  OmsTwfTradingLineMgr.cpp
- OmsTwfRptLineTmp.cpp
  OmsTwfTradingLineTmp.cpp
  OmsTwfLineTmpFactory.cpp
+
+ OmsTwfRptTools.cpp
+ OmsTwfRptLineTmp.cpp
+ OmsTwfRptFromB50.cpp
 
  OmsTwfOrder0.cpp
  OmsTwfRequest0.cpp

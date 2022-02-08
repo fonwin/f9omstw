@@ -3,6 +3,7 @@
 #include "f9omstwf/OmsTwfRptLineTmp.hpp"
 #include "f9omstwf/OmsTwfTradingLineMgr.hpp"
 #include "f9omstwf/OmsTwfReport3.hpp"
+#include "f9omstwf/OmsTwfRptTools.hpp"
 #include "f9twf/ExgTmpTradingR1.hpp"
 #include "f9twf/ExgTmpTradingR7.hpp"
 #include "f9twf/ExgTmpTradingR9.hpp"
@@ -33,94 +34,6 @@ inline f9fmkt_RxKind TmpExecTypeToRxKind(f9twf::TmpExecType execType) {
    case f9twf::TmpExecType::Filled:  return f9fmkt_RxKind_Filled;
    }
    return f9fmkt_RxKind_Unknown;
-}
-//--------------------------------------------------------------------------//
-// 設定 rpt 的基本資料:
-// - Market(Fut/Opt), TradingSessionId(Normal/AfterHour);
-inline void SetupReportBase(OmsRequestBase& rpt, f9twf::ExgSystemType sysType) {
-   switch (sysType) {
-   case f9twf::ExgSystemType::OptNormal:
-      rpt.SetMarket(f9fmkt_TradingMarket_TwOPT);
-      rpt.SetSessionId(f9fmkt_TradingSessionId_Normal);
-      break;
-   case f9twf::ExgSystemType::FutNormal:
-      rpt.SetMarket(f9fmkt_TradingMarket_TwFUT);
-      rpt.SetSessionId(f9fmkt_TradingSessionId_Normal);
-      break;
-   case f9twf::ExgSystemType::OptAfterHour:
-      rpt.SetMarket(f9fmkt_TradingMarket_TwOPT);
-      rpt.SetSessionId(f9fmkt_TradingSessionId_AfterHour);
-      break;
-   case f9twf::ExgSystemType::FutAfterHour:
-      rpt.SetMarket(f9fmkt_TradingMarket_TwFUT);
-      rpt.SetSessionId(f9fmkt_TradingSessionId_AfterHour);
-      break;
-   }
-}
-//--------------------------------------------------------------------------//
-using ExgMaps = f9twf::ExgMapMgr::MapsConstLocker;
-// 設定 rpt 的基本資料:
-// - Market(Fut/Opt), TradingSessionId(Normal/AfterHour);
-// - BrkId(根據 ivacFcmId);
-static void SetupReport0Base(OmsRequestBase& rpt, f9twf::TmpFcmId ivacFcmId, f9twf::ExgSystemType sysType, const ExgMaps& exgMaps) {
-   SetupReportBase(rpt, sysType);
-   f9twf::BrkId brkid = exgMaps->MapBrkFcmId_.GetBrkId(f9twf::TmpGetValueU(ivacFcmId));
-   rpt.BrkId_.CopyFrom(brkid.begin(), brkid.size());
-}
-// SetupReport0Base() 及 rptSymbol;
-static void SetupReport0Symbol(OmsRequestBase& rpt, f9twf::TmpFcmId ivacFcmId,
-                               const f9twf::TmpSymbolType* pkSym, OmsTwfSymbol& rptSymbol, TwfRptLineTmp& line) {
-   ExgMaps exgMaps = line.LineMgr_.ExgMapMgr_->Lock();
-   SetupReport0Base(rpt, ivacFcmId, line.SystemType(), exgMaps);
-   const auto symType = *pkSym++;
-   if (f9twf::TmpSymbolTypeIsNum(symType)) {
-      // SymbolId: 數字格式 => 文字格式.
-      auto& p08s = exgMaps->MapP08Recs_[ExgSystemTypeToIndex(line.SystemType())];
-      auto* symNum = reinterpret_cast<const f9twf::TmpSymNum*>(pkSym);
-      if (auto* leg1p08 = p08s.GetP08(symNum->Pseq1_)) {
-         if (auto pseq2 = f9twf::TmpGetValueU(symNum->Pseq2_)) {
-            if (auto* leg2p08 = p08s.GetP08(pseq2)) {
-               fon9::StrView leg1id, leg2id;
-               if (fon9_LIKELY(f9twf::TmpSymbolTypeIsShort(symType))) {
-                  leg1id = ToStrView(leg1p08->ShortId_);
-                  leg2id = ToStrView(leg2p08->ShortId_);
-               }
-               if (leg1id.empty() || leg2id.empty()) {
-                  leg1id = ToStrView(leg1p08->LongId_);
-                  leg2id = ToStrView(leg2p08->LongId_);
-               }
-               if (rpt.Market() == f9fmkt_TradingMarket_TwFUT)
-                  f9twf::FutMakeCombSymbolId(rptSymbol, leg1id, leg2id, symNum->CombOp_);
-               else
-                  f9twf::OptMakeCombSymbolId(rptSymbol, leg1id, leg2id, symNum->CombOp_);
-            }
-         }
-         else {
-            const uint8_t* id;
-            fon9_GCC_WARN_DISABLE("-Wswitch-bool");
-            switch (f9twf::TmpSymbolTypeIsShort(symType)) {
-            case true:
-               if (*(id = leg1p08->ShortId_.LenChars()) != 0)
-                  break;
-               /* fall through */ // *id == 0: 沒有 ShortId, 則使用 LongId.
-            default:
-               id = leg1p08->LongId_.LenChars();
-               break;
-            }
-            fon9_GCC_WARN_POP;
-            rptSymbol.CopyFrom(reinterpret_cast<const char*>(id + 1), *id);
-         }
-      }
-   }
-   else {
-      const char* pend = fon9::StrFindTrimTail(reinterpret_cast<const char*>(pkSym),
-                                               reinterpret_cast<const char*>(pkSym)
-                                               + (f9twf::TmpSymbolTypeIsLong(symType)
-                                                  ? sizeof(f9twf::TmpSymIdL)
-                                                  : sizeof(f9twf::TmpSymIdS)));
-      rptSymbol.CopyFrom(reinterpret_cast<const char*>(pkSym),
-                         pend - reinterpret_cast<const char*>(pkSym));
-   }
 }
 //--------------------------------------------------------------------------//
 void SetupReportExt(...) {
@@ -243,7 +156,8 @@ static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2) {
    OmsRequestRunner runner{fon9::StrView{reinterpret_cast<const char*>(&pkr2), pkr2.GetPacketSize()}};
    OmsTwfSymbol*    rptSymbol = SetupReport2Back(runner, line, TmpExecTypeToRxKind(pkr2.ExecType_), *f9twf::TmpPtrAfterSym(&pkr2));
    SetupReport2Front(runner, line, pkr2);
-   SetupReport0Symbol(*runner.Request_, pkr2.IvacFcmId_, &pkr2.SymbolType_, *rptSymbol, line);
+   SetupReport0Symbol(*runner.Request_, pkr2.IvacFcmId_, &pkr2.SymbolType_, *rptSymbol,
+                      line.LineMgr_.ExgMapMgr_->Lock(), line.SystemType());
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
 }
 // 短格式委託/成交回報(R22) ApCode=6
@@ -289,7 +203,8 @@ static void SetupReport8(TwfRptLineTmp& line, const f9twf::TmpR8Front& pkr8) {
       // rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
       rpt.SetErrCode(static_cast<OmsErrCode>(pkr8.StatusCode_ + OmsErrCode_FromTwFEX));
    }
-   SetupReport0Symbol(rpt, pkr8.IvacFcmId_, &pkr8.SymbolType_, rpt.Symbol_, line);
+   SetupReport0Symbol(rpt, pkr8.IvacFcmId_, &pkr8.SymbolType_, rpt.Symbol_,
+                      line.LineMgr_.ExgMapMgr_->Lock(), line.SystemType());
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->ExgOrdIdToReqUID(pkr8.OrdId_, rpt);
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
 }

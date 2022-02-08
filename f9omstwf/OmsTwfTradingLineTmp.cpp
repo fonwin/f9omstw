@@ -20,6 +20,8 @@ TwfTradingLineTmp::TwfTradingLineTmp(TwfLineTmpWorker&            worker,
       '.', f9twf::TmpGetValueU(lineArgs.SessionId_))} {
 }
 void TwfTradingLineTmp::OnExgTmp_ApReady() {
+   if (0);// 搜尋 OmsCore: f9fmkt_TradingRequestSt_Sending => f9fmkt_TradingRequestSt_LineRejected;
+          // && this->LineArgs_.SessionId_ == ordraw.OutPvcId
    this->Fc_.Resize(this->MaxFlowCtrlCnt(), this->LineArgs_.FcInterval_.IsNullOrZero()
                     ? fon9::TimeInterval_Second(1) : this->LineArgs_.FcInterval_);
    this->LineMgr_.OnTradingLineReady(*this);
@@ -73,7 +75,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_SymbDecimalLocator, nullptr);
       return SendResult::RejectRequest;
    }
-   OmsSymb*                   symbLeg2 = iniReq0->SymbLeg2();
+   OmsSymb*                   symbLeg2 = iniReq0->UnsafeSymbLeg2();
    const f9twf::TmpSymbolType symType = this->LineArgs_.IsUseSymNum_
       ? f9twf::TmpSymbolType::ShortNum
       : (iniReq0->Market() == f9fmkt_TradingMarket_TwFUT
@@ -158,7 +160,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       f9twf::TmpPutValue(pkSym->Pseq1_, symb->ExgSymbSeq_);
       if (fon9_UNLIKELY(symbLeg2 != nullptr)) {
          f9twf::TmpPutValue(pkSym->Pseq2_, symbLeg2->ExgSymbSeq_);
-         pkSym->CombOp_ = iniReq0->CombOp_;
+         pkSym->CombOp_ = iniReq0->UnsafeCombOp();
       }
    }
    else {
@@ -189,7 +191,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
          return SendResult::RejectRequest;
       }
       if (fon9_UNLIKELY(this->LineArgs_.IsUseSymNum_ && symbLeg2 != nullptr)) {
-         switch (iniReq1->CombSide_) {
+         switch (iniReq0->UnsafeCombSide()) {
          case f9twf::ExgCombSide::None:
             break;
          case f9twf::ExgCombSide::SameSide:

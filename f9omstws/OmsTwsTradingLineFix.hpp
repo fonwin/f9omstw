@@ -14,6 +14,9 @@ class TwsTradingLineFix : public f9tws::ExgTradingLineFix
    fon9_NON_COPY_NON_MOVE(TwsTradingLineFix);
    using base = f9tws::ExgTradingLineFix;
 
+protected:
+   void OnFixSessionApReady() override;
+
 public:
    TwsTradingLineFix(f9fix::IoFixManager&                mgr,
                      const f9fix::FixConfig&             fixcfg,

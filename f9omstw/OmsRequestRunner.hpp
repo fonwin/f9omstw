@@ -77,6 +77,7 @@ public:
    fon9::RevBufferList  ExLogForUpd_;
    /// 例如: 儲存下單要求的原始封包.
    fon9::RevBufferList  ExLogForReq_;
+   void*                BackendLocker_{nullptr};
 
    /// 收到下單要求: 準備進行下單流程.
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, fon9::RevBufferList&& exLogForReq, fon9::BufferNodeSize updExLogSize)

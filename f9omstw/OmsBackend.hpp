@@ -168,7 +168,10 @@ public:
 
    /// 將自訂內容寫入 log.
    void LogAppend(fon9::RevBufferList&& rbuf) {
-      Items::Locker{this->Items_}->QuItems_.emplace_back(nullptr, std::move(rbuf));
+      this->LogAppend(this->Lock(), std::move(rbuf));
+   }
+   static void LogAppend(const Locker& items, fon9::RevBufferList&& rbuf) {
+      items->QuItems_.emplace_back(nullptr, std::move(rbuf));
    }
    /// 不是 thread safe, 必須在 OpenReload() 之後才能安全的使用.
    const std::string& LogPath() const {
@@ -179,7 +182,8 @@ public:
 
 private:
    friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 OnAfterOrderUpdated();
-   void OnAfterOrderUpdated(OmsRequestRunnerInCore& runner);
+   void OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner);
+   void EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend);
 };
 
 } // namespaces

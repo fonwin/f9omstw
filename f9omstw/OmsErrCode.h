@@ -110,6 +110,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_NoReadyLine = 900,
    /// 新單超過有效時間, 從新單建立開始, 到送出時, 若超過設定的時間, 則視為失敗.
    OmsErrCode_OverVaTimeMS = 901,
+   /// 斷線後回覆, 交易所沒有回覆該筆回報.
+   OmsErrCode_FailSending = 902,
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.

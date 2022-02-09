@@ -132,6 +132,12 @@ public:
    using OmsResource::LogPath;
    using OmsResource::Name_;
 
+   using IsOrigSender = std::function<bool(const OmsOrderRaw&)>;
+   /// - 通常用於: 交易線路斷線後回復: [送出後,沒收到回報的要求] = 要求失敗;
+   /// - 處理完畢後才會返回.
+   /// - 執行前後會使用 LogAppend() 記錄 logInfo + "Starting"; logInfo + "Finished";
+   void SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSender);
+
    OmsRxSNO PublishedSNO() const {
       return this->Backend_.PublishedSNO();
    }

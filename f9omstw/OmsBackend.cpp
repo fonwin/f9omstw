@@ -187,7 +187,7 @@ void OmsBackend::LogAppend(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
    intrusive_ptr_add_ref(&item);
    Items::Locker{this->Items_}->QuItems_.emplace_back(&item, std::move(rbuf));
 }
-void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
+void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
    // !this->Thread_.joinable() = Reloading;
    assert(runner.Resource_.Core_.IsThisThread() || !this->Thread_.joinable());
@@ -206,8 +206,15 @@ void OmsBackend::OnAfterOrderUpdated(OmsRequestRunnerInCore& runner) {
    runner.Resource_.Core_.Owner_->UpdateSc(runner);
    assert(runner.Resource_.Brks_.get() != nullptr);
    FetchScResourceIvr(runner.Resource_, runner.OrderRaw_.Order());
-
-   Items::Locker  items{this->Items_};
+   if (fon9_LIKELY(runner.BackendLocker_ == nullptr)) {
+      Locker items{this->Items_};
+      this->EndAppend(items, runner, isNeedsReqAppend);
+   }
+   else {
+      this->EndAppend(*reinterpret_cast<Locker*>(runner.BackendLocker_), runner, isNeedsReqAppend);
+   }
+}
+void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend) {
    if (isNeedsReqAppend) {
       // req 首次異動, 應先將 req 加入 backend.
       assert(!runner.OrderRaw_.Request().IsAbandoned()); // 必定沒有 Abandon.

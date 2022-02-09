@@ -20,8 +20,17 @@ TwfTradingLineTmp::TwfTradingLineTmp(TwfLineTmpWorker&            worker,
       '.', f9twf::TmpGetValueU(lineArgs.SessionId_))} {
 }
 void TwfTradingLineTmp::OnExgTmp_ApReady() {
-   if (0);// 搜尋 OmsCore: f9fmkt_TradingRequestSt_Sending => f9fmkt_TradingRequestSt_LineRejected;
-          // && this->LineArgs_.SessionId_ == ordraw.OutPvcId
+   if (auto omsCore = static_cast<TwfTradingLineMgr*>(&this->LineMgr_)->OmsCore()) {
+      fon9::intrusive_ptr<TwfTradingLineTmp> pthis{this};
+      fon9::CharVector info = fon9::RevPrintTo<fon9::CharVector>(
+         "LineReady.", f9twf::TmpGetValueU(this->LineArgs_.SessionFcmId_),
+         '.', this->OutPvcId_);
+      omsCore->SetSendingRequestFail(ToStrView(info), [pthis](const OmsOrderRaw& ordraw) {
+         if (auto twford = dynamic_cast<const OmsTwfOrderRaw0*>(&ordraw))
+            return (pthis->OutPvcId_ == twford->OutPvcId_);
+         return false;
+      });
+   }
    this->Fc_.Resize(this->MaxFlowCtrlCnt(), this->LineArgs_.FcInterval_.IsNullOrZero()
                     ? fon9::TimeInterval_Second(1) : this->LineArgs_.FcInterval_);
    this->LineMgr_.OnTradingLineReady(*this);

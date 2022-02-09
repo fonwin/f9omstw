@@ -4,6 +4,7 @@
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
 #include "f9omstws/OmsTwsReport.hpp"
 #include "f9omstws/OmsTwsReportTools.hpp"
+#include "f9omstws/OmsTwsOrder.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "fon9/fix/FixBusinessReject.hpp"
 #include "fon9/fix/FixAdminDef.hpp"
@@ -252,6 +253,22 @@ TwsTradingLineFix::TwsTradingLineFix(f9fix::IoFixManager&                mgr,
                                      f9fix::IoFixSenderSP&&              fixSender)
    : base{mgr, fixcfg, lineargs, std::move(fixSender)}
    , TwsTradingLineBase{lineargs} {
+}
+void TwsTradingLineFix::OnFixSessionApReady() {
+   if (auto omsCore = static_cast<TwsTradingLineMgr*>(&this->FixManager_)->OmsCore()) {
+      fon9::intrusive_ptr<TwsTradingLineFix> pthis{this};
+      fon9::CharVector info = fon9::RevPrintTo<fon9::CharVector>(
+         "LineReady.",
+         this->LineArgs_.Market_,
+         this->LineArgs_.BrkId_,
+         this->LineArgs_.SocketId_);
+      omsCore->SetSendingRequestFail(ToStrView(info), [pthis](const OmsOrderRaw& ordraw) {
+         if (auto twsord = dynamic_cast<const OmsTwsOrderRaw*>(&ordraw))
+            return (pthis->LineArgs_.SocketId_ == twsord->OutPvcId_);
+         return false;
+      });
+   }
+   base::OnFixSessionApReady();
 }
 
 } // namespaces

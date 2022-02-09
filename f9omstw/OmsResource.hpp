@@ -104,7 +104,7 @@ protected:
 //--------------------------------------------------------------------------//
 
 inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
-   this->Resource_.Backend_.OnAfterOrderUpdated(*this);
+   this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
    this->OrderRaw_.Order().EndUpdate(this->OrderRaw_, &this->Resource_);
 }
 

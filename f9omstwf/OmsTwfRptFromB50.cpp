@@ -92,7 +92,16 @@ fon9::io::RecvBufferSize TwfRptFromB50::OnDevice_Recv(fon9::io::Device& dev, fon
          rxbuf.PopConsumed(this->PkSize_);
       }
    }
+   dev.CommonTimerRunAfter(fon9::TimeInterval_Second(1));
    return fon9::io::RecvBufferSize::Default;
+}
+void TwfRptFromB50::OnDevice_CommonTimer(fon9::io::Device& dev, fon9::TimeStamp now) {
+   (void)now;
+   if (dev.Manager_) {
+      dev.Manager_->OnSession_StateUpdated(dev,
+            ToStrView(fon9::RevPrintTo<fon9::CharVector>("PkCount=", this->PkCount_)),
+            fon9::LogLevel::Info);
+   }
 }
 //--------------------------------------------------------------------------//
 OmsRptFromB50_SessionFactory::~OmsRptFromB50_SessionFactory() {

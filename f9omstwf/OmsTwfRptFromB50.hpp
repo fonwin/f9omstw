@@ -28,6 +28,7 @@ class TwfRptFromB50 : public fon9::io::Session {
    const char* FeedBuffer(fon9::DcQueue& rxbuf);
    fon9::io::RecvBufferSize OnDevice_LinkReady(fon9::io::Device& dev) override;
    fon9::io::RecvBufferSize OnDevice_Recv(fon9::io::Device& dev, fon9::DcQueue& rxbuf) override;
+   void OnDevice_CommonTimer(fon9::io::Device& dev, fon9::TimeStamp now) override;
 
 public:
    const f9twf::ExgSystemType ExgSystemType_;

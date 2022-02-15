@@ -309,7 +309,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       // 依序從第1筆開始, 通知 core 重算風控 RecalcSc.
       // 因為重算過程可能與「下單要求、委託異動、事件」的發生順序有關, 所以需要「從頭、依序」檢查.
       for (OmsRxSNO sno = 1; sno <= loader.LastSNO_; ++sno) {
-         auto* icur = items->RxHistory_[sno];
+         auto* const icur = items->RxHistory_[sno];
          if (icur == nullptr)
             continue;
          OmsOrder*          order;
@@ -321,6 +321,19 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
                resource.Core_.Owner_->RecalcSc(resource, *order);
                FetchScResourceIvr(resource, *order);
             }
+            if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
+               // IOC 部分成交, 會有2筆 ordraw:
+               // 第1筆為 f9fmkt_TradingRequestSt_Filled
+               // 第2筆為 f9fmkt_TradingRequestSt_ExchangeCanceled
+               // 必須在第一筆 ordraw 處理 InsertFilled();
+               if (auto filled = dynamic_cast<const OmsReportFilled*>(&ordraw->Request())) {
+                  if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
+                     continue;
+                  fon9_LOG_ERROR("OmsBackend.InsertFilled|filled.SNO=", sno);
+               }
+               fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
+               continue;
+            }
          }
          const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
          if (req == nullptr) {
@@ -331,15 +344,6 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          if ((ordraw = req->LastUpdated()) == nullptr)
             continue;
          order = &ordraw->Order();
-         if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
-            if (auto filled = dynamic_cast<const OmsReportFilled*>(req)) {
-               if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
-                  continue;
-               fon9_LOG_ERROR("OmsBackend.InsertFilled|filled.SNO=", sno);
-            }
-            fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
-            continue;
-         }
          if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
                            && order->LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled)) {
             // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.

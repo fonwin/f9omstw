@@ -132,6 +132,13 @@ public:
    using OmsResource::LogPath;
    using OmsResource::Name_;
 
+   inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
+      intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));
+   }
+   inline friend void intrusive_ptr_release(const OmsCore* p) {
+      intrusive_ptr_release(static_cast<const OmsResource*>(p));
+   }
+
    using IsOrigSender = std::function<bool(const OmsOrderRaw&)>;
    /// - 通常用於: 交易線路斷線後回復: [送出後,沒收到回報的要求] = 要求失敗;
    /// - 處理完畢後才會返回.
@@ -141,12 +148,15 @@ public:
    OmsRxSNO PublishedSNO() const {
       return this->Backend_.PublishedSNO();
    }
-
-   inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
-      intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));
+   /// 僅提供參考使用, 例如: unit test 檢查是否符合預期.
+   OmsRxSNO LastSNO() const {
+      return this->Backend_.LastSNO();
    }
-   inline friend void intrusive_ptr_release(const OmsCore* p) {
-      intrusive_ptr_release(static_cast<const OmsResource*>(p));
+   OmsBackend::Locker LockRxItems() {
+      return this->Backend_.Lock();
+   }
+   const OmsRxItem* GetRxItem(OmsRxSNO sno, const OmsBackend::Locker& rxItems) const {
+      return this->Backend_.GetItem(sno, rxItems);
    }
 
    /// \retval nullptr  參數有誤.

@@ -33,6 +33,7 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
       rpt.BrkId_.CopyFrom(fixfld->Value_);
    rpt.SetSessionId(GetFixSessionId(orig.Msg_.GetField(f9fix_kTAG_TargetSubID)));
    rpt.SetMarket(static_cast<f9tws::ExgTradingLineFix*>(rxargs.FixSession_)->LineArgs_.Market_);
+   rpt.OutPvcId_ = static_cast<f9tws::ExgTradingLineFix*>(rxargs.FixSession_)->LineArgs_.SocketId_;
    assert((fixfld = orig.Msg_.GetField(f9fix_kTAG_SenderCompID)) != nullptr
           && fixfld->Value_.Get1st() == rpt.Market());
    AssignTwsReportMessage(rpt, rxargs.Msg_);
@@ -188,6 +189,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       rpt.IvacNoFlag_.Chars_[0] = static_cast<char>(fixfld->Value_.Get1st());
    if ((fixfld = rxargs.Msg_.GetField(f9fix_kTAG_TwseOrdType)) != nullptr)
       rpt.OType_ = static_cast<OmsTwsOType>(fixfld->Value_.Get1st());
+   rpt.OutPvcId_ = static_cast<f9tws::ExgTradingLineFix*>(rxargs.FixSession_)->LineArgs_.SocketId_;
    AssignTwsReportBase(rpt, rxargs, core->TDay());
    core->MoveToCore(std::move(runner));
 }

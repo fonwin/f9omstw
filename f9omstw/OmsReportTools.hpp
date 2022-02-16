@@ -337,12 +337,13 @@ void OmsAssignOrderFromReportDCQ(OmsReportRunnerInCore& inCoreRunner, OrderRawT&
 //--------------------------------------------------------------------------//
 
 template <size_t arysz, typename CharT, CharT kChFiller>
-static inline bool IsPvcIdValid(fon9::CharAry<arysz, CharT, kChFiller>& v) {
+static inline bool IsPvcIdValid(const fon9::CharAry<arysz, CharT, kChFiller>& v) {
    return !v.empty1st();
 }
 
 template <typename T>
-static inline auto IsPvcIdValid(T v)->decltype(v != 0) {
+static inline typename std::enable_if<std::is_integral<T>::value, bool>::type
+IsPvcIdValid(T v) {
    return v != 0;
 }
 

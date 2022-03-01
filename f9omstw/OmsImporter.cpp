@@ -40,7 +40,7 @@ fon9::seed::FileImpLoaderSP OmsFileImpSeed::OnBeforeLoad(fon9::RevBuffer& rbufDe
 
 fon9::BufferNode* MakeOmsImpLog(OmsFileImpSeed& imp, fon9::seed::FileImpMonitorFlag monFlag, size_t itemsCount) {
    fon9::RevBufferList rbuf{128};
-   fon9::RevPrint(rbuf, fon9::UtcNow(), fon9::kFmtYMD_HH_MM_SS_us_L,
+   fon9::RevPrint(rbuf, fon9::LocalNow(),
                   '|', imp.Name_, "|mon=", monFlag,
                   "|ftime=", imp.LastFileTime(), fon9::kFmtYMD_HH_MM_SS_us_L,
                   "|items=", itemsCount,

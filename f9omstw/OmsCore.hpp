@@ -125,12 +125,15 @@ public:
    }
 
    using OmsResource::TDay;
+   using OmsResource::TDayYYYYMMDD_;
+   using OmsResource::NextTDayYYYYMMDD_;
    using OmsResource::ForceTDayId;
    using OmsResource::ReportRecover;
    using OmsResource::ReportSubject;
    using OmsResource::LogAppend;
    using OmsResource::LogPath;
    using OmsResource::Name_;
+   using OmsResource::Sapling_;
 
    inline friend void intrusive_ptr_add_ref(const OmsCore* p) {
       intrusive_ptr_add_ref(static_cast<const OmsResource*>(p));

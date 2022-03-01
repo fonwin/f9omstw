@@ -100,6 +100,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfFilled.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfLineTmpFactory.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfOrder0.cpp" />

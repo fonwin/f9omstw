@@ -172,5 +172,8 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptTools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

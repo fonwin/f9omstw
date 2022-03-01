@@ -1,6 +1,7 @@
 set(f9omstwf_src
  OmsTwfTypes.cpp
  OmsTwfExgMapMgr.cpp
+ OmsTwfExgSymbBasic.cpp
 
  OmsTwfSenderStepG1.cpp
 # OmsTwfSenderStepLg.cpp

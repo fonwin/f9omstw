@@ -5,16 +5,25 @@
 
 namespace f9omstw {
 
+fon9::TimeStamp OmsGetNextTDay(fon9::TimeStamp tday) {
+   for (;;) {
+      tday += fon9::TimeInterval_Day(1);
+      const auto weekday = fon9::GetWeekday(tday);
+      if (fon9::Weekday::Monday <= weekday && weekday <= fon9::Weekday::Friday)
+         return tday;
+   }
+}
+//--------------------------------------------------------------------------//
 OmsResource::UsrDefObj::~UsrDefObj() {
 }
-
+//--------------------------------------------------------------------------//
 OmsResource::~OmsResource() {
 }
 void OmsResource::Plant() {
    this->Sapling_->AddNamedSapling(this->Symbs_, fon9::Named{"Symbs"});
    this->Sapling_->AddNamedSapling(this->Brks_, fon9::Named{"Brks"});
 }
-
+//--------------------------------------------------------------------------//
 static void FrozeScLeaves(OmsBackend& backend, const OmsRxSNO lastSNO, const OmsBackend::Locker& locker) {
    OmsRxSNO sno = (lastSNO ? lastSNO : backend.LastSNO());
    while (sno > 0) {

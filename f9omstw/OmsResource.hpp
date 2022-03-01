@@ -11,6 +11,10 @@
 
 namespace f9omstw {
 
+/// 取得下一個交易日.
+/// 預設: 僅排除 [週六、週日] 不考慮其他假日.
+fon9::TimeStamp OmsGetNextTDay(fon9::TimeStamp tday);
+
 /// OMS 所需的資源, 集中在此處理.
 /// - 這裡的資源都 **不是** thread safe!
 /// - 初始化在: 
@@ -22,7 +26,12 @@ class OmsResource : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(OmsResource);
 
 public:
-   const fon9::TimeStamp   TDay_;
+   /// 台灣證交所、台灣期交所的 [日盤] 交易日.
+   const fon9::TimeStamp      TDay_;
+   const fon9::DateYYYYMMDD   TDayYYYYMMDD_;
+   /// 台灣期交所的 [夜盤] 交易日.
+   /// 預設: 僅排除 [週六、週日] 不考慮其他假日.
+   const fon9::DateYYYYMMDD   NextTDayYYYYMMDD_;
 
    OmsCore&    Core_;
 
@@ -87,6 +96,8 @@ protected:
    OmsResource(fon9::TimeStamp tday, uint32_t forceTDay, OmsCore& core, NamedArgsT&&... namedargs)
       : fon9::seed::NamedMaTree(std::forward<NamedArgsT>(namedargs)...)
       , TDay_{fon9::TimeStampResetHHMMSS(tday) + fon9::TimeInterval_Second(forceTDay)}
+      , TDayYYYYMMDD_{fon9::GetYYYYMMDD(tday)}
+      , NextTDayYYYYMMDD_{fon9::GetYYYYMMDD(OmsGetNextTDay(tday))}
       , Core_(core) {
       assert(forceTDay < fon9::kOneDaySeconds);
    }

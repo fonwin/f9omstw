@@ -108,16 +108,13 @@ const OmsRequestIni* OmsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runn
 OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
    assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
    if (const OmsRequestPolicy* pol = static_cast<OmsRequestTrade*>(runner.Request_.get())->Policy()) {
-      OmsIvRight  ivrRights = pol->GetIvrAdminRights();
-      if (!IsEnumContains(ivrRights, OmsIvRight::IsAdmin)) {
-         // 不是 admin 權限, 則必須是可用帳號.
-         if (!scRes.Ivr_)
-            scRes.Ivr_ = GetIvr(res, *this);
-         ivrRights = pol->GetIvRights(scRes.Ivr_.get());
-      }
-      OmsIvRight  ivRightDeny = RxKindToIvRightDeny(runner.Request_->RxKind());
+      if (!scRes.Ivr_)
+         scRes.Ivr_ = GetIvr(res, *this);
+      const OmsIvRight  ivrRights = pol->GetIvRights(scRes.Ivr_.get());
+      const OmsIvRight  ivRightDeny = RxKindToIvRightDeny(runner.Request_->RxKind());
       if (!IsEnumContains(ivrRights, ivRightDeny))
          return ivrRights;
+      scRes.Ivr_.reset();
    }
    runner.RequestAbandon(&res, OmsErrCode_IvNoPermission);
    return OmsIvRight::DenyAll;

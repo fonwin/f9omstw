@@ -105,7 +105,7 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
    fon9::CountDownLatch waiter{1};
    if (this->RunCoreTask([&waiter, logInfo, &isOrigSender](OmsResource& res) {
       fon9::RevBufferList rbuf{128};
-      fon9::RevPrint(rbuf, logInfo, ".Starting\n");
+      fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".SetSendingRequestFail\n");
       auto lk = res.Backend_.Lock();
       res.Backend_.LogAppend(lk, std::move(rbuf));
       for (auto sno = res.Backend_.LastSNO(); sno > 0; --sno) {
@@ -133,7 +133,7 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
          aford->ErrCode_ = OmsErrCode_FailSending;
          runner.Update(f9fmkt_TradingRequestSt_LineRejected);
       }
-      fon9::RevPrint(rbuf, logInfo, ".Finished\n");
+      fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".Finished\n");
       res.Backend_.LogAppend(lk, std::move(rbuf));
       waiter.ForceWakeUp();
    })) {

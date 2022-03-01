@@ -321,17 +321,23 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
                resource.Core_.Owner_->RecalcSc(resource, *order);
                FetchScResourceIvr(resource, *order);
             }
-            if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
-               // IOC 部分成交, 會有2筆 ordraw:
-               // 第1筆為 f9fmkt_TradingRequestSt_Filled
-               // 第2筆為 f9fmkt_TradingRequestSt_ExchangeCanceled
-               // 必須在第一筆 ordraw 處理 InsertFilled();
+            if (ordraw == ordraw->Request().LastUpdated() && ordraw->Request().RxKind() == f9fmkt_RxKind_Filled) {
+               // 避免重複呼叫 InsertFilled():
+               // - IOC 部分成交, 會有2筆 ordraw:
+               //    第1筆為 f9fmkt_TradingRequestSt_Filled
+               //    第2筆為 f9fmkt_TradingRequestSt_ExchangeCanceled
+               // - 如果回報亂序, 也有可能會有2筆 ordraw:
+               //   - f9fmkt_TradingRequestSt_Filled + f9fmkt_OrderSt_ReportPending;
+               //   - f9fmkt_TradingRequestSt_Filled + f9fmkt_OrderSt_PartFilled(f9fmkt_OrderSt_FullFilled);
+               // - 所以不能用 ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled判斷; 必須使用 RxKind 來判斷;
                if (auto filled = dynamic_cast<const OmsReportFilled*>(&ordraw->Request())) {
                   if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
                      continue;
                   fon9_LOG_ERROR("OmsBackend.InsertFilled|filled.SNO=", sno);
                }
-               fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
+               else {
+                  fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
+               }
                continue;
             }
          }

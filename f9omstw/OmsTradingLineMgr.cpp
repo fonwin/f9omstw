@@ -16,7 +16,13 @@ OmsTradingLineMgrBase::~OmsTradingLineMgrBase() {
 f9fmkt::SendRequestResult OmsTradingLineMgrBase::NoReadyLineReject(f9fmkt::TradingRequest& req, fon9::StrView cause) {
    (void)req; // 必定是從 RunRequest() => SendRequest(); 來到這裡, 所以直接使用 this->CurrRunner_ 處理.
    assert(this->CurrRunner_ != nullptr && &this->CurrRunner_->OrderRaw_.Request() == &req);
-   this->CurrRunner_->Reject(f9fmkt_TradingRequestSt_LineRejected, OmsErrCode_NoReadyLine, cause);
+   fon9::CharVector        msgbuf;
+   const size_t            maxsz = this->StrQueuingIn_.size() + cause.size();
+   // maxsz = 4 + GetCommonName(this).size() // 簡化為 this->StrQueuingIn_.size()
+   //       + cause.size(); 
+   fon9::RevBufferFixedMem rbuf(msgbuf.alloc(maxsz), maxsz);
+   fon9::RevPrint(rbuf, cause, "|Lg=", GetCommonName(this));
+   this->CurrRunner_->Reject(f9fmkt_TradingRequestSt_LineRejected, OmsErrCode_NoReadyLine, ToStrView(rbuf));
    return f9fmkt::SendRequestResult::NoReadyLine;
 }
 //--------------------------------------------------------------------------//

@@ -61,6 +61,8 @@ TwsTradingLineMgrLgSP TwsTradingLineMgrLg::Plant(OmsCoreMgr&                core
       holder.SetPluginsSt(fon9::LogLevel::Error, "TwsTradingLineMgrLg.", iocfgs.Name_, "|err=AddTo CoreMgr");
       return nullptr;
    }
+   retval->SetTitle(cfgb.GetFileName());
+
    fon9::IoManagerArgs  argsIoTse, argsIoOtc;
    argsIoTse.DeviceFactoryPark_ = argsIoOtc.DeviceFactoryPark_ = iocfgs.DeviceFactoryPark_;
    argsIoTse.SessionFactoryPark_ = argsIoOtc.SessionFactoryPark_ = iocfgs.SessionFactoryPark_;
@@ -72,9 +74,9 @@ TwsTradingLineMgrLgSP TwsTradingLineMgrLg::Plant(OmsCoreMgr&                core
       if (cfgln.Get1st() == '#')
          continue;
       fon9::StrView tag = fon9::StrFetchTrim(cfgln, '=');
-      if (tag == "IoTse")
+      if (fon9::iequals(tag, "IoTse"))
          argsIoTse.SetIoServiceCfg(holder, cfgln);
-      else if (tag == "IoOtc")
+      else if (fon9::iequals(tag, "IoOtc"))
          argsIoOtc.SetIoServiceCfg(holder, cfgln);
 
       #define kCSTR_LgTAG_LEAD   "Lg"
@@ -109,7 +111,7 @@ TwsTradingLineMgrLgSP TwsTradingLineMgrLg::Plant(OmsCoreMgr&                core
          argsIoTse.IoServiceSrc_ = lgMgr->TseTradingLineMgr_;
 
          argsIoOtc.Name_.assign(lgMgr->Name_ + "_OTC");
-         if (argsIoOtc.IoServiceCfgstr_ == "IoTse")
+         if (fon9::iequals(&argsIoOtc.IoServiceCfgstr_, "IoTse"))
             argsIoOtc.IoServiceSrc_ = argsIoTse.IoServiceSrc_;
          lgMgr->OtcTradingLineMgr_ = CreateTwsTradingLineMgr(mgrTree, cfgpath, argsIoOtc, f9fmkt_TradingMarket_TwOTC);
          argsIoOtc.IoServiceSrc_ = lgMgr->OtcTradingLineMgr_;

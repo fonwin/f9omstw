@@ -21,6 +21,10 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_IvrNotFound            static_cast<OmsErrCode>(OmsErrCode_FromRisk + 0)
 /// OType 不正確或不支援.
 #define OmsErrCode_Sc_BadOType               static_cast<OmsErrCode>(OmsErrCode_FromRisk + 1)
+/// 帳號停用,原因={:Reason:}
+#define OmsErrCode_Sc_IvrStop                static_cast<OmsErrCode>(OmsErrCode_FromRisk + 2)
+/// 停用子帳,原因={:Reason:}
+#define OmsErrCode_Sc_SubacStop              static_cast<OmsErrCode>(OmsErrCode_FromRisk + 3)
 
 //--------------------------------------------------------------------------//
 /// 找不到商品資料: 市價單無法風控.
@@ -37,12 +41,16 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_SymbPriFixedNotFound   static_cast<OmsErrCode>(OmsErrCode_FromRisk + 106)
 /// 價格 Tick Size 有誤.
 #define OmsErrCode_Sc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_FromRisk + 107)
-/// 禁止下單, 使用 DenyReason= 設定原因.
+/// 商品禁止下單, 使用「DenyReason=」設定原因.
 #define OmsErrCode_Sc_SymbDeny               static_cast<OmsErrCode>(OmsErrCode_FromRisk + 108)
 /// 原為市價單, 不可改價.
 #define OmsErrCode_Sc_MarketCannotChgPri     static_cast<OmsErrCode>(OmsErrCode_FromRisk + 109)
 /// 不可改為市價.
 #define OmsErrCode_Sc_CannotChgToMarket      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 110)
+/// 契約禁止下單, 使用「DenyReason=」設定原因.
+#define OmsErrCode_Sc_ContractDeny           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 111)
+/// 過期商品, 使用「EndDate=」設定到期日.
+#define OmsErrCode_Sc_SymbExpired            static_cast<OmsErrCode>(OmsErrCode_FromRisk + 112)
 
 /// 檢查商品委託價.
 /// - 若為市價單, 則會根據買賣別將漲跌停價填入 ordraw.LastPri_;

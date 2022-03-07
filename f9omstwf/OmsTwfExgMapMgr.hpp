@@ -12,7 +12,7 @@ class TwfExgMapMgr : public f9twf::ExgMapMgr {
    fon9_NON_COPY_NON_MOVE(TwfExgMapMgr);
    using base = f9twf::ExgMapMgr;
    fon9::intrusive_ptr<ContractTree>   ContractTree_;
-   OmsCore*                            CurrentCore_;
+   OmsCore*                            CurrentCore_{};
 
 protected:
    void OnP08Updated(const f9twf::P08Recs& p08recs, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) override;

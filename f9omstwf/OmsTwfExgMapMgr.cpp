@@ -45,6 +45,7 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          return;
       OmsSymbTree&         symbsTree = *coreResource.Symbs_;
       OmsSymbTree::Locker  symbs{symbsTree.SymbMap_};
+      auto                 ctree = pthis->ContractTree_;
       for (auto& p08 : p08recs) {
          if (p08.ShortId_.empty())
             continue;
@@ -53,8 +54,8 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          TwfExgSymbBasic*  symbP08 = dynamic_cast<TwfExgSymbBasic*>(symb.get());
          if (symbP08 == nullptr)
             continue;
-         if (!symbP08->Contract_)
-            symbP08->Contract_ = pthis->ContractTree_->FetchContract(f9twf::ContractId{shortId.begin(), 3});
+         if (!symbP08->Contract_ && ctree)
+            symbP08->Contract_ = ctree->FetchContract(f9twf::ContractId{shortId.begin(), 3});
          fon9::StrView newLongId = ToStrView(p08.LongId_);
          fon9::StrView oldLongId = ToStrView(symbP08->LongId_);
          const bool    isLongIdChanged = (newLongId != oldLongId);
@@ -80,11 +81,12 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          symb->FlowGroup_ = fon9::Pic9StrTo<fon9::fmkt::SymbFlowGroup_t>(p08.Fields_.flow_group_);
          symb->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
          symb->TradingSessionId_ = f9twf::ExgSystemTypeToSessionId(sysType);
-         symb->PriceOrigDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(
-            static_cast<uint8_t>(OmsTwfPri::Scale
-                                 - fon9::Pic9StrTo<uint8_t>(p08.Fields_.decimal_locator_))));
-         symb->StrikePriceDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(
-            fon9::Pic9StrTo<uint8_t>(p08.Fields_.strike_price_decimal_locator_)));
+         fon9::DecScaleT scale = static_cast<fon9::DecScaleT>(OmsTwfPri::Scale
+                                      - fon9::Pic9StrTo<uint8_t>(p08.Fields_.decimal_locator_));
+         if (scale <= 9)
+            symb->PriceOrigDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(scale));
+         if ((scale = fon9::Pic9StrTo<uint8_t>(p08.Fields_.strike_price_decimal_locator_)) <= 9)
+            symb->StrikePriceDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(scale));
          symb->ExgSymbSeq_ = fon9::Pic9StrTo<f9twf::TmpSymbolSeq_t>(p08.Fields_.pseq_);
          symb->EndYYYYMMDD_ = fon9::Pic9StrTo<uint32_t>(p08.Fields_.end_date_);
          if ((symb->CallPut_ = p08.Fields_.call_put_code_.Chars_[0]) == ' ')
@@ -105,8 +107,11 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
       auto& p09recs = maps->MapP09Recs_[f9twf::ExgSystemTypeToIndex(sysType)];
       if (p09recs.empty())
          return;
+      auto ctree = pthis->ContractTree_;
+      if (!ctree)
+         return;
       for (auto& p09 : p09recs) {
-         auto contract = pthis->ContractTree_->FetchContract(ToStrView(p09.ContractId_));
+         auto contract = ctree->FetchContract(ToStrView(p09.ContractId_));
          if (!contract)
             continue;
          contract->StkNo_.AssignFrom(ToStrView(p09.stock_id_));

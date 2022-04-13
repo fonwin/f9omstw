@@ -8,6 +8,16 @@ namespace f9omstw {
 using namespace fon9;
 using namespace fon9::seed;
 
+TwfExgContract::TwfExgContract(ContractId id) : ContractId_{id} {
+}
+void TwfExgContract::SetMainRef(TwfExgContractSP mainContract) {
+   assert(mainContract.get() != nullptr && mainContract.get() != this);
+   this->MainId_ = mainContract->ContractId_;
+   this->MainRef_ = std::move(mainContract);
+   assert(fon9::numofele(this->PsLimit_) == 4);
+   this->PsLimit_[0] = this->PsLimit_[1] = this->PsLimit_[2] = this->PsLimit_[3] = f9twf::ContractSize::Null();
+}
+//--------------------------------------------------------------------------//
 class ContractTree::PodOp : public PodOpDefault {
    fon9_NON_COPY_NON_MOVE(PodOp);
    using base = PodOpDefault;
@@ -82,16 +92,33 @@ public:
    }
 };
 //--------------------------------------------------------------------------//
+ContractTree::~ContractTree() {
+}
 LayoutSP ContractTree::MakeLayout() {
    Fields fields;
-   fields.Add(fon9_MakeField (TwfExgContract, StkNo_.Chars_, "StkNo"));
+   fields.Add(fon9_MakeField (TwfExgContract, TradingMarket_, "Market"));
+   fields.Add(fon9_MakeField2(TwfExgContract, TargetId));
    fields.Add(fon9_MakeField2(TwfExgContract, SubType));
    fields.Add(fon9_MakeField2(TwfExgContract, ExpiryType));
    fields.Add(fon9_MakeField2(TwfExgContract, ContractSize));
    fields.Add(fon9_MakeField2(TwfExgContract, DenyReason));
+   fields.Add(fon9_MakeField2(TwfExgContract, DenyOpen));
    fields.Add(fon9_MakeField2(TwfExgContract, AcceptQuote));
    fields.Add(fon9_MakeField2(TwfExgContract, CanBlockTrade));
-   return new Layout1(fon9_MakeField(TwfExgContract, ContractId_.Chars_, "Id"),
+   fields.Add(fon9_MakeField2(TwfExgContract, Currency));
+   fields.Add(fon9_MakeField2_const(TwfExgContract, ClearingId));
+   fields.Add(fon9_MakeField2_const(TwfExgContract, MainId));
+
+   fields.Add(fon9_MakeField (TwfExgContract, PsLimit_[0], "PsLimit0"));
+   fields.Add(fon9_MakeField (TwfExgContract, PsLimit_[1], "PsLimit1"));
+   fields.Add(fon9_MakeField (TwfExgContract, PsLimit_[2], "PsLimit2"));
+   fields.Add(fon9_MakeField (TwfExgContract, PsLimit_[3], "PsLimit3"));
+   assert(TwfIvacKind_Count == 4);
+
+   fields.Add(fon9_MakeField2(TwfExgContract, LvUpLmt));
+   fields.Add(fon9_MakeField2(TwfExgContract, LvDnLmt));
+   fields.Add(fon9_MakeField_const(TwfExgContract, LvPriStepsStr_, "TickSize"));
+   return new Layout1(fon9_MakeField(TwfExgContract, ContractId_, "Id"),
                       new Tab(Named{"Base"}, std::move(fields), TabFlag::NoSapling_NoSeedCommand_Writable));
 }
 void ContractTree::OnTreeOp(FnTreeOp fnCallback) {

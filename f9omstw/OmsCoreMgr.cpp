@@ -82,6 +82,7 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
    }
    this->CurrentCoreSapling_.Sapling_ = this->CurrentCore_->GetSapling();
    this->CurrentCoreSapling_.SetTitle(this->CurrentCore_->Name_);
+   this->CurrentCoreSapling_.SetDescription(this->CurrentCore_->GetDescription());
    this->IsTDayChanging_ = false;
 }
 void OmsCoreMgr::UpdateSc(OmsRequestRunnerInCore& runner) {

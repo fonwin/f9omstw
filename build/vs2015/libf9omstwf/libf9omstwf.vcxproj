@@ -97,9 +97,15 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTypes.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.hpp" />
+    <ClInclude Include="..\..\..\f9omstwf\TwfIvacScRule.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_ContractRef.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_F02.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_N09.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_P11.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_P13.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfFilled.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfLineTmpFactory.cpp" />
@@ -122,11 +128,15 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTypes.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\TwfIvacScRule.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\fon9\build\vs2015\f9twf\libf9twf.vcxproj">
       <Project>{4b0a42a4-1975-4aa2-97fc-096be2f469ad}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omstwf\CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

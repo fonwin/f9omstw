@@ -33,6 +33,9 @@
     <Filter Include="Source Files\0.Base">
       <UniqueIdentifier>{c3d9e002-35cc-4a5e-bec6-88de6e644621}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\ExgMapMgr">
+      <UniqueIdentifier>{dd27bc34-19d6-43fd-9007-240a7807e24d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTypes.hpp">
@@ -104,6 +107,9 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptTools.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\TwfIvacScRule.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTypes.cpp">
@@ -154,9 +160,6 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRequest9.cpp">
       <Filter>Source Files\9.Quote</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfReport3.cpp">
       <Filter>Source Files\0.Base</Filter>
     </ClCompile>
@@ -175,5 +178,29 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_P11.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_F02.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_ContractRef.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_P13.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\TwfIvacScRule.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_N09.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omstwf\CMakeLists.txt" />
   </ItemGroup>
 </Project>

@@ -40,6 +40,8 @@ public:
       void BeginWrite(fon9::seed::Tab& tab, fon9::seed::FnWriteOp fnCallback) override;
 
       typedef OmsIvSymbSP (*FnIvSymbMaker)(const fon9::StrView& symbid, OmsIvBase* owner);
+      /// 不需要每個 ivSymbs 都有一個 fon9::seed::Tree,
+      /// 所以在需要透過 fon9::seed 機制管理時, 才建立一個 tree 與 ivSymbs 對應。
       fon9::seed::TreeSP MakeIvSymbTree(fon9::seed::Tab& tab, FnIvSymbMaker fnIvSymbMaker, OmsIvSymbs& ivSymbs) const;
    };
    virtual void OnPodOp(OmsSubacTree& ownerTree, fon9::seed::FnPodOp&& fnCallback, const fon9::StrView& strKeyText) = 0;

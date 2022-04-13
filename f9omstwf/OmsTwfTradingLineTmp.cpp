@@ -321,7 +321,8 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       f9twf::TmpPutValue(pkr1back->Qty_, qty);
       f9twf::TmpPutValue(pkr1back->IvacNo_, iniReq1->IvacNo_);
       pkr1back->IvacFlag_ = iniReq1->IvacNoFlag_;
-      pkr1back->PosEff_ = iniReq1->PosEff_;
+      if (fon9_UNLIKELY((pkr1back->PosEff_ = lastOrd->PosEff_) == OmsTwfPosEff{}))
+         pkr1back->PosEff_ = iniReq1->PosEff_;
       pkr1back->Source_ = iniReq1->TmpSource_;
    }
    // ------------------------------------

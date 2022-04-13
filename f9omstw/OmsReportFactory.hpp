@@ -16,6 +16,8 @@ class OmsReportFactoryT : public OmsFactoryBase {
    }
 
 public:
+   using base::base;
+
    OmsReportFactoryT(std::string name, OmsOrderFactorySP ordFactory)
       : base(ordFactory, nullptr, fon9::Named(std::move(name)),
              f9omstw::MakeFieldsT<ReportBaseT>()) {

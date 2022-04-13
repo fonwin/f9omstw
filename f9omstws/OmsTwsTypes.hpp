@@ -16,7 +16,7 @@ using OmsTwsAmt = fon9::Decimal<uint64_t, 4>;
 using OmsTwsSymbol = fon9::CharAry<sizeof(f9tws::StkNo)>;
 using OmsTwsOType = f9tws::TwsOType;
 
-enum OmsTwsTradingSessionIdx : unsigned {
+enum OmsTwsTradingSessionIdx : uint8_t {
    OmsTwsTradingSessionIdx_Normal = 0,
    OmsTwsTradingSessionIdx_Fixed = 1,
    OmsTwsTradingSessionIdx_Odd = 2,

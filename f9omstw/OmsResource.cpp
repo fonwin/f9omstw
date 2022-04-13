@@ -5,13 +5,19 @@
 
 namespace f9omstw {
 
-fon9::TimeStamp OmsGetNextTDay(fon9::TimeStamp tday) {
+fon9::TimeStamp (*FnOmsGetNextTDay)(fon9::TimeStamp tday) = nullptr;
+fon9::TimeStamp OmsGetNextWeekDay(fon9::TimeStamp tday) {
    for (;;) {
       tday += fon9::TimeInterval_Day(1);
       const auto weekday = fon9::GetWeekday(tday);
       if (fon9::Weekday::Monday <= weekday && weekday <= fon9::Weekday::Friday)
          return tday;
    }
+}
+fon9::TimeStamp OmsGetNextTDay(fon9::TimeStamp tday) {
+   if (FnOmsGetNextTDay)
+      return FnOmsGetNextTDay(tday);
+   return OmsGetNextWeekDay(tday);
 }
 //--------------------------------------------------------------------------//
 OmsResource::UsrDefObj::~UsrDefObj() {

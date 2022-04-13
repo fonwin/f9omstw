@@ -45,6 +45,7 @@ class UtwOmsCoreMgrSeed : public OmsCoreMgrSeed {
    unsigned          BrkCount_;
    f9twf::FcmId      CmId_;
    char              Padding___[2];
+   TwfExgMapMgrSP    TwfExgMapMgr_;
 
    using TwsTradingLineMgrG1SP = std::unique_ptr<TwsTradingLineMgrG1>;
    TwsTradingLineMgrG1SP TwsLineMgrG1_;
@@ -85,6 +86,8 @@ class UtwOmsCoreMgrSeed : public OmsCoreMgrSeed {
          res.Sapling_->Add(new SpCmdMgrTwf(&res.Core_, "SpCmdTwf"));
       if (res.Core_.Owner_->RequestFactoryPark().GetFactory("TwsNew"))
          res.Sapling_->Add(new SpCmdMgrTwf(&res.Core_, "SpCmdTws"));
+      if (this->TwfExgMapMgr_)
+         this->TwfExgMapMgr_->OnAfter_InitCoreTables(res);
    }
 
 public:
@@ -259,14 +262,11 @@ public:
          // TaiFex 一般設定: (1)匯入P06,P07; (2)匯入P08; ...
          MaConfigMgrSP  twfCfgMgr{new MaConfigMgr(MaConfigSeed::MakeLayout("cfgs", TabFlag::Writable),
                                                   "TwfExgConfig")};
-         f9twf::ExgMapMgrSP   twfMapMgr{new TwfExgMapMgr(coreMgr, twfCfgMgr->GetConfigSapling(), "TwfExgImporter")};
-         twfCfgMgr->GetConfigSapling().Add(twfMapMgr);
+         coreMgrSeed->TwfExgMapMgr_.reset(new TwfExgMapMgr(coreMgr, twfCfgMgr->GetConfigSapling(), "TwfExgImporter"));
+         twfCfgMgr->GetConfigSapling().Add(coreMgrSeed->TwfExgMapMgr_);
          twfCfgMgr->BindConfigFile(cfgpath + "TwfExgConfig.f9gv", true);
-         twfMapMgr->BindConfigFile(cfgpath + "TwfExgImporter.f9gv", true);
+         coreMgrSeed->TwfExgMapMgr_->BindConfigFile(cfgpath + "TwfExgImporter.f9gv", true);
          coreMgr.Add(twfCfgMgr);
-         coreMgr.TDayChangedEvent_.Subscribe([twfMapMgr](OmsCore& core) {
-            twfMapMgr->SetTDay(core.TDay());
-         });
          // ------------------
          #define kCSTR_SesFpName    "FpSession"
          auto sesfp = FetchNamedPark<fon9::SessionFactoryPark>(*holder.Root_, kCSTR_SesFpName);
@@ -275,7 +275,7 @@ public:
                                 fon9_kCSTR_UtwOmsCoreName ".Create|err=SessionFactoryPark not found: " kCSTR_SesFpName);
             return false;
          }
-         sesfp->Add(new OmsRptFromB50_SessionFactory("FromB50", &coreMgr, *twfFil1Factory, twfMapMgr));
+         sesfp->Add(new OmsRptFromB50_SessionFactory("FromB50", &coreMgr, *twfFil1Factory, coreMgrSeed->TwfExgMapMgr_));
          // ------------------
          ioargsFutNormal.DeviceFactoryPark_     = devfp;
          ioargsOptNormal.DeviceFactoryPark_     = devfp;
@@ -296,7 +296,7 @@ public:
             // ---
             #define CREATE_TwfTradingLineMgr(type) \
             coreMgrSeed->TwfLineMgrG1_->TradingLineMgr_[ExgSystemTypeToIndex(f9twf::ExgSystemType::type)] \
-               = CreateTwfTradingLineMgr(*twfG1Mgr, cfgpath, ioargs##type, twfMapMgr, f9twf::ExgSystemType::type)
+               = CreateTwfTradingLineMgr(*twfG1Mgr, cfgpath, ioargs##type, coreMgrSeed->TwfExgMapMgr_, f9twf::ExgSystemType::type)
             // ---
             CREATE_TwfTradingLineMgr(OptNormal);
             CREATE_TwfTradingLineMgr(OptAfterHour);

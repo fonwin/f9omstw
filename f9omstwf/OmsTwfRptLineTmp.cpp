@@ -36,6 +36,8 @@ inline f9fmkt_RxKind TmpExecTypeToRxKind(f9twf::TmpExecType execType) {
    return f9fmkt_RxKind_Unknown;
 }
 //--------------------------------------------------------------------------//
+static const f9twf::TmpSource kTmpSourceDefault{fon9::CharAry<1>{"A"}, fon9::CharAry<3>{"999"}};
+
 void SetupReportExt(...) {
 }
 inline void SetupReportExt(OmsTwfFilled* rpt, const f9twf::TmpR2Back* pkr2back) {
@@ -55,15 +57,17 @@ inline void SetupReportExt(OmsTwfReport2* rpt2, const f9twf::TmpR2Back* pkr2back
    rpt2->IvacNoFlag_ = pkr2back->IvacFlag_;
    rpt2->TimeInForce_ = TmpTimeInForceTo(pkr2back->TimeInForce_);
    rpt2->PriType_ = TmpPriTypeTo(pkr2back->PriType_);
+   rpt2->TmpSource_ = kTmpSourceDefault;
 }
 inline void SetupReportExt(OmsTwfReport9* rpt9, const f9twf::TmpR2Back* pkr2back) {
    rpt9->IvacNo_ = f9twf::TmpGetValueU(pkr2back->IvacNo_);
    rpt9->IvacNoFlag_ = pkr2back->IvacFlag_;
    rpt9->TimeInForce_ = TmpTimeInForceTo(pkr2back->TimeInForce_);
+   rpt9->TmpSource_ = kTmpSourceDefault;
 }
 
 template <class TmpBack>
-OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9fmkt_RxKind rxKind, const TmpBack& pkr2back) {
+OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9fmkt_RxKind rxKind, const TmpBack& pkr2back, f9twf::TmpQty_t qtyForceNew) {
    if (rxKind == f9fmkt_RxKind_Filled) {
       // 單式商品成交、複式商品成交、新單合併成交、報價成交.
       OmsRequestFactory* fac;
@@ -103,8 +107,14 @@ OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9
       OmsTwfReport2&  rpt2 = *static_cast<OmsTwfReport2*>(runner.Request_.get());
       rpt2.PriStyle_ = OmsReportPriStyle::NoDecimal;
       rpt2.ExgTime_ = pkr2back.TransactTime_.ToTimeStamp();
-      rpt2.BeforeQty_ = f9twf::TmpGetValueU(pkr2back.BeforeQty_);
-      rpt2.Qty_ = f9twf::TmpGetValueU(pkr2back.LeavesQty_);
+      if (fon9_LIKELY(qtyForceNew == 0)) {
+         rpt2.BeforeQty_ = f9twf::TmpGetValueU(pkr2back.BeforeQty_);
+         rpt2.Qty_ = f9twf::TmpGetValueU(pkr2back.LeavesQty_);
+      }
+      else {
+         rpt2.BeforeQty_ = 0;
+         rpt2.Qty_ = qtyForceNew;
+      }
       rpt2.Pri_.SetOrigValue(f9twf::TmpGetValueS(pkr2back.Price_));
       rpt2.PosEff_ = pkr2back.PosEff_;
       rpt2.Side_ = TmpSideTo(pkr2back.Side_);
@@ -152,21 +162,39 @@ void SetupReport2Front(OmsRequestRunner& runner, TwfRptLineTmp& line, const TmpF
 }
 
 // 「委託/成交」回報: R02/R32;
-static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2) {
+static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2, f9fmkt_RxKind rxKind, f9twf::TmpQty_t qtyForceNew) {
    OmsRequestRunner runner{fon9::StrView{reinterpret_cast<const char*>(&pkr2), pkr2.GetPacketSize()}};
-   OmsTwfSymbol*    rptSymbol = SetupReport2Back(runner, line, TmpExecTypeToRxKind(pkr2.ExecType_), *f9twf::TmpPtrAfterSym(&pkr2));
+   OmsTwfSymbol*    rptSymbol = SetupReport2Back(runner, line, rxKind, *f9twf::TmpPtrAfterSym(&pkr2), qtyForceNew);
    SetupReport2Front(runner, line, pkr2);
    SetupReport0Symbol(*runner.Request_, pkr2.IvacFcmId_, &pkr2.SymbolType_, *rptSymbol,
                       line.LineMgr_.ExgMapMgr_->Lock(), line.SystemType());
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
 }
+static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2) {
+   if (fon9_UNLIKELY(pkr2.ExecType_ == f9twf::TmpExecType::FilledNew && !line.IsApReady())) {
+      // 如果 line 尚未 ready(還在回補回報), 且 pkr2 是 新單合併成交(f9twf::TmpExecType::FilledNew),
+      // 則應先建立一筆[新單回報], 然後才是[成交回報];
+      // 通常用於: A主機死亡, B 主機開啟 A 主機線路, 回補 A 主機回報.
+      SetupReport2(line, pkr2, f9fmkt_RxKind_RequestNew, f9twf::TmpGetValueU(f9twf::TmpPtrAfterSym(&pkr2)->BeforeQty_));
+   }
+   SetupReport2(line, pkr2, TmpExecTypeToRxKind(pkr2.ExecType_), 0);
+}
 // 短格式委託/成交回報(R22) ApCode=6
-static void SetupReport22(TwfRptLineTmp& line, const f9twf::TmpR22& pkr2) {
+static void SetupReport22(TwfRptLineTmp& line, const f9twf::TmpR22& pkr2, f9fmkt_RxKind rxKind, f9twf::TmpQty_t qtyForceNew) {
    OmsRequestRunner runner{fon9::StrView{reinterpret_cast<const char*>(&pkr2), pkr2.GetPacketSize()}};
-   SetupReport2Back(runner, line, TmpExecTypeToRxKind(pkr2.ExecType_), pkr2);
+   SetupReport2Back(runner, line, rxKind, pkr2, qtyForceNew);
    SetupReport2Front(runner, line, pkr2);
    SetupReport0Base(*runner.Request_, pkr2.IvacFcmId_, line.SystemType(), line.LineMgr_.ExgMapMgr_->Lock());
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
+}
+static void SetupReport22(TwfRptLineTmp& line, const f9twf::TmpR22& pkr2) {
+   if (fon9_UNLIKELY(pkr2.ExecType_ == f9twf::TmpExecType::FilledNew && !line.IsApReady())) {
+      // 如果 line 尚未 ready(還在回補回報), 且 pkr2 是 新單合併成交(f9twf::TmpExecType::FilledNew),
+      // 則應先建立一筆[新單回報], 然後才是[成交回報];
+      // 通常用於: A主機死亡, B 主機開啟 A 主機線路, 回補 A 主機回報.
+      SetupReport22(line, pkr2, f9fmkt_RxKind_RequestNew, f9twf::TmpGetValueU(pkr2.BeforeQty_));
+   }
+   SetupReport22(line, pkr2, TmpExecTypeToRxKind(pkr2.ExecType_), 0);
 }
 //--------------------------------------------------------------------------//
 static void SetupReport3(TwfRptLineTmp& line, const f9twf::TmpR03& pkr3) {

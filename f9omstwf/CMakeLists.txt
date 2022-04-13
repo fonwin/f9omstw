@@ -1,7 +1,13 @@
 set(f9omstwf_src
  OmsTwfTypes.cpp
  OmsTwfExgMapMgr.cpp
+ OmsTwfExgMapMgr_P11.cpp
+ OmsTwfExgMapMgr_F02.cpp
+ OmsTwfExgMapMgr_ContractRef.cpp
+ OmsTwfExgMapMgr_P13.cpp
  OmsTwfExgSymbBasic.cpp
+ OmsTwfExgMapMgr_N09.cpp
+ TwfIvacScRule.cpp
 
  OmsTwfSenderStepG1.cpp
 # OmsTwfSenderStepLg.cpp

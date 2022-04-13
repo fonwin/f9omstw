@@ -16,8 +16,9 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    bool              IsAllowAnyOrdNo_{false};
    OmsIvRight        IvRights_{OmsIvRight::DenyAll};
    /// 額外禁止項目.
-   OmsIvRight mutable IvDenys_{};
-   char              padding___[5];
+   mutable OmsIvRight         IvDenys_{};
+   mutable OmsUserRightFlag   UserRightFlags_{};
+   char                       padding___[4];
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -59,6 +60,12 @@ public:
    /// 可能在 OmsPoUserRights 有異動時立即更新.
    void SetIvDenys(OmsIvRight v) const {
       this->IvDenys_ = (v & OmsIvRight::DenyAll);
+   }
+   OmsUserRightFlag UserRightFlags() const {
+      return this->UserRightFlags_;
+   }
+   void SetUserRightFlags(OmsUserRightFlag uRightFlags) const {
+      this->UserRightFlags_ = uRightFlags;
    }
 
    /// - 如果 ivr 是 Subac:

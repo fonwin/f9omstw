@@ -52,6 +52,7 @@
 #include "f9utw/UtwSpCmdTwf.hpp"
 
 #include "fon9/seed/SysEnv.hpp"
+#include "f9twf/TwfTickSize.hpp"
 
 namespace f9omstw {
 
@@ -70,8 +71,11 @@ public:
    using TwfTradingLineMgrG1SP = std::unique_ptr<TwfTradingLineMgrG1>;
    TwfTradingLineMgrG1SP TwfLineMgrG1_;
 
-   UtwfOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
-      : base(std::move(name), std::move(owner), &OmsSetRequestLgOut_UseIvac) {
+   using base::base;
+
+   UtwfOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner,
+                      FnSetRequestLgOut fnSetRequestLgOut = &OmsSetRequestLgOut_UseIvac)
+      : base(std::move(name), std::move(owner), fnSetRequestLgOut) {
    }
 
    /// 建立委託書號表的關聯.
@@ -206,6 +210,7 @@ public:
       OmsTwfReport9FactorySP twfRpt9Factory = new OmsTwfReport9Factory("TwfRptQ", twfOrd9Factory);
       // ------------------
       // TaiFex 一般設定: (1)匯入P06,P07; (2)匯入P08; ...
+      f9twf::Load_TwfTickSize(&cfgpath);
       MaConfigMgrSP                          cfgMgr{coreMgrSeed->CfgMgr_ = new UomsTwfCfgMgr{*coreMgrSeed}};
       fon9::intrusive_ptr<UomsTwfExgMapMgr>  twfExgMap{coreMgrSeed->TwfExgMapMgr_ = new UomsTwfExgMapMgr(coreMgr, cfgMgr->GetConfigSapling(), "TwfExgImporter")};
       coreMgrSeed->CfgMgr_->Initialize(*twfExgMap, cfgpath);

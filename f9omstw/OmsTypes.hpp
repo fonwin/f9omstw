@@ -6,12 +6,15 @@
 namespace f9omstw {
 
 /// 用於風控檢查時, 用 idx 取得 `Qty BS_[idx];` [買or賣] 的資料.
-enum OmsBSIdx : unsigned {
+enum OmsBSIdx : unsigned char /* uint8_t */ {
    OmsBSIdx_Buy = 0,
    OmsBSIdx_Sell = 1,
 };
+static inline OmsBSIdx RevOmsBSIdx(OmsBSIdx val) {
+   return static_cast<OmsBSIdx>(!val);
+}
 
-enum OmsOTypeIdx : unsigned {
+enum OmsOTypeIdx : unsigned char /* uint8_t */ {
    OmsOTypeIdx_Gn = 0,
    OmsOTypeIdx_Cr = 1,
    OmsOTypeIdx_Db = 2,

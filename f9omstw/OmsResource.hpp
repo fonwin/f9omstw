@@ -13,6 +13,13 @@ namespace f9omstw {
 
 /// 取得下一個交易日.
 /// 預設: 僅排除 [週六、週日] 不考慮其他假日.
+fon9::TimeStamp OmsGetNextWeekDay(fon9::TimeStamp tday);
+/// 額外擴充 OmsGetNextTDay();
+/// 若 FnOmsGetNextTDay==nullptr(預設值), 則直接使用 OmsGetNextWeekDay();
+extern fon9::TimeStamp (*FnOmsGetNextTDay)(fon9::TimeStamp tday);
+/// 預設:
+///   if (FnOmsGetNextTDay) return FnOmsGetNextTDay(tday);
+///   else return OmsGetNextWeekDay(tday);
 fon9::TimeStamp OmsGetNextTDay(fon9::TimeStamp tday);
 
 /// OMS 所需的資源, 集中在此處理.

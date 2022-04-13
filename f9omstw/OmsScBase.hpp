@@ -25,6 +25,38 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_IvrStop                static_cast<OmsErrCode>(OmsErrCode_FromRisk + 2)
 /// 停用子帳,原因={:Reason:}
 #define OmsErrCode_Sc_SubacStop              static_cast<OmsErrCode>(OmsErrCode_FromRisk + 3)
+/// 選擇權複式單, 不可使用ROD
+#define OmsErrCode_Sc_TimeInForce_Opt        static_cast<OmsErrCode>(OmsErrCode_FromRisk + 4)
+/// 巿價委託及一定範圍巿價, 不可使用ROD
+#define OmsErrCode_Sc_TimeInForce_Mkt        static_cast<OmsErrCode>(OmsErrCode_FromRisk + 5)
+/// 價格類別有誤.
+#define OmsErrCode_Sc_Bad_PriType            static_cast<OmsErrCode>(OmsErrCode_FromRisk + 6)
+/// 選擇權組合式委託(複式單)不可使用一定範圍巿價委託.
+#define OmsErrCode_Sc_OptCombo_CannotMWP     static_cast<OmsErrCode>(OmsErrCode_FromRisk + 7)
+/// 新單 SessionId 與商品的 SessionId 不符.
+#define OmsErrCode_Sc_SessionId_NotMatchSymb static_cast<OmsErrCode>(OmsErrCode_FromRisk + 8)
+/// 夜盤不支援當沖.
+#define OmsErrCode_Sc_AfterHourNoDayTrade    static_cast<OmsErrCode>(OmsErrCode_FromRisk + 9)
+/// 投資人代沖銷成交前,禁止使用市價代沖銷.
+#define OmsErrCode_Sc_FoClrCanMkt            static_cast<OmsErrCode>(OmsErrCode_FromRisk + 10)
+/// 代沖銷禁止使用 ROD 漲停價.
+#define OmsErrCode_Sc_FoClrUpLmtROD          static_cast<OmsErrCode>(OmsErrCode_FromRisk + 11)
+/// 代沖銷禁止使用 ROD 跌停價.
+#define OmsErrCode_Sc_FoClrDnLmtROD          static_cast<OmsErrCode>(OmsErrCode_FromRisk + 12)
+/// 不認識的 PosEff.
+#define OmsErrCode_Sc_Bad_PosEff             static_cast<OmsErrCode>(OmsErrCode_FromRisk + 13)
+/// 只有「限價 ROD」可改價.
+#define OmsErrCode_Sc_OnlyLmtROD_Can_ChgPri  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 14)
+/// 已有成交,不可改為FOK.
+#define OmsErrCode_Sc_Filled_Cannot_FOK      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 15)
+/// 改為「限價」只能使用「ROD」
+#define OmsErrCode_Sc_ChgToPriLmt_OnlyROD    static_cast<OmsErrCode>(OmsErrCode_FromRisk + 16)
+/// 帳號限制只能平倉.
+#define OmsErrCode_Sc_PosEff_OnlyClose       static_cast<OmsErrCode>(OmsErrCode_FromRisk + 17)
+/// 使用者沒有代沖銷權限.
+#define OmsErrCode_Sc_Usr_Deny_ForceClr      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 18)
+/// 帳號禁止代沖銷.
+#define OmsErrCode_Sc_Ivr_Deny_ForceClr      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 19)
 
 //--------------------------------------------------------------------------//
 /// 找不到商品資料: 市價單無法風控.
@@ -51,6 +83,16 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_ContractDeny           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 111)
 /// 過期商品, 使用「EndDate=」設定到期日.
 #define OmsErrCode_Sc_SymbExpired            static_cast<OmsErrCode>(OmsErrCode_FromRisk + 112)
+/// 契約禁止新倉{:Reason:ES:{9=N09 limit}:}
+#define OmsErrCode_Sc_ContractOpenDeny       static_cast<OmsErrCode>(OmsErrCode_FromRisk + 113)
+/// 期交所N06通知{:Id:}已達多方上限{:Limit:}
+#define OmsErrCode_Sc_N06LimitL              static_cast<OmsErrCode>(OmsErrCode_FromRisk + 114)
+/// 期交所N06通知{:Id:}已達空方上限{:Limit:}
+#define OmsErrCode_Sc_N06LimitS              static_cast<OmsErrCode>(OmsErrCode_FromRisk + 115)
+/// 部位限制多方超過{:Over:}口,上限{:Limit:}口
+#define OmsErrCode_Sc_OverPsLimitL           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 116)
+/// 部位限制空方超過{:Over:}口,上限{:Limit:}口
+#define OmsErrCode_Sc_OverPsLimitS           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 117)
 
 /// 檢查商品委託價.
 /// - 若為市價單, 則會根據買賣別將漲跌停價填入 ordraw.LastPri_;
@@ -132,6 +174,10 @@ inline bool Sc_Symbol_PriFixed(OmsRequestRunnerInCore& runner, OrderRawT& ordraw
 #define OmsErrCode_Sc_QtyUnit                static_cast<OmsErrCode>(OmsErrCode_FromRisk + 151)
 /// 下單數量超過上限: ShUnit=1000|MaxQty=499000
 #define OmsErrCode_Sc_QtyOver                static_cast<OmsErrCode>(OmsErrCode_FromRisk + 152)
+/// 市價下單數量超過上限 {:MaxQty:}
+#define OmsErrCode_Sc_QtyMarketOver          static_cast<OmsErrCode>(OmsErrCode_FromRisk + 153)
+/// 限價下單數量超過上限 {:MaxQty:}
+#define OmsErrCode_Sc_QtyLimitOver           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 154)
 
 inline void Sc_Symbol_QtyOver(OmsRequestRunnerInCore& runner, const uint32_t shqty, const uint32_t maxqty) {
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_QtyOver, nullptr);
@@ -256,6 +302,10 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
 #define OmsErrCode_Sc_BalQtyCr      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 400)
 /// 券庫存不足: Bal=庫存量|Leaves=買未成交|Filled=買已成交|Add=此筆新增|Over=超過數量
 #define OmsErrCode_Sc_BalQtyDb      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 500)
+
+//--------------------------------------------------------------------------//
+/// 可平倉部位不足{:Over:}
+#define OmsErrCode_Sc_OverPosClose  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 600)
 
 //--------------------------------------------------------------------------//
 /// IsRelatedStk: 利害關係人股票禁止下單.

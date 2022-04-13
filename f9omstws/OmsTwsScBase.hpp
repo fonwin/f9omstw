@@ -12,7 +12,7 @@ struct OmsTwsScBase {
    OmsBSIdx                BSIdx_;
    OmsOTypeIdx             OTypeIdx_;
    OmsTwsTradingSessionIdx TradingSessionIdx_;
-   char                    Padding____[4];
+   char                    Padding____[5];
 
    /// \retval OmsErrCode_NoError
    /// \retval OmsErrCode_OrderInitiatorNotFound

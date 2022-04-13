@@ -37,44 +37,6 @@ inline uint32_t OmsGetReportQtyUnit(OmsOrder& order, OmsResource& res, ReportT& 
 
 //--------------------------------------------------------------------------//
 
-enum class OmsReportPriStyle : uint8_t {
-   /// 回報的價格尚未處理小數位,
-   /// 正確價格 = 回報價 * symb->PriceOrigDiv_;
-   NoDecimal,
-   /// 回報價格 = 正確價格.
-   HasDecimal,
-};
-
-/// 若無法取得商品資料, 或 PriceOrigDiv_ == 0: 則返回 -1, 並呼叫 checker.ReportAbandon();
-int32_t OmsGetSymbolPriMul(OmsReportChecker& checker, fon9::StrView symbid);
-int32_t OmsGetOrderPriMul(OmsOrder& order, OmsReportChecker& checker, fon9::StrView symbid);
-
-/// - retval=0:  表示回報價格不用調整.
-/// - retval>0:  回報的正確價格 = 價格 * retval;
-/// - retval=-1: 無法取得商品資料, 無法調整價格;
-template <class ReportT>
-inline int32_t OmsGetReportPriMul(OmsOrder& order, OmsReportChecker& checker, ReportT& rpt) {
-   switch (rpt.PriStyle_) {
-   case OmsReportPriStyle::HasDecimal:
-      return 0;
-   case OmsReportPriStyle::NoDecimal:
-      break;
-   }
-   return OmsGetOrderPriMul(order, checker, ToStrView(rpt.Symbol_));
-}
-template <class ReportT>
-inline int32_t OmsGetReportPriMul(OmsReportChecker& checker, ReportT& rpt) {
-   switch (rpt.PriStyle_) {
-   case OmsReportPriStyle::HasDecimal:
-      return 0;
-   case OmsReportPriStyle::NoDecimal:
-      break;
-   }
-   return OmsGetSymbolPriMul(checker, ToStrView(rpt.Symbol_));
-}
-
-//--------------------------------------------------------------------------//
-
 template <class OrderRawT, class ReportT>
 inline auto OmsIsEqualLastTimeInForce(OrderRawT* ordraw, const ReportT* rpt)
 -> decltype(ordraw->LastTimeInForce_, rpt->TimeInForce_, bool()) {

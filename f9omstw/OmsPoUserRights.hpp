@@ -9,9 +9,15 @@
 namespace f9omstw {
 
 enum class OmsUserRightFlag : uint8_t {
+   /// 多主機資料異動同步時:
+   ///   f9omstw/OmsPoUserRightsAgent.cpp: void OmsPoUserRightsPolicy::LoadPolicyFromSyn(fon9::DcQueue& buf);
    /// 是否允許 OmsUserRights::AllowOrdTeams_ 進行同步,
-   /// 預設為不允許.
+   /// 預設為不允許: 因為不同主機若共用櫃號, 可能會造成委託書戶重複.
    AllowOrdTeamsSyn = 0x01,
+   /// 是否允許代沖銷?
+   /// 期權: PosEff 是否允許 FcmForceClear;
+   /// 證券信用: ...;
+   AllowForceClr = 0x02,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsUserRightFlag);
 

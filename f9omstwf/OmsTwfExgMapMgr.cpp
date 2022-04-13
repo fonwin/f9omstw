@@ -3,21 +3,23 @@
 #include "f9omstwf/OmsTwfExgMapMgr.hpp"
 #include "f9omstwf/OmsTwfTypes.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
+#include "f9twf/TwfTickSize.hpp"
 
 namespace f9omstw {
 
 void TwfExgMapMgr::OnAfter_InitCoreTables(OmsResource& res) {
    fon9::intrusive_ptr<ContractTree> ctree{new f9omstw::ContractTree{}};
    if (res.Sapling_->AddNamedSapling(ctree, fon9::Named{"Contracts"})) {
-      this->CurrentCore_  = &res.Core_;
+      this->ResetCoreResource(&res);
       this->ContractTree_ = std::move(ctree);
       this->SetTDay(res.TDay_);
+      this->ResetCoreResource(nullptr);
    }
 }
 void TwfExgMapMgr::OnP06Updated(const f9twf::ExgMapBrkFcmId& mapBrkFcmId, MapsLocker&& lk) {
-   (void)mapBrkFcmId; (void)lk;
+   (void)mapBrkFcmId;
    fon9::intrusive_ptr<TwfExgMapMgr> pthis{this};
-   this->GetCurrentCore()->RunCoreTask([pthis](OmsResource& coreResource) {
+   this->RunCoreTask(std::move(lk), [pthis](OmsResource& coreResource) {
       auto  maps = pthis->Lock();
       for (size_t L = coreResource.Brks_->GetBrkCount(); L > 0;) {
          if (auto* brk = coreResource.Brks_->GetBrkRec(--L)) {
@@ -33,16 +35,25 @@ void TwfExgMapMgr::OnP06Updated(const f9twf::ExgMapBrkFcmId& mapBrkFcmId, MapsLo
    });
 }
 void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) {
-   (void)src; (void)lk;
+   (void)src;
    // 透過 this->OnAfter_InitCoreTables() 啟動 => 設定 this->CurrentCore_;
    // 在 coreMgr.AddCore() 之後才啟動 twfMapMgr->SetTDay(); =>此時 coreMgr.CurrentCore() 必定有效;
    fon9::intrusive_ptr<TwfExgMapMgr> pthis{this};
-   this->GetCurrentCore()->RunCoreTask([pthis, sysType](OmsResource& coreResource) {
+   this->RunCoreTask(std::move(lk), [pthis, sysType](OmsResource& coreResource) {
       auto  maps = pthis->Lock();
       auto& p08recs = maps->MapP08Recs_[f9twf::ExgSystemTypeToIndex(sysType)];
       // 以「短Id」為主, 若沒有「短Id」, 則不匯入.
       if (p08recs.empty() || p08recs.UpdatedTimeS_.IsNullOrZero())
          return;
+      fon9::RevBufferList rbuf{128};
+      fon9::RevPrint(rbuf, fon9::LocalNow(),
+                     "|Sys=", sysType,
+                     "|P08.ftime=", p08recs.UpdatedTimeS_, fon9::kFmtYMD_HH_MM_SS_us_L,
+                     "|PA8.ftime=", p08recs.UpdatedTimeL_, fon9::kFmtYMD_HH_MM_SS_us_L,
+                     "|items=", p08recs.size(),
+                     '\n');
+      coreResource.LogAppend(std::move(rbuf));
+
       OmsSymbTree&         symbsTree = *coreResource.Symbs_;
       OmsSymbTree::Locker  symbs{symbsTree.SymbMap_};
       auto                 ctree = pthis->ContractTree_;
@@ -96,13 +107,22 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          symb->TDayYYYYMMDD_ = (symb->TradingSessionId_ == f9fmkt_TradingSessionId_AfterHour
                                 ? coreResource.NextTDayYYYYMMDD_
                                 : coreResource.TDayYYYYMMDD_);
+         symb->MaxQtyMarket_ = fon9::Pic9StrTo<f9twf::TmpQty_t>(p08.Fields_.market_order_ceiling_);
+         if (p08.Fields_.prod_kind_.Chars_[0] == 'S')
+            symb->MaxQtyLimit_ = 499;
+         else if (symb->TradingMarket_ == f9fmkt_TradingMarket_TwFUT)
+            symb->MaxQtyLimit_ = 100;
+         else {
+            assert(symb->TradingMarket_ == f9fmkt_TradingMarket_TwOPT);
+            symb->MaxQtyLimit_ = 200;
+         }
       }
    });
 }
 void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) {
-   (void)src; (void)lk;
+   (void)src;
    fon9::intrusive_ptr<TwfExgMapMgr> pthis{this};
-   this->GetCurrentCore()->RunCoreTask([pthis, sysType](OmsResource&) {
+   this->RunCoreTask(std::move(lk), [pthis, sysType](OmsResource&) {
       auto  maps = pthis->Lock();
       auto& p09recs = maps->MapP09Recs_[f9twf::ExgSystemTypeToIndex(sysType)];
       if (p09recs.empty())
@@ -114,14 +134,23 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
          auto contract = ctree->FetchContract(ToStrView(p09.ContractId_));
          if (!contract)
             continue;
-         contract->StkNo_.AssignFrom(ToStrView(p09.stock_id_));
+         contract->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
+         if (!p09.stock_id_.empty1st()) // P09 未設定 stock_id_, 不應清除 contract->TargetId_, 因為可能在其他地方有設定.
+            contract->TargetId_.AssignFrom(ToStrView(p09.stock_id_));
          contract->SubType_ = static_cast<f9twf::ExgContractType>(p09.subtype_);
          contract->ExpiryType_ = static_cast<f9twf::ExgExpiryType>(p09.expiry_type_);
          contract->ContractSize_.Assign<4>(fon9::Pic9StrTo<uint64_t>(p09.contract_size_v4_));
          contract->AcceptQuote_ = (p09.accept_quote_flag_ == 'Y' ? fon9::EnabledYN::Yes : fon9::EnabledYN{});
          contract->CanBlockTrade_ = (p09.block_trade_flag_ == 'Y' ? fon9::EnabledYN::Yes : fon9::EnabledYN{});
+         contract->Currency_ = p09.currency_type_;
          if (p09.status_code_ != 'N') // 狀態碼 N：正常, P：暫停交易, U：即將上市;
             contract->DenyReason_.assign(&p09.status_code_, 1);
+         if (contract->SubType_ == f9twf::ExgContractType::StockGen) {
+            if (p09.underlying_type_ == 'E')
+               contract->SubType_ = f9twf::ExgContractType::StockETF;
+         }
+         contract->LvPriSteps_ = f9twf::GetLvPriStep(contract->ContractId_, contract->TradingMarket_, contract->SubType_);
+         contract->LvPriStepsStr_ = fon9::fmkt::LvPriStep_ToStr(contract->LvPriSteps_);
       }
    });
 }

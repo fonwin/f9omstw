@@ -10,13 +10,14 @@ namespace f9omstw {
 OmsTwfOrder0::~OmsTwfOrder0() {
 }
 OmsSymbSP OmsTwfOrder0::FindSymb(OmsResource& res, const fon9::StrView& symbid) {
+   if (const auto* iniReq0 = static_cast<const OmsTwfRequestIni0*>(this->Initiator())) {
+      assert(dynamic_cast<const OmsTwfRequestIni0*>(this->Initiator()) != nullptr);
+      assert(symbid == ToStrView(iniReq0->Symbol_));
+      return const_cast<OmsTwfRequestIni0*>(iniReq0)->RegetSymb(res);
+   }
    auto retval = base::FindSymb(res, symbid);
    if (retval)
       return retval;
-   if (const auto* iniReq0 = static_cast<const OmsTwfRequestIni0*>(this->Initiator())) {
-      assert(dynamic_cast<const OmsTwfRequestIni0*>(this->Initiator()) != nullptr);
-      return const_cast<OmsTwfRequestIni0*>(iniReq0)->RegetSymb(res);
-   }
    f9twf::ExgCombSymbId combId;
    if (fon9_UNLIKELY(!combId.Parse(symbid) || combId.CombOp_ == f9twf::TmpCombOp::Single))
       return nullptr;

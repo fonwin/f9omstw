@@ -165,8 +165,11 @@ OmsOrder* OmsRequestUpd::BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsR
    assert(this == runner.Request_.get());
    if (const OmsRequestIni* iniReq = this->BeforeReq_GetInitiator(runner, res)) {
       OmsOrder& order = iniReq->LastUpdated()->Order();
-      if (order.Initiator()->BeforeReq_CheckIvRight(runner, res))
-         return &order;
+      if (fon9_LIKELY(order.Initiator()->BeforeReq_CheckIvRight(runner, res))) {
+         if (fon9_LIKELY(!f9omstw::OmsIsOrdNoEmpty(order.Tail()->OrdNo_)))
+            return &order;
+         runner.RequestAbandon(&res, OmsErrCode_Bad_OrdNo);
+      }
    }
    return nullptr;
 }

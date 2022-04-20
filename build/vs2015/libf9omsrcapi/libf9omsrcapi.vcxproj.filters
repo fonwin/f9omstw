@@ -462,4 +462,7 @@
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\..\..\f9omsrc\f9OmsRcApi.ver.txt" />
+  </ItemGroup>
 </Project>

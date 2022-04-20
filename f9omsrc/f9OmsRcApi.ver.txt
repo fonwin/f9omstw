@@ -13,6 +13,9 @@ F9OMSRCAPI_1.0 {
       fon9_CreateIoManager;
       fon9_DestroyIoManager;
 
+      fon9_SetLogLevel;
+      fon9_GetLogLevel;
+
       f9rc_Initialize;
       f9rc_GetRcClientIoManager;
       f9rc_CreateClientSession;

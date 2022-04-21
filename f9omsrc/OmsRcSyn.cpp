@@ -319,7 +319,26 @@ static void OnOmsRcSyn_AssignReq(const OmsRcSynClientSession::RptDefine& rptdef,
       ++fldv;
    }
 }
+static inline bool IsOmsForceInternal(const fon9_CStrView val) {
+   return (val.End_ - val.Begin_) == sizeof(fon9_kCSTR_OmsForceInternal) - 1
+      && memcmp(val.Begin_, fon9_kCSTR_OmsForceInternal, sizeof(fon9_kCSTR_OmsForceInternal) - 1) == 0;
+}
 static OmsRequestSP OnOmsRcSyn_MakeRpt(const OmsRcSynClientSession::RptDefine& rptdef, const f9OmsRc_ClientReport* rpt) {
+   fon9_CStrView* fldValues = const_cast<fon9_CStrView*>(rpt->FieldArray_);
+   if (rpt->Layout_->IdxMessage_ >= 0) {
+      fon9_CStrView& msg = fldValues[rpt->Layout_->IdxMessage_];
+      if (IsOmsForceInternal(msg))
+         msg.Begin_ = msg.End_ = nullptr;
+   }
+   if (rpt->Layout_->IdxSesName_ >= 0) {
+      fon9_CStrView& sesName = fldValues[rpt->Layout_->IdxSesName_];
+      if(IsOmsForceInternal(sesName)) {
+         #define fon9_kCSTR_OmsRcSyn   "OmsRcSyn"
+         sesName.Begin_ = fon9_kCSTR_OmsRcSyn;
+         sesName.End_ = sesName.Begin_ + sizeof(fon9_kCSTR_OmsRcSyn) - 1;
+      }
+   }
+
    f9fmkt_RxKind kind = (rpt->Layout_->IdxKind_ >= 0
                          ? static_cast<f9fmkt_RxKind>(*rpt->FieldArray_[rpt->Layout_->IdxKind_].Begin_)
                          : f9fmkt_RxKind_Unknown); // 此時應該是 f9fmkt_RxKind_Order;

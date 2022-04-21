@@ -69,7 +69,8 @@ public:
    TwfRptLineTmp(TwfLineTmpWorker&            worker,
                  f9twf::ExgTradingLineMgr&    lineMgr,
                  const f9twf::ExgLineTmpArgs& lineArgs,
-                 f9twf::ExgLineTmpLog&&       log);
+                 f9twf::ExgLineTmpLog&&       log,
+                 bool                         isTradingLine);
 };
 
 } // namespaces

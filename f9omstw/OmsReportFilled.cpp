@@ -55,6 +55,10 @@ void OmsReportFilled::RunReportInCore_MakeReqUID() {
    pout = this->RevFilledReqUID(pout);
    *--pout = this->SessionId();
    *--pout = this->Market();
+   if (IsEnumContains(this->RequestFlags(), OmsRequestFlag_ForceInternal)) {
+      *--pout = ':';
+      *--pout = 'I';
+   }
    memcpy(this->ReqUID_.Chars_, pout, sizeof(this->ReqUID_));
 }
 void OmsReportFilled::RunReportInCore(OmsReportChecker&& checker) {

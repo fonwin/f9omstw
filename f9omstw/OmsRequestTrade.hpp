@@ -8,9 +8,23 @@
 
 namespace f9omstw {
 
+/// - 用於 OmsRequestTrade.SesName_ 及 OmsOrderRaw.Message_;
+///   如果內容為 fon9_kCSTR_OmsForceInternal 則表示此筆為[強制內部單]回報.
+/// - 成交回報則使用 OmsReportFilled.ReqUID_ = "I:原有規則";
+///   因成交回報的 ReqUID 會在 OmsReportFilled::RunReportInCore_MakeReqUID() 重編,
+///   所以不會造成同步接收端的誤判;
+#define fon9_kCSTR_OmsForceInternal "I:FromEx"
+
 struct OmsRequestFrom {
    /// 收單處理程序名稱, 例如: Rc, FixIn...
+   /// 如果內容為 fon9_kCSTR_OmsForceInternal 則表示此筆為[強制內部單]回報.
    fon9::CharAry<8>  SesName_;
+   /// 是否為: 強制設定為本機回報, 例: [本機從交易所] [交易線路] 收到的回報.
+   bool IsForceInternalRpt() const {
+      static_assert(sizeof(this->SesName_) == sizeof(fon9_kCSTR_OmsForceInternal) - 1, "");
+      return memcmp(this->SesName_.Chars_, fon9_kCSTR_OmsForceInternal, sizeof(fon9_kCSTR_OmsForceInternal) - 1) == 0;
+   }
+
    fon9::CharAry<12> UserId_;
    fon9::CharAry<16> FromIp_;
    /// 來源別.

@@ -107,6 +107,15 @@ public:
       this->InitializeForReportIn();
    }
 
+   /// 成交回報, 是否為 Internal?
+   /// - ReqUID_ == "I:原有規則" 則為[強制Internal];
+   ///   在 OmsReportFilled::RunReportInCore_MakeReqUID() 裡面設定,
+   ///   在 IsEnumContains(this->RequestFlags(), OmsRequestFlag_ForceInternal) 時;
+   /// - 與 ini 相同.
+   bool IsForceInternalRpt() const {
+      return this->ReqUID_.Chars_[0] == 'I' && this->ReqUID_.Chars_[1] == ':';
+   }
+                    
    /// 將 curr 依照 MatchKey_ 的順序(小到大), 加入到「成交串列」.
    /// \retval nullptr  成功將 curr 加入成交串列.
    /// \retval !nullptr 與 curr->MatchKey_ 相同的那個 request.

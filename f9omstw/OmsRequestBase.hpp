@@ -25,6 +25,15 @@ enum OmsRequestFlag : uint8_t {
    /// 如果 RxSNO=0 (例如:有問題的Report), 是否需要發行給訂閱者?
    OmsRequestFlag_ForcePublish = 0x10,
 
+   /// - 強制設定為 [內部要求], 可能包含 [下單要求的Report] 或 [成交回報 OmsReportFilled].
+   ///   例: [備援主機] 接手 [死亡主機] 的交易線路, 從此線路收到的回報, 應視為 [內部要求].
+   /// - 因為此旗標不會儲存, 所以除了設定此旗標外, 還必須設定會儲存的欄位:
+   ///   - [下單要求的Report] 的 SesName: fon9_kCSTR_OmsForceInternal; 由回報接收處理程序自行填入此欄位;
+   ///   - OmsReportFilled 的 ReqUID: "I:原本規則"; 
+   ///     在 OmsReportFilled::RunReportInCore_MakeReqUID() 根據此旗標在 ReqUID 前方加入 "I:";
+   ///     此旗標僅是為了協助處理上述欄位的填寫.
+   OmsRequestFlag_ForceInternal = 0x20,
+
    /// 無法進入委託流程: 無法建立 OmsOrder, 或找不到對應的 OmsOrder.
    OmsRequestFlag_Abandon = 0x80,
 };
@@ -177,6 +186,10 @@ public:
 
    bool IsInitiator() const {
       return (this->RxItemFlags_ & OmsRequestFlag_Initiator) == OmsRequestFlag_Initiator;
+   }
+
+   void SetForceInternal() {
+      this->RxItemFlags_ |= OmsRequestFlag_ForceInternal;
    }
 
    /// 最後一次委託異動完畢後的內容.

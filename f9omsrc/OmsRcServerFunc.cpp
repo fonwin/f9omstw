@@ -346,13 +346,22 @@ static inline bool CheckReqUserId(fon9::StrView sesUserId, fon9::StrView reqUser
    return false;
 }
 static bool IsExternalReport(const OmsOrderRaw& ordraw) {
-   if (!ordraw.Request().IsReportIn())
-      return false;
-   if (ordraw.Request().RxKind() != f9fmkt_RxKind_Filled)
+   if (!ordraw.Request().IsReportIn()) // 不是回報程序收到的, 一定是 internal.
+      return false;                    // 所以返回 false=不是External;
+   if (ordraw.Request().RxKind() == f9fmkt_RxKind_Filled) {
+      assert(dynamic_cast<const OmsReportFilled*>(&ordraw.Request()) != nullptr);
+      if (static_cast<const OmsReportFilled*>(&ordraw.Request())->IsForceInternalRpt())
+         return false;
+      if (auto* ini = ordraw.Order().Initiator())
+         return ini->IsReportIn() ? !ini->IsForceInternalRpt() : false;
       return true;
-   if (auto* ini = ordraw.Order().Initiator())
-      return ini->IsReportIn();
-   return true;
+   }
+   else {
+      if (ordraw.IsForceInternalRpt())
+         return false;
+      assert(dynamic_cast<const OmsRequestTrade*>(&ordraw.Request()) != nullptr);
+      return !static_cast<const OmsRequestTrade*>(&ordraw.Request())->IsForceInternalRpt();
+   }
 }
 ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());

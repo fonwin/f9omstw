@@ -13,8 +13,9 @@ namespace f9omstw {
 TwfRptLineTmp::TwfRptLineTmp(TwfLineTmpWorker&            worker,
                              f9twf::ExgTradingLineMgr&    lineMgr,
                              const f9twf::ExgLineTmpArgs& lineArgs,
-                             f9twf::ExgLineTmpLog&&       log)
-   : base(lineMgr, lineArgs, std::move(log))
+                             f9twf::ExgLineTmpLog&&       log,
+                             bool                         isTradingLine)
+   : base(lineMgr, lineArgs, std::move(log), isTradingLine)
    , Worker_(worker) {
 }
 void TwfRptLineTmp::OnExgTmp_ApReady() {
@@ -66,6 +67,12 @@ inline void SetupReportExt(OmsTwfReport9* rpt9, const f9twf::TmpR2Back* pkr2back
    rpt9->TmpSource_ = kTmpSourceDefault;
 }
 
+template <class Rpt>
+inline void SetupReportForceInternalMessage(TwfRptLineTmp& line, Rpt& rpt) {
+   if (line.IsTradingLine_)
+      rpt.Message_.assign(fon9_kCSTR_OmsForceInternal);
+}
+
 template <class TmpBack>
 OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9fmkt_RxKind rxKind, const TmpBack& pkr2back, f9twf::TmpQty_t qtyForceNew) {
    if (rxKind == f9fmkt_RxKind_Filled) {
@@ -105,6 +112,7 @@ OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9
       runner.Request_->SetReportSt(f9fmkt_TradingRequestSt_ExchangeAccepted);
       assert(dynamic_cast<OmsTwfReport2*>(runner.Request_.get()) != nullptr);
       OmsTwfReport2&  rpt2 = *static_cast<OmsTwfReport2*>(runner.Request_.get());
+      SetupReportForceInternalMessage(line, rpt2);
       rpt2.PriStyle_ = OmsReportPriStyle::NoDecimal;
       rpt2.ExgTime_ = pkr2back.TransactTime_.ToTimeStamp();
       if (fon9_LIKELY(qtyForceNew == 0)) {
@@ -125,6 +133,7 @@ OmsTwfSymbol* SetupReport2Back(OmsRequestRunner& runner, TwfRptLineTmp& line, f9
    runner.Request_ = line.Worker_.Rpt9Factory_.MakeReportIn(rxKind, line.LastRxTime());
    assert(dynamic_cast<OmsTwfReport9*>(runner.Request_.get()) != nullptr);
    OmsTwfReport9&  rpt9 = *static_cast<OmsTwfReport9*>(runner.Request_.get());
+   SetupReportForceInternalMessage(line, rpt9);
    rpt9.PriStyle_ = OmsReportPriStyle::NoDecimal;
    rpt9.ExgTime_ = pkr2back.TransactTime_.ToTimeStamp();
    // if (rxKind == f9fmkt_RxKind_RequestDelete) {
@@ -161,6 +170,14 @@ void SetupReport2Front(OmsRequestRunner& runner, TwfRptLineTmp& line, const TmpF
       runner.Request_->SetErrCode(static_cast<OmsErrCode>(pkr2.StatusCode_ + OmsErrCode_FromTwFEX));
 }
 
+static void MoveToCoreRun(TwfRptLineTmp& line, OmsRequestRunner&& runner) {
+   if (line.IsTradingLine_) {
+      runner.Request_->SetForceInternal();
+      if (OmsRequestTrade* req = dynamic_cast<OmsRequestTrade*>(runner.Request_.get()))
+         req->SesName_.AssignFrom(fon9_kCSTR_OmsForceInternal);
+   }
+   static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
+}
 // 「委託/成交」回報: R02/R32;
 static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2, f9fmkt_RxKind rxKind, f9twf::TmpQty_t qtyForceNew) {
    OmsRequestRunner runner{fon9::StrView{reinterpret_cast<const char*>(&pkr2), pkr2.GetPacketSize()}};
@@ -168,7 +185,7 @@ static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2, f9f
    SetupReport2Front(runner, line, pkr2);
    SetupReport0Symbol(*runner.Request_, pkr2.IvacFcmId_, &pkr2.SymbolType_, *rptSymbol,
                       line.LineMgr_.ExgMapMgr_->Lock(), line.SystemType());
-   static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
+   MoveToCoreRun(line, std::move(runner));
 }
 static void SetupReport2(TwfRptLineTmp& line, const f9twf::TmpR2Front& pkr2) {
    if (fon9_UNLIKELY(pkr2.ExecType_ == f9twf::TmpExecType::FilledNew && !line.IsApReady())) {
@@ -185,7 +202,7 @@ static void SetupReport22(TwfRptLineTmp& line, const f9twf::TmpR22& pkr2, f9fmkt
    SetupReport2Back(runner, line, rxKind, pkr2, qtyForceNew);
    SetupReport2Front(runner, line, pkr2);
    SetupReport0Base(*runner.Request_, pkr2.IvacFcmId_, line.SystemType(), line.LineMgr_.ExgMapMgr_->Lock());
-   static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
+   MoveToCoreRun(line, std::move(runner));
 }
 static void SetupReport22(TwfRptLineTmp& line, const f9twf::TmpR22& pkr2) {
    if (fon9_UNLIKELY(pkr2.ExecType_ == f9twf::TmpExecType::FilledNew && !line.IsApReady())) {
@@ -209,7 +226,7 @@ static void SetupReport3(TwfRptLineTmp& line, const f9twf::TmpR03& pkr3) {
    rpt.SetErrCode(static_cast<OmsErrCode>(pkr3.StatusCode_ + OmsErrCode_FromTwFEX));
    SetupReport0Base(rpt, pkr3.IvacFcmId_, line.SystemType(), line.LineMgr_.ExgMapMgr_->Lock());
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->ExgOrdIdToReqUID(pkr3.OrdId_, rpt);
-   static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
+   MoveToCoreRun(line, std::move(runner));
 }
 //--------------------------------------------------------------------------//
 // 詢價輸入回報 (R08/R38)
@@ -234,7 +251,7 @@ static void SetupReport8(TwfRptLineTmp& line, const f9twf::TmpR8Front& pkr8) {
    SetupReport0Symbol(rpt, pkr8.IvacFcmId_, &pkr8.SymbolType_, rpt.Symbol_,
                       line.LineMgr_.ExgMapMgr_->Lock(), line.SystemType());
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->ExgOrdIdToReqUID(pkr8.OrdId_, rpt);
-   static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
+   MoveToCoreRun(line, std::move(runner));
 }
 //--------------------------------------------------------------------------//
 void TwfRptLineTmp::OnExgTmp_ApPacket(const f9twf::TmpHeader& pktmp) {

@@ -78,7 +78,7 @@ struct ImpSeedContractRef : public fon9::seed::FileImpSeed {
 };
 void TwfAddContractRefImporter(TwfExgMapMgr& twfExgMapMgr) {
    auto& configTree = twfExgMapMgr.GetFileImpSapling();
-   configTree.Add(new ImpSeedContractRef(configTree, "ContractRef", "TwfContractRef.cfg"));
+   configTree.Add(new ImpSeedContractRef(fon9::seed::FileImpMonitorFlag::Reload, configTree, "ContractRef", "TwfContractRef.cfg"));
 }
 
 } // namespaces

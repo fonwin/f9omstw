@@ -19,7 +19,7 @@ fon9::io::SessionSP TwfLineTmpFactory::CreateLineTmp(f9twf::ExgTradingLineMgr&  
       return new TwfTradingLineTmp(*this, lineMgr, lineArgs, std::move(log));
    case f9twf::TmpApCode::ReportCm:
    case f9twf::TmpApCode::TmpDc:
-      return new TwfRptLineTmp(*this, lineMgr, lineArgs, std::move(log));
+      return new TwfRptLineTmp(*this, lineMgr, lineArgs, std::move(log), false);
    default:
       errReason = "Unknown ApCode.";
       return nullptr;

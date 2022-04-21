@@ -11,6 +11,11 @@
 
 namespace f9omstw {
 
+inline void SetupReportForceInternalMessage(OmsTwsReport& rpt) {
+   rpt.SetForceInternal();
+   rpt.SesName_.AssignFrom(fon9_kCSTR_OmsForceInternal);
+   rpt.Message_.assign(fon9_kCSTR_OmsForceInternal);
+}
 //--------------------------------------------------------------------------//
 void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, const f9fix::FixOrigArgs& orig) {
    // SessionReject or BusinessReject:
@@ -25,6 +30,7 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+   SetupReportForceInternalMessage(rpt);
    rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
    AssignReportReqUID(rpt, *fixfld);
    if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_OrderID)) != nullptr)
@@ -69,6 +75,7 @@ void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxa
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+   SetupReportForceInternalMessage(rpt);
    rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
    AssignTwsReportBase(rpt, rxargs, core->TDay());
    core->MoveToCore(std::move(runner));
@@ -152,6 +159,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
    OmsTwsReport&  rpt = *static_cast<OmsTwsReport*>(runner.Request_.get());
+   SetupReportForceInternalMessage(rpt);
    rpt.SetReportSt(rptSt);
    rpt.Qty_ = afterQty;
    rpt.BeforeQty_ = beforeQty;
@@ -197,6 +205,7 @@ void TwsTradingLineFixFactory::OnFixExecFilled(const f9fix::FixRecvEvArgs& rxarg
    auto             core = this->CoreMgr_.CurrentCore();
    OmsRequestRunner runner{rxargs.MsgStr_};
    runner.Request_ = this->FilFactory_.MakeReportIn(f9fmkt_RxKind_Filled, fon9::UtcNow());
+   runner.Request_->SetForceInternal();
 
    assert(dynamic_cast<OmsTwsFilled*>(runner.Request_.get()) != nullptr);
    OmsTwsFilled&  rpt = *static_cast<OmsTwsFilled*>(runner.Request_.get());

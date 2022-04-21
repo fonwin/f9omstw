@@ -14,7 +14,7 @@ TwfTradingLineTmp::TwfTradingLineTmp(TwfLineTmpWorker&            worker,
                                      f9twf::ExgTradingLineMgr&    lineMgr,
                                      const f9twf::ExgLineTmpArgs& lineArgs,
                                      f9twf::ExgLineTmpLog&&       log)
-   : base(worker, lineMgr, lineArgs, std::move(log))
+   : base(worker, lineMgr, lineArgs, std::move(log), true)
    , StrSendingBy_{fon9::RevPrintTo<fon9::CharVector>(
       "Sending.", f9twf::TmpGetValueU(lineArgs.SessionFcmId_),
       '.', f9twf::TmpGetValueU(lineArgs.SessionId_))} {

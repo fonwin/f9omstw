@@ -69,8 +69,12 @@ inline void SetupReportExt(OmsTwfReport9* rpt9, const f9twf::TmpR2Back* pkr2back
 
 template <class Rpt>
 inline void SetupReportForceInternalMessage(TwfRptLineTmp& line, Rpt& rpt) {
-   if (line.IsTradingLine_)
-      rpt.Message_.assign(fon9_kCSTR_OmsForceInternal);
+   if (line.IsTradingLine_) {
+      (void)rpt;
+      // 如果這裡設定 rpt.Message_, 則會汙染正常情況下的 Message 欄位, 且該汙染也沒達到預期效果:
+      //    Client(OmsRcSyn) 端收到的 ordraw 如果找不到對應的 req, 也會拋棄該次異動。
+      // rpt.Message_.assign(fon9_kCSTR_OmsForceInternal);
+   }
 }
 
 template <class TmpBack>

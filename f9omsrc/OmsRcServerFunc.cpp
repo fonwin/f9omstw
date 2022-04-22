@@ -357,8 +357,11 @@ static bool IsExternalReport(const OmsOrderRaw& ordraw) {
       return true;
    }
    else {
-      if (ordraw.IsForceInternalRpt())
-         return false;
+      // 這裡如果 ordraw 是 internal, 但 req 不是, 即使將 ordraw 送給了 Client(OmsRcSyn),
+      // Client 收到 ordraw 後, 也找不到對應的 req, 所以即使送了也毫無意義。
+      // TODO: 除非此時自動補送 req, 但 (1)如何補送? (2)補送req是否會引發其他問題?
+      // if (ordraw.IsForceInternalRpt())
+      //    return false;
       assert(dynamic_cast<const OmsRequestTrade*>(&ordraw.Request()) != nullptr);
       return !static_cast<const OmsRequestTrade*>(&ordraw.Request())->IsForceInternalRpt();
    }

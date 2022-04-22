@@ -190,12 +190,6 @@ public:
    /// 則可以不用分配記憶體, 一般而言常用的訊息不會超過(例如: "Sending by BBBB-SS", "Queuing"),
    /// 通常在有錯誤時才會使用較長的訊息.
    fon9::CharVector        Message_;
-   /// 是否為: 強制設定為本機回報, 例: [本機從交易所] [交易線路] 收到的回報.
-   bool IsForceInternalRpt() const {
-      if (this->Message_.size() == sizeof(fon9_kCSTR_OmsForceInternal) - 1)
-         return memcmp(this->Message_.begin(), fon9_kCSTR_OmsForceInternal, sizeof(fon9_kCSTR_OmsForceInternal) - 1) == 0;
-      return false;
-   }
 
    /// 必須透過 FreeThis() 來刪除, 預設 delete this; 不處理 this->Next_;
    /// 若有使用 ObjectPool 則將 this 還給 ObjectPool;

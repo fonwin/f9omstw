@@ -310,35 +310,30 @@ static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsR
    dev->Manager_->OnSession_StateUpdated(*dev, ToStrView(rbuf), LogLevel::Info);
 }
 //--------------------------------------------------------------------------//
-static void OnOmsRcSyn_AssignReq(const OmsRcSynClientSession::RptDefine& rptdef, const f9OmsRc_ClientReport* rpt, OmsRequestBase& req) {
-   SimpleRawWr  wr{req};
-   const fon9_CStrView* fldv = rpt->FieldArray_;
-   for (const Field* fld : rptdef.Fields_) {
-      if (fld)
-         fld->StrToCell(wr, *fldv);
-      ++fldv;
-   }
-}
 static inline bool IsOmsForceInternal(const fon9_CStrView val) {
    return (val.End_ - val.Begin_) == sizeof(fon9_kCSTR_OmsForceInternal) - 1
       && memcmp(val.Begin_, fon9_kCSTR_OmsForceInternal, sizeof(fon9_kCSTR_OmsForceInternal) - 1) == 0;
 }
-static OmsRequestSP OnOmsRcSyn_MakeRpt(const OmsRcSynClientSession::RptDefine& rptdef, const f9OmsRc_ClientReport* rpt) {
-   fon9_CStrView* fldValues = const_cast<fon9_CStrView*>(rpt->FieldArray_);
-   if (rpt->Layout_->IdxMessage_ >= 0) {
-      fon9_CStrView& msg = fldValues[rpt->Layout_->IdxMessage_];
-      if (IsOmsForceInternal(msg))
-         msg.Begin_ = msg.End_ = nullptr;
-   }
+static void OnOmsRcSyn_AssignReq(const OmsRcSynClientSession::RptDefine& rptdef, const f9OmsRc_ClientReport* rpt, OmsRequestBase& req) {
+   SimpleRawWr    wr{req};
+   fon9_CStrView* fldv = const_cast<fon9_CStrView*>(rpt->FieldArray_);
+
    if (rpt->Layout_->IdxSesName_ >= 0) {
-      fon9_CStrView& sesName = fldValues[rpt->Layout_->IdxSesName_];
-      if(IsOmsForceInternal(sesName)) {
+      fon9_CStrView& sesName = fldv[rpt->Layout_->IdxSesName_];
+      if (IsOmsForceInternal(sesName)) {
          #define fon9_kCSTR_OmsRcSyn   "OmsRcSyn"
          sesName.Begin_ = fon9_kCSTR_OmsRcSyn;
          sesName.End_ = sesName.Begin_ + sizeof(fon9_kCSTR_OmsRcSyn) - 1;
       }
    }
 
+   for (const Field* fld : rptdef.Fields_) {
+      if (fld)
+         fld->StrToCell(wr, *fldv);
+      ++fldv;
+   }
+}
+static OmsRequestSP OnOmsRcSyn_MakeRpt(const OmsRcSynClientSession::RptDefine& rptdef, const f9OmsRc_ClientReport* rpt) {
    f9fmkt_RxKind kind = (rpt->Layout_->IdxKind_ >= 0
                          ? static_cast<f9fmkt_RxKind>(*rpt->FieldArray_[rpt->Layout_->IdxKind_].Begin_)
                          : f9fmkt_RxKind_Unknown); // 此時應該是 f9fmkt_RxKind_Order;

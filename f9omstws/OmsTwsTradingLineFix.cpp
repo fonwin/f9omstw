@@ -14,7 +14,9 @@ namespace f9omstw {
 inline void SetupReportForceInternalMessage(OmsTwsReport& rpt) {
    rpt.SetForceInternal();
    rpt.SesName_.AssignFrom(fon9_kCSTR_OmsForceInternal);
-   rpt.Message_.assign(fon9_kCSTR_OmsForceInternal);
+   // 如果這裡設定 rpt.Message_, 則會汙染正常情況下的 Message 欄位, 且該汙染也沒達到預期效果:
+   //    Client(OmsRcSyn) 端收到的 ordraw 如果找不到對應的 req, 也會拋棄該次異動。
+   // rpt.Message_.assign(fon9_kCSTR_OmsForceInternal);
 }
 //--------------------------------------------------------------------------//
 void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, const f9fix::FixOrigArgs& orig) {

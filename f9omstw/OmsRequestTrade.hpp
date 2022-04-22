@@ -8,7 +8,7 @@
 
 namespace f9omstw {
 
-/// - 用於 OmsRequestTrade.SesName_ 及 OmsOrderRaw.Message_;
+/// - 用於 OmsRequestTrade.SesName_;
 ///   如果內容為 fon9_kCSTR_OmsForceInternal 則表示此筆為[強制內部單]回報.
 /// - 成交回報則使用 OmsReportFilled.ReqUID_ = "I:原有規則";
 ///   因成交回報的 ReqUID 會在 OmsReportFilled::RunReportInCore_MakeReqUID() 重編,

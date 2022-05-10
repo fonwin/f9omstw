@@ -22,7 +22,7 @@ struct PolicyItem {
 fon9_MSC_WARN_POP;
 //--------------------------------------------------------------------------//
 void CheckPolicy(const f9omstw::OmsRequestPolicy& pol, f9omstw::OmsIvBase* iv, f9omstw::OmsIvRight expected) {
-   f9omstw::OmsIvRight ivRights = pol.GetIvRights(iv);
+   f9omstw::OmsIvRight ivRights = pol.GetIvRights(iv, nullptr);
    if (ivRights == expected)
       return;
    std::cout << "|iv=";
@@ -74,7 +74,7 @@ struct OmsRequestPolicy_UT : public f9omstw::OmsCore {
       for (size_t L = 0; L < policyCount; ++L) {
          auto& item = policies[L];
          const char* err = "?";
-         switch (OmsAddIvRights(*const_cast<OmsRequestPolicy*>(pol.get()), item.IvKey_, item.Rights_, *this->Brks_)) {
+         switch (OmsAddIvConfig(*const_cast<OmsRequestPolicy*>(pol.get()), item.IvKey_, f9omstw::OmsIvConfig{item.Rights_}, *this->Brks_)) {
          case OmsIvKind::Brk:       err = "Brk";   break;
          case OmsIvKind::Ivac:      err = "Ivac";  break;
          case OmsIvKind::Subac:     err = "Subac"; break;

@@ -128,7 +128,14 @@ OmsTwsSenderStepLg::OmsTwsSenderStepLg(TwsTradingLineMgrLg& lineMgr)
 //--------------------------------------------------------------------------//
 TwsTradingLineMgr* TwsTradingLineMgrLg::GetLineMgr(OmsRequestRunnerInCore& runner) const {
    assert(dynamic_cast<const OmsRequestTrade*>(&runner.OrderRaw_.Request()) != nullptr);
-   if (auto* lgMgr = this->GetLgMgr(static_cast<const OmsRequestTrade*>(&runner.OrderRaw_.Request())->LgOut_)) {
+   auto& ordraw = runner.OrderRaw_;
+   auto  lgOut = static_cast<const OmsRequestTrade*>(&ordraw.Request())->LgOut_;
+   if (lgOut == LgOut::Unknown) {
+      if (auto* ini = ordraw.Order().Initiator()) {
+         lgOut = ini->LgOut_;
+      }
+   }
+   if (auto* lgMgr = this->GetLgMgr(lgOut)) {
       fon9_WARN_DISABLE_SWITCH;
       switch (runner.OrderRaw_.Market()) {
       case f9fmkt_TradingMarket_TwSEC:

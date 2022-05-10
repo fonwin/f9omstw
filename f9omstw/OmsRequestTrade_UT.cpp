@@ -137,14 +137,14 @@ int main(int argc, char* argv[]) {
    f9omstw::OmsRequestPolicyCfg  polcfg;
    polcfg.TeamGroupName_.assign("admin");
    polcfg.UserRights_.AllowOrdTeams_.assign("*");
-   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowAll;
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second.Rights_ = f9omstw::OmsIvRight::AllowAll;
    f9omstw::OmsRequestPolicySP poAdmin = polcfg.MakePolicy(coreResource);
    //---------------------------------------------
    polcfg.TeamGroupName_.assign("PoUserRights.user"); // = PolicyName.PolicyId
    polcfg.UserRights_.AllowOrdTeams_.assign("B");
    polcfg.IvList_.clear();
-   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10"}).second = f9omstw::OmsIvRight::DenyTradingNew;
-   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second = f9omstw::OmsIvRight::DenyTradingChgPri;
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10"}).second.Rights_ = f9omstw::OmsIvRight::DenyTradingNew;
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"8610-10-sa01"}).second.Rights_ = f9omstw::OmsIvRight::DenyTradingChgPri;
    f9omstw::OmsRequestPolicySP poUser = polcfg.MakePolicy(coreResource);
    //---------------------------------------------
    auto symb = coreResource.Symbs_->FetchOmsSymb("1101");

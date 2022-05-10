@@ -14,18 +14,18 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    fon9_NON_COPY_NON_MOVE(OmsRequestPolicy);
    OmsOrdTeamGroupId OrdTeamGroupId_{0};
    bool              IsAllowAnyOrdNo_{false};
-   OmsIvRight        IvRights_{OmsIvRight::DenyAll};
+   OmsIvConfig       IvConfig_{OmsIvRight::DenyAll};
    /// 額外禁止項目.
    mutable OmsIvRight         IvDenys_{};
    mutable OmsUserRightFlag   UserRightFlags_{};
-   char                       padding___[4];
+   char                       padding___[3];
 
    struct IvRec {
       OmsIvBase*        Iv_;
-      /// 如果有多組 SubWilds_, 中間用 '\n' 分隔, 例如: ("A*" + "\n" + IvRights) + ("B*" + "\n" + IvRights);
+      /// 如果有多組 SubWilds_, 中間用 '\n' 分隔, 例如: ("A*" + "\n" + IvConcig) + ("B*" + "\n" + IvConcig);
       fon9::CharVector  SubWilds_;
-      OmsIvRight        Rights_{OmsIvRight::DenyAll};
-      char              padding__[7];
+      OmsIvConfig       Config_{OmsIvRight::DenyAll};
+      char              Padding____[6];
 
       IvRec(OmsIvBase* iv) : Iv_{iv} {
       }
@@ -77,17 +77,17 @@ public:
    ///   - 如果 subWilds 是 empty() 或 "*"; 則表示針對該券商的全部帳號.
    ///   - 如果 subWilds 是 "1234567-SUBAC"; 帳號(1234567)部分必定有 '*' 或 '?'.
    /// - 如果 ivr 是 nullptr:
-   ///   - 如果 subWilds 是 empty() 或 "*", 則設定 this->IvRights_ = IsAdmin | rights; 不加入 this->IvMap_;
+   ///   - 如果 subWilds 是 empty() 或 "*", 則設定 this->IvConfig_.Rights_ = IsAdmin | config.Rights_; 不加入 this->IvMap_;
    ///   - 如果 subWilds 是 "BRKX-1234567-SUBAC"; 券商代號(BRKX)部分必定有 '*' 或 '?'.
-   void AddIvRights(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvRight rights);
+   void AddIvConfig(OmsIvBase* ivr, fon9::StrView subWilds, OmsIvConfig config);
 
    /// 返回值會額外加上 this->IvDenys_;
-   OmsIvRight GetIvRights(OmsIvBase* ivr) const;
+   OmsIvRight GetIvRights(OmsIvBase* ivr, OmsIvConfig* ivConfig) const;
 
-   /// 必須是 this->IvMap_.empty() 且 IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin) 才會傳回 this->IvRights_;
+   /// 必須是 this->IvMap_.empty() 且 IsEnumContains(this->IvConfig_.Rights_, OmsIvRight::IsAdmin) 才會傳回 this->IvConfig_.Rights_;
    OmsIvRight GetIvrAdminRights() const {
-      return this->IvMap_.empty() && IsEnumContains(this->IvRights_, OmsIvRight::IsAdmin)
-         ? (this->IvRights_ | this->IvDenys_) : OmsIvRight::DenyAll;
+      return this->IvMap_.empty() && IsEnumContains(this->IvConfig_.Rights_, OmsIvRight::IsAdmin)
+         ? (this->IvConfig_.Rights_ | this->IvDenys_) : OmsIvRight::DenyAll;
    }
 };
 using OmsRequestPolicySP = fon9::intrusive_ptr<const OmsRequestPolicy>;
@@ -110,7 +110,7 @@ inline OmsIvRight RxKindToIvRightDeny(f9fmkt_RxKind rxKind) {
 /// \retval OmsIvKind::Brk    brks.GetBrkRec(); 失敗, 無法取得券商資料.
 /// \retval OmsIvKind::Ivac   brk->FetchIvac(); 失敗.
 /// \retval OmsIvKind::Subac  ivac->FetchSubac(); 失敗.
-OmsIvKind OmsAddIvRights(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, OmsIvRight ivRights, OmsBrkTree& brks);
+OmsIvKind OmsAddIvConfig(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, const OmsIvConfig& ivConfig, OmsBrkTree& brks);
 
 struct OmsRequestPolicyCfg {
    fon9::CharVector  TeamGroupName_;

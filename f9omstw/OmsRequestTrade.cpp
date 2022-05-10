@@ -110,10 +110,14 @@ OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& re
    if (const OmsRequestPolicy* pol = static_cast<OmsRequestTrade*>(runner.Request_.get())->Policy()) {
       if (!scRes.Ivr_)
          scRes.Ivr_ = GetIvr(res, *this);
-      const OmsIvRight  ivrRights = pol->GetIvRights(scRes.Ivr_.get());
+      OmsIvConfig       ivrConfig;
+      const OmsIvRight  ivrRights = pol->GetIvRights(scRes.Ivr_.get(), &ivrConfig);
       const OmsIvRight  ivRightDeny = RxKindToIvRightDeny(runner.Request_->RxKind());
-      if (!IsEnumContains(ivrRights, ivRightDeny))
+      if (fon9_LIKELY(!IsEnumContains(ivrRights, ivRightDeny))) {
+         if (ivrConfig.LgOut_ != LgOut::Unknown)
+            static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = ivrConfig.LgOut_;
          return ivrRights;
+      }
       scRes.Ivr_.reset();
    }
    runner.RequestAbandon(&res, OmsErrCode_IvNoPermission);

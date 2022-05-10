@@ -31,10 +31,12 @@ namespace f9omstw {
 /// - KeyField  = OmsIvKey;
 /// - Tab[0]    = "IvRights";
 /// - Fields[0] = "Rights";
+/// - Fields[1] = "LgOut";
 fon9::seed::LayoutSP MakeOmsIvListLayout() {
    using namespace fon9::seed;
    Fields fields;
-   fields.Add(fon9_MakeField(OmsIvList::value_type, second, "Rights"));
+   fields.Add(fon9_MakeField(OmsIvList::value_type, second.Rights_, "Rights"));
+   fields.Add(fon9_MakeField(OmsIvList::value_type, second.LgOut_,  "LgOut"));
 
    return LayoutSP{new Layout1(fon9_MakeField(OmsIvList::value_type, first, "IvKey"),
             TreeFlag::AddableRemovable,
@@ -42,6 +44,11 @@ fon9::seed::LayoutSP MakeOmsIvListLayout() {
             )};
 }
 //--------------------------------------------------------------------------//
+void ToBitv(fon9::RevBuffer& rbuf, const OmsIvConfig& v) {
+   ToBitv(rbuf, v.LgOut_);
+   ToBitv(rbuf, v.Rights_);
+}
+
 class PolicyIvListTree : public fon9::auth::MasterPolicyTree {
    fon9_NON_COPY_NON_MOVE(PolicyIvListTree);
    using base = fon9::auth::MasterPolicyTree;
@@ -64,11 +71,24 @@ class PolicyIvListTree : public fon9::auth::MasterPolicyTree {
       }
       void LoadPolicy(fon9::DcQueue& buf) override {
          unsigned ver = 0;
+         fon9::BitvTo(buf, ver);
          DetailTable::Locker pmap{static_cast<DetailTree*>(this->DetailSapling())->DetailTable_};
-         fon9::BitvInArchive{buf}(ver, *pmap);
+         pmap->clear();
+         if (size_t sz = BitvToContainerElementCount(buf)) {
+            ContainerReserve(*pmap, sz);
+            OmsIvKey    key;
+            OmsIvConfig value;
+            do {
+               BitvTo(buf, key);
+               BitvTo(buf, value.Rights_);
+               if (ver > 0)
+                  BitvTo(buf, value.LgOut_);
+               pmap->insert(pmap->end(), DetailTableImpl::value_type{key, value});
+            } while (--sz > 0);
+         }
       }
       void SavePolicy(fon9::RevBuffer& rbuf) override {
-         const unsigned ver = 0;
+         const unsigned ver = 1;
          DetailTable::ConstLocker pmap{static_cast<DetailTree*>(this->DetailSapling())->DetailTable_};
          fon9::BitvOutArchive{rbuf}(ver, *pmap);
       }
@@ -139,7 +159,7 @@ void OmsPoIvListAgent::PoAclAdjust(const fon9::auth::AuthResult& authr, fon9::au
    ivKeys.resize(ivList.size());
    size_t idx = 0;
    for (const auto& i : ivList) {
-      const OmsIvRight rights = i.second;
+      const OmsIvRight rights = i.second.Rights_;
       if ((rights & OmsIvRight::DenyTradingAll) == OmsIvRight::DenyTradingAll
           && !IsEnumContains(rights, OmsIvRight::AllowAddReport)
           && !IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)

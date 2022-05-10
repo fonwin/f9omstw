@@ -421,8 +421,8 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    if (auto ini = ordraw->Order().Initiator())
       if (CheckReqUserId(sesUserId, ToStrView(ini->UserId_)))
          return ses;
-   // 如果有重啟過, Ivr_ 會在 Backend 載入時建立.
-   auto rights = this->RequestPolicy_->GetIvRights(ordraw->Order().ScResource().Ivr_.get());
+   // 如果有重啟過, Ivr_ 會在 Backend 載入時建立, 所以這裡可以放心使用 ordraw->Order().ScResource().Ivr_;
+   auto rights = this->RequestPolicy_->GetIvRights(ordraw->Order().ScResource().Ivr_.get(), nullptr);
    if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
        || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
       return ses;

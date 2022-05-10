@@ -271,7 +271,7 @@ bool OmsCoreUT::AddCore(bool isRemoveLog) {
    this->PoRequest_.reset(poRequest);
    core->RunCoreTask([poRequest](OmsResource& res) {
       poRequest->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup("ut", "*"));
-      poRequest->AddIvRights(nullptr, "*", OmsIvRight::AllowAll);
+      poRequest->AddIvConfig(nullptr, "*", OmsIvConfig{OmsIvRight::AllowAll});
    });
    this->WaitCoreDone(core.get());
    return true;

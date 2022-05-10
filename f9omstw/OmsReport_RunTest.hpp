@@ -237,7 +237,7 @@ void ResetTestCore(TestCoreSP& core, f9omstw::OmsRequestPolicySP& poAdmin) {
    #define kCSTR_TEAM_NO   "A"
    polcfg.TeamGroupName_.assign("admin");
    polcfg.UserRights_.AllowOrdTeams_.assign(kCSTR_TEAM_NO);
-   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second = f9omstw::OmsIvRight::AllowAll;
+   polcfg.IvList_.kfetch(f9omstw::OmsIvKey{"*"}).second.Rights_ = f9omstw::OmsIvRight::AllowAll;
    poAdmin = polcfg.MakePolicy(core->GetResource());
 }
 void ResetTestCoreDummy(TestCoreSP&, f9omstw::OmsRequestPolicySP&) {

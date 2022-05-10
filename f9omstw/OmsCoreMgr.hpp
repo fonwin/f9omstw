@@ -28,7 +28,8 @@ using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
 /// 如果有 Lg 的需求, 則進入下單流程前, 必須先填好 OmsRequestTrade::LgOut_;
 /// 填入 OmsRequestTrade::LgOut_; 的時機:
 /// (1) 收單程序, 例如: OmsRcServerFunc.cpp 使用 PolicyConfig_.UserRights_.LgOut_;
-/// (2) 若收單程序沒填, 則透過 OmsCoreMgr::FnSetRequestLgOut_ 處理.
+/// (2) OmsRequestIni::CheckIvRight() 用 [可用帳號的 LgOut_ 設定] 填入 runner.Request_.LgOut_;
+/// (3) 最後透過 OmsCoreMgr::FnSetRequestLgOut_ 處理.
 ///     - 在 OmsCore.cpp 進入 OmsRequestRunnerInCore 之前呼叫 OmsCoreMgr::FnSetRequestLgOut_();
 ///     - 如果 OmsCoreMgr::FnSetRequestLgOut_ == nullptr, 則不再有機會改變 OmsRequestTrade::LgOut_;
 ///     - 這裡提供一個使用 OmsIvac::LgOut_; 的範例 OmsSetRequestLgOut_UseIvac()

@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsPoIvList_hpp__
 #define __f9omstw_OmsPoIvList_hpp__
 #include "f9omstw/OmsPoIvList.h"
+#include "f9omstw/OmsBase.hpp"
 #include "fon9/CharVector.hpp"
 #include "fon9/SortedVector.hpp"
 #include "fon9/Utility.hpp"
@@ -31,6 +32,17 @@ enum class OmsIvRight : fon9::underlying_type_t<f9oms_IvRight> {
    IsAdmin  = f9oms_IvRight_IsAdmin,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsIvRight);
+
+struct OmsIvConfig {
+   OmsIvRight  Rights_{};
+   LgOut       LgOut_{LgOut::Unknown};
+   OmsIvConfig() = default;
+   explicit OmsIvConfig(OmsIvRight ivRights) : Rights_{ivRights} {
+   }
+   void Clear() {
+      fon9::ForceZeroNonTrivial(this);
+   }
+};
 
 /// 可用帳號的 key, 使用字串儲存, 格式: "BrkId-IvacNo-SubacNo".
 /// - IvacNo 部分, 若沒有 wildcard, 則會正規化為 7 碼數字.
@@ -86,7 +98,7 @@ public:
 };
 
 /// 使用者登入後, 可取得「可用帳號列表」.
-using OmsIvList = fon9::SortedVector<OmsIvKey, OmsIvRight>;
+using OmsIvList = fon9::SortedVector<OmsIvKey, OmsIvConfig>;
 
 } // namespaces
 #endif//__f9omstw_OmsPoIvList_hpp__

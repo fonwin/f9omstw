@@ -173,7 +173,8 @@ bool SpCmdDord::CheckForDord(const OmsRequestIni& iniReq) {
    const auto& order = ilast->Order();
    if (!order.IsWorkingOrder())
       return true;
-   if (IsEnumContains(this->RequestPolicy_->GetIvRights(order.ScResource().Ivr_.get()), OmsIvRight::DenyTradingChgQty))
+   OmsIvConfig ivConfig;
+   if (IsEnumContains(this->RequestPolicy_->GetIvRights(order.ScResource().Ivr_.get(), &ivConfig), OmsIvRight::DenyTradingChgQty))
       return true;
    // 檢查是否已存在刪單要求.
    const auto* orawLast = order.Tail();
@@ -199,6 +200,7 @@ bool SpCmdDord::CheckForDord(const OmsRequestIni& iniReq) {
    req->FromIp_ = this->Args_.ReqFrom_.FromIp_;
    req->SesName_ = this->Args_.ReqFrom_.SesName_;
    req->SetPolicy(this->RequestPolicy_);
+   req->LgOut_ = ivConfig.LgOut_;
    // 等最後一筆刪單結果為非 Queuing, 才繼續刪單.
    // 若刪單送出結果為 Queuing, 則返回 item->RxSNO() 表示暫時停止, 等下一個回補週期.
    // 如果結果 ec=900:No ready line; 則不要再送.
@@ -269,28 +271,28 @@ SpCmdItemSP SpCmdMgr::MakeSpCmdDord(fon9::StrView& strResult,
       // 指定該使用者全部的可用帳號;
    }
    else {
-      OmsIvRight    ivRight = OmsIvRight::DenyAll;
-      auto          ivFind = args.PolicyCfg_.IvList_.find(args.IvKey_);
+      OmsIvConfig ivConfig{OmsIvRight::DenyAll};
+      auto        ivFind = args.PolicyCfg_.IvList_.find(args.IvKey_);
       if (ivFind != args.PolicyCfg_.IvList_.end())
-         ivRight = ivFind->second;
+         ivConfig = ivFind->second;
       else if (!args.PolicyCfg_.IvList_.empty()) {
          // 從 end 往 begin 方向尋找, 如果有 "*", 就會在最後才判斷.
          const auto ivBeg = args.PolicyCfg_.IvList_.begin();
          do {
             --ivFind;
             if (fon9::IsStrWildMatch(strIvKey, ToStrView(ivFind->first))) {
-               ivRight = ivFind->second;
+               ivConfig = ivFind->second;
                break;
             }
          } while (ivFind != ivBeg);
       }
-      if (IsEnumContains(ivRight, OmsIvRight::DenyTradingChgQty)) {
+      if (IsEnumContains(ivConfig.Rights_, OmsIvRight::DenyTradingChgQty)) {
          strResult = "dord: Deny Ivac.";
          return nullptr;
       }
       // args.PolicyCfg_.IvList_ 只保留 ivKey 的權限, 才不會刪除其他帳號的回報.
       args.PolicyCfg_.IvList_.clear();
-      args.PolicyCfg_.IvList_.kfetch(args.IvKey_).second = ivRight;
+      args.PolicyCfg_.IvList_.kfetch(args.IvKey_).second = ivConfig;
    }
 
    fon9::StrView userId;

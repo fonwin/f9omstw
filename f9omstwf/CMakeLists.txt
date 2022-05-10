@@ -5,9 +5,13 @@ set(f9omstwf_src
  OmsTwfExgMapMgr_F02.cpp
  OmsTwfExgMapMgr_ContractRef.cpp
  OmsTwfExgMapMgr_P13.cpp
- OmsTwfExgSymbBasic.cpp
  OmsTwfExgMapMgr_N09.cpp
+ OmsTwfExgMapMgr_C01.cpp
+ OmsTwfExgMapMgr_C11.cpp
+ OmsTwfExgMapMgr_P14.cpp
  TwfIvacScRule.cpp
+ TwfCurrencyIndex.cpp
+ OmsTwfExgSymbBasic.cpp
 
  OmsTwfSenderStepG1.cpp
 # OmsTwfSenderStepLg.cpp

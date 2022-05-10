@@ -72,16 +72,16 @@ struct ImpSeedN09 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
          nullptr, [loader, monFlag, mkt, cfront](OmsResource& res) {
          res.LogAppend(fon9::RevBufferList{128, fon9::BufferList{cfront}});
          TwfExgMapMgr&  mapmgr = *static_cast<TwfExgMapMgr*>(&static_cast<Loader*>(loader.get())->Owner_.OwnerTree_.ConfigMgr_);
-         ContractTree*  ctree = mapmgr.GetContractTree();
+         auto*          ctree = mapmgr.GetContractTree();
          if (!ctree)
             return;
          const char* pbeg = static_cast<Loader*>(loader.get())->RecsStr_.begin();
          const void* pend = static_cast<Loader*>(loader.get())->RecsStr_.end();
-         ContractTree::Locker contracts{ctree->ContractMap_};
+         auto contracts{ctree->ContractMap_.Lock()};
          while (pbeg + sizeof(N09Rec) <= pend) {
             const N09Rec* n09 = reinterpret_cast<const N09Rec*>(pbeg);
             for (const auto& icontract : *contracts) {
-               auto* contract = icontract.second.get();
+               auto contract = static_cast<TwfExgContract*>(icontract.second.get());
                if (mkt == contract->TradingMarket_ && contract->TargetId_ == n09->stock_id_) {
                   switch (n09->status_code_.Chars_[0]) {
                   case '1':
@@ -103,7 +103,7 @@ struct ImpSeedN09 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
 };
 void TwfAddN09Importer(TwfExgMapMgr& twfExgMapMgr) {
    auto& configTree = twfExgMapMgr.GetFileImpSapling();
-   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedN09, "N09");
+   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedN09, "", "N09");
 }
 
 } // namespaces

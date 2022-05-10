@@ -99,6 +99,8 @@ inline int32_t OmsGetReportPriMul(OmsReportChecker& checker, ReportT& rpt) {
 
 //--------------------------------------------------------------------------//
 
+using OmsTwfContractId = f9twf::ContractId;
+
 /// 期交所定義的交易帳號種類, 用於: 交易人契約部位限制檔(P13/PB3);
 enum TwfIvacKind : uint8_t {
    /// 0:自然人/Individual.

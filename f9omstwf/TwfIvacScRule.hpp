@@ -2,15 +2,28 @@
 // \author fonwinz@gmail.com
 #ifndef __f9omstwf_TwfIvacScRule_hpp__
 #define __f9omstwf_TwfIvacScRule_hpp__
-#include "f9omstwf/OmsTwfExgMapMgr.hpp"
+#include "f9omstw/OmsImporter.hpp"
+#include "f9omstwf/OmsTwfTypes.hpp"
 
 namespace f9omstw {
 
+enum class CurrencyRule : char {
+   /// 境外交易人: 只要該約當幣別夠即可下單.
+   Foreign = 'F',
+   /// 其餘非境外(國內)交易人: 需與期貨商 [約定] 幣別如何互換。
+};
+
 struct TwfIvacScRule {
-   f9twf::TmpIvacFlag   IvacNoFlag_;
+   f9twf::TmpIvacFlag   IvacNoFlag_{};
    TwfIvacKind          TwfIvacKind_{};
+   /// 部位上限不控管(例: 避險帳戶);
    fon9::EnabledYN      PsUnlimit_{};
-   char                 Padding___[5];
+   /// 是否需要收取 [混合部位風險保證金], 底下身分需要:
+   /// 自然人: 1,3,7,I,J,U,V;
+   /// 一般法人: 0, W;
+   fon9::EnabledYN      RiskC_{};
+   CurrencyRule         CurrencyRule_;
+   char                 Padding___[3];
 };
 //--------------------------------------------------------------------------//
 class TwfIvacScRule_Tree : public fon9::seed::Tree {
@@ -51,6 +64,8 @@ public:
 };
 using TwfIvacScRule_TreeSP = fon9::intrusive_ptr<TwfIvacScRule_Tree>;
 //--------------------------------------------------------------------------//
+class TwfExgMapMgr;
+
 class TwfIvacScRule_ImpSeed : public OmsFileImpSeed {
    fon9_NON_COPY_NON_MOVE(TwfIvacScRule_ImpSeed);
    using base = OmsFileImpSeed;
@@ -64,6 +79,8 @@ public:
       , TwfExgMapMgr_(twfExgMapMgr)
       , Sapling_{new TwfIvacScRule_Tree} {
    }
+   ~TwfIvacScRule_ImpSeed();
+
    fon9::seed::TreeSP GetSapling() override;
 
    struct Loader;

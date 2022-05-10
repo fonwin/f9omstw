@@ -19,19 +19,18 @@ struct ImpSeedP13 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
    }
 
    struct P13Rec {
-      ContractId        kind_id_;
+      OmsTwfContractId  kind_id_;
       char              investor_flag_;         // = IvacKind(0:自然人, 1:法人, 2:期貨自營商, 3:造市者).
       fon9::CharAry<8>  position_limit_;        // 各月份合計部位限制.
       fon9::CharAry<8>  position_limit_month_;  // 單一月份部位限制.     99999999=無限制;
       fon9::CharAry<8>  position_limit_last_;   // 最近到期月份部位限制. 99999999=無限制;
    };
    struct ItemRec {
-      ContractId  ContractId_;
-      char        Padding____[4];
-      int32_t     PosLimit_[TwfIvacKind_Count];
+      OmsTwfContractId  ContractId_;
+      char              Padding____[4];
+      uint32_t          PosLimit_[TwfIvacKind_Count];
       ItemRec() {
-         for (unsigned L = 0; L < fon9::numofele(this->PosLimit_); ++L)
-            this->PosLimit_[L] = -1;
+         fon9::ForceZeroNonTrivial(this);
       }
       bool operator<(const ItemRec& rhs) const {
          return this->ContractId_ < rhs.ContractId_;
@@ -63,8 +62,7 @@ struct ImpSeedP13 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
             return;
          this->KeyItem_.ContractId_ = prec.kind_id_;
          ItemRec& item = this->Items_.kfetch(this->KeyItem_);
-         auto     plmt = fon9::Pic9StrTo<uint32_t>(prec.position_limit_);
-         item.PosLimit_[ivacKind] = (plmt == 99999999 ? -1 : fon9::signed_cast(plmt));
+         item.PosLimit_[ivacKind] = fon9::Pic9StrTo<uint32_t>(prec.position_limit_);
       }
    };
    fon9::TimeInterval Reload(ConfigLocker&& lk, std::string fname, bool isClearAddTailRemain) override {
@@ -87,20 +85,20 @@ struct ImpSeedP13 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
          nullptr, [loader, monFlag, cfront](OmsResource& res) {
          res.LogAppend(fon9::RevBufferList{128, fon9::BufferList{cfront}});
          TwfExgMapMgr&  mapmgr = *static_cast<TwfExgMapMgr*>(&static_cast<Loader*>(loader.get())->Owner_.OwnerTree_.ConfigMgr_);
-         ContractTree*  ctree = mapmgr.GetContractTree();
+         TwfExgContractTree*  ctree = mapmgr.GetContractTree();
          if (!ctree)
             return;
-         ContractTree::Locker lk{ctree->ContractMap_};
+         auto contracts{ctree->ContractMap_.Lock()};
          for (auto& item : static_cast<Loader*>(loader.get())->Items_) {
-            auto mContract = ctree->GetContract(lk, item.ContractId_);
+            auto mContract = ctree->ContractMap_.GetContract(contracts, item.ContractId_);
             if (!mContract)
                continue;
             assert(mContract->MainRef_.get() == nullptr  && mContract->MainId_.empty1st());
             auto psSize = mContract->ContractSize_;
             if (!mContract->TargetId_.empty1st()) {
                // 股票類: 尋找 max ContractSize;
-               for (auto& pContract : *lk) {
-                  TwfExgContract& rContract = *pContract.second;
+               for (auto& pContract : *contracts) {
+                  auto& rContract = *static_cast<TwfExgContract*>(pContract.second.get());
                   if (&rContract != mContract.get()
                       && rContract.TradingMarket_ == mContract->TradingMarket_
                       && rContract.TargetId_ == mContract->TargetId_) {
@@ -112,7 +110,7 @@ struct ImpSeedP13 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
             }
             const auto* plmt = item.PosLimit_;
             for (unsigned L = 0; L < TwfIvacKind_Count; ++L) {
-               mContract->PsLimit_[L] = (*plmt < 0 ? f9twf::ContractSize::Null()
+               mContract->PsLimit_[L] = (*plmt == 99999999 ? f9twf::ContractSize::Null()
                                          : (psSize * fon9::unsigned_cast(*plmt)));
                ++plmt;
             }
@@ -124,7 +122,7 @@ struct ImpSeedP13 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
 };
 void TwfAddP13Importer(TwfExgMapMgr& twfExgMapMgr) {
    auto& configTree = twfExgMapMgr.GetFileImpSapling();
-   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedP13, "P13");
+   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedP13, "1_", "P13");
 }
 
 } // namespaces

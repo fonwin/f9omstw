@@ -5,6 +5,7 @@
 #include "f9twf/ExgMapMgr.hpp"
 #include "f9omstw/OmsImporter.hpp"
 #include "f9omstwf/OmsTwfExgSymbBasic.hpp"
+#include "f9omstwf/TwfCurrencyIndex.hpp"
 
 namespace f9omstw {
 
@@ -12,8 +13,10 @@ class TwfExgMapMgr : public f9twf::ExgMapMgr, public OmsFileImpCoreRun {
    fon9_NON_COPY_NON_MOVE(TwfExgMapMgr);
    using base = f9twf::ExgMapMgr;
    using baseCoreRun = OmsFileImpCoreRun;
-   fon9::intrusive_ptr<ContractTree>   ContractTree_;
+   fon9::intrusive_ptr<TwfExgContractTree>   ContractTree_;
+
    using base::SetTDay;
+   void Ctor();
 
 protected:
    void OnP08Updated(const f9twf::P08Recs& p08recs, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) override;
@@ -21,13 +24,17 @@ protected:
    void OnP06Updated(const f9twf::ExgMapBrkFcmId& mapBrkFcmId, MapsLocker&& lk) override;
 
 public:
-   OmsCoreMgr& CoreMgr_;
+   OmsCoreMgr&                   CoreMgr_;
+   const CurrencyConfig_TreeSP   CurrencyTree_;
 
    template <class... ArgsT>
    TwfExgMapMgr(OmsCoreMgr& coreMgr, ArgsT&&... args)
       : base(std::forward<ArgsT>(args)...)
-      , CoreMgr_(coreMgr) {
+      , CoreMgr_(coreMgr)
+      , CurrencyTree_{new CurrencyConfig_Tree} {
+      this->Ctor();
    }
+   ~TwfExgMapMgr();
 
    /// 在設定 OMS 核心資料表之後,
    /// 載入相關期交所資料,
@@ -35,7 +42,7 @@ public:
    void OnAfter_InitCoreTables(OmsResource& res);
 
    /// 在 OnAfter_InitCoreTables() 之後, 才會有效.
-   ContractTree* GetContractTree() const {
+   TwfExgContractTree* GetContractTree() const {
       return this->ContractTree_.get();
    }
 
@@ -69,6 +76,17 @@ void TwfAddContractRefImporter(TwfExgMapMgr&);
 /// 匯入 N09 股票選擇權/股票期貨契約逾越個股類全市場部位限制限單公告檔;
 /// - 預設使用 fon9::seed::FileImpMonitorFlag::AddTail;
 void TwfAddN09Importer(TwfExgMapMgr&);
+
+/// 匯入 C01:匯率檔;
+/// 會先等 TwfCurrencyIndex.cfg 匯入完畢;
+void TwfAddC01Importer(TwfExgMapMgr&);
+
+/// 匯入 C11:選擇權契約行情價;
+/// 會先等 P09 OptNormal 匯入完畢;
+void TwfAddC11Importer(TwfExgMapMgr&);
+
+/// 匯入 P14:契約風險保證金資料定義檔;
+void TwfAddP14Importer(TwfExgMapMgr&);
 
 } // namespaces
 #endif//__f9omstwf_OmsTwfExgMapMgr_hpp__

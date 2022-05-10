@@ -95,7 +95,7 @@ struct ImpSeedF02 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
          res.LogAppend(fon9::RevBufferList{128, fon9::BufferList{cfront}});
          auto*          tabRef = res.Symbs_->LayoutSP_->GetTab(fon9_kCSTR_TabName_Ref);
          TwfExgMapMgr&  mapmgr = *static_cast<TwfExgMapMgr*>(&static_cast<Loader*>(loader.get())->Owner_.OwnerTree_.ConfigMgr_);
-         ContractTree*  ctree = mapmgr.GetContractTree();
+         auto*          ctree = mapmgr.GetContractTree();
          fon9::StrView  srcstr = ToStrView(static_cast<Loader*>(loader.get())->RecsStr_);
          auto           symbs = res.Symbs_->SymbMap_.Lock();
          while(!srcstr.empty()) {
@@ -123,7 +123,7 @@ struct ImpSeedF02 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
                   switch (listType) { // 列表型別註記: 2=契約代號, 3=商品代號;
                   case 2:
                      if (ctree) {
-                        if (auto contract = ctree->FetchContract(shortId)) {
+                        if (auto contract = ctree->ContractMap_.FetchContract(shortId)) {
                            pLevel = &contract->LvUpLmt_;
                            assert(pLevel + 1 == &contract->LvDnLmt_);
                         }
@@ -160,7 +160,7 @@ struct ImpSeedF02 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
 };
 void TwfAddF02Importer(TwfExgMapMgr& twfExgMapMgr) {
    auto& configTree = twfExgMapMgr.GetFileImpSapling();
-   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedF02, "F02");
+   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedF02, "", "F02");
 }
 
 } // namespaces

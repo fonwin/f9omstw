@@ -4,17 +4,26 @@
 #include "f9omstwf/OmsTwfTypes.hpp"
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "f9twf/TwfTickSize.hpp"
+#include "fon9/Log.hpp"
 
 namespace f9omstw {
 
+void TwfExgMapMgr::Ctor() {
+   this->SetNeedsCurrencyConfig(true);
+   auto& configTree = this->GetFileImpSapling();
+   configTree.Add(new CurrencyConfig_ImpSeed(*this, fon9::seed::FileImpMonitorFlag::Reload, configTree, "0_CurrencyConfig", "TwfCurrencyIndex.cfg"));
+}
+TwfExgMapMgr::~TwfExgMapMgr() {
+}
 void TwfExgMapMgr::OnAfter_InitCoreTables(OmsResource& res) {
-   fon9::intrusive_ptr<ContractTree> ctree{new f9omstw::ContractTree{}};
+   fon9::intrusive_ptr<TwfExgContractTree> ctree{new TwfExgContractTree()};
    if (res.Sapling_->AddNamedSapling(ctree, fon9::Named{"Contracts"})) {
       this->ResetCoreResource(&res);
       this->ContractTree_ = std::move(ctree);
       this->SetTDay(res.TDay_);
       this->ResetCoreResource(nullptr);
    }
+   res.Sapling_->AddNamedSapling(this->CurrencyTree_, fon9::Named{"Currency"});
 }
 void TwfExgMapMgr::OnP06Updated(const f9twf::ExgMapBrkFcmId& mapBrkFcmId, MapsLocker&& lk) {
    (void)mapBrkFcmId;
@@ -66,7 +75,7 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          if (symbP08 == nullptr)
             continue;
          if (!symbP08->Contract_ && ctree)
-            symbP08->Contract_ = ctree->FetchContract(f9twf::ContractId{shortId.begin(), 3});
+            symbP08->Contract_ = ctree->ContractMap_.FetchContract(f9twf::ContractId{shortId.begin(), 3});
          fon9::StrView newLongId = ToStrView(p08.LongId_);
          fon9::StrView oldLongId = ToStrView(symbP08->LongId_);
          const bool    isLongIdChanged = (newLongId != oldLongId);
@@ -92,11 +101,12 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          symb->FlowGroup_ = fon9::Pic9StrTo<fon9::fmkt::SymbFlowGroup_t>(p08.Fields_.flow_group_);
          symb->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
          symb->TradingSessionId_ = f9twf::ExgSystemTypeToSessionId(sysType);
-         fon9::DecScaleT scale = static_cast<fon9::DecScaleT>(OmsTwfPri::Scale
-                                      - fon9::Pic9StrTo<uint8_t>(p08.Fields_.decimal_locator_));
+         fon9::DecScaleT scale = fon9::Pic9StrTo<fon9::DecScaleT>(p08.Fields_.decimal_locator_);
          if (scale <= 9)
+            symbP08->LastPrice_.Assign(fon9::Pic9StrTo<uint32_t>(p08.Fields_.premium_), scale);
+         if ((scale = static_cast<fon9::DecScaleT>(OmsTwfPri::Scale - scale)) <= 9)
             symb->PriceOrigDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(scale));
-         if ((scale = fon9::Pic9StrTo<uint8_t>(p08.Fields_.strike_price_decimal_locator_)) <= 9)
+         if ((scale = fon9::Pic9StrTo<fon9::DecScaleT>(p08.Fields_.strike_price_decimal_locator_)) <= 9)
             symb->StrikePriceDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(scale));
          symb->ExgSymbSeq_ = fon9::Pic9StrTo<f9twf::TmpSymbolSeq_t>(p08.Fields_.pseq_);
          symb->EndYYYYMMDD_ = fon9::Pic9StrTo<uint32_t>(p08.Fields_.end_date_);
@@ -131,7 +141,7 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
       if (!ctree)
          return;
       for (auto& p09 : p09recs) {
-         auto contract = ctree->FetchContract(ToStrView(p09.ContractId_));
+         auto contract = ctree->ContractMap_.FetchContract(ToStrView(p09.ContractId_));
          if (!contract)
             continue;
          contract->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
@@ -142,7 +152,13 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
          contract->ContractSize_.Assign<4>(fon9::Pic9StrTo<uint64_t>(p09.contract_size_v4_));
          contract->AcceptQuote_ = (p09.accept_quote_flag_ == 'Y' ? fon9::EnabledYN::Yes : fon9::EnabledYN{});
          contract->CanBlockTrade_ = (p09.block_trade_flag_ == 'Y' ? fon9::EnabledYN::Yes : fon9::EnabledYN{});
-         contract->Currency_ = p09.currency_type_;
+         if (auto* cidx = pthis->CurrencyTree_->GetCurrencyConfig(p09.currency_type_))
+            contract->CurrencyIndex_ = cidx->CurrencyIndex_;
+         else {
+            contract->CurrencyIndex_ = CurrencyIndex_Unsupport;
+            // fon9_LOG_ERROR("TwfExgMapMgr:OnP09Updated|err=Unknown currency_type:", p09.currency_type_,
+            //                "|'CurrencyIndex' not loaded or set incorrectly.");
+         }
          if (p09.status_code_ != 'N') // 狀態碼 N：正常, P：暫停交易, U：即將上市;
             contract->DenyReason_.assign(&p09.status_code_, 1);
          if (contract->SubType_ == f9twf::ExgContractType::StockGen) {
@@ -151,6 +167,10 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
          }
          contract->LvPriSteps_ = f9twf::GetLvPriStep(contract->ContractId_, contract->TradingMarket_, contract->SubType_);
          contract->LvPriStepsStr_ = fon9::fmkt::LvPriStep_ToStr(contract->LvPriSteps_);
+         if (fon9::isdigit(p09.decimal_locator_.Chars_[0]))
+            contract->PriDecLoc_ = static_cast<uint8_t>(p09.decimal_locator_.Chars_[0] - '0');
+         if (fon9::isdigit(p09.strike_price_decimal_locator_.Chars_[0]))
+            contract->SpDecLoc_ = static_cast<uint8_t>(p09.strike_price_decimal_locator_.Chars_[0] - '0');
       }
    });
 }

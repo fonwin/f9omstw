@@ -36,6 +36,12 @@
     <Filter Include="Source Files\ExgMapMgr">
       <UniqueIdentifier>{dd27bc34-19d6-43fd-9007-240a7807e24d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ExgMapMgr">
+      <UniqueIdentifier>{9356909f-6e0e-4090-8bc7-8c826e51ec13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Twf cfg Files">
+      <UniqueIdentifier>{8331d0bd-d790-4fcb-9e2f-7eb3ab5f734d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTypes.hpp">
@@ -86,12 +92,6 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRequest0.hpp">
       <Filter>Header Files\0.Base</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfReport3.hpp">
       <Filter>Header Files\0.Base</Filter>
     </ClInclude>
@@ -107,8 +107,17 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfRptTools.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.hpp">
+      <Filter>Header Files\ExgMapMgr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.hpp">
+      <Filter>Header Files\ExgMapMgr</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\TwfCurrencyIndex.hpp">
+      <Filter>Header Files\ExgMapMgr</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\f9omstwf\TwfIvacScRule.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\ExgMapMgr</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -175,9 +184,6 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfRptTools.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr.cpp">
       <Filter>Source Files\ExgMapMgr</Filter>
     </ClCompile>
@@ -193,14 +199,40 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_P13.cpp">
       <Filter>Source Files\ExgMapMgr</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstwf\TwfIvacScRule.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_N09.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\TwfIvacScRule.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\TwfCurrencyIndex.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgSymbBasic.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_C01.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_C11.cpp">
+      <Filter>Source Files\ExgMapMgr</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfExgMapMgr_P14.cpp">
       <Filter>Source Files\ExgMapMgr</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\..\..\f9omstwf\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\f9omstwf\TwfIvacScRule.cfg">
+      <Filter>Twf cfg Files</Filter>
+    </None>
+    <None Include="..\..\..\f9omstwf\TwfContractRef.cfg">
+      <Filter>Twf cfg Files</Filter>
+    </None>
+    <None Include="..\..\..\f9omstwf\TwfCurrencyIndex.cfg">
+      <Filter>Twf cfg Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

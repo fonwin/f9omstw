@@ -121,6 +121,7 @@ protected:
 
 public:
    using base::base;
+   ~OmsFileImpSeed();
 
    fon9::TimeInterval Reload(ConfigLocker&& lk, std::string fname, bool isClearAddTailRemain) override;
 };

@@ -126,5 +126,26 @@ inline bool IsValidateLgOut(LgOut lgId) {
           || fon9::isupper(static_cast<unsigned char>(lgId)));
 }
 
+//--------------------------------------------------------------------------//
+
+/// 交易稅率.
+using OmsTaxRate = fon9::Decimal<uint32_t, 9>;
+/// 匯率.
+using OmsExchangeRate = fon9::Decimal<uint64_t, 9>;
+
+enum CurrencyIndex : uint8_t {
+   /// 因 [非境外投資人] 除人民幣商品外, 整戶 [可動用(出金)保證金] 須排除人民幣,
+   /// 所以將人民幣的 Index 設為 0, 可讓程式容易處理。
+   CurrencyIndex_RMB = 0,
+   CurrencyIndex_NTD = 1,
+   CurrencyIndex_USD = 2,
+   CurrencyIndex_JPY = 3,
+   CurrencyIndex_Count,
+   /// 雖然 >= CurrencyIndex_Count 就表示不正確,
+   /// 但這裡提供一個值, 當確定無法支援, 或不正確的幣別,
+   /// 可以直接填入, 讓 UI 查看時可以辨認。
+   CurrencyIndex_Unsupport = 99
+};
+
 } // namespaces
 #endif//__f9omstw_OmsBase_hpp__

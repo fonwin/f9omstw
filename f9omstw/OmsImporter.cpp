@@ -25,6 +25,8 @@ void OmsFileImpTree::InitCoreTables_AfterLoadAll(OmsResource& res) {
    (void)res;
 }
 
+OmsFileImpSeed::~OmsFileImpSeed() {
+}
 fon9::TimeInterval OmsFileImpSeed::Reload(ConfigLocker&& lk, std::string fname, bool isClearAddTailRemain) {
    assert(dynamic_cast<OmsFileImpTree*>(&this->OwnerTree_) != nullptr);
    if (static_cast<OmsFileImpTree*>(&this->OwnerTree_)->IsReady())

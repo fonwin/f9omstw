@@ -131,7 +131,7 @@ struct ImpSeedP11 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
 };
 void TwfAddP11Importer(TwfExgMapMgr& twfExgMapMgr) {
    auto& configTree = twfExgMapMgr.GetFileImpSapling();
-   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedP11, "P11");
+   ExgMapMgr_AddImpSeed_S2FO(configTree, ImpSeedP11, "", "P11");
 }
 
 } // namespaces

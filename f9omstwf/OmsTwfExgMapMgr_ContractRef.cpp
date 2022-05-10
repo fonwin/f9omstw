@@ -12,8 +12,8 @@ struct ImpSeedContractRef : public fon9::seed::FileImpSeed {
    using base = fon9::seed::FileImpSeed;
    using base::base;
    struct ItemRec {
-      ContractId  ContractId_;
-      ContractId  MainId_;
+      OmsTwfContractId  ContractId_;
+      OmsTwfContractId  MainId_;
    };
    using ItemRecs = std::vector<ItemRec>;
 
@@ -60,14 +60,14 @@ struct ImpSeedContractRef : public fon9::seed::FileImpSeed {
          nullptr, [loader, monFlag, cfront](OmsResource& res) {
          res.LogAppend(fon9::RevBufferList{128, fon9::BufferList{cfront}});
          TwfExgMapMgr&  mapmgr = *static_cast<TwfExgMapMgr*>(&static_cast<Loader*>(loader.get())->Owner_.OwnerTree_.ConfigMgr_);
-         ContractTree*  ctree = mapmgr.GetContractTree();
+         auto*          ctree = mapmgr.GetContractTree();
          if (!ctree)
             return;
-         ContractTree::Locker lk{ctree->ContractMap_};
+         auto contracts{ctree->ContractMap_.Lock()};
          for (const ItemRec item : static_cast<Loader*>(loader.get())->Items_) {
-            if (auto mContract = ctree->FetchContract(lk, item.MainId_)) {
+            if (auto mContract = ctree->ContractMap_.FetchContract(contracts, item.MainId_)) {
                assert(mContract->MainId_.empty1st() && mContract->MainRef_.get() == nullptr);
-               if (auto rContract = ctree->GetContract(lk, item.ContractId_))
+               if (auto rContract = ctree->ContractMap_.GetContract(contracts, item.ContractId_))
                   rContract->SetMainRef(std::move(mContract));
             }
          }
@@ -78,7 +78,7 @@ struct ImpSeedContractRef : public fon9::seed::FileImpSeed {
 };
 void TwfAddContractRefImporter(TwfExgMapMgr& twfExgMapMgr) {
    auto& configTree = twfExgMapMgr.GetFileImpSapling();
-   configTree.Add(new ImpSeedContractRef(fon9::seed::FileImpMonitorFlag::Reload, configTree, "ContractRef", "TwfContractRef.cfg"));
+   configTree.Add(new ImpSeedContractRef(fon9::seed::FileImpMonitorFlag::Reload, configTree, "1_ContractRef", "TwfContractRef.cfg"));
 }
 
 } // namespaces

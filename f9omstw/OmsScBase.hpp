@@ -93,6 +93,10 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_OverPsLimitL           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 116)
 /// 部位限制空方超過{:Over:}口,上限{:Limit:}口
 #define OmsErrCode_Sc_OverPsLimitS           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 117)
+/// 下單帳號保證金超過{:Over:},可用{:Limit:},此筆新增{:Add:}
+#define OmsErrCode_Sc_OverMrgnSelf           static_cast<OmsErrCode>(OmsErrCode_FromRisk + 120)
+/// 母帳保證金超過{:Over:},可用{:Limit:},此筆新增{:Add:}
+#define OmsErrCode_Sc_OverMrgnParent         static_cast<OmsErrCode>(OmsErrCode_FromRisk + 121)
 
 /// 檢查商品委託價.
 /// - 若為市價單, 則會根據買賣別將漲跌停價填入 ordraw.LastPri_;

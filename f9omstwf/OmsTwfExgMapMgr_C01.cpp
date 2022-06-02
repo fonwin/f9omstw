@@ -22,7 +22,7 @@ struct ImpSeedC01 : public fon9::seed::FileImpSeed {
       fon9_NON_COPY_NON_MOVE(Loader);
       ImpSeedC01&          Owner_;
       CurrencyConfig_Tree* CurrencyConfig_;
-      using CurrencyMap = std::array<ToCurrencyAry, CurrencyIndex_Count>;
+      using CurrencyMap = std::array<OmsExchangeRateAry, CurrencyIndex_Count>;
       CurrencyMap          CurrencyMap_;
 
       Loader(ImpSeedC01& owner)
@@ -65,7 +65,7 @@ struct ImpSeedC01 : public fon9::seed::FileImpSeed {
       unsigned ifrom, ito;
       // 若 C01 沒提供 A=>B, 則從 B=>A 反算.
       for (ifrom = 0; ifrom < CurrencyIndex_Count; ++ifrom) {
-         ToCurrencyAry& fromCurrency = ldr->CurrencyMap_[ifrom];
+         OmsExchangeRateAry& fromCurrency = ldr->CurrencyMap_[ifrom];
          for (ito = 0; ito < CurrencyIndex_Count; ++ito) {
             if (ifrom == ito)
                continue;
@@ -77,15 +77,15 @@ struct ImpSeedC01 : public fon9::seed::FileImpSeed {
          }
       }
       for (ifrom = 0; ifrom < CurrencyIndex_Count; ++ifrom) {
-         auto* upd = ldr->CurrencyConfig_->CurrencyConfigForUpdate(static_cast<CurrencyIndex>(ifrom));
-         if (!upd)
-            continue;
-         ToCurrencyAry& fromCurrency = ldr->CurrencyMap_[ifrom];
+         OmsExchangeRateAry& fromCurrency = ldr->CurrencyMap_[ifrom];
          for (ito = 0; ito < CurrencyIndex_Count; ++ito) {
             if (ifrom == ito)
                continue;
+            auto* upd = ldr->CurrencyConfig_->CurrencyConfigForUpdate(static_cast<CurrencyIndex>(ito));
+            if (!upd)
+               continue;
             if (!fromCurrency[ito].IsZero())
-               upd->ToCurrency_[ito] = fromCurrency[ito];
+               upd->SetExchangeRateFrom(static_cast<CurrencyIndex>(ifrom), fromCurrency[ito]);
             else { // 沒有 A <=> B 互換的匯率, 則依 CurrencyIndex: 0..N 的順序轉換, 如果還是不行就放棄.
                for (unsigned idx = 0; idx < CurrencyIndex_Count; ++idx) {
                   if (idx == CurrencyIndex_RMB || idx == ito)
@@ -95,7 +95,7 @@ struct ImpSeedC01 : public fon9::seed::FileImpSeed {
                      continue;
                   const auto rRate2 = ldr->CurrencyMap_[idx][ito];
                   if (!rRate2.IsZero()) { // ifrom => ito 藉由 ifrom => idx => ito 換匯。
-                     upd->ToCurrency_[ito].AssignRound(rRate1.To<double>() * rRate2.To<double>());
+                     upd->SetExchangeRateFrom(static_cast<CurrencyIndex>(ifrom), OmsExchangeRate{rRate1.To<double>() * rRate2.To<double>()});
                      break;
                   }
                }

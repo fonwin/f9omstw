@@ -7,14 +7,26 @@
 
 namespace f9omstw {
 
-using ToCurrencyAry = std::array<OmsExchangeRate, CurrencyIndex_Count>;
+using OmsExchangeRateAry = std::array<OmsExchangeRate, CurrencyIndex_Count>;
 
 struct CurrencyConfig {
-   CurrencyIndex     CurrencyIndex_{};
-   char              Padding___[7];
-   fon9::CharVector  Alias_;
-   OmsExchangeRate   Round_;
-   ToCurrencyAry     ToCurrency_;
+   CurrencyIndex        CurrencyIndex_{};
+   char                 Padding___[7];
+   fon9::CharVector     Alias_;
+   OmsTwfPri            Round_;
+   OmsExchangeRateAry   FromCurrencyA_;
+   std::array<double, CurrencyIndex_Count>   FromCurrencyF_;
+
+   OmsTwfPri Round(OmsTwfPri val) const {
+      if (this->Round_.IsZero())
+         return val;
+      val += this->Round_ / 2;
+      return val - (val % this->Round_);
+   }
+   void SetExchangeRateFrom(CurrencyIndex cidx, OmsExchangeRate rate) {
+      this->FromCurrencyA_[cidx] = rate;
+      this->FromCurrencyF_[cidx] = rate.To<double>();
+   }
 
    ~CurrencyConfig();
 };

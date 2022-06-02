@@ -99,10 +99,9 @@ struct ImpSeedP14 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
    void OnAfterLoad(fon9::RevBuffer& rbufDesp, fon9::seed::FileImpLoaderSP loader, fon9::seed::FileImpMonitorFlag monFlag) override {
       (void)rbufDesp;
       auto* cfront = MakeOmsImpLog(*this, monFlag, loader->LnCount_);
-      fon9_WARN_DISABLE_PADDING;
       assert(dynamic_cast<TwfExgMapMgr*>(&this->OwnerTree_.ConfigMgr_) != nullptr);
       static_cast<TwfExgMapMgr*>(&this->OwnerTree_.ConfigMgr_)->RunCoreTask(
-         nullptr, [loader, monFlag, cfront](OmsResource& res) {
+         nullptr, [loader, cfront](OmsResource& res) {
          res.LogAppend(fon9::RevBufferList{128, fon9::BufferList{cfront}});
          TwfExgMapMgr&  mapmgr = *static_cast<TwfExgMapMgr*>(&static_cast<Loader*>(loader.get())->Owner_.OwnerTree_.ConfigMgr_);
          TwfExgContractTree*  ctree = mapmgr.GetContractTree();
@@ -132,8 +131,20 @@ struct ImpSeedP14 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
                break;
             }
          }
+         // P14沒提供[週商品], 必須自行設定.
+         for (const auto iContract : *contracts) {
+            if (auto* contract = iContract.second.get()) {
+               if (contract->ExpiryType_ == f9twf::ExgExpiryType::Weekly) {
+                  OmsTwfContractId cid = contract->ContractId_;
+                  cid.Chars_[2] = (contract->TradingMarket_ == f9fmkt_TradingMarket_TwFUT ? 'F' : 'O');
+                  auto ifind = contracts->find(cid);
+                  if (ifind != contracts->end() && ifind->second.get()) {
+                     contract->RiskIni_ = ifind->second->RiskIni_;
+                  }
+               }
+            }
+         }
       });
-      fon9_WARN_POP;
    }
 };
 void TwfAddP14Importer(TwfExgMapMgr& twfExgMapMgr) {

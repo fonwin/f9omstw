@@ -83,8 +83,8 @@ LayoutSP CurrencyConfig_Tree::MakeLayout() {
    fields.Add(fon9_MakeField2      (CurrencyConfig, Round));
    for (unsigned idx = 0; idx < CurrencyIndex_Count; ++idx) {
       RevBufferFixedSize<128> rbuf;
-      RevPrint(rbuf, "ToCurrency", idx);
-      fields.Add(fon9_MakeField(CurrencyConfig, ToCurrency_[idx], rbuf.ToStrT<std::string>()));
+      RevPrint(rbuf, "FromCurrency", idx);
+      fields.Add(fon9_MakeField(CurrencyConfig, FromCurrencyA_[idx], rbuf.ToStrT<std::string>()));
    }
    return new Layout1(fon9_MakeField2(CurrencyConfig, CurrencyIndex),
                       new Tab(Named{"Info"}, std::move(fields), TabFlag::NoSapling | TabFlag::NoSeedCommand));
@@ -92,7 +92,8 @@ LayoutSP CurrencyConfig_Tree::MakeLayout() {
 CurrencyConfig_Tree::CurrencyConfig_Tree() : base{MakeLayout()} {
    unsigned idx = 0;
    for (auto& c : this->CurrencyConfigMap_) {
-      c.ToCurrency_[idx].Assign<0>(1);
+      c.FromCurrencyA_[idx].Assign<0>(1);
+      c.FromCurrencyF_[idx] = 1;
       c.CurrencyIndex_ = static_cast<CurrencyIndex>(idx++);
    }
    memset(this->TaiFexToIndex_, 0xff, sizeof(this->TaiFexToIndex_));

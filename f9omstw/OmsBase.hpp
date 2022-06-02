@@ -146,6 +146,12 @@ enum CurrencyIndex : uint8_t {
    /// 可以直接填入, 讓 UI 查看時可以辨認。
    CurrencyIndex_Unsupport = 99
 };
+static inline bool IsCurrencyIndexUnsupport(CurrencyIndex i) {
+   return i >= CurrencyIndex_Count;
+}
+static inline bool IsCurrencyIndexSupported(CurrencyIndex i) {
+   return i < CurrencyIndex_Count;
+}
 
 } // namespaces
 #endif//__f9omstw_OmsBase_hpp__

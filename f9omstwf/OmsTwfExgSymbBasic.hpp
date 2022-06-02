@@ -173,10 +173,10 @@ public:
 
    /// 原始保證金風險值。
    RiskV RiskIni_;
+   /// P14沒提供[週商品], 應自行建立參照.
    /// 期貨的 RiskIni_.xxxxC = 結算保證金. [選擇權時間價差] 計算保證金會用到: [標的期貨的結算保證金]。
    OmsTwfPri       GetFutClearingMarginRisk() const { return this->RiskIni_.RiskC_; }
    fon9::EnabledYN GetFutClearingMarginRate() const { return this->RiskIni_.RateC_; }
-
 
    /// 標的(契約)參考價,  初值來自 C11, 後續來自行情 I060;
    OmsTwfPri               LastPrice_;

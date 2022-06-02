@@ -22,7 +22,7 @@ struct TwfIvacScRule {
    /// 自然人: 1,3,7,I,J,U,V;
    /// 一般法人: 0, W;
    fon9::EnabledYN      RiskC_{};
-   CurrencyRule         CurrencyRule_;
+   CurrencyRule         CurrencyRule_{};
    char                 Padding___[3];
 };
 //--------------------------------------------------------------------------//

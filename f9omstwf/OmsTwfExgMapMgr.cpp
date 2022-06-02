@@ -104,8 +104,10 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          fon9::DecScaleT scale = fon9::Pic9StrTo<fon9::DecScaleT>(p08.Fields_.decimal_locator_);
          if (scale <= 9)
             symbP08->LastPrice_.Assign(fon9::Pic9StrTo<uint32_t>(p08.Fields_.premium_), scale);
-         if ((scale = static_cast<fon9::DecScaleT>(OmsTwfPri::Scale - scale)) <= 9)
+         if ((scale = static_cast<fon9::DecScaleT>(OmsTwfPri::Scale - scale)) <= 9) {
             symb->PriceOrigDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(scale));
+            symb->PriceDecimalLocator_ = scale;
+         }
          if ((scale = fon9::Pic9StrTo<fon9::DecScaleT>(p08.Fields_.strike_price_decimal_locator_)) <= 9)
             symb->StrikePriceDiv_ = static_cast<uint32_t>(fon9::GetDecDivisor(scale));
          symb->ExgSymbSeq_ = fon9::Pic9StrTo<f9twf::TmpSymbolSeq_t>(p08.Fields_.pseq_);

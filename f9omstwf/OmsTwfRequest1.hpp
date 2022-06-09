@@ -39,6 +39,13 @@ public:
    static void MakeFields(fon9::seed::Fields& flds);
 
    const char* IsIniFieldEqual(const OmsRequestBase& req) const override;
+
+   bool IsHalfWm() const {
+      return(this->PosEff_ == OmsTwfPosEff::DayTrade && this->Market() == f9fmkt_TradingMarket_TwFUT);
+   }
+   OmsTwfAmt AdjWm(OmsTwfAmt amt) const {
+      return this->IsHalfWm() ? (amt / 2) : amt;
+   }
 };
 
 class OmsTwfRequestChg1 : public OmsRequestUpd {

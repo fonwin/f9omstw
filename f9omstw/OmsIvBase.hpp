@@ -6,7 +6,7 @@
 
 namespace f9omstw {
 
-enum class OmsIvKind {
+enum class OmsIvKind : uint8_t {
    Unknown = 0,
    Subac = 1,
    Ivac = 2,
@@ -25,6 +25,7 @@ class OmsIvBase : public fon9::intrusive_ref_counter<OmsIvBase> {
    fon9_NON_COPY_NON_MOVE(OmsIvBase);
 public:
    const OmsIvKind   IvKind_;
+   char              Padding____[3];
 
    /// - OmsSubac 的 Parent = OmsIvac;
    /// - OmsIvac 的 Parent = OmsBrk;

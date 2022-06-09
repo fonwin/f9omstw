@@ -15,6 +15,7 @@ using OmsTwfAmt = fon9::fmkt::Amt;
 using OmsTwfQty = f9twf::TmpQty_t;
 using OmsTwfSymbol = f9twf::SymbolId;
 using OmsTwfPosEff = f9twf::ExgPosEff;
+using OmsTwfCuAmts = std::array<OmsTwfAmt, CurrencyIndex_Count>;
 
 union OmsTwfQtyBS {
    struct {

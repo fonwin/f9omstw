@@ -59,8 +59,6 @@ struct ImpSeedC01 : public fon9::seed::FileImpSeed {
    }
    void OnAfterLoad(fon9::RevBuffer& rbufDesp, fon9::seed::FileImpLoaderSP loader, fon9::seed::FileImpMonitorFlag monFlag) override {
       (void)rbufDesp;
-      auto* cfront = MakeOmsImpLog(*this, monFlag, loader->LnCount_);
-      static_cast<TwfExgMapMgr*>(&this->OwnerTree_.ConfigMgr_)->CoreLogAppend(fon9::RevBufferList{128, fon9::BufferList{cfront}});
       Loader*  ldr = static_cast<Loader*>(loader.get());
       unsigned ifrom, ito;
       // 若 C01 沒提供 A=>B, 則從 B=>A 反算.
@@ -102,6 +100,23 @@ struct ImpSeedC01 : public fon9::seed::FileImpSeed {
             }
          }
       }
+      fon9::RevBufferList rbuf{128};
+      ito = CurrencyIndex_Count;
+      do {
+         fon9::RevPrint(rbuf, '\n');
+         --ito;
+         auto* cfg = ldr->CurrencyConfig_->GetCurrencyConfig(static_cast<CurrencyIndex>(ito));
+         ifrom = CurrencyIndex_Count;
+         for (;;) {
+            fon9::RevPrint(rbuf, cfg->FromCurrencyA_[--ifrom]);
+            if (ifrom == 0)
+               break;
+            fon9::RevPrint(rbuf, ',');
+         }
+         fon9::RevPrint(rbuf, ito, ':');
+      } while (ito > 0);
+      rbuf.PushFront(MakeOmsImpLog(*this, monFlag, loader->LnCount_));
+      static_cast<TwfExgMapMgr*>(&this->OwnerTree_.ConfigMgr_)->CoreLogAppend(std::move(rbuf));
    }
 };
 void TwfAddC01Importer(TwfExgMapMgr& twfExgMapMgr) {

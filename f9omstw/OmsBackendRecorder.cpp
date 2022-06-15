@@ -72,8 +72,11 @@ struct OmsBackend::Loader {
    };
 
    static void StrToFields(const FieldList& flds, const fon9::seed::RawWr& wr, fon9::StrView& values) {
-      for (const auto* fld : flds)
-         fld->StrToCell(wr, fon9::StrFetchNoTrim(values, *fon9_kCSTR_CELLSPL));
+      for (const auto* fld : flds) {
+         auto val = fon9::StrFetchNoTrim(values, *fon9_kCSTR_CELLSPL);
+         if (fld)
+            fld->StrToCell(wr, val);
+      }
    }
    const char* MakeRequest(fon9::StrView ln, const FieldsRec& flds) {
       OmsRequestFactory* reqfac = static_cast<OmsRequestFactory*>(flds.Factory_);
@@ -199,8 +202,7 @@ struct OmsBackend::Loader {
       while (!ln.empty()) {
          tag = fon9::StrFetchNoTrim(ln, *fon9_kCSTR_CELLSPL);
          fon9::StrFetchNoTrim(tag, ' '); // 返回 TypeId, 不理會; tag 剩餘 fieldName;
-         if (auto* fld = flds.Factory_->Fields_.Get(tag))
-            flds.Fields_.push_back(fld);
+         flds.Fields_.push_back(flds.Factory_->Fields_.Get(tag));
       }
    }
    void FeedLine(fon9::StrView ln, const size_t lnpos) {

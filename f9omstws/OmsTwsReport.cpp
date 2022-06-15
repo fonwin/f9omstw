@@ -32,9 +32,12 @@ static inline void OmsTwsReport_Update(OmsTwsOrderRaw& ordraw) {
        && ordraw.UpdateOrderSt_ <= f9fmkt_OrderSt_Canceling)
       ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeCanceled;
 }
+static inline OmsTwsOType RptOType2OrdOType(const OmsTwsReport& rpt) {
+   return rpt.OType_ == OmsTwsOType::DayTradeGn ? OmsTwsOType::Gn : rpt.OType_;
+}
 static inline void OmsAssignOrderFromReportNewOrig(OmsTwsOrderRaw& ordraw, OmsTwsReport& rpt) {
    if (ordraw.OType_ == OmsTwsOType{})
-      ordraw.OType_ = rpt.OType_;
+      ordraw.OType_ = RptOType2OrdOType(rpt);
    ordraw.AfterQty_ = ordraw.LeavesQty_ = rpt.Qty_;
    OmsTwsReport_Update(ordraw);
 }
@@ -80,7 +83,7 @@ void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRu
    OmsTwsOrderRaw&  ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
    // AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
    ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
-   ordraw.OType_ = this->OType_;
+   ordraw.OType_ = RptOType2OrdOType(*this);
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
    OmsTwsReport_Update(ordraw);
 }

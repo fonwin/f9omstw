@@ -240,7 +240,8 @@ static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsR
    synSes->RptMap_.resize(rptLayouts.size());
    auto iRptMap = synSes->RptMap_.begin();
    for(auto& iLayout : rptLayouts) {
-      OmsRequestFactory* facRpt = ud->GetRptReportFactory(&iLayout->Name_);
+      const fon9::StrView strLayoutName{iLayout->LayoutName_};
+      OmsRequestFactory*  facRpt = ud->GetRptReportFactory(strLayoutName);
       if (facRpt == nullptr) {
          if ((facRpt = ud->GetRptReportFactory(iLayout->ExParam_)) == nullptr) {
             ++iRptMap;
@@ -256,10 +257,24 @@ static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsR
       std::vector<bool> isFldAssigned; // 是否已有名稱完全相符的欄位?
       iRptMap->Fields_.resize(iLayout->FieldCount_);
       isFldAssigned.resize(facRpt->Fields_.size());
+      enum {
+         LayoutName_Unknown = 0,
+         LayoutName_TwsOrd  = 1,
+      } layoutName{};
+      if (strLayoutName == "TwsOrd") {
+         layoutName = LayoutName_TwsOrd;
+      }
       for (auto& iRptFld : iRptMap->Fields_) {
          StrView fldName{pLayoutFld->Named_.Name_};
-         if ((iRptFld = facRpt->Fields_.Get(fldName)) != nullptr)
+         if ((iRptFld = facRpt->Fields_.Get(fldName)) != nullptr) {
+            if (layoutName == LayoutName_TwsOrd && fldName == "OType") {
+               // TwsOrd 的 OType 不填入 TwsRpt, 避免影響 IniOType;
+               // 改成在 OmsTwsReport.cpp: OmsTwsReport::RunReportInCore_InitiatorNew(); 填入正確的 TwsOrd.OType_;
+               iRptFld = nullptr;
+               goto __NEXT_LAYOUT_FLD;
+            }
             isFldAssigned[unsigned_cast(iRptFld->GetIndex())] = true;
+         }
          else {
             // TODO: 額外欄位對照, 使用設定檔處理?
             if (memcmp(fldName.begin(), "Ini", 3) == 0)

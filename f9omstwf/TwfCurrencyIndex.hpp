@@ -13,11 +13,11 @@ struct CurrencyConfig {
    CurrencyIndex        CurrencyIndex_{};
    char                 Padding___[7];
    fon9::CharVector     Alias_;
-   OmsTwfPri            Round_;
+   OmsTwfMrgn           Round_;
    OmsExchangeRateAry   FromCurrencyA_;
    std::array<double, CurrencyIndex_Count>   FromCurrencyF_;
 
-   OmsTwfPri Round(OmsTwfPri val) const {
+   OmsTwfMrgn Round(OmsTwfMrgn val) const {
       if (this->Round_.IsZero())
          return val;
       val += this->Round_ / 2;

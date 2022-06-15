@@ -43,8 +43,8 @@ public:
    bool IsHalfWm() const {
       return(this->PosEff_ == OmsTwfPosEff::DayTrade && this->Market() == f9fmkt_TradingMarket_TwFUT);
    }
-   OmsTwfAmt AdjWm(OmsTwfAmt amt) const {
-      return this->IsHalfWm() ? (amt / 2) : amt;
+   OmsTwfMrgn AdjWm(OmsTwfMrgn wmAmt) const {
+      return this->IsHalfWm() ? (wmAmt / 2) : wmAmt;
    }
 };
 

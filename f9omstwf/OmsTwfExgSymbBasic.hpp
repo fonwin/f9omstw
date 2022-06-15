@@ -119,9 +119,9 @@ class TwfExgContract;
 using TwfExgContractSP = fon9::intrusive_ptr<TwfExgContract>;
 
 struct RiskV {
-   OmsTwfPri         RiskA_;
-   OmsTwfPri         RiskB_;
-   OmsTwfPri         RiskC_;
+   OmsTwfMrgn        RiskA_;
+   OmsTwfMrgn        RiskB_;
+   OmsTwfMrgn        RiskC_;
    fon9::EnabledYN   RateA_{};
    fon9::EnabledYN   RateB_{};
    fon9::EnabledYN   RateC_{};
@@ -175,7 +175,7 @@ public:
    RiskV RiskIni_;
    /// P14沒提供[週商品], 應自行建立參照.
    /// 期貨的 RiskIni_.xxxxC = 結算保證金. [選擇權時間價差] 計算保證金會用到: [標的期貨的結算保證金]。
-   OmsTwfPri       GetFutClearingMarginRisk() const { return this->RiskIni_.RiskC_; }
+   OmsTwfMrgn      GetFutClearingMarginRisk() const { return this->RiskIni_.RiskC_; }
    fon9::EnabledYN GetFutClearingMarginRate() const { return this->RiskIni_.RateC_; }
 
    /// 標的(契約)參考價,  初值來自 C11, 後續來自行情 I060;

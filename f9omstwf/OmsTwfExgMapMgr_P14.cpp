@@ -32,7 +32,7 @@ struct ImpSeedP14 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
       char              ab_type_;
       fon9::EnabledYN   Rate_;
       char              Padding____[2];
-      OmsTwfPri         Risk_;
+      OmsTwfMrgn        Risk_;
       void SetMargin(uint32_t margin) {
          if (margin) {
             if (this->Rate_ == fon9::EnabledYN::Yes)
@@ -114,7 +114,7 @@ struct ImpSeedP14 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
                continue;
             switch (item.ab_type_) {
             case '0': // 期貨, 設定 RiskA 之後, 會用 ab_type_ = 'C' 設定 RiskC, 所以這裡把沒用到的設為 Null;
-               mContract->RiskIni_.RiskB_ = OmsTwfPri::Null();
+               mContract->RiskIni_.RiskB_ = OmsTwfMrgn::Null();
                mContract->RiskIni_.RateB_ = fon9::EnabledYN{};
                /* fall through */
             case 'A':

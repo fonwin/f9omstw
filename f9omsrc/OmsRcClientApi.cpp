@@ -64,47 +64,148 @@ f9OmsRc_GetReportLayout(f9rc_ClientSession* ses,
    return rptTableId > rptLayouts.size() ? nullptr : rptLayouts[rptTableId - 1].get();
 }
 
+static f9omstw::OmsRcClientNote* GetSesNoteLog(fon9::rc::RcClientSession* ses) {
+   auto* note = static_cast<f9omstw::OmsRcClientNote*>(ses->GetNote(f9rc_FunctionCode_OmsApi));
+   if (fon9_LIKELY(note))
+      return note;
+   fon9_LOG_ERROR("OmsRcClient.SendReq"
+                  "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
+                  "|err=Must call f9OmsRc_Initialize() first, "
+                  "or must apply f9OmsRc_ClientSessionParams when f9rc_CreateClientSession();");
+   return nullptr;
+}
+static void WaitFlowCtrl(fon9::StrView funcName, fon9::rc::RcClientSession* ses, fon9::TimeInterval fcWait, f9omstw::OmsRcClientNote* note) {
+   fon9_LOG_INFO(funcName,
+                 "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
+                 "|wait=", fcWait);
+   if (note->Params_.FnOnFlowControl_) // 流量管制.事件通知.
+      note->Params_.FnOnFlowControl_(ses, static_cast<unsigned>(fcWait.ShiftUnit<6>()));
+   else
+      std::this_thread::sleep_for(fcWait.ToDuration());
+}
+
 static bool SendRequest(fon9::rc::RcClientSession* ses, const f9OmsRc_Layout* reqLayout,
                         fon9::RevBufferList&& rbuf, fon9::StrView logReqStr) {
-   auto* note = static_cast<f9omstw::OmsRcClientNote*>(ses->GetNote(f9rc_FunctionCode_OmsApi));
-   if(fon9_UNLIKELY(note == nullptr)) {
-      fon9_LOG_ERROR("OmsRcClient.SendReq"
-                     "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
-                     "|err=Must call f9OmsRc_Initialize() first, "
-                     "or must apply f9OmsRc_ClientSessionParams when f9rc_CreateClientSession();");
+   auto* note = GetSesNoteLog(ses);
+   if (!note)
       return false;
-   }
    fon9::ToBitv(rbuf, reqLayout->LayoutId_);
    for (;;) {
       fon9::TimeInterval fcWait = note->FcReq_.Fetch();
       if (fon9_LIKELY(fcWait.GetOrigValue() <= 0)) {
          ses->Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
-         if (ses->LogFlags_ & f9oms_ClientLogFlag_Request)
+         if (fon9_UNLIKELY(ses->LogFlags_ & f9oms_ClientLogFlag_Request))
             fon9_LOG_INFO("OmsRcClient.SendReq"
                           "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
                           "|tab=", reqLayout->LayoutId_, ':', reqLayout->LayoutName_,
                           "|req=", logReqStr);
          return true;
       }
-      fon9_LOG_INFO("OmsRcClient.SendReq.FlowControl"
-                    "|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
-                    "|wait=", fcWait);
-      if (note->Params_.FnOnFlowControl_) // 流量管制.事件通知.
-         note->Params_.FnOnFlowControl_(ses, static_cast<unsigned>(fcWait.ShiftUnit<6>()));
-      else
-         std::this_thread::sleep_for(fcWait.ToDuration());
+      WaitFlowCtrl("OmsRcClient.SendReq.FlowControl", ses, fcWait, note);
    }
+}
+
+static inline void RevPutReqStr(fon9::RevBuffer& pkbuf, const fon9_CStrView reqStr) {
+   const size_t reqsz = static_cast<size_t>(reqStr.End_ - reqStr.Begin_);
+   fon9::RevPutMem(pkbuf, reqStr.Begin_, reqsz);
+   fon9::ByteArraySizeToBitvT(pkbuf, reqsz);
 }
 
 f9OmsRc_API_FN(int)
 f9OmsRc_SendRequestString(f9rc_ClientSession*   ses,
                           const f9OmsRc_Layout* reqLayout,
                           const fon9_CStrView   reqStr) {
-   fon9::RevBufferList rbuf{128};
-   const size_t reqsz = static_cast<size_t>(reqStr.End_ - reqStr.Begin_);
-   fon9::RevPutMem(rbuf, reqStr.Begin_, reqsz);
-   fon9::ByteArraySizeToBitvT(rbuf, reqsz);
-   return SendRequest(static_cast<fon9::rc::RcClientSession*>(ses), reqLayout, std::move(rbuf), reqStr);
+   fon9::RevBufferList pkbuf{128};
+   RevPutReqStr(pkbuf, reqStr);
+   return SendRequest(static_cast<fon9::rc::RcClientSession*>(ses), reqLayout, std::move(pkbuf), reqStr);
+}
+
+static void SendRevPackBatchImpl(f9rc_ClientSession*         ses,
+                                 const f9OmsRc_RequestBatch* reqBatch,
+                                 unsigned                    reqCount) {
+   fon9::RevBufferList pkbuf{128};
+   fon9::RevBufferList logbuf{fon9::kLogBlockNodeSize};
+   const bool isNeedsLog = ((ses->LogFlags_ & f9oms_ClientLogFlag_Request)
+                            && (fon9::LogLevel::Info >= fon9::LogLevel_));
+   unsigned pkCount = 0;
+   for (pkCount = 0; pkCount < reqCount;) {
+      --reqBatch;
+      ++pkCount;
+      if (fon9_UNLIKELY(isNeedsLog)) {
+         fon9::RevPrint(logbuf,
+                        "|tab=", reqBatch->Layout_->LayoutId_, ':', reqBatch->Layout_->LayoutName_,
+                        "|req=", reqBatch->ReqStr_,
+                        '\n');
+      }
+      RevPutReqStr(pkbuf, reqBatch->ReqStr_);
+      fon9::ToBitv(pkbuf, reqBatch->Layout_->LayoutId_);
+   }
+   if (fon9_UNLIKELY(isNeedsLog)) {
+      fon9::RevPrint(logbuf, "OmsRcClient.SendBatch|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(ses)),
+                     "|pkSize=", fon9::CalcDataSize(pkbuf.cfront()),
+                     "|pkCount=", pkCount, '\n');
+      fon9::LogWrite(fon9::LogLevel::Info, std::move(logbuf));
+   }
+   fon9::ToBitv(pkbuf, pkCount);
+   fon9::RevPutBitv(pkbuf, fon9_BitvV_NumberNull);
+   static_cast<fon9::rc::RcClientSession*>(ses)->Send(f9rc_FunctionCode_OmsApi, std::move(pkbuf));
+}
+static void SendRevPackBatch(f9rc_ClientSession*         ses,
+                             const f9OmsRc_RequestBatch* reqBatch,
+                             unsigned                    reqCount) {
+   if (fon9_UNLIKELY(reqCount <= 0))
+      return;
+   reqBatch -= reqCount;
+   // kMaxPkSize 盡量接近 TCP MSS(ethernet=1460) 但不要超過, 還要扣除 rc protocol 的 header.
+   constexpr unsigned kMaxPkSize = 1300;
+   size_t   pksz = 0;
+   unsigned pkCount = 0;
+   while (++pkCount < reqCount) {
+      pksz += (reqBatch->ReqStr_.End_ - reqBatch->ReqStr_.Begin_) + 5;
+      ++reqBatch;
+      if (fon9_UNLIKELY(pksz >= kMaxPkSize)) {
+         SendRevPackBatchImpl(ses, reqBatch, pkCount);
+         reqCount -= pkCount;
+         pksz = 0;
+         pkCount = 0;
+      }
+   }
+   SendRevPackBatchImpl(ses, reqBatch + 1, pkCount);
+}
+
+f9OmsRc_API_FN(int)
+f9OmsRc_SendRequestBatch(f9rc_ClientSession*         ses,
+                         const f9OmsRc_RequestBatch* reqBatch,
+                         unsigned                    reqCount) {
+   auto* note = GetSesNoteLog(static_cast<fon9::rc::RcClientSession*>(ses));
+   if (!note)
+      return false;
+   unsigned packCount;
+   { // fc lock.
+      auto  fcReq = note->FcReq_.Lock();
+      if (fcReq->TimeUnit().IsNullOrZero()) // 無流量管制.
+         packCount = reqCount;
+      else {
+         packCount = 0;
+         while (reqCount > 0) {
+            fon9::TimeInterval fcWait = fcReq->Fetch();
+            if (fon9_LIKELY(fcWait.GetOrigValue() <= 0)) {
+               --reqCount;
+               ++packCount;
+               continue;
+            }
+            fcReq.unlock();
+            if (packCount > 0) {
+               SendRevPackBatch(ses, reqBatch += packCount, packCount);
+               packCount = 0;
+            }
+            fcReq.lock();
+            WaitFlowCtrl("OmsRcClient.SendBatch.FlowControl", static_cast<fon9::rc::RcClientSession*>(ses), fcWait, note);
+         }
+      }
+   } // fc unlock.
+   SendRevPackBatch(ses, reqBatch + packCount, packCount);
+   return true;
 }
 
 f9OmsRc_API_FN(int)

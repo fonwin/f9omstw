@@ -363,6 +363,21 @@ f9OmsRc_SendRequestFields(f9rc_ClientSession* ses,
 f9OmsRc_API_FN(unsigned)
 f9OmsRc_CheckFcRequest(f9rc_ClientSession* ses);
 
+typedef struct {
+   const f9OmsRc_Layout*   Layout_;
+   fon9_CStrView           ReqStr_;
+} f9OmsRc_RequestBatch;
+/// 傳送一批下單要求.
+/// - 若遇到流量管制, 則已打包的會先送出, 然後用 f9OmsRc_ClientSessionParams.FnOnFlowControl_ 機制處理。
+/// - 若打包資料量超過 n bytes(例: 1K bytes), 則會先送出, 然後繼續打包之後的下單要求。
+/// \retval 1=true  下單要求已送出.
+/// \retval 0=false 無法下單: 沒有呼叫過 f9OmsRc_Initialize();
+///                 或建立 ses 時, 沒有提供 f9OmsRc_ClientSessionParams 參數.
+f9OmsRc_API_FN(int)
+f9OmsRc_SendRequestBatch(f9rc_ClientSession*         ses,
+                         const f9OmsRc_RequestBatch* reqBatch,
+                         unsigned                    reqCount);
+
 #ifdef __cplusplus
 }//extern "C"
 #endif//__cplusplus

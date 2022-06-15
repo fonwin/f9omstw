@@ -231,6 +231,8 @@ typedef struct {
    RequestRec*             ReqRec_;
    unsigned long           IntervalMS_;
    unsigned long           Times_;
+   int                     IsBatch_;
+   char                    Padding____[4];
 } SendArgs;
 
 #define kMaxLoopValueCount 100
@@ -240,7 +242,7 @@ typedef struct {
    unsigned       FieldIndex_;
 } LoopField;
 
-uint64_t SendGroup(char* cmd, const SendArgs args) {
+uint64_t SendGroup(char* cmd, const SendArgs args, uint64_t* usEnd) {
    fon9_CStrView  reqFieldArray[kMaxFieldCount];
    for (unsigned L = 0; L < args.ReqLayout_->FieldCount_; ++L) {
       reqFieldArray[L].Begin_ = args.ReqRec_->Fields_[L];
@@ -282,9 +284,30 @@ uint64_t SendGroup(char* cmd, const SendArgs args) {
       }
    }
 __CMD_PARSE_END:;
+   f9OmsRc_RequestBatch* reqb = NULL;
+   f9OmsRc_RequestBatch* ptrL;
+   if (args.IsBatch_) {
+      size_t recSize = args.ReqLayout_->FieldCount_ * (size_t)kMaxValueSize;
+      if ((reqb = malloc(sizeof(f9OmsRc_RequestBatch) * args.Times_)) == NULL) {
+      __NOT_ENOUGH_MEM:;
+         puts("Not enough memory.");
+         return 0;
+      }
+      if ((reqb->ReqStr_.Begin_ = malloc(recSize * args.Times_)) == NULL) {
+         free(reqb);
+         goto __NOT_ENOUGH_MEM;
+      }
+      ptrL = reqb;
+      for (unsigned long L = 0; L < args.Times_; ++L) {
+         ptrL->Layout_ = args.ReqLayout_;
+         ptrL->ReqStr_.Begin_ = reqb->ReqStr_.Begin_ + (recSize * L);
+         ++ptrL;
+      }
+   }
    uint64_t usBeg = fon9_GetSystemUS();
    fon9_CStrView* pClOrdId = (args.ReqLayout_->IdxClOrdId_ >= 0) ? &reqFieldArray[args.ReqLayout_->IdxClOrdId_] : NULL;
    fon9_CStrView* pUsrDef = (args.ReqLayout_->IdxUsrDef_ >= 0) ? &reqFieldArray[args.ReqLayout_->IdxUsrDef_] : NULL;
+   ptrL = reqb;
    for (unsigned long L = 0; L < args.Times_; ++L) {
       if (loopFieldCount) {
          const LoopField* fld = loopFields;
@@ -299,18 +322,41 @@ __CMD_PARSE_END:;
          pClOrdId->End_ = pClOrdId->Begin_ + sprintf((char*)pClOrdId->Begin_, "%s:%lu", groupName, L + 1);
       if (pUsrDef)
          pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, fon9_GetSystemUS());
-      f9OmsRc_SendRequestFields(args.Session_, args.ReqLayout_, reqFieldArray);
-      if (args.IntervalMS_ > 0)
-         fon9_SleepMS((unsigned)args.IntervalMS_);
+      if (fon9_UNLIKELY(args.IsBatch_)) {
+         char* reqstr = (char*)(ptrL->ReqStr_.Begin_);
+         for (unsigned iFld = 0; iFld < ptrL->Layout_->FieldCount_; ++iFld) {
+            const fon9_CStrView str = reqFieldArray[iFld];
+            const size_t len = (size_t)(str.End_ - str.Begin_);
+            memcpy(reqstr, str.Begin_, len);
+            reqstr += len;
+            *reqstr++ = '\x01';
+         }
+         ptrL->ReqStr_.End_ = reqstr - 1;
+         ++ptrL;
+      }
+      else {
+         f9OmsRc_SendRequestFields(args.Session_, args.ReqLayout_, reqFieldArray);
+         if (args.IntervalMS_ > 0)
+            fon9_SleepMS((unsigned)args.IntervalMS_);
+      }
    }
+   if (args.IsBatch_) {
+      usBeg = fon9_GetSystemUS();
+      f9OmsRc_SendRequestBatch(args.Session_, reqb, (unsigned)args.Times_);
+   }
+   *usEnd = fon9_GetSystemUS();
    if (pClOrdId)
       *(char*)(pClOrdId->Begin_) = '\0';
    if (pUsrDef)
       *(char*)(pUsrDef->Begin_) = '\0';
+   if (reqb) {
+      free((void*)(reqb->ReqStr_.Begin_));
+      free(reqb);
+   }
    return usBeg;
 }
 void SendRequest(UserDefine* ud, char* cmd) {
-   // send Req(Id or Name) times [GroupId]
+   // send Req(Id or Name) times[/msInterval] [GroupId]
    SendArgs args;
    args.ReqLayout_ = GetRequestLayout(ud, &cmd);
    if (!args.ReqLayout_)
@@ -322,11 +368,17 @@ void SendRequest(UserDefine* ud, char* cmd) {
    if (args.Times_ == 0)
       args.Times_ = 1;
    args.IntervalMS_ = 0;
+   args.IsBatch_ = 0;
    if (cmd) {
       cmd = fon9_StrTrimHead(cmd);
       if (*cmd == '/') { // times/msInterval
          args.IntervalMS_ = strtoul(cmd + 1, &cmd, 10);
          cmd = fon9_StrTrimHead(cmd);
+         if (*cmd == 'B') {
+            // times/B 例: 15/B
+            args.IsBatch_ = 1;
+            cmd = fon9_StrTrimHead(cmd + 1);
+         }
       }
    }
    fon9_CStrView  reqstr;
@@ -337,23 +389,48 @@ void SendRequest(UserDefine* ud, char* cmd) {
       PrintRequest(args.ReqLayout_, args.ReqRec_);
       return;
    }
-   uint64_t usBeg;
+   uint64_t usBeg, usEnd;
    if (cmd == NULL || *cmd == '\0') {
-      usBeg = fon9_GetSystemUS();
-      for (unsigned long L = 0; L < args.Times_; ++L) {
-         f9OmsRc_SendRequestString(args.Session_, args.ReqLayout_, reqstr);
-         if (args.IntervalMS_ > 0)
-            fon9_SleepMS((unsigned)args.IntervalMS_);
+      if (args.IsBatch_) {
+         f9OmsRc_RequestBatch* const reqb = malloc(sizeof(f9OmsRc_RequestBatch) * args.Times_);
+         if (reqb == NULL) {
+            puts("Not enough memory.");
+            return;
+         }
+         f9OmsRc_RequestBatch* ptrL = reqb;
+         for (unsigned long L = 0; L < args.Times_; ++L) {
+            ptrL->Layout_ = args.ReqLayout_;
+            ptrL->ReqStr_ = reqstr;
+            ++ptrL;
+         }
+         usBeg = fon9_GetSystemUS();
+         f9OmsRc_SendRequestBatch(args.Session_, reqb, (unsigned)args.Times_);
+         usEnd = fon9_GetSystemUS();
+         free(reqb);
+      }
+      else {
+         usBeg = fon9_GetSystemUS();
+         for (unsigned long L = 0; L < args.Times_; ++L) {
+            f9OmsRc_SendRequestString(args.Session_, args.ReqLayout_, reqstr);
+            if (args.IntervalMS_ > 0)
+               fon9_SleepMS((unsigned)args.IntervalMS_);
+         }
+         usEnd = fon9_GetSystemUS();
       }
    }
-   else if ((usBeg = SendGroup(cmd, args)) <= 0)
+   else if ((usBeg = SendGroup(cmd, args, &usEnd)) <= 0)
       return;
 
-   uint64_t usEnd = fon9_GetSystemUS();
    printf("Begin: %" PRIu64 ".%06" PRIu64 "\n", usBeg / 1000000, usBeg % 1000000);
    printf("  End: %" PRIu64 ".%06" PRIu64 "\n", usEnd / 1000000, usEnd % 1000000);
-   printf("Spent: %" PRIu64 " us / %lu times = %lf\n",
+   printf("Spent: %" PRIu64 " us / %lu times = %lf",
           usEnd - usBeg, args.Times_, (double)(usEnd - usBeg) / (double)args.Times_);
+   if (args.IsBatch_)
+      printf(" / Batch\n");
+   else if (args.IntervalMS_)
+      printf(" / %lu ms\n", args.IntervalMS_);
+   else
+      puts("");
 }
 //--------------------------------------------------------------------------//
 void fon9_CAPI_CALL OnSvConfig(f9rc_ClientSession* ses, const f9sv_ClientConfig* cfg) {
@@ -785,6 +862,7 @@ __USAGE:
                 "set ReqId(or ReqName) FieldId(or FieldName)=value|fld2=val2|fld3=val3\n"
                 "\n"
                 "send ReqId(or ReqName) times[/msInterval] [GroupId]\n"
+                "\t" "msInterval = B for batch mode."
                 "\n"
                 "lf LogFlags(hex) [LogFileFmt]\n"
                 "%s"

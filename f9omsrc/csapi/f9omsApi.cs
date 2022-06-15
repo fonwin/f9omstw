@@ -93,18 +93,7 @@ namespace f9oms
       public static int SendRequestString(ref f9rc.RcClientSession ses, ref Layout reqLayout, string reqStr)
          => SendRequestString(ref ses, ref reqLayout, System.Text.Encoding.UTF8.GetBytes(reqStr));
       public static int SendRequestString(ref f9rc.RcClientSession ses, ref Layout reqLayout, byte[] reqBytes)
-      {
-         fon9.CStrView strView = new fon9.CStrView();
-         unsafe
-         {
-            fixed (byte* p = reqBytes)
-            {
-               strView.Begin_ = new IntPtr(p);
-               strView.End_ = new IntPtr(p + reqBytes.Length);
-            }
-         }
-         return SendRequestString(ref ses, ref reqLayout, strView);
-      }
+         => SendRequestString(ref ses, ref reqLayout, new fon9.CStrView(reqBytes));
       [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_SendRequestString", CharSet = CharSet.Ansi)]
       public static unsafe extern int SendRequestString(ref f9rc.RcClientSession ses, ref Layout reqLayout, fon9.CStrView reqStr);
       public static unsafe int SendRequestString(f9rc.ClientSession ses, ref Layout reqLayout, string reqStr)
@@ -122,12 +111,30 @@ namespace f9oms
       // [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_SendRequestFields", CharSet = CharSet.Ansi)]
       // unsafe static extern int f9OmsRc_SendRequestFields(ref f9rc.RcClientSession ses, ref Layout reqLayout, fon9.CStrView* reqFieldArray);
 
+      /// 傳送一批下單要求.
+      /// 若遇到流量管制, 則已打包的會先送出, 然後用 f9OmsRc_ClientSessionParams.FnOnFlowControl_ 機制處理.
+      /// \retval 1=true  下單要求已送出.
+      /// \retval 0=false 無法下單: 沒有呼叫過 f9OmsRc_Initialize();
+      ///                 或建立 ses 時, 沒有提供 f9OmsRc_ClientSessionParams 參數.
+      [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_SendRequestBatch")]
+      public static unsafe extern int SendRequestBatch(ref f9rc.RcClientSession ses, RequestBatch[] reqBatch, uint reqCount);
+      public static unsafe int SendRequestBatch(f9rc.ClientSession ses, RequestBatch[] reqBatch)
+         => SendRequestBatch(ref *ses.RcSes_, reqBatch, (uint)reqBatch.Length);
+
       /// 傳送下單要求之前, 可以自行檢查流量.
       /// 傳回需要等候的 microseconds. 傳回 0 表示不需管制.
       public static unsafe uint CheckFcRequest(f9rc.ClientSession ses)
          => CheckFcRequest(ref *ses.RcSes_);
       [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_CheckFcRequest")]
       public static extern uint CheckFcRequest(ref f9rc.RcClientSession ses);
+   }
+
+   [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+   public struct RequestBatch
+   {
+      public unsafe Layout* Layout_;
+      /// 在 ReqStr_ 的使用期間, 參照的記憶體必須保持有效.
+      public fon9.CStrView ReqStr_;
    }
 
    [Flags]

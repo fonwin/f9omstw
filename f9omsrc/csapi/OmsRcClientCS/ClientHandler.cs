@@ -24,15 +24,11 @@ namespace OmsRcClientCS
                // 在設定 RequestStr 時, 就先將要送出的字串打包好.
                // 等到要送出時, 就不用再 Encoding.
                this.RequestStr_ = value;
+               // RequestBytes_ 必須保留在 this:
+               // - 否則 System.Text.Encoding.UTF8.GetBytes() 返回的 byte[] 會被丟棄。
+               // - 這樣 RequestPacket_ 才能避免參照到無效的 byte[];
                this.RequestBytes_ = System.Text.Encoding.UTF8.GetBytes(value);
-               unsafe
-               {
-                  fixed (byte* p = this.RequestBytes_)
-                  {
-                     this.RequestPacket_.Begin_ = new IntPtr(p);
-                     this.RequestPacket_.End_ = new IntPtr(p + this.RequestBytes_.Length);
-                  }
-               }
+               this.RequestPacket_.RefBytes(this.RequestBytes_);
             }
          }
          public fon9.CStrView RequestPacket
@@ -474,22 +470,52 @@ namespace OmsRcClientCS
          Console.WriteLine($"RequestStr = [{req.RequestStr}]");
       }
       internal unsafe void SendRequest(string[] cmds, uint cmdidx)
-      {  // ReqName times
+      {  // ReqName times[/msInterval]
+         // msInterval = B for batch mode.
          f9oms.Layout* pReqLayout = GetRequestLayout(cmds, cmdidx++);
          if (pReqLayout == null)
             return;
          Int32 times = 0;
+         bool isBatch = false;
+         int msInterval = 0;
          if (cmdidx < cmds.Length)
-            Int32.TryParse(cmds[cmdidx], out times);
+         {
+            string[] args = cmds[cmdidx].Split('/');
+            Int32.TryParse(args[0], out times);
+            if(args.Length > 1 && args[1].Length > 0)
+            {
+               if (args[1][0] == 'B')
+                  isBatch = true;
+               else
+                  int.TryParse(args[1], out msInterval);
+            }
+         }
          RequestRec req = this.RequestRecs_[pReqLayout->LayoutId_ - 1];
          System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
          Int32 count = 0;
-         sw.Start();
-         do // 最少送一次.
+         if (isBatch && times > 0)
          {
-            ++count;
-            f9oms.Api.SendRequestString(this, ref *pReqLayout, req.RequestPacket);
-         } while (--times > 0);
+            f9oms.RequestBatch[] reqBatch = new f9oms.RequestBatch[times];
+            for(; count < times; ++count)
+            {
+               reqBatch[count].Layout_ = pReqLayout;
+               // 存放到 ReqStr_ 的 byte[], 在 f9oms.Api.SendRequestBatch() 返回前, 都必須保持有效.
+               reqBatch[count].ReqStr_ = req.RequestPacket;
+            }
+            sw.Start();
+            f9oms.Api.SendRequestBatch(this, reqBatch);
+         }
+         else
+         {
+            sw.Start();
+            do // 最少送一次.
+            {
+               ++count;
+               f9oms.Api.SendRequestString(this, ref *pReqLayout, req.RequestPacket);
+               if (msInterval > 0)
+                  System.Threading.Thread.Sleep(msInterval);
+            } while (--times > 0);
+         }
          sw.Stop();
          double us = 1000L * 1000L * sw.ElapsedTicks / (double)System.Diagnostics.Stopwatch.Frequency;
          Console.WriteLine($"Elapsed={us} us / {count}; Avg={us / count} us");

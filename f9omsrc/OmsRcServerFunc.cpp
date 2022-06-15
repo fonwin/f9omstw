@@ -153,95 +153,117 @@ void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& pa
    }
 }
 void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
-   unsigned reqTableId{};
+   unsigned reqTableId{UINT_MAX};
    fon9::BitvTo(param.RecvBuffer_, reqTableId);
    if (fon9_UNLIKELY(reqTableId == 0))
       return this->OnRecvOmsOp(ses, param);
-   if (fon9_UNLIKELY(reqTableId > this->ApiSesCfg_->ApiReqCfgs_.size())) {
-      ses.ForceLogout("OmsRcServer:Unknown ReqTableId");
-      return;
+   unsigned reqCount;
+   bool     isNeedsGetTableId;
+   if (fon9_LIKELY(reqTableId <= this->ApiSesCfg_->ApiReqCfgs_.size())) {
+      reqCount = 1;
+      isNeedsGetTableId = false;
+   }
+   else {
+      if (reqTableId != UINT_MAX) {
+         ses.ForceLogout("OmsRcServer:Unknown ReqTableId");
+         return;
+      }
+      // 使用 f9OmsRc_SendRequestBatch() 批次下單:
+      // fon9_BitvV_NumberNull(reqTableId:UINT_MAX), reqCount;
+      // 然後接下來是: 下單要求(reqTableId + reqstr) * (reqCount筆);
+      reqCount = 0;
+      fon9::BitvTo(param.RecvBuffer_, reqCount);
+      if (reqCount <= 0)
+         return;
+      isNeedsGetTableId = true;
    }
    if (!this->CheckApiReady(ses))
       return;
-   const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId - 1];
-   size_t            byteCount;
-   if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
-      fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
-   if (byteCount <= 0)
-      return;
-   OmsRequestRunner  runner;
-   fon9::RevPrint(runner.ExLog_, '\n');
-   char* const    pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
-   fon9::StrView  reqstr{pout, byteCount};
-   runner.ExLog_.SetPrefixUsed(pout);
-   param.RecvBuffer_.Read(pout, byteCount);
+   for (; reqCount > 0; --reqCount) {
+      if (isNeedsGetTableId)
+         fon9::BitvTo(param.RecvBuffer_, reqTableId);
+      const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId - 1];
+      size_t            byteCount;
+      if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
+         fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
+      if (byteCount <= 0)
+         continue;
+      OmsRequestRunner  runner;
+      fon9::RevPrint(runner.ExLog_, '\n');
+      char* const    pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
+      fon9::StrView  reqstr{pout, byteCount};
+      runner.ExLog_.SetPrefixUsed(pout);
+      param.RecvBuffer_.Read(pout, byteCount);
 
-   auto pol = this->Handler_->RequestPolicy_;
-   this->PolicyConfig_.UpdateIvDenys(pol.get());
-     
-   runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
-   if (fon9_LIKELY(runner.Request_)) {
-      assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
-      static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
-   }
-   else {
-      // Rc client 端使用 TwsRpt 補登回報(補單).
-      runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
-      if (!runner.Request_) {
-         ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
-         return;
-      }
-      // 回報(補單)權限需要自主檢查.
-      if (!pol || !runner.CheckReportRights(*pol)) {
-         ses.ForceLogout("OmsRcServer:deny input report.");
-         return;
-      }
-      runner.Request_->SetReportNeedsLog();
-      runner.Request_->SetForcePublish();
-   }
-   ApiReqFieldArg arg{*runner.Request_, ses};
-   for (const auto& fldcfg : cfg.ApiFields_) {
-      arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
-      if (fldcfg.Field_)
-         fldcfg.Field_->StrToCell(arg, arg.ClientFieldValue_);
-      if (fldcfg.FnPut_)
-         (*fldcfg.FnPut_)(fldcfg, arg);
-   }
-   arg.ClientFieldValue_.Reset(nullptr);
-   for (const auto& fldcfg : cfg.SysFields_) {
-      if (fldcfg.FnPut_)
-         (*fldcfg.FnPut_)(fldcfg, arg);
-   }
-   const char* cstrForceLogout;
-   if (fon9_UNLIKELY(runner.Request_->IsReportIn())) // 回報補單不用考慮流量, 且沒有 SetPolicy().
-      goto __RUN_REPORT;
+      auto pol = this->Handler_->RequestPolicy_;
+      this->PolicyConfig_.UpdateIvDenys(pol.get());
 
-   if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
-      static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
-   __RUN_REPORT:
-      if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner))))
-         return;
-      cstrForceLogout = nullptr;
-   }
-   else {
-      if (++this->PolicyConfig_.FcReqOverCount_ > kFcOverCountForceLogout) {
-         // 超過流量, 若超過次數超過 n 則強制斷線.
-         // 避免有惡意連線, 大量下單壓垮系統.
-         runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl,
-                               cstrForceLogout = "FlowControl: ForceLogout.");
+      runner.Request_ = cfg.Factory_->MakeRequest(param.RecvTime_);
+      if (fon9_LIKELY(runner.Request_)) {
+         assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
+         static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
       }
       else {
-         runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl);
+         // Rc client 端使用 TwsRpt 補登回報(補單).
+         runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
+         if (!runner.Request_) {
+            ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
+            return;
+         }
+         // 回報(補單)權限需要自主檢查.
+         if (!pol || !runner.CheckReportRights(*pol)) {
+            ses.ForceLogout("OmsRcServer:deny input report.");
+            return;
+         }
+         runner.Request_->SetReportNeedsLog();
+         runner.Request_->SetForcePublish();
+      }
+      ApiReqFieldArg arg{*runner.Request_, ses};
+      for (const auto& fldcfg : cfg.ApiFields_) {
+         arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
+         if (fldcfg.Field_)
+            fldcfg.Field_->StrToCell(arg, arg.ClientFieldValue_);
+         if (fldcfg.FnPut_)
+            (*fldcfg.FnPut_)(fldcfg, arg);
+      }
+      arg.ClientFieldValue_.Reset(nullptr);
+      for (const auto& fldcfg : cfg.SysFields_) {
+         if (fldcfg.FnPut_)
+            (*fldcfg.FnPut_)(fldcfg, arg);
+      }
+      const char* cstrForceLogout;
+      if (fon9_UNLIKELY(runner.Request_->IsReportIn())) // 回報補單不用考慮流量, 且沒有 SetPolicy().
+         goto __RUN_REPORT;
+
+      if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
+         static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
+      __RUN_REPORT:
+         if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner))))
+            continue;
          cstrForceLogout = nullptr;
       }
+      else {
+         if (++this->PolicyConfig_.FcReqOverCount_ > kFcOverCountForceLogout) {
+            // 超過流量, 若超過次數超過 n 則強制斷線.
+            // 避免有惡意連線, 大量下單壓垮系統.
+            runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl,
+                                  cstrForceLogout = "FlowControl: ForceLogout.");
+         }
+         else {
+            runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl);
+            cstrForceLogout = nullptr;
+         }
+      }
+      // request abandon, 立即回報失敗.
+      assert(runner.Request_->IsAbandoned());
+      runner.ExLog_.MoveOut();
+      if (this->ApiSesCfg_->MakeReportMessage(runner.ExLog_, *runner.Request_))
+         ses.Send(f9rc_FunctionCode_OmsApi, std::move(runner.ExLog_));
+      if (cstrForceLogout) {
+         ses.ForceLogout(cstrForceLogout);
+         break;
+      }
    }
-   // request abandon, 立即回報失敗.
-   assert(runner.Request_->IsAbandoned());
-   runner.ExLog_.MoveOut();
-   if (this->ApiSesCfg_->MakeReportMessage(runner.ExLog_, *runner.Request_))
-      ses.Send(f9rc_FunctionCode_OmsApi, std::move(runner.ExLog_));
-   if (cstrForceLogout)
-      ses.ForceLogout(cstrForceLogout);
 }
 //--------------------------------------------------------------------------//
 void OmsRcServerNote::Handler::ClearResource() {

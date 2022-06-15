@@ -48,3 +48,4 @@ EXPORTS
       f9OmsRc_SubscribeReport;
       f9OmsRc_GetReportLayout;
       f9OmsRc_CheckFcRequest;
+      f9OmsRc_SendRequestBatch;

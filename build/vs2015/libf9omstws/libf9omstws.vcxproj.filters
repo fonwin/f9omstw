@@ -38,13 +38,13 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepG1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepLgMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTypes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstws\OmsTwsTradingLineBase.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\f9omstws\OmsTwsSenderStepLg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstws\OmsTwsImpT.cpp">
@@ -76,6 +76,9 @@
     <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepG1.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepLgMgr.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsTypes.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -86,9 +89,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsRequestTools.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\f9omstws\OmsTwsSenderStepLg.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsImpT.hpp">

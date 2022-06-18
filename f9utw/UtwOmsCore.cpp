@@ -7,11 +7,12 @@
 #include "f9omstw/OmsEventSessionSt.hpp"
 
 #include "f9omstws/OmsTwsSenderStepG1.hpp"
-#include "f9omstws/OmsTwsSenderStepLg.hpp"
+#include "f9omstws/OmsTwsSenderStepLgMgr.hpp"
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsTradingLineTmp2019.hpp"
 // 
 #include "f9omstwf/OmsTwfSenderStepG1.hpp"
+#include "f9omstwf/OmsTwfSenderStepLgMgr.hpp"
 #include "f9omstwf/OmsTwfLineTmpFactory.hpp"
 #include "f9omstwf/OmsTwfExgMapMgr.hpp"
 #include "f9omstwf/OmsTwfRptFromB50.hpp"
@@ -47,11 +48,8 @@ class UtwOmsCoreMgrSeed : public OmsCoreMgrSeed {
    char              Padding___[2];
    TwfExgMapMgrSP    TwfExgMapMgr_;
 
-   using TwsTradingLineMgrG1SP = std::unique_ptr<TwsTradingLineMgrG1>;
-   TwsTradingLineMgrG1SP TwsLineMgrG1_;
-
-   using TwfTradingLineMgrG1SP = std::unique_ptr<TwfTradingLineMgrG1>;
-   TwfTradingLineMgrG1SP TwfLineMgrG1_;
+   TwsTradingLineG1SP TwsLineG1_;
+   TwfTradingLineG1SP TwfLineG1_;
 
    UtwOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
       : base(std::move(name), std::move(owner), &OmsSetRequestLgOut_UseIvac) {
@@ -218,27 +216,27 @@ public:
          //                                     logpath, fon9::Named{"TMP"}));
          OmsRequestRunStepSP  twsNewSenderStep, twsChgSenderStep;
          if (lgCfgFileName.IsNullOrEmpty()) {
-            coreMgrSeed->TwsLineMgrG1_.reset(new TwsTradingLineMgrG1{coreMgr});
-            coreMgrSeed->TwsLineMgrG1_->TseTradingLineMgr_
+            coreMgrSeed->TwsLineG1_.reset(new TwsTradingLineG1{coreMgr});
+            coreMgrSeed->TwsLineG1_->TseTradingLineMgr_
                = CreateTwsTradingLineMgr(coreMgr, cfgpath, ioargsTse, f9fmkt_TradingMarket_TwSEC);
             // ------------------
             if (fon9::iequals(&ioargsOtc.IoServiceCfgstr_, "IoTse"))
-               ioargsOtc.IoServiceSrc_ = coreMgrSeed->TwsLineMgrG1_->TseTradingLineMgr_;
-            coreMgrSeed->TwsLineMgrG1_->OtcTradingLineMgr_
+               ioargsOtc.IoServiceSrc_ = coreMgrSeed->TwsLineG1_->TseTradingLineMgr_;
+            coreMgrSeed->TwsLineG1_->OtcTradingLineMgr_
                = CreateTwsTradingLineMgr(coreMgr, cfgpath, ioargsOtc, f9fmkt_TradingMarket_TwOTC);
             // ------------------
-            twsNewSenderStep.reset(new OmsTwsSenderStepG1{*coreMgrSeed->TwsLineMgrG1_});
-            twsChgSenderStep.reset(new OmsTwsSenderStepG1{*coreMgrSeed->TwsLineMgrG1_});
+            twsNewSenderStep.reset(new OmsTwsSenderStepG1{*coreMgrSeed->TwsLineG1_});
+            twsChgSenderStep.reset(new OmsTwsSenderStepG1{*coreMgrSeed->TwsLineG1_});
          }
          else { // 在 lg 設定檔裡面設定 ioargs.
-            TwsTradingLineMgrLgSP lgMgr;
+            TwsTradingLgMgrSP lgMgr;
             fon9::IoManagerArgs   iocfgs{"LgMgr"};
             iocfgs.CfgFileName_ = lgCfgFileName.ToString(&cfgpath);
             iocfgs.SessionFactoryPark_ = ioargsTse.SessionFactoryPark_;
             iocfgs.DeviceFactoryPark_ = ioargsTse.DeviceFactoryPark_;
-            lgMgr = TwsTradingLineMgrLg::Plant(coreMgr, holder, iocfgs);
-            twsNewSenderStep.reset(new OmsTwsSenderStepLg{*lgMgr});
-            twsChgSenderStep.reset(new OmsTwsSenderStepLg{*lgMgr});
+            lgMgr = TwsTradingLgMgr::Plant(coreMgr, holder, iocfgs);
+            twsNewSenderStep.reset(new OmsTwsSenderStepLgMgr{*lgMgr});
+            twsChgSenderStep.reset(new OmsTwsSenderStepLgMgr{*lgMgr});
          }
          coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twsOrdFactory});
          coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
@@ -289,32 +287,42 @@ public:
             logpath, fon9::Named{"TWF"}, coreMgr,
             *twfRpt1Factory, *twfRpt8Factory, *twfRpt9Factory, *twfFil1Factory, *twfFil2Factory));
          // ------------------
-         // if (lgCfgFileName.IsNullOrEmpty()) {
+         OmsRequestRunStepSP  twfNewSenderStep, twfChgSenderStep, twfNewQRSenderStep, twfNewQSenderStep, twfChgQSenderStep;
+         if (lgCfgFileName.IsNullOrEmpty()) {
             MaTreeSP twfG1Mgr{new MaTree{"TwfLineMgr"}};
             coreMgr.Add(new NamedSapling(twfG1Mgr, "TwfLineMgr"));
-            coreMgrSeed->TwfLineMgrG1_.reset(new TwfTradingLineMgrG1{coreMgr});
+            coreMgrSeed->TwfLineG1_.reset(new TwfTradingLineG1{coreMgr});
             // ---
             #define CREATE_TwfTradingLineMgr(type) \
-            coreMgrSeed->TwfLineMgrG1_->TradingLineMgr_[ExgSystemTypeToIndex(f9twf::ExgSystemType::type)] \
+            coreMgrSeed->TwfLineG1_->TradingLineMgr_[ExgSystemTypeToIndex(f9twf::ExgSystemType::type)] \
                = CreateTwfTradingLineMgr(*twfG1Mgr, cfgpath, ioargs##type, coreMgrSeed->TwfExgMapMgr_, f9twf::ExgSystemType::type)
             // ---
             CREATE_TwfTradingLineMgr(OptNormal);
             CREATE_TwfTradingLineMgr(OptAfterHour);
             CREATE_TwfTradingLineMgr(FutNormal);
             CREATE_TwfTradingLineMgr(FutAfterHour);
-            for (auto& lmgr : coreMgrSeed->TwfLineMgrG1_->TradingLineMgr_)
+            for (auto& lmgr : coreMgrSeed->TwfLineG1_->TradingLineMgr_)
                lmgr->StartTimerForOpen(fon9::TimeInterval_Second(1));
-         // }
-         // else {
-         //    TODO: Lg 線路群組.
-         // }
+            twfNewSenderStep  .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
+            twfChgSenderStep  .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
+            twfNewQRSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
+            twfNewQSenderStep .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
+            twfChgQSenderStep .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
+         }
+         else { // Lg 線路群組.
+            TwfTradingLgMgrSP    lgMgr;
+            fon9::IoManagerArgs  iocfgs{"LgMgr"};
+            iocfgs.CfgFileName_ = lgCfgFileName.ToString(&cfgpath);
+            iocfgs.SessionFactoryPark_ = ioargsFutNormal.SessionFactoryPark_;
+            iocfgs.DeviceFactoryPark_ = ioargsFutNormal.DeviceFactoryPark_;
+            lgMgr = TwfTradingLgMgr::Plant(coreMgr, holder, iocfgs, coreMgrSeed->TwfExgMapMgr_);
+            twfNewSenderStep  .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+            twfChgSenderStep  .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+            twfNewQRSenderStep.reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+            twfNewQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+            twfChgQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+         }
          // ------------------
-         OmsRequestRunStepSP  twfNewSenderStep, twfChgSenderStep, twfNewQRSenderStep, twfNewQSenderStep, twfChgQSenderStep;
-         twfNewSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineMgrG1_});
-         twfChgSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineMgrG1_});
-         twfNewQRSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineMgrG1_});
-         twfNewQSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineMgrG1_});
-         twfChgQSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineMgrG1_});
          coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twfOrd1Factory, twfOrd7Factory, twfOrd9Factory});
          coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
             new OmsTwfRequestIni1Factory("TwfNew", twfOrd1Factory,

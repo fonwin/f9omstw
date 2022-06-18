@@ -10,6 +10,46 @@ namespace f9omstw {
 using TwsTradingLineMgr = OmsTradingLineMgrT<f9tws::ExgTradingLineMgr>;
 using TwsTradingLineMgrSP = fon9::intrusive_ptr<TwsTradingLineMgr>;
 
+class TwsTradingLineGroup {
+   fon9_NON_COPY_NON_MOVE(TwsTradingLineGroup);
+public:
+   using LineMgr = TwsTradingLineMgr;
+   TwsTradingLineMgrSP  TseTradingLineMgr_;
+   TwsTradingLineMgrSP  OtcTradingLineMgr_;
+
+   TwsTradingLineGroup() = default;
+   ~TwsTradingLineGroup();
+
+   void OnTDayChangedInCore(OmsResource& resource) {
+      assert(this->TseTradingLineMgr_.get() != nullptr);
+      assert(this->OtcTradingLineMgr_.get() != nullptr);
+      this->TseTradingLineMgr_->OnOmsCoreChanged(resource);
+      this->OtcTradingLineMgr_->OnOmsCoreChanged(resource);
+   }
+   void SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, f9fmkt_TradingSessionSt sesSt) {
+      if (mkt == f9fmkt_TradingMarket_TwSEC && this->TseTradingLineMgr_)
+         this->TseTradingLineMgr_->SetTradingSessionSt(tday, sesId, sesSt);
+      if (mkt == f9fmkt_TradingMarket_TwOTC && this->OtcTradingLineMgr_)
+         this->OtcTradingLineMgr_->SetTradingSessionSt(tday, sesId, sesSt);
+   }
+
+   /// 根據 runner.OrderRaw_.Market() 取得 TwsTradingLineMgr;
+   /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
+   TwsTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
+      fon9_WARN_DISABLE_SWITCH;
+      switch (runner.OrderRaw_.Market()) {
+      case f9fmkt_TradingMarket_TwSEC:
+         return this->TseTradingLineMgr_.get();
+      case f9fmkt_TradingMarket_TwOTC:
+         return this->OtcTradingLineMgr_.get();
+      default:
+         runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
+         return nullptr;
+      }
+      fon9_WARN_POP;
+   }
+};
+
 /// 會在 owner 加入 2 個 seed:
 /// - (ioargs.Name_ + "_io"): TwsTradingLineMgr
 ///   - 使用 cfgpath + ioargs.Name_ + "_io" + ".f9gv" 綁定設定檔.

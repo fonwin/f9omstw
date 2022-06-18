@@ -14,7 +14,7 @@ set(f9omstwf_src
  OmsTwfExgSymbBasic.cpp
 
  OmsTwfSenderStepG1.cpp
-# OmsTwfSenderStepLg.cpp
+ OmsTwfSenderStepLgMgr.cpp
 
  OmsTwfTradingLineMgr.cpp
  OmsTwfTradingLineTmp.cpp

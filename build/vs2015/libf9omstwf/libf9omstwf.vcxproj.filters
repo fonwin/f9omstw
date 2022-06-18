@@ -50,6 +50,9 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfSenderStepLgMgr.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineMgr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -125,6 +128,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfSenderStepLgMgr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineMgr.cpp">

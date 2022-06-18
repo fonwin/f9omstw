@@ -20,6 +20,22 @@ public:
 };
 using TwfTradingLineMgrSP = fon9::intrusive_ptr<TwfTradingLineMgr>;
 
+class TwfTradingLineGroup {
+   fon9_NON_COPY_NON_MOVE(TwfTradingLineGroup);
+public:
+   TwfTradingLineMgrSP  TradingLineMgr_[f9twf::ExgSystemTypeCount()];
+   using LineMgr = TwfTradingLineMgr;
+
+   TwfTradingLineGroup() = default;
+   ~TwfTradingLineGroup();
+
+   void OnTDayChangedInCore(OmsResource& resource);
+
+   /// 根據 runner.OrderRaw_.SessionId() 及 runner.OrderRaw_.Market() 取得 TwfTradingLineMgr;
+   /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
+   TwfTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
+};
+
 /// 會在 owner 加入 2 個 seed:
 /// - (ioargs.Name_ + "_io"): TwfTradingLineMgr
 ///   - 使用 cfgpath + ioargs.Name_ + "_io" + ".f9gv" 綁定設定檔.

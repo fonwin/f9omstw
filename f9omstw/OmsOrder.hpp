@@ -224,6 +224,16 @@ public:
    /// 通常為: LeavesQty_ > 0;
    /// 但也有例外: 詢價, 報價. 
    virtual bool IsWorking() const = 0;
+
+   LgOut GetLgOut() const {
+      assert(dynamic_cast<const OmsRequestTrade*>(this->Request_) != nullptr);
+      auto  lgOut = static_cast<const OmsRequestTrade*>(this->Request_)->LgOut_;
+      if (fon9_LIKELY(lgOut != LgOut::Unknown))
+         return lgOut;
+      if (auto* ini = this->Order().Initiator())
+         return ini->LgOut_;
+      return lgOut;
+   }
 };
 
 //--------------------------------------------------------------------------//

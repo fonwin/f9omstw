@@ -97,6 +97,7 @@
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfTypes.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.hpp" />
+    <ClInclude Include="..\..\..\f9omstwf\OmsTwfSenderStepLgMgr.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\TwfCurrencyIndex.hpp" />
     <ClInclude Include="..\..\..\f9omstwf\TwfIvacScRule.hpp" />
   </ItemGroup>
@@ -132,6 +133,7 @@
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTradingLineTmp.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfTypes.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\OmsTwfSenderStepG1.cpp" />
+    <ClCompile Include="..\..\..\f9omstwf\OmsTwfSenderStepLgMgr.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\TwfCurrencyIndex.cpp" />
     <ClCompile Include="..\..\..\f9omstwf\TwfIvacScRule.cpp" />
   </ItemGroup>

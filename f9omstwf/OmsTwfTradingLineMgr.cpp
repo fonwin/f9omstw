@@ -6,6 +6,37 @@
 
 namespace f9omstw {
 
+TwfTradingLineGroup::~TwfTradingLineGroup() {
+}
+void TwfTradingLineGroup::OnTDayChangedInCore(OmsResource& resource) {
+   for (unsigned L = 0; L < numofele(this->TradingLineMgr_); ++L) {
+      assert(this->TradingLineMgr_[L].get() != nullptr);
+      this->TradingLineMgr_[L]->OnOmsCoreChanged(resource);
+   }
+}
+TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(OmsRequestRunnerInCore& runner) const {
+   unsigned idx;
+   switch (runner.OrderRaw_.SessionId()) {
+   case f9fmkt_TradingSessionId_AfterHour: idx = 1; break;
+   case f9fmkt_TradingSessionId_Normal:    idx = 0; break;
+   default:
+      runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_SessionId, nullptr);
+      return nullptr;
+   }
+   switch (runner.OrderRaw_.Market()) {
+   case f9fmkt_TradingMarket_TwFUT:
+      idx = f9twf::ExgSystemTypeToIndex(idx ? f9twf::ExgSystemType::FutAfterHour : f9twf::ExgSystemType::FutNormal);
+      break;
+   case f9fmkt_TradingMarket_TwOPT:
+      idx = f9twf::ExgSystemTypeToIndex(idx ? f9twf::ExgSystemType::OptAfterHour : f9twf::ExgSystemType::OptNormal);
+      break;
+   default:
+      runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
+      return nullptr;
+   }
+   return this->TradingLineMgr_[idx].get();
+}
+
 TwfTradingLineMgrSP CreateTwfTradingLineMgr(fon9::seed::MaTree&  owner,
                                             std::string          cfgpath,
                                             fon9::IoManagerArgs& ioargs,

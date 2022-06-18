@@ -6,6 +6,9 @@
 
 namespace f9omstw {
 
+TwsTradingLineGroup::~TwsTradingLineGroup() {
+}
+
 TwsTradingLineMgrSP CreateTwsTradingLineMgr(fon9::seed::MaTree&  owner,
                                             std::string          cfgpath,
                                             fon9::IoManagerArgs& ioargs,

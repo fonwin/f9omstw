@@ -23,6 +23,8 @@ using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
 using OmsEventFactoryPark = OmsFactoryPark_NoKey<OmsEventFactory, fon9::seed::TreeFlag::Unordered>;
 using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
 
+class TwfExgMapMgr;
+
 //--------------------------------------------------------------------------//
 
 /// 如果有 Lg 的需求, 則進入下單流程前, 必須先填好 OmsRequestTrade::LgOut_;
@@ -60,6 +62,7 @@ class OmsCoreMgr : public fon9::seed::MaTree {
    CurrentCoreSapling&  CurrentCoreSapling_;
    bool                 IsTDayChanging_{false};
    ErrCodeActSeed*      ErrCodeActSeed_;
+   TwfExgMapMgr*        TwfExgMapMgr_{};
 
 protected:
    OmsOrderFactoryParkSP   OrderFactoryPark_;
@@ -150,6 +153,16 @@ public:
    /// Backend.Reload 重新載入後, 重新處理 OmsEvent.
    /// 預設: if (omsEvent is OmsEventSessionSt): 轉給 this-> OnEventSessionSt();
    virtual void ReloadEvent(OmsResource& resource, const OmsEvent& omsEvent, const OmsBackend::Locker& reloadItems);
+
+   /// 這裡只是建立一個參考, 在 f9omstw::TwfExgMapMgr 建構時設定,
+   /// 讓其他模組(例:行情模組), 可以方便地找到。
+   void SetTwfExgMapMgr(TwfExgMapMgr* value) {
+      assert(this->TwfExgMapMgr_ == nullptr);
+      this->TwfExgMapMgr_ = value;
+   }
+   TwfExgMapMgr* GetTwfExgMapMgr() const {
+      return this->TwfExgMapMgr_;
+   }
 };
 fon9_WARN_POP;
 

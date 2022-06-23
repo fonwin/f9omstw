@@ -162,6 +162,9 @@ public:
       return this->Backend_.GetItem(sno, rxItems);
    }
 
+   /// OmsSymbTree 有 lock 保護, 所以不需要透過 Resource 取用.
+   OmsSymbTree* GetSymbs() const { return this->Symbs_.get(); }
+
    /// \retval nullptr  參數有誤.
    /// \retval !nullptr 在 this 死亡前持續有效的指標, 這樣可以方便使用端快速取得現在的 SessionSt;
    const f9fmkt_TradingSessionSt* GetSessionSt(f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup = 0);

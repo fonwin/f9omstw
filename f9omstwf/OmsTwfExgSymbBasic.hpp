@@ -3,6 +3,7 @@
 #ifndef __f9omstwf_OmsTwfExgSymbBasic_hpp__
 #define __f9omstwf_OmsTwfExgSymbBasic_hpp__
 #include "f9omstwf/OmsTwfTypes.hpp"
+#include "f9omstw/OmsMdEvent.hpp"
 #include "fon9/ConfigUtils.hpp"
 #include "fon9/seed/PodOp.hpp"
 #include "fon9/fmkt/FmktTools.hpp"
@@ -217,16 +218,20 @@ using TwfExgContractMap = TwfContractMap<TwfExgContract>;
 using TwfExgContractTree = TwfExgContractMap::ContainsMapTree;
 //--------------------------------------------------------------------------//
 /// TwfExgMapMgr 會將 P08 的內容填入此處.
-class TwfExgSymbBasic {
+/// OmsMdLastPrice.LastPrice_: 商品最後成交價 = 初始值來自P08.premium, 後續用即時行情I020;
+class TwfExgSymbBasic : public OmsMdLastPrice {
+   fon9_NON_COPY_NON_MOVE(TwfExgSymbBasic);
 public:
+   TwfExgSymbBasic();
+   ~TwfExgSymbBasic();
+
+   OmsMdLastPriceSubject   LastPriceSubject_;
+
    /// 期交所PA8的商品Id;
    /// this->SymbId_ = P08的商品Id;
    /// P08/PA8 共用同一個 UtwsSymb;
    fon9::CharVector  LongId_;
    fon9::TimeStamp   P08UpdatedTime_;
-
-   /// 商品最後成交價 = 初始值來自P08.premium, 後續用即時行情I020;
-   OmsTwfPri         LastPrice_;
 
    /// 在 TwfExgMapMgr::OnP08Updated() 會設定此值.
    TwfExgContractSP  Contract_;

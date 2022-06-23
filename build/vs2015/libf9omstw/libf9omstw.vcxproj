@@ -95,6 +95,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsIvBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsIvSymb.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsMakeErrMsg.h" />
+    <ClInclude Include="..\..\..\f9omstw\OmsMdEvent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrder.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdNoMap.hpp" />
@@ -150,6 +151,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsIvBase.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsIvSymb.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsMakeErrMsg.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsMdEvent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrderFactory.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdNoMap.cpp" />

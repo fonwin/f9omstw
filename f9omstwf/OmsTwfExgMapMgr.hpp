@@ -33,6 +33,7 @@ public:
       , CoreMgr_(coreMgr)
       , CurrencyTree_{new CurrencyConfig_Tree} {
       this->Ctor();
+      coreMgr.SetTwfExgMapMgr(this);
    }
    ~TwfExgMapMgr();
 

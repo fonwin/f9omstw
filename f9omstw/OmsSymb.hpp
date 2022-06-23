@@ -8,7 +8,13 @@
 
 namespace f9omstw {
 
-using OmsSymb = fon9::fmkt::SymbTwa;
+class OmsSymb : public fon9::fmkt::SymbTwa {
+   fon9_NON_COPY_NON_MOVE(OmsSymb);
+   using base = fon9::fmkt::SymbTwa;
+public:
+   using base::base;
+   ~OmsSymb();
+};
 using OmsSymbSP = fon9::intrusive_ptr<OmsSymb>;
 
 // TODO: 是否要針對不同市場, 使用不同的 Symb?

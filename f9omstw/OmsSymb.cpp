@@ -4,4 +4,7 @@
 
 namespace f9omstw {
 
+OmsSymb::~OmsSymb() {
+}
+
 } // namespaces

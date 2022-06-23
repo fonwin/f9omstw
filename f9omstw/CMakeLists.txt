@@ -30,6 +30,7 @@ set(f9omstw_src
  OmsSymb.cpp
  OmsSymbTree.cpp
  OmsErrCodeActTree.cpp
+ OmsMdEvent.cpp
 
  OmsRequestId.cpp
  OmsRequestBase.cpp

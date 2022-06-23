@@ -12,6 +12,7 @@ set(f9omstwf_src
  TwfIvacScRule.cpp
  TwfCurrencyIndex.cpp
  OmsTwfExgSymbBasic.cpp
+ OmsTwfMiSystem.cpp
 
  OmsTwfSenderStepG1.cpp
  OmsTwfSenderStepLgMgr.cpp

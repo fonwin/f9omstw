@@ -145,5 +145,10 @@ void TwfContractBaseTree::OnParentSeedClear() {
    ContractMapImpl impl{std::move(*this->ContractMap_.Lock())};
    // unlock 後, impl 解構時, 自動清除.
 }
+//--------------------------------------------------------------------------//
+TwfExgSymbBasic::TwfExgSymbBasic() {
+}
+TwfExgSymbBasic::~TwfExgSymbBasic() {
+}
 
 } // namespaces

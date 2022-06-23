@@ -20,7 +20,10 @@ struct CurrencyConfig {
    OmsTwfMrgn Round(OmsTwfMrgn val) const {
       if (this->Round_.IsZero())
          return val;
-      val += this->Round_ / 2;
+      if (fon9_LIKELY(val.GetOrigValue() >= 0))
+         val += this->Round_ / 2;
+      else
+         val -= this->Round_ / 2;
       return val - (val % this->Round_);
    }
    void SetExchangeRateFrom(CurrencyIndex cidx, OmsExchangeRate rate) {

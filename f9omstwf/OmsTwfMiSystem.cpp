@@ -40,12 +40,18 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
       if (!core)
          return;
       auto& pkI020 = *static_cast<const f9twf::ExgMiI020*>(pk);
-      auto  symb = core->GetSymbs()->GetOmsSymb(fon9::StrView_eos_or_all(pkI020.ProdId_.Chars_, ' '));
+      auto  symb = core->GetSymbs()->FetchOmsSymb(fon9::StrView_eos_or_all(pkI020.ProdId_.Chars_, ' '));
       if (!symb)
          return;
       auto* twfsymb = dynamic_cast<TwfExgSymbBasic*>(symb.get());
       if (!twfsymb)
          return;
+      if (fon9_UNLIKELY(symb->PriceOrigDiv_ == 0 && pkI020.ProdId_.Chars_[5] == '/')) {
+         // 期貨價差: 從leg1取得相關必要欄位. TODO:應在建立新的 symb 時處理.
+         if (auto leg1 = core->GetSymbs()->GetOmsSymb(fon9::StrView{pkI020.ProdId_.Chars_, 5})) {
+            symb->PriceOrigDiv_ = leg1->PriceOrigDiv_;
+         }
+      }
       const uint8_t                       count = static_cast<uint8_t>(pkI020.MatchDisplayItem_ & 0x7f);
       const f9twf::ExgMdMatchData* const  pend = pkI020.MatchData_ + count;
       if (twfsymb->LastPriceSubject_.IsEmpty()) {

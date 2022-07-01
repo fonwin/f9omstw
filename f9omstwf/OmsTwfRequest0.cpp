@@ -33,11 +33,14 @@ f9twf::TmpCombOp OmsTwfRequestIni0::CombOp(OmsResource& res) const {
 OmsSymbSP OmsTwfRequestIni0::RegetSymb(OmsResource& res) {
    fon9::StrView symbid = ToStrView(this->Symbol_);
    auto retval = res.Symbs_->GetOmsSymb(symbid);
-   if (retval)
-      return retval;
+   if (fon9_LIKELY(retval)) { // 單式 or 期貨價差.
+      if (fon9_LIKELY(this->Symbol_.begin()[5] != '/'))
+         return retval;
+      // 期貨價差 => 必須拆解成複式.
+   }
    f9twf::ExgCombSymbId combId;
    if (fon9_UNLIKELY(!combId.Parse(symbid) || combId.CombOp_ == f9twf::TmpCombOp::Single))
-      return nullptr;
+      return retval;
    this->CombOp_ = combId.CombOp_;
    this->CombSide_ = combId.CombSide_;
    retval = res.Symbs_->GetOmsSymb(ToStrView(combId.LegId1_));

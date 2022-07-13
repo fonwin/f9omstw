@@ -51,6 +51,8 @@ void OmsRequestRunnerInCore::Update(f9fmkt_TradingRequestSt reqst) {
 //--------------------------------------------------------------------------//
 OmsRequestRunStep::~OmsRequestRunStep() {
 }
+void OmsRequestRunStep::OnCurrentCoreChangedImpl(OmsCore&) {
+}
 void OmsRequestRunStep::RerunRequest(OmsReportRunnerInCore&& runner) {
    if (this->NextStep_)
       this->NextStep_->RerunRequest(std::move(runner));

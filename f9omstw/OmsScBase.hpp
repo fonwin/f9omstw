@@ -315,5 +315,14 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
 /// IsRelatedStk: 利害關係人股票禁止下單.
 #define OmsErrCode_Sc_IsRelatedStk  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 800)
 
+//--------------------------------------------------------------------------//
+/// 11103..11107 需對應 10103..10107 的錯誤碼.
+#define OmsErrCode_CondSc_Adj                    1000
+#define OmsErrCode_CondSc_BadCondOp              static_cast<OmsErrCode>(OmsErrCode_FromRisk + OmsErrCode_CondSc_Adj + 999)
+#define OmsErrCode_CondSc_BadPri                 static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_BadPri)
+#define OmsErrCode_CondSc_OverPriUpLmt           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_OverPriUpLmt)
+#define OmsErrCode_CondSc_OverPriDnLmt           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_OverPriDnLmt)
+#define OmsErrCode_CondSc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_BadPriTickSize)
+
 } // namespaces
 #endif//__f9omstw_OmsScBase_hpp__

@@ -33,7 +33,10 @@ public:
 
    /// 根據 runner.OrderRaw_.SessionId() 及 runner.OrderRaw_.Market() 取得 TwfTradingLineMgr;
    /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
-   TwfTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
+   TwfTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
+      return this->GetLineMgr(runner.OrderRaw_, &runner);
+   }
+   TwfTradingLineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const;
 };
 
 /// 會在 owner 加入 2 個 seed:

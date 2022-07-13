@@ -25,6 +25,31 @@ f9fmkt::SendRequestResult OmsTradingLineMgrBase::NoReadyLineReject(f9fmkt::Tradi
    this->CurrRunner_->Reject(f9fmkt_TradingRequestSt_LineRejected, OmsErrCode_NoReadyLine, ToStrView(rbuf));
    return f9fmkt::SendRequestResult::NoReadyLine;
 }
+bool OmsTradingLineMgrBase::CheckNoReadyLineBroken() {
+   switch (this->State_) {
+   default:
+   case TradingLineMgrState::NoReadyLineBroken:
+   case TradingLineMgrState::Ready:
+      break;
+   case TradingLineMgrState::NoReadyLineReject:
+   case TradingLineMgrState::NoReadyLineBroken1:
+      auto lk = this->Lock();
+      switch (this->State_) {
+      default:
+      case TradingLineMgrState::NoReadyLineBroken:
+      case TradingLineMgrState::Ready:
+         return false;
+      case TradingLineMgrState::NoReadyLineReject:
+         // 下次檢查時, 若仍為 NoReadyLineBroken1, 則確定無法恢復連線, 才會進入 NoReadyLineBroken 狀態.
+         this->State_ = TradingLineMgrState::NoReadyLineBroken1;
+         break;
+      case TradingLineMgrState::NoReadyLineBroken1:
+         this->State_ = TradingLineMgrState::NoReadyLineBroken;
+         return true;
+      }
+   }
+   return false;
+}
 //--------------------------------------------------------------------------//
 void OmsTradingLineMgrBase::SetOrdTeamGroupId(OmsResource& coreResource, const Locker&) {
    if (this->OmsCore_.get() != &coreResource.Core_)

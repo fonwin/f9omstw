@@ -42,10 +42,10 @@
     <Filter Include="OmsErrCode">
       <UniqueIdentifier>{85ba3876-6c0b-41e6-8d4c-73ca7841b7d6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\_md">
+    <Filter Include="Header Files\_md_cx">
       <UniqueIdentifier>{340221e8-c4ed-4c8e-92fa-db4469c22367}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\_md">
+    <Filter Include="Source Files\_md_cx">
       <UniqueIdentifier>{f811c038-1b3f-416d-bb8b-fd3c469ac3f0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -216,7 +216,10 @@
       <Filter>Header Files\_core</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsMdEvent.hpp">
-      <Filter>Header Files\_md</Filter>
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxRequest.hpp">
+      <Filter>Header Files\_md_cx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -365,7 +368,10 @@
       <Filter>Source Files\_policy</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsMdEvent.cpp">
-      <Filter>Source Files\_md</Filter>
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxRequest.cpp">
+      <Filter>Source Files\_md_cx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

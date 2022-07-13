@@ -9,9 +9,9 @@ namespace f9omstw {
 
 /// Tws 單一線路群組, 整合: 一個「上市線路管理員」及一個「上櫃線路管理員」.
 /// - 負責處理 TDay 改變事件的後續相關作業.
-class TwsTradingLineG1 : public OmsTradingLineG1T<TwsTradingLineGroup> {
+class TwsTradingLineG1 : public TwsTradingLineGroup {
    fon9_NON_COPY_NON_MOVE(TwsTradingLineG1);
-   using base = OmsTradingLineG1T<TwsTradingLineGroup>;
+   using base = TwsTradingLineGroup;
    void OnOmsSessionStEvent(OmsResource& res, const OmsEventSessionSt&);
 public:
    TwsTradingLineG1(OmsCoreMgr& coreMgr);

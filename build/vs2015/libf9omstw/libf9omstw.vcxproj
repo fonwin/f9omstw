@@ -82,6 +82,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCoreMgr.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCoreMgrSeed.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsCxRequest.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsErrCode.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsErrCodeAct.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsErrCodeActTree.hpp" />
@@ -140,6 +141,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsCoreByThread.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCoreMgr.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsCoreMgrSeed.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsCxRequest.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsErrCodeAct.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsErrCodeActTree.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsEventFactory.cpp" />

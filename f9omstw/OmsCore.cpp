@@ -15,7 +15,9 @@ OmsCore::~OmsCore() {
    /// 因為存檔時會用到 Owner_ 的 OrderFactory, RequestFactory...
    this->Backend_.OnBeforeDestroy();
 }
-
+bool OmsCore::IsCurrentCore() const {
+   return this->Owner_->CurrentCore().get() == this;
+}
 bool OmsCore::IsThisThread() const {
    return this->ThreadId_ == fon9::GetThisThreadId().ThreadId_;
 }
@@ -65,8 +67,10 @@ void OmsCore::EventInCore(OmsEventSP&& omsEvent) {
 }
 //--------------------------------------------------------------------------//
 bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
-   if (fon9_LIKELY(runner.Request_->IsReportIn() || runner.ValidateInUser()))
+   if (fon9_LIKELY(runner.Request_->IsReportIn() || runner.ValidateInUser())) {
+      runner.Request_->SetInCore();
       return this->MoveToCoreImpl(std::move(runner));
+   }
    return false;
 }
 void OmsCore::RunInCore(OmsRequestRunner&& runner) {

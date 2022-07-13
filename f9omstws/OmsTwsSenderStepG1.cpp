@@ -5,7 +5,7 @@
 
 namespace f9omstw {
 
-TwsTradingLineG1::TwsTradingLineG1(OmsCoreMgr& coreMgr) : base{coreMgr} {
+TwsTradingLineG1::TwsTradingLineG1(OmsCoreMgr& coreMgr) : base{} {
    coreMgr.OmsSessionStEvent_.Subscribe(// &this->SubrOmsEvent_,
            std::bind(&TwsTradingLineG1::OnOmsSessionStEvent, this, std::placeholders::_1, std::placeholders::_2));
 }

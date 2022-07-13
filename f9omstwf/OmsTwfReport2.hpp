@@ -48,6 +48,23 @@ public:
 
 using OmsTwfReport2Factory = OmsReportFactoryT<OmsTwfReport2>;
 using OmsTwfReport2FactorySP = fon9::intrusive_ptr<OmsTwfReport2Factory>;
+//--------------------------------------------------------------------------//
+template <class OmsTwfReport2Derived>
+struct OmsTwfReport2FactoryT : public OmsTwfReport2Factory {
+   fon9_NON_COPY_NON_MOVE(OmsTwfReport2FactoryT);
+   using base = OmsTwfReport2Factory;
+   OmsRequestSP MakeReportInImpl(f9fmkt_RxKind reqKind) override {
+      OmsTwfReport2Derived* retval = new OmsTwfReport2Derived(*this, reqKind);
+      retval->InitializeForReportIn();
+      return retval;
+   }
+public:
+   OmsTwfReport2FactoryT(std::string name, OmsOrderFactorySP ordFactory)
+      : base(ordFactory, nullptr, fon9::Named(std::move(name)),
+             MakeFieldsT<OmsTwfReport2Derived>()) {
+   }
+   static_assert(std::is_base_of<OmsTwfReport2, OmsTwfReport2Derived>::value, "");
+};
 
 } // namespaces
 #endif//__f9omstwf_OmsTwfReport2_hpp__

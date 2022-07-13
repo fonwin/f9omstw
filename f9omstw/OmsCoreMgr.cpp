@@ -2,6 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsEventSessionSt.hpp"
+#include "f9omstw/OmsRequestFactory.hpp"
 
 namespace f9omstw {
 
@@ -69,6 +70,15 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
          old->SetCoreSt(OmsCoreSt::Disposing);
       treeLocker.unlock();
 
+      if (this->RequestFactoryPark_) { // 某些特殊應用(例: UintTest), 沒有 RequestFactoryPark;
+         for (unsigned L = 0;; ++L) {
+            auto* fac = this->RequestFactoryPark_->GetFactory(L);
+            if (!fac)
+               break;
+            if (fac->RunStep_) // 某些特殊應用(例: UintTest), 沒有 RunStep;
+               fac->RunStep_->OnCurrentCoreChanged(*cur);
+         }
+      }
       this->TDayChangedEvent_.Publish(*cur);
       if (old)
          this->Remove(&old->Name_);

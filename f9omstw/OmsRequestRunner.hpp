@@ -186,6 +186,10 @@ protected:
       if (this->NextStep_)
          this->NextStep_->RunRequest(std::move(runner));
    }
+   /// 當換日時, 由 OmsCoreMgr 主動通知,
+   /// 在 OmsCoreMgr.TDayChangedEvent_ 之前呼叫.
+   /// 預設: do nothing;
+   virtual void OnCurrentCoreChangedImpl(OmsCore&);
 
 public:
    OmsRequestRunStep() = default;
@@ -195,6 +199,14 @@ public:
    virtual ~OmsRequestRunStep();
 
    virtual void RunRequest(OmsRequestRunnerInCore&&) = 0;
+   /// 當換日時, 由 OmsCoreMgr 主動通知.
+   /// 衍生者可透過 void OnCurrentCoreChangedImpl(OmsCore&) override; 處理.
+   /// 在這裡會繼續呼叫下一步驟的 OnCurrentCoreChanged();
+   void OnCurrentCoreChanged(OmsCore& core) {
+      this->OnCurrentCoreChangedImpl(core);
+      if (this->NextStep_)
+         this->NextStep_->OnCurrentCoreChanged(core);
+   }
 
    /// 透過 OmsErrCodeAct.cfg 設定某些錯誤碼在特定條件下,
    /// 必須重跑一次流程, 透過這處理.

@@ -9,12 +9,25 @@
 namespace f9omstw {
 namespace f9fmkt = fon9::fmkt;
 
+enum class TradingLineMgrState : uint8_t {
+   /// 在 NoReadyLineReject 之後, 若為瞬斷, 應會在短時間內重新連線, 進入 Ready 狀態.
+   /// 若一段時間內無法進入 Ready 狀態, 則會進入 NoReadyLineBroken 狀態.
+   /// 需由外部主動呼叫 OmsTradingLineMgrBase::CheckNoReadyLineBroken(); 才會進入此狀態.
+   /// 若沒有呼叫 OmsTradingLineMgrBase::CheckNoReadyLineBroken(); 則在斷線時, 僅會進入 NoReadyLineReject 狀態.
+   NoReadyLineBroken = 0,
+   /// 由 NoReadyLineReject 進入 NoReadyLineBroken 之前的暫時狀態.
+   NoReadyLineBroken1 = 1,
+   NoReadyLineReject = 2,
+   Ready = 3,
+};
+
 class OmsTradingLineMgrBase {
    fon9_NON_COPY_NON_MOVE(OmsTradingLineMgrBase);
 
-   OmsOrdTeamGroupId       OrdTeamGroupId_{};
-   char                    Padding____[4];
-   fon9::CharVector        OrdTeamConfig_;
+   TradingLineMgrState  State_{TradingLineMgrState::NoReadyLineBroken};
+   char                 Padding____[3];
+   OmsOrdTeamGroupId    OrdTeamGroupId_{};
+   fon9::CharVector     OrdTeamConfig_;
 
    using Locker = f9fmkt::TradingLineManager::Locker;
    void SetOrdTeamGroupId(OmsResource& coreResource, const Locker&);
@@ -28,6 +41,9 @@ protected:
    bool SetOmsCore(OmsResource& coreResource, Locker&&);
    f9fmkt::SendRequestResult NoReadyLineReject(f9fmkt::TradingRequest& req, fon9::StrView cause);
    static void ClearReqQueue(Locker&& tsvr, fon9::StrView cause, OmsCoreSP core);
+   void SetState(TradingLineMgrState st, const Locker&) {
+      this->State_ = st;
+   }
 
    virtual Locker Lock() = 0;
    virtual void AddRef() const = 0;
@@ -42,6 +58,13 @@ public:
    /// 通常 name = ioargs.Name_; 用來建立排隊訊息: 「"Queuing in " + name」.
    OmsTradingLineMgrBase(fon9::StrView name);
    virtual ~OmsTradingLineMgrBase();
+
+   TradingLineMgrState State() const {
+      return this->State_;
+   }
+   /// \retval true  由 [非 NoReadyLineBroken] 進入 [NoReadyLineBroken] 狀態.
+   /// \retval false 檢查前已經是 NoReadyLineBroken 狀態, 或最後狀態沒有變成 NoReadyLineBroken;
+   bool CheckNoReadyLineBroken();
 
    void OnOrdTeamConfigChanged(fon9::CharVector ordTeamConfig);
    
@@ -58,7 +81,7 @@ public:
          return this->CurrRunner_;
       }
       // 來到這裡, 建立新的 runner:
-      // 從 OnNewTradingLineReady() 進入 OmsCore 之後, 從 Queue 取出送單.
+      // 在 OnNewTradingLineReady() 進入 OmsCore 之後, 從 Queue 取出送單.
       assert(tmpRunner.get() == nullptr && this->CurrOmsResource_ != nullptr);
       return tmpRunner.emplace(*this->CurrOmsResource_,
                                *req.LastUpdated()->Order().BeginUpdate(req),
@@ -88,6 +111,7 @@ public:
       case f9fmkt_RxKind_Filled:
       case f9fmkt_RxKind_Order:
       case f9fmkt_RxKind_Event:
+      case f9fmkt_RxKind_RequestChgCond:
          return f9fmkt::TradingRequest::Op_NotSupported;
 
       case f9fmkt_RxKind_RequestDelete:
@@ -127,6 +151,7 @@ public:
       currRunner->Update(f9fmkt_TradingRequestSt_Done);
       return f9fmkt::TradingRequest::Op_ThisDone;
    }
+
    template <typename DstT, typename SrcQtyT>
    static void CalcInternalChgQty(DstT& dst, SrcQtyT src) {
       if (src >= 0) {
@@ -141,6 +166,7 @@ public:
    }
 };
 
+/// TradingLineMgrBaseT 必定衍生自 fon9::fmkt::TradingLineManager;
 template <class TradingLineMgrBaseT>
 class OmsTradingLineMgrT : public TradingLineMgrBaseT
                          , public OmsTradingLineMgrBase {
@@ -166,6 +192,7 @@ protected:
    }
    void ClearReqQueue(Locker&& tsvr, fon9::StrView cause) override {
       assert(this->use_count() != 0); // 必定要在解構前呼叫 ClearReqQueue();
+      this->SetState(TradingLineMgrState::NoReadyLineReject, tsvr);
       this->baseOmsTradingLineMgr::ClearReqQueue(std::move(tsvr), cause, this->OmsCore_);
    }
 
@@ -202,6 +229,7 @@ public:
 
    void OnNewTradingLineReady(f9fmkt::TradingLine* src, Locker&& tsvr) override {
       (void)src;
+      this->SetState(TradingLineMgrState::Ready, tsvr);
       if (tsvr->ReqQueue_.empty())
          return;
       OmsCoreSP core = this->OmsCore_;

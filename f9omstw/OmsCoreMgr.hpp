@@ -82,6 +82,12 @@ public:
 
    OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut);
 
+   /// 事件順序:
+   /// cur->SetCoreSt(OmsCoreSt::CurrentCoreReady);
+   /// old->SetCoreSt(OmsCoreSt::Disposing);
+   /// this->RequestFactoryPark_: fac->RunStep_->OnCurrentCoreChanged(*cur);
+   /// this->TDayChangedEvent_.Publish(*cur);
+   /// this->Remove(old);
    using TDayChangedEvent = fon9::Subject<OmsTDayChangedHandler>;
    TDayChangedEvent  TDayChangedEvent_;
 

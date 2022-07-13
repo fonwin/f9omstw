@@ -119,6 +119,7 @@ public:
    virtual bool RunCoreTask(OmsCoreTask&& task) = 0;
 
    bool IsThisThread() const;
+   bool IsCurrentCore() const;
 
    OmsCoreSt CoreSt() const {
       return this->CoreSt_;
@@ -164,6 +165,7 @@ public:
 
    /// OmsSymbTree 有 lock 保護, 所以不需要透過 Resource 取用.
    OmsSymbTree* GetSymbs() const { return this->Symbs_.get(); }
+   UsrDefObj* GetUsrDef() const { return this->UsrDef_.get(); }
 
    /// \retval nullptr  參數有誤.
    /// \retval !nullptr 在 this 死亡前持續有效的指標, 這樣可以方便使用端快速取得現在的 SessionSt;

@@ -14,16 +14,17 @@ void TwfTradingLineGroup::OnTDayChangedInCore(OmsResource& resource) {
       this->TradingLineMgr_[L]->OnOmsCoreChanged(resource);
    }
 }
-TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(OmsRequestRunnerInCore& runner) const {
+TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
    unsigned idx;
-   switch (runner.OrderRaw_.SessionId()) {
+   switch (ordraw.SessionId()) {
    case f9fmkt_TradingSessionId_AfterHour: idx = 1; break;
    case f9fmkt_TradingSessionId_Normal:    idx = 0; break;
    default:
-      runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_SessionId, nullptr);
+      if (runner)
+         runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_SessionId, nullptr);
       return nullptr;
    }
-   switch (runner.OrderRaw_.Market()) {
+   switch (ordraw.Market()) {
    case f9fmkt_TradingMarket_TwFUT:
       idx = f9twf::ExgSystemTypeToIndex(idx ? f9twf::ExgSystemType::FutAfterHour : f9twf::ExgSystemType::FutNormal);
       break;
@@ -31,7 +32,8 @@ TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(OmsRequestRunnerInCore& runne
       idx = f9twf::ExgSystemTypeToIndex(idx ? f9twf::ExgSystemType::OptAfterHour : f9twf::ExgSystemType::OptNormal);
       break;
    default:
-      runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
+      if (runner)
+         runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
       return nullptr;
    }
    return this->TradingLineMgr_[idx].get();

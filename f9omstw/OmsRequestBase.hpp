@@ -34,6 +34,9 @@ enum OmsRequestFlag : uint8_t {
    ///     此旗標僅是為了協助處理上述欄位的填寫.
    OmsRequestFlag_ForceInternal = 0x20,
 
+   /// req 已成功執行 OmsCore.MoveToCore();
+   OmsRequestFlag_InCore = 0x40,
+
    /// 無法進入委託流程: 無法建立 OmsOrder, 或找不到對應的 OmsOrder.
    OmsRequestFlag_Abandon = 0x80,
 };
@@ -114,9 +117,6 @@ protected:
    /// 在 flds 增加 ErrCode 欄位, 這裡沒有呼叫 MakeFields().
    static void AddFieldsErrCode(fon9::seed::Fields& flds);
 
-   void InitializeForReportIn() {
-      this->RxItemFlags_ |= OmsRequestFlag_ReportIn;
-   }
    void MakeReportReqUID(fon9::DayTime exgTime, uint32_t beforeQty);
    void MakeReportReqUID(fon9::TimeStamp exgTime, uint32_t beforeQty) {
       MakeReportReqUID(fon9::GetDayTime(exgTime), beforeQty);
@@ -174,6 +174,10 @@ public:
    bool IsReportIn() const {
       return (this->RxItemFlags_ & OmsRequestFlag_ReportIn) == OmsRequestFlag_ReportIn;
    }
+   void InitializeForReportIn() {
+      this->RxItemFlags_ |= OmsRequestFlag_ReportIn;
+   }
+
    /// 設定 OmsRequestFlag_ReportNeedsLog 旗標.
    void SetReportNeedsLog() {
       assert(this->IsReportIn());
@@ -190,6 +194,13 @@ public:
 
    void SetForceInternal() {
       this->RxItemFlags_ |= OmsRequestFlag_ForceInternal;
+   }
+
+   void SetInCore() {
+      this->RxItemFlags_ |= OmsRequestFlag_InCore;
+   }
+   bool IsInCore() const {
+      return (this->RxItemFlags_ & OmsRequestFlag_InCore) == OmsRequestFlag_InCore;
    }
 
    /// 最後一次委託異動完畢後的內容.

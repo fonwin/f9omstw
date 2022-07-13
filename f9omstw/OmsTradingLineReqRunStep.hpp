@@ -9,11 +9,29 @@
 
 namespace f9omstw {
 
+/// - 負責處理 TDay 改變事件的後續相關作業: 轉送給 LineGroupMgr_.OnTDayChangedInCore(resource);
+/// - 透過 LineGroupMgr 整合相關線路:
+///   - LineGroupMgr 必須提供:
+///         struct LineGroupMgr {
+///            typename LineMgr;  // = OmsTradingLineMgrT<>;
+///            typename LineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
+///            void OnTDayChangedInCore(OmsResource& resource);
+///         };
+///   - LineGroupMgr::LineMgr
+///      - TwsTradingLineGroup: 單一線路群組: 包含 [上市、上櫃] 線路管理員;
+///      - TwfTradingLineGroup: 單一線路群組: 包含 [期貨日盤、選擇權日盤、期貨夜盤、選擇權夜盤] 線路管理員.
+///      - OmsTradingLgMgrT<>:  線路群組管理: 可透過 LgOut 選擇線路群組.
 template <class LineGroupMgr>
 class OmsTradingLineReqRunStepT : public OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(OmsTradingLineReqRunStepT);
    using base = OmsRequestRunStep;
    using base::base;
+   void OnCurrentCoreChangedImpl(OmsCore& core) override {
+      core.RunCoreTask([this](OmsResource& resource) {
+         if (resource.Core_.IsCurrentCore())
+            this->LineGroupMgr_.OnTDayChangedInCore(resource);
+      });
+   }
 
 public:
    LineGroupMgr&  LineGroupMgr_;
@@ -35,47 +53,14 @@ public:
    }
 };
 //--------------------------------------------------------------------------//
-/// 單一線路群組(無分組,不理會下單時的LgOut).
-/// - 負責處理 TDay 改變事件的後續相關作業.
-/// - 透過 LineGroup 整合相關線路:
-///   - LineGroup = TwsTradingLineGroup: 包含: [上市、上櫃] 線路管理員;
-///   - LineGroup = TwfTradingLineGroup: 包含: [期貨日盤、選擇權日盤、期貨夜盤、選擇權夜盤] 線路管理員.
-///   - LineGroup 必須提供:
-///        struct LineGroup {
-///          typename LineMgr;  // = OmsTradingLineMgrT<>; 同一個交易
-///          typename LineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const;
-///          void OnTDayChangedInCore(OmsResource& resource);
-///        };
-template <class LineGroup>
-class OmsTradingLineG1T : public LineGroup {
-   fon9_NON_COPY_NON_MOVE(OmsTradingLineG1T);
-   OmsCoreMgr& CoreMgr_;
-   void OnTDayChanged(OmsCore& core) {
-      core.RunCoreTask([this](OmsResource& resource) {
-         if (this->CoreMgr_.CurrentCore().get() == &resource.Core_)
-            this->OnTDayChangedInCore(resource);
-      });
-   }
-public:
-   OmsTradingLineG1T(OmsCoreMgr& coreMgr) : CoreMgr_(coreMgr) {
-      coreMgr.TDayChangedEvent_.Subscribe(// &this->SubrTDayChanged_,
-                                          std::bind(&OmsTradingLineG1T::OnTDayChanged, this, std::placeholders::_1));
-   }
-   ~OmsTradingLineG1T() {
-      // CoreMgr 擁有 OmsTradingLineG1T, 所以當此時, CoreMgr_ 必定正在死亡!
-      // 因此沒必要 this->CoreMgr_.TDayChangedEvent_.Unsubscribe(&this->SubrTDayChanged_);
-   }
-};
-//--------------------------------------------------------------------------//
 /// 線路群組管理(下單時根據LgOut選擇群組).
-/// - 負責處理 TDay 改變事件的後續相關作業.
+/// - 負責處理 TDay 改變事件的後續相關作業: 轉送給各群組的 OnTDayChangedInCore(resource);
+/// - 在 this 之下, 建立對應的 LineGroup seed;
 template <class LineGroup>
 class OmsTradingLgMgrT : public fon9::seed::NamedMaTree {
    fon9_NON_COPY_NON_MOVE(OmsTradingLgMgrT);
    using base = fon9::seed::NamedMaTree;
 protected:
-   OmsCoreMgr& CoreMgr_;
-
    class LgItem : public fon9::seed::NamedMaTree, public LineGroup {
       fon9_NON_COPY_NON_MOVE(LgItem);
       using base = fon9::seed::NamedMaTree;
@@ -85,7 +70,8 @@ protected:
    using LgItemSP = fon9::intrusive_ptr<LgItem>;
    LgItemSP LgItems_[static_cast<uint8_t>(LgOut::Count)];
 
-   /// Lg0 = Title, Description
+   /// tag:   "Lg?"; 例: "Lg0"
+   /// cfgln: "Title, Description"; 例: "VIP線路";
    LgItemSP MakeLgItem(fon9::StrView tag, fon9::StrView cfgln) {
       constexpr char fon9_kCSTR_LgTAG_LEAD[] = "Lg";
       constexpr auto fon9_kSIZE_LgTAG_LEAD = (sizeof(fon9_kCSTR_LgTAG_LEAD) - 1);
@@ -114,27 +100,19 @@ protected:
       return retval;
    }
 
-   void OnTDayChanged(OmsCore& core) {
-      core.RunCoreTask([this](OmsResource& resource) {
-         if (this->CoreMgr_.CurrentCore().get() != &resource.Core_)
-            return;
-         for (LgItemSP& lgItem : this->LgItems_) {
-            if (lgItem)
-               lgItem->OnTDayChangedInCore(resource);
-         }
-      });
-   }
-
 public:
-   OmsTradingLgMgrT(OmsCoreMgr& coreMgr, std::string name)
-      : base(std::move(name))
-      , CoreMgr_(coreMgr) {
-      coreMgr.TDayChangedEvent_.Subscribe(//&this->SubrTDayChanged_,
-                                          std::bind(&OmsTradingLgMgrT::OnTDayChanged, this, std::placeholders::_1));
+   OmsTradingLgMgrT(std::string name)
+      : base(std::move(name)) {
    }
    ~OmsTradingLgMgrT() {
-      // CoreMgr 擁有 OmsTradingLgMgrT, 所以當 OmsTradingLgMgrT 解構時, CoreMgr_ 必定正在死亡!
-      // 因此沒必要 this->CoreMgr_.TDayChangedEvent_.Unsubscribe(&this->SubrTDayChanged_);
+   }
+
+   void OnTDayChangedInCore(OmsResource& resource) {
+     if (resource.Core_.IsCurrentCore())
+        for (LgItemSP& lgItem : this->LgItems_) {
+           if (lgItem)
+              lgItem->OnTDayChangedInCore(resource);
+        }
    }
 
    template <class SelfT, class ConfigFileBinder>
@@ -157,6 +135,9 @@ public:
       return retval;
    }
 
+   LineGroup* GetIndexLineGroup(unsigned idx) const {
+      return this->LgItems_[idx].get();
+   }
    /// 根據 Request.LgOut_ 選用適當的線路群組.
    const LgItem* GetLgItem(LgOut lg) const {
       auto idx = LgOutToIndex(lg);
@@ -166,10 +147,14 @@ public:
    }
    /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
    typename LgItem::LineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
-      if (auto* lgItem = this->GetLgItem(runner.OrderRaw_.GetLgOut())) {
-         return lgItem->GetLineMgr(runner);
+      return this->GetLineMgr(runner.OrderRaw_, &runner);
+   }
+   typename LgItem::LineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
+      if (auto* lgItem = this->GetLgItem(ordraw.GetLgOut())) {
+         return lgItem->GetLineMgr(ordraw, runner);
       }
-      runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_LgOut, nullptr);
+      if (runner)
+         runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_LgOut, nullptr);
       return nullptr;
    }
 };

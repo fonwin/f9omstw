@@ -14,6 +14,8 @@ static inline fon9::fmkt::SymbData* GetUtwsSymbData(UtwsSymb* pthis, int tabid) 
       ? reinterpret_cast<fon9::fmkt::SymbData*>(reinterpret_cast<char*>(pthis) + kUtwsSymbOffset[tabid])
       : nullptr;
 }
+UtwsSymb::~UtwsSymb() {
+}
 fon9::fmkt::SymbData* UtwsSymb::GetSymbData(int tabid) {
    return GetUtwsSymbData(this, tabid);
 }
@@ -28,6 +30,9 @@ fon9::seed::LayoutSP UtwsSymb::MakeLayout(fon9::seed::TreeFlag treeflags) {
    return new Layout1(fon9_MakeField2(UtwsSymb, SymbId), treeflags,
                       new Tab{fon9::Named{"Base"}, std::move(flds), TabFlag::NoSapling_NoSeedCommand_Writable}
    );
+}
+void UtwsSymb::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr& omsCoreMgr) {
+   (void)bf; (void)omsCoreMgr;
 }
 
 } // namespaces

@@ -30,7 +30,6 @@ set(f9omstw_src
  OmsSymb.cpp
  OmsSymbTree.cpp
  OmsErrCodeActTree.cpp
- OmsMdEvent.cpp
 
  OmsRequestId.cpp
  OmsRequestBase.cpp
@@ -52,6 +51,9 @@ set(f9omstw_src
  OmsPoUserRights.cpp
  OmsPoUserRightsAgent.cpp
  OmsPoRequest.cpp
+
+ OmsMdEvent.cpp
+ OmsCxRequest.cpp
 )
 add_library(f9omstw_s STATIC ${f9omstw_src})
 target_link_libraries(f9omstw_s fon9_s pthread dl)

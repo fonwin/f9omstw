@@ -7,7 +7,8 @@
 namespace f9omstw {
 
 TwfTradingLgMgr::TwfTradingLgMgr(OmsCoreMgr& coreMgr, std::string name)
-   : base(coreMgr, std::move(name)) {
+   : base(std::move(name)) {
+   (void)coreMgr;
 }
 TwfTradingLgMgr::~TwfTradingLgMgr() {
 }

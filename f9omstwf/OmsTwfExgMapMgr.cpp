@@ -100,7 +100,12 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          }
          symb->FlowGroup_ = fon9::Pic9StrTo<fon9::fmkt::SymbFlowGroup_t>(p08.Fields_.flow_group_);
          symb->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
-         symb->TradingSessionId_ = f9twf::ExgSystemTypeToSessionId(sysType);
+         const auto curSessionId = f9twf::ExgSystemTypeToSessionId(sysType);
+         const auto isSessionChanged = (symb->TradingSessionId_ != curSessionId);
+         if (isSessionChanged) {
+            symb->TradingSessionId_ = curSessionId;
+            symb->TradingSessionSt_ = f9fmkt_TradingSessionSt_Unknown;
+         }
          fon9::DecScaleT scale = fon9::Pic9StrTo<fon9::DecScaleT>(p08.Fields_.decimal_locator_);
          if (scale <= 9) {
             symbP08->LastPrice_.Assign(fon9::Pic9StrTo<uint32_t>(p08.Fields_.premium_), scale);
@@ -116,7 +121,7 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
             symb->CallPut_ = '\0';
          symb->SettleYYYYMM_ = fon9::Pic9StrTo<uint32_t>(p08.Fields_.settle_date_);
          symb->StrikePrice_.Assign<4>(fon9::Pic9StrTo<uint32_t>(p08.Fields_.strike_price_v4_));
-         symb->TDayYYYYMMDD_ = (symb->TradingSessionId_ == f9fmkt_TradingSessionId_AfterHour
+         symb->TDayYYYYMMDD_ = (curSessionId == f9fmkt_TradingSessionId_AfterHour
                                 ? coreResource.NextTDayYYYYMMDD_
                                 : coreResource.TDayYYYYMMDD_);
          symb->MaxQtyMarket_ = fon9::Pic9StrTo<f9twf::TmpQty_t>(p08.Fields_.market_order_ceiling_);
@@ -127,6 +132,10 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          else {
             assert(symb->TradingMarket_ == f9fmkt_TradingMarket_TwOPT);
             symb->MaxQtyLimit_ = 200;
+         }
+         if (isSessionChanged) {
+            // 觸發商品換盤機制,例: 清除條件單.
+            symb->OnTwfSessionChanged(coreResource);
          }
       }
    });

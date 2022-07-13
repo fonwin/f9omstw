@@ -170,9 +170,10 @@ OmsOrder* OmsRequestUpd::BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsR
    if (const OmsRequestIni* iniReq = this->BeforeReq_GetInitiator(runner, res)) {
       OmsOrder& order = iniReq->LastUpdated()->Order();
       if (fon9_LIKELY(order.Initiator()->BeforeReq_CheckIvRight(runner, res))) {
-         if (fon9_LIKELY(!f9omstw::OmsIsOrdNoEmpty(order.Tail()->OrdNo_)))
+         // 20220708: 排隊中 or 條件等候中... 可能還沒有 OrdNo, 但應該仍允許改單, 所以不用判斷 OrdNo.
+         // if (fon9_LIKELY(!f9omstw::OmsIsOrdNoEmpty(order.Tail()->OrdNo_)))
             return &order;
-         runner.RequestAbandon(&res, OmsErrCode_Bad_OrdNo);
+         // runner.RequestAbandon(&res, OmsErrCode_Bad_OrdNo);
       }
    }
    return nullptr;

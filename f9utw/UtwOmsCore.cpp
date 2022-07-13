@@ -291,7 +291,7 @@ public:
          if (lgCfgFileName.IsNullOrEmpty()) {
             MaTreeSP twfG1Mgr{new MaTree{"TwfLineMgr"}};
             coreMgr.Add(new NamedSapling(twfG1Mgr, "TwfLineMgr"));
-            coreMgrSeed->TwfLineG1_.reset(new TwfTradingLineG1{coreMgr});
+            coreMgrSeed->TwfLineG1_.reset(new TwfTradingLineG1{});
             // ---
             #define CREATE_TwfTradingLineMgr(type) \
             coreMgrSeed->TwfLineG1_->TradingLineMgr_[ExgSystemTypeToIndex(f9twf::ExgSystemType::type)] \

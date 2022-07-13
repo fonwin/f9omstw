@@ -36,14 +36,18 @@ public:
    /// 根據 runner.OrderRaw_.Market() 取得 TwsTradingLineMgr;
    /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
    TwsTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
+      return this->GetLineMgr(runner.OrderRaw_, &runner);
+   }
+   TwsTradingLineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
       fon9_WARN_DISABLE_SWITCH;
-      switch (runner.OrderRaw_.Market()) {
+      switch (ordraw.Market()) {
       case f9fmkt_TradingMarket_TwSEC:
          return this->TseTradingLineMgr_.get();
       case f9fmkt_TradingMarket_TwOTC:
          return this->OtcTradingLineMgr_.get();
       default:
-         runner.Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
+         if (runner)
+            runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_MarketId, nullptr);
          return nullptr;
       }
       fon9_WARN_POP;

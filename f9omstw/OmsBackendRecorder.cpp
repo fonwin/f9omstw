@@ -87,6 +87,7 @@ struct OmsBackend::Loader {
             return "MakeRequest:Cannot make request or report.";
       }
       req->RxSNO_ = this->LastSNO_;
+      req->SetInCore();
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*req}, ln);
       if (ln.size() >= sizeof(f9omstw_kCSTR_RequestAbandonHeader)
       && memcmp(ln.begin(), f9omstw_kCSTR_RequestAbandonHeader, sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1) == 0) {
@@ -353,17 +354,19 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
             continue;
          order = &ordraw->Order();
          if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
-                           && order->LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled)) {
-            // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
-            // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
-            // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
-            //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
-            items.unlock();
-            if (OmsOrderRaw* ordupd = order->BeginUpdate(*req)) {
-               OmsRequestRunnerInCore runner{resource, *ordupd, 0u};
-               runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "System restart.");
+                        || ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
+            if (order->LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled) {
+               // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
+               // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
+               // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
+               //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
+               items.unlock();
+               if (OmsOrderRaw* ordupd = order->BeginUpdate(*req)) {
+                  OmsRequestRunnerInCore runner{resource, *ordupd, 0u};
+                  runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "System restart.");
+               }
+               items.lock();
             }
-            items.lock();
          }
       }
    }

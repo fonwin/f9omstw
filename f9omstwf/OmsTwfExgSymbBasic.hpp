@@ -219,13 +219,11 @@ using TwfExgContractTree = TwfExgContractMap::ContainsMapTree;
 //--------------------------------------------------------------------------//
 /// TwfExgMapMgr 會將 P08 的內容填入此處.
 /// OmsMdLastPrice.LastPrice_: 商品最後成交價 = 初始值來自P08.premium, 後續用即時行情I020;
-class TwfExgSymbBasic : public OmsMdLastPrice {
+class TwfExgSymbBasic : public OmsMdLastPriceEv {
    fon9_NON_COPY_NON_MOVE(TwfExgSymbBasic);
 public:
    TwfExgSymbBasic();
    ~TwfExgSymbBasic();
-
-   OmsMdLastPriceSubject   LastPriceSubject_;
 
    /// 期交所PA8的商品Id;
    /// this->SymbId_ = P08的商品Id;

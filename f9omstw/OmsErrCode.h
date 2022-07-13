@@ -47,6 +47,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Bad_SessionId_SymbNotFound = 111,
    /// 新單沒有填 SessionId, 且商品資料的相關欄位不正確(例如 symb->FlowGroup_, symb->TradingSessionId_);
    OmsErrCode_Bad_SymbSessionId = 112,
+   /// 已收盤, 由風控步驟自行判斷 Symb->TradingSessionSt_ 處理.
+   OmsErrCode_SessionClosed = 113,
 
    /// 不認識的 MarketId, 無法決定下單要求要送到何處.
    OmsErrCode_Bad_MarketId = 120,
@@ -112,6 +114,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_OverVaTimeMS = 901,
    /// 斷線後回覆, 交易所沒有回覆該筆回報.
    OmsErrCode_FailSending = 902,
+   /// 條件單, 尚未觸發前, 發現行情斷線.
+   OmsErrCode_MdNoData = 903,
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.

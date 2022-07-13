@@ -7,7 +7,7 @@
 namespace f9omstw {
 
 TwsTradingLgMgr::TwsTradingLgMgr(OmsCoreMgr& coreMgr, std::string name)
-   : base(coreMgr, std::move(name)) {
+   : base(std::move(name)) {
    coreMgr.OmsSessionStEvent_.Subscribe(// &this->SubrOmsEvent_,
       std::bind(&TwsTradingLgMgr::OnOmsSessionStEvent, this, std::placeholders::_1, std::placeholders::_2));
 }

@@ -422,21 +422,34 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
       (*snoMap)[rpt->ReportSNO_] = OnOmsRcSyn_MakeRpt(rptdef, rpt);
       return; // 接下來需要等到 ordraw 回報, 才執行回報處理.
    }
-   if (ref->use_count() == 1) {
-      // 尚未執行回報: 直接使用 ref 執行回報即可;
+   if (!ref->IsInCore()) {
+      if (rpt->Layout_->LayoutKind_ != f9OmsRc_LayoutKind_ReportOrder) {
+         // => rpt 為改單, ref 可能為尚未觸發的條件單 or Queuing 的新單.
+         // => 此時 rpt 因為沒有送出到交易所, 所以 rpt 後續的修改(ordraw), 應直接填入此次的 ref;
+         (*snoMap)[rpt->ReportSNO_] = ref;
+         return;
+      }
       req.reset(const_cast<OmsRequestBase*>(ref));
       OnOmsRcSyn_AssignReq(rptdef, rpt, *req);
       if (ref->RxKind() == f9fmkt_RxKind_RequestNew) {
-         // 新單回報: 必須等到有委託書號才處理.
-         // 如果是新單失敗沒編委託書號, 則拋棄此筆回報.
+         // 新單回報: 必須等到 [有委託書號] 才處理.
          if (OmsIsOrdNoEmpty(ref->OrdNo_)) {
+            // 如果是 [沒編委託書號] 的 [失敗新單] , 則拋棄.
             if (ref->ErrCode() != OmsErrCode_NoError)
                (*snoMap)[rpt->ReferenceSNO_].reset();
             return;
          }
+         // 雖然這裡有額外處理 Queuing, WaitingCond 之類的 ReportSt,
+         // 但對方可能尚未編委託書號, 等到編委託書號時, 可能已經不是此狀態。
+         // 因此不一定會執行到這裡的 req->SetReportSt(f9fmkt_TradingRequestSt_*AtOther);
+         // 如果有需要同步 Queuing, WaitingCond 則對方需要先填入委託書號。
+         if (req->ReportSt() == f9fmkt_TradingRequestSt_Queuing)
+            req->SetReportSt(f9fmkt_TradingRequestSt_QueuingAtOther);
+         else if (req->ReportSt() == f9fmkt_TradingRequestSt_WaitingCond)
+            req->SetReportSt(f9fmkt_TradingRequestSt_WaitingCondAtOther);
       }
       else {
-         // 刪改回報: 等最後結果再處理(Sending, Queuing 不處理).
+         // 刪改回報: 等最後結果再處理; 不理會 Sending, Queuing.
          if (ref->ReportSt() <= f9fmkt_TradingRequestSt_LastRunStep)
             return;
       }
@@ -448,6 +461,7 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
       default:
       case f9fmkt_RxKind_Event:
          return;
+      case f9fmkt_RxKind_RequestChgCond:
       case f9fmkt_RxKind_RequestDelete:
       case f9fmkt_RxKind_RequestChgQty:
       case f9fmkt_RxKind_RequestChgPri:

@@ -33,6 +33,11 @@
 //    UomsTwfRequestChg1Factory;
 //    UomsTwfIni1RiskCheck;
 //
+//    UomsTwfChg1Step;
+//
+//    UomsTwfReport2Factory = OmsTwfReport2Factory;
+//    或 UomsTwfReport2Factory = OmsTwfReport2FactoryT<OmsTwfReport2Derived>;
+//
 //    UomsTwfOrder7Factory;
 //    UomsTwfRequestIni7Factory;
 //
@@ -69,12 +74,28 @@ public:
    f9twf::FcmId         CmId_;
    char                 Padding___[2];
    TwfTradingLineG1SP   TwfLineG1_;
+   TwfTradingLgMgrSP    TwfLgMgr_;
 
    using base::base;
 
    UtwfOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner,
                       FnSetRequestLgOut fnSetRequestLgOut = &OmsSetRequestLgOut_UseIvac)
       : base(std::move(name), std::move(owner), fnSetRequestLgOut) {
+   }
+
+   OmsRequestRunStepSP CreateSenderStep() const {
+      if(this->TwfLineG1_)
+         return OmsRequestRunStepSP{new OmsTwfSenderStepG1{*this->TwfLineG1_}};
+      return OmsRequestRunStepSP{new OmsTwfSenderStepLgMgr{*this->TwfLgMgr_}};
+   }
+   TwfTradingLineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
+      return(this->TwfLineG1_
+             ? this->TwfLineG1_->GetLineMgr(ordraw, runner)
+             : this->TwfLgMgr_->GetLineMgr(ordraw, runner));
+   }
+
+   virtual void OnAfterCreateFactories(std::vector<fon9::seed::TabSP>& ordFactories, std::vector<fon9::seed::TabSP>& reqFactories) {
+      (void)ordFactories; (void)reqFactories;
    }
 
    /// 建立委託書號表的關聯.
@@ -201,7 +222,7 @@ public:
       // ------------------------------------------------------------------
       UomsTwfOrder1Factory*  twfOrd1Factory = new UomsTwfOrder1Factory{"TwfOrd"};
       UomsTwfOrder9Factory*  twfOrd9Factory = new UomsTwfOrder9Factory{"TwfOrdQ"};
-      OmsTwfReport2FactorySP twfRpt1Factory = new OmsTwfReport2Factory("TwfRpt", twfOrd1Factory);
+      OmsTwfReport2FactorySP twfRpt1Factory = new UomsTwfReport2Factory("TwfRpt", twfOrd1Factory);
       OmsTwfFilled1FactorySP twfFil1Factory = new OmsTwfFilled1Factory("TwfFil", twfOrd1Factory, twfOrd9Factory);
       OmsTwfFilled2FactorySP twfFil2Factory = new OmsTwfFilled2Factory("TwfFil2", twfOrd1Factory);
       UomsTwfOrder7Factory*  twfOrd7Factory = new UomsTwfOrder7Factory{"TwfOrdQR"};
@@ -240,11 +261,10 @@ public:
          logpath, fon9::Named{"TWF"}, coreMgr,
          *twfRpt1Factory, *twfRpt8Factory, *twfRpt9Factory, *twfFil1Factory, *twfFil2Factory));
       // ------------------
-      OmsRequestRunStepSP  twfNewSenderStep, twfChgSenderStep, twfNewQRSenderStep, twfNewQSenderStep, twfChgQSenderStep;
       if (lgCfgFileName.IsNullOrEmpty()) {
          MaTreeSP twfG1Mgr{new MaTree{"TwfLineMgr"}};
          coreMgr.Add(new NamedSapling(twfG1Mgr, "TwfLineMgr"));
-         coreMgrSeed->TwfLineG1_.reset(new TwfTradingLineG1{coreMgr});
+         coreMgrSeed->TwfLineG1_.reset(new TwfTradingLineG1{});
          // ---
          #define CREATE_TwfTradingLineMgr(type) \
             coreMgrSeed->TwfLineG1_->TradingLineMgr_[ExgSystemTypeToIndex(f9twf::ExgSystemType::type)] \
@@ -256,41 +276,34 @@ public:
          CREATE_TwfTradingLineMgr(FutAfterHour);
          for (auto& lmgr : coreMgrSeed->TwfLineG1_->TradingLineMgr_)
             lmgr->StartTimerForOpen(fon9::TimeInterval_Second(1));
-         twfNewSenderStep  .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
-         twfChgSenderStep  .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
-         twfNewQRSenderStep.reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
-         twfNewQSenderStep .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
-         twfChgQSenderStep .reset(new OmsTwfSenderStepG1{*coreMgrSeed->TwfLineG1_});
       }
       else { // Lg 線路群組.
-         TwfTradingLgMgrSP    lgMgr;
          fon9::IoManagerArgs  iocfgs{"LgMgr"};
          iocfgs.CfgFileName_ = lgCfgFileName.ToString(&cfgpath);
          iocfgs.SessionFactoryPark_ = ioargsFutNormal.SessionFactoryPark_;
          iocfgs.DeviceFactoryPark_ = ioargsFutNormal.DeviceFactoryPark_;
-         lgMgr = TwfTradingLgMgr::Plant(coreMgr, holder, iocfgs, coreMgrSeed->TwfExgMapMgr_);
-         twfNewSenderStep  .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
-         twfChgSenderStep  .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
-         twfNewQRSenderStep.reset(new OmsTwfSenderStepLgMgr{*lgMgr});
-         twfNewQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
-         twfChgQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+         coreMgrSeed->TwfLgMgr_ = TwfTradingLgMgr::Plant(coreMgr, holder, iocfgs, coreMgrSeed->TwfExgMapMgr_);
       }
       // ------------------
-      coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twfOrd1Factory, twfOrd7Factory, twfOrd9Factory});
-      coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
-         new UomsTwfRequestIni1Factory("TwfNew", twfOrd1Factory,
-                                       OmsRequestRunStepSP{new UomsTwfIni1RiskCheck(std::move(twfNewSenderStep))}),
-         new UomsTwfRequestChg1Factory("TwfChg", std::move(twfChgSenderStep)),
+      std::vector<TabSP>  ordFactories{twfOrd1Factory, twfOrd7Factory, twfOrd9Factory};
+      std::vector<TabSP>  reqFactories{
+         new UomsTwfRequestIni1Factory("TwfNew", twfOrd1Factory, OmsRequestRunStepSP{
+                                       new UomsTwfIni1RiskCheck(coreMgrSeed->CreateSenderStep())}),
+         new UomsTwfRequestChg1Factory("TwfChg", OmsRequestRunStepSP{
+                                       new UomsTwfChg1Step(coreMgrSeed->CreateSenderStep())}),
          twfRpt1Factory,
          twfFil1Factory,
          twfFil2Factory,
-         new UomsTwfRequestIni7Factory("TwfNewQR", twfOrd7Factory, std::move(twfNewQRSenderStep)),
+         new UomsTwfRequestIni7Factory("TwfNewQR", twfOrd7Factory, coreMgrSeed->CreateSenderStep()),
          twfRpt8Factory,
-         new UomsTwfRequestIni9Factory("TwfNewQ", twfOrd9Factory,
-                                      OmsRequestRunStepSP{new UomsTwfIni9RiskCheck(std::move(twfNewQSenderStep))}),
-         new UomsTwfRequestChg9Factory("TwfChgQ", std::move(twfChgQSenderStep)),
+         new UomsTwfRequestIni9Factory("TwfNewQ", twfOrd9Factory, OmsRequestRunStepSP{
+                                       new UomsTwfIni9RiskCheck(coreMgrSeed->CreateSenderStep())}),
+         new UomsTwfRequestChg9Factory("TwfChgQ", coreMgrSeed->CreateSenderStep()),
          twfRpt9Factory
-      ));
+      };
+      coreMgrSeed->OnAfterCreateFactories(ordFactories, reqFactories);
+      coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{std::move(ordFactories)});
+      coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(std::move(reqFactories)));
       // ------------------------------------------------------------------
       coreMgr.ReloadErrCodeAct(fon9::ToStrView(cfgpath + "OmsErrCodeAct.cfg"));
       auto now = fon9::LocalNow();

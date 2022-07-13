@@ -4,7 +4,12 @@
 
 namespace f9omstw {
 
+OmsMdLastPriceEv::~OmsMdLastPriceEv() {
+}
 OmsMdLastPriceSubject::~OmsMdLastPriceSubject() {
+}
+void OmsMdLastPriceSubject::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr& omsCoreMgr) {
+   this->Subject_.Publish(*this, bf, omsCoreMgr);
 }
 
 } // namespaces

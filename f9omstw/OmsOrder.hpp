@@ -244,7 +244,7 @@ inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestBase& starter, OmsScRes
 
 inline const OmsRequestIni* OmsOrder::Initiator() const {
    assert(this->Head_ != nullptr);
-   if (fon9_UNLIKELY(this->Head_->UpdateOrderSt_ < f9fmkt_OrderSt_NewStarting))
+   if (fon9_UNLIKELY(this->Head_->UpdateOrderSt_ < f9fmkt_OrderSt_IniAccepted))
       return nullptr;
    assert(dynamic_cast<const OmsRequestIni*>(this->Head_->Request_) != nullptr);
    return static_cast<const OmsRequestIni*>(this->Head_->Request_);
@@ -256,7 +256,7 @@ inline void OmsOrder::EndUpdate(const OmsOrderRaw& last, OmsResource* res) {
          this->FirstPending_ = &last;
    }
    else {
-      if (last.UpdateOrderSt_ >= f9fmkt_OrderSt_NewStarting)
+      if (last.UpdateOrderSt_ >= f9fmkt_OrderSt_IniAccepted)
          this->LastOrderSt_ = last.UpdateOrderSt_;
       if (fon9_UNLIKELY(res && this->FirstPending_ != nullptr
                         && last.RequestSt_ > f9fmkt_TradingRequestSt_LastRunStep))

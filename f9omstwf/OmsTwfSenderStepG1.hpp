@@ -10,7 +10,7 @@ namespace f9omstw {
 /// Twf 單一線路群組, 整合:
 /// - 期貨日盤線路管理員、選擇權日盤線路管理員、期貨夜盤線路管理員、選擇權夜盤線路管理員.
 /// - 負責處理 TDay 改變事件的後續相關作業.
-using TwfTradingLineG1 = OmsTradingLineG1T<TwfTradingLineGroup>;
+using TwfTradingLineG1 = TwfTradingLineGroup;
 using TwfTradingLineG1SP = std::unique_ptr<TwfTradingLineG1>;
 
 struct OmsTwfSenderStepG1 : public OmsTradingLineReqRunStepT<TwfTradingLineG1> {

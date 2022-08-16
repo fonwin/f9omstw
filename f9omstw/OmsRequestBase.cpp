@@ -3,9 +3,7 @@
 #include "f9omstw/OmsRequestBase.hpp"
 #include "f9omstw/OmsReportRunner.hpp"
 #include "f9omstw/OmsCore.hpp"
-#include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsRequestFactory.hpp"
-#include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
 
@@ -48,17 +46,113 @@ OmsRequestBase::~OmsRequestBase() {
 const OmsRequestBase* OmsRequestBase::CastToRequest() const {
    return this;
 }
-void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
-   (void)message;
-   if (ref) {
-      *static_cast<OmsOrdKey*>(this) = *ref;
-      if (OmsIsReqUIDEmpty(*this))
-         *static_cast<OmsRequestId*>(this) = *ref;
-      this->Market_ = ref->Market();
-      this->SessionId_ = ref->SessionId();
-      if (this->RxKind_ == f9fmkt_RxKind_Unknown)
-         this->RxKind_ = ref->RxKind();
+//--------------------------------------------------------------------------//
+void OmsRequestBase::LogAbandon(OmsErrCode errCode, std::string reason, OmsResource& res, fon9::RevBufferList&& exLog) {
+   assert((this->RxItemFlags_ & (OmsRequestFlag_Abandon | OmsRequestFlag_Initiator)) == OmsRequestFlag{});
+   this->RxItemFlags_ |= OmsRequestFlag_Abandon;
+   this->ErrCode_ = errCode;
+   if (!reason.empty())
+      this->AbandonReason_ = new std::string(std::move(reason));
+   res.Backend_.LogAppend(*this, std::move(exLog));
+   this->OnRequestAbandoned(&res);
+}
+void OmsRequestBase::Abandon(OmsErrCode errCode, OmsResource* res, fon9::RevBufferList* exLog) {
+   assert((this->RxItemFlags_ & (OmsRequestFlag_Abandon | OmsRequestFlag_Initiator)) == OmsRequestFlag{});
+   this->RxItemFlags_ |= OmsRequestFlag_Abandon;
+   this->ErrCode_ = errCode;
+   if (res)
+      res->Backend_.Append(*this, std::move(*exLog));
+   this->OnRequestAbandoned(res);
+}
+void OmsRequestBase::OnRequestAbandoned(OmsResource* res) {
+   if (res) {
+      if (auto* reqParent = this->GetParentRequest())
+         reqParent->OnChildAbandoned(*this, *res);
    }
+}
+void OmsRequestBase::OnChildAbandoned(const OmsRequestBase& reqChild, OmsResource& res) const {
+   (void)reqChild; (void)res;
+}
+//--------------------------------------------------------------------------//
+void OmsRequestBase::SetParentRequest(const OmsRequestBase& parentRequest, OmsRequestRunnerInCore* parentRunner) {
+   (void)parentRequest; (void)parentRunner;
+   assert(!"Not support OmsRequestBase::SetParentRequest()");
+}
+void OmsRequestBase::SetParentReport(const OmsRequestBase* parentReport) {
+   (void)parentReport;
+}
+const OmsRequestBase* OmsRequestBase::GetParentRequest() const {
+   return nullptr;
+}
+OmsRxSNO OmsRequestBase::GetParentRequestSNO() const {
+   return 0;
+}
+bool OmsRequestBase::IsParentRequest() const {
+   return false;
+}
+void OmsRequestBase::ClearParentRequest() {
+}
+void OmsRequestBase::OnAddChildRequest(const OmsRequestBase& childReq, OmsRequestRunnerInCore* parentRunner) const {
+   (void)childReq; (void)parentRunner;
+}
+void OmsRequestBase::OnAfterReloadFields(OmsResource& res) {
+   if (auto parentSNO = this->GetParentRequestSNO())
+      if (auto* parentRequest = res.GetRequest(parentSNO))
+         this->SetParentRequest(*parentRequest, nullptr);
+}
+void OmsRequestBase::OnAfterBackendReload(OmsResource& res, void* backendLocker) const {
+   if (auto* parentRequest = this->GetParentRequest())
+      parentRequest->OnAfterBackendReloadChild(*this);
+   if (this->IsReportIn()) // 如果是回報, 應該由原主機更新狀態, 不能因本機重啟而改變.
+      return;
+   auto* ordraw = this->LastUpdated();
+   if (ordraw == nullptr) // Abandoned request.
+      return;
+   if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
+                  || ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
+      auto& order = ordraw->Order();
+      if (order.LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled) {
+         // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
+         // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
+         // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
+         //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
+         static_cast<OmsBackend::Locker*>(backendLocker)->unlock();
+         if (OmsOrderRaw* ordupd = order.BeginUpdate(*this)) {
+            OmsRequestRunnerInCore runner{res, *ordupd, 0u};
+            runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "Lg=System restart");
+         }
+         static_cast<OmsBackend::Locker*>(backendLocker)->lock();
+      }
+   }
+}
+void OmsRequestBase::OnAfterBackendReloadChild(const OmsRequestBase& childReq) const {
+   (void)childReq;
+}
+void OmsRequestBase::OnOrderUpdated(const OmsRequestRunnerInCore& runner) const {
+   if (auto* reqParent = this->GetParentRequest())
+      reqParent->OnChildOrderUpdated(runner);
+   else if (OmsOrder* ordParent = runner.OrderRaw().Order().GetParentOrder())
+      ordParent->OnChildOrderUpdated(runner);
+}
+void OmsRequestBase::OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) const {
+   (void)childRunner;
+}
+bool OmsRequestBase::MoveChildRunnerToCore(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const {
+   // parentRunner 有可能是成交回報(或手動刪單...)後的更新, 所以這個 assert() 不一定成立.
+   // assert(this == &parentRunner.OrderRaw().Request());
+   // ----- 建立 Parent/Child 的關聯.
+   childRunner.Request_->SetParentRequest(*this, &parentRunner);
+   // -----
+   if (fon9_LIKELY(parentRunner.Resource_.Core_.MoveToCore(std::move(childRunner))))
+      return true;
+   this->OnMoveChildRunnerToCoreError(parentRunner, std::move(childRunner));
+   assert(childRunner.Request_->IsAbandoned());
+   parentRunner.Reject(f9fmkt_TradingRequestSt_InternalRejected, childRunner.Request_->ErrCode(),
+                       childRunner.Request_->AbandonReasonStrView());
+   return false;
+}
+void OmsRequestBase::OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const {
+   (void)parentRunner; (void)childRunner;
 }
 //--------------------------------------------------------------------------//
 OmsOrder* OmsRequestBase::SearchOrderByOrdKey(OmsResource& res) const {
@@ -153,9 +247,21 @@ void OmsRequestBase::MakeReportReqUID(fon9::DayTime exgTime, uint32_t beforeQty)
    memcpy(this->ReqUID_.Chars_ + 4 + sizeof(this->OrdNo_) + 1, pout,
           sizeof(this->ReqUID_) - (4 + sizeof(this->OrdNo_) + 1));
 }
-void OmsRequestBase::ProcessPendingReport(OmsResource& res) const {
-   (void)res;
+void OmsRequestBase::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   (void)prevRunner;
    assert(!"Derived must override ProcessPendingReport()");
+}
+void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   (void)message;
+   if (ref) {
+      *static_cast<OmsOrdKey*>(this) = *ref;
+      if (OmsIsReqUIDEmpty(*this))
+         *static_cast<OmsRequestId*>(this) = *ref;
+      this->Market_ = ref->Market();
+      this->SessionId_ = ref->SessionId();
+      if (this->RxKind_ == f9fmkt_RxKind_Unknown)
+         this->RxKind_ = ref->RxKind();
+   }
 }
 //--------------------------------------------------------------------------//
 void OmsRequestBase::RunReportInCore(OmsReportChecker&& checker) {
@@ -184,9 +290,9 @@ void OmsRequestBase::RunReportInCore_Start(OmsReportChecker&& checker) {
       this->RunReportInCore_MakeReqUID();
 
    if (OmsOrder* order = ordnoMap->GetOrder(this->OrdNo_))
-      RunReportInCore_Order(std::move(checker), *order);
+      this->RunReportInCore_Order(std::move(checker), *order);
    else
-      RunReportInCore_OrderNotFound(std::move(checker), *ordnoMap);
+      this->RunReportInCore_OrderNotFound(std::move(checker), *ordnoMap);
 }
 bool OmsRequestBase::RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker, const OmsRequestBase& origReq) {
    if (fon9_UNLIKELY(this->RxKind() == f9fmkt_RxKind_Unknown))
@@ -297,7 +403,7 @@ void OmsRequestBase::RunReportInCore_OrderNotFound(OmsReportChecker&& checker, O
    if (OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get()) {
       OmsReportRunnerInCore inCoreRunner{std::move(checker), *ordfac->MakeOrder(*this, nullptr)};
       this->RunReportInCore_NewOrder(std::move(inCoreRunner));
-      ordnoMap.EmplaceOrder(inCoreRunner.OrderRaw_);
+      ordnoMap.EmplaceOrder(inCoreRunner.OrderRaw());
    }
    else
       checker.ReportAbandon("Report: No OrderFactory.");

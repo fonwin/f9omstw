@@ -23,7 +23,7 @@ public:
 
    using base::base;
 
-   void ProcessPendingReport(OmsResource& res) const override;
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwfReport3{creator, reqKind};

@@ -34,7 +34,7 @@ OmsSymbSP OmsTwfRequestIni0::RegetSymb(OmsResource& res) {
    fon9::StrView symbid = ToStrView(this->Symbol_);
    auto retval = res.Symbs_->GetOmsSymb(symbid);
    if (fon9_LIKELY(retval)) { // 單式 or 期貨價差.
-      if (fon9_LIKELY(this->Symbol_.begin()[5] != '/'))
+      if (fon9_LIKELY(!f9twf::IsFutShortComb(this->Symbol_.begin())))
          return retval;
       // 期貨價差 => 必須拆解成複式.
    }

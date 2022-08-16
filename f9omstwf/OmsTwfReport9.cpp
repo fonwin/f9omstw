@@ -40,9 +40,9 @@ static inline void OmsAssignLastPrisFromReport(OmsTwfOrderRaw9* ordraw, const Om
 // OmsAssignQtysFromReportDCQ()=>OmsAssignQtysFromReportBfAf()=>若為改價則來到此處:
 static inline bool OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OmsTwfOrderQtys* ordPris, OmsTwfReport9* rpt) {
    (void)ordPris;
-   OmsTwfOrderRaw9&  ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner->OrderRaw_);
+   OmsTwfOrderRaw9&  ordraw = inCoreRunner->OrderRawT<OmsTwfOrderRaw9>();
    if (!ordraw.LastPriTime_.IsNull() && ordraw.LastPriTime_ >= rpt->ExgTime_)
-      inCoreRunner->OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
+      ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
    return true;
 }
 
@@ -95,8 +95,7 @@ static bool OmsAssignQtysFromReportDCQ(OmsReportRunnerInCore& inCoreRunner, OmsT
 }
 static void OmsUpdateOrderSt_WhenRecalcLeaves0(OmsReportRunnerInCore& inCoreRunner, OmsTwfOrderQtys& ordQtys) {
    (void)ordQtys;
-   assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
-   auto& ordraw9 = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+   auto& ordraw9 = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();
    assert(&ordraw9.Offer_ == &ordQtys || &ordraw9.Bid_ == &ordQtys);
    OmsUpdateOrderSt_WhenRecalcLeaves0_Quote(inCoreRunner, ordraw9);
    if (ordraw9.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeCanceled
@@ -180,15 +179,13 @@ void OmsTwfReport9::RunReportInCore_OrderNotFound(OmsReportChecker&& checker, Om
    }
 }
 void OmsTwfReport9::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) {
-   assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
-   OmsTwfOrderRaw9&  ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+   OmsTwfOrderRaw9&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();
    OmsAssignOrderFromReportNewOrig(ordraw, *this);
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
 }
 void OmsTwfReport9::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
-   assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
-   OmsTwfOrderRaw9&  ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+   OmsTwfOrderRaw9&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
 }
 void OmsTwfReport9::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
@@ -197,7 +194,7 @@ void OmsTwfReport9::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
    this->PriStyle_ = OmsReportPriStyle::HasDecimal;
 }
 //--------------------------------------------------------------------------//
-static void OmsTwf9_ProcessPendingReport(OmsResource& res, const OmsRequestBase& rpt, const OmsTwfReport9* chkFields) {
+static void OmsTwf9_ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const OmsRequestBase& rpt, const OmsTwfReport9* chkFields) {
    assert(dynamic_cast<const OmsTwfOrderRaw9*>(rpt.LastUpdated()) != nullptr);
    const OmsTwfOrderRaw9&  rptraw = *static_cast<const OmsTwfOrderRaw9*>(rpt.LastUpdated());
    OmsOrder&               order = rpt.LastUpdated()->Order();
@@ -212,8 +209,8 @@ static void OmsTwf9_ProcessPendingReport(OmsResource& res, const OmsRequestBase&
       if (!OmsIsReadyForPendingReport(ordlast.Offer_, rptraw.Offer_, rptraw))
          return;
    }
-   OmsReportRunnerInCore  inCoreRunner{res, *order.BeginUpdate(rpt)};
-   OmsTwfOrderRaw9&       ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+   OmsReportRunnerInCore  inCoreRunner{prevRunner, *order.BeginUpdate(rpt)};
+   OmsTwfOrderRaw9&       ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();
    if (chkFields) {
       if (auto ini = dynamic_cast<const OmsTwfRequestIni9*>(order.Initiator())) {
          if (fon9_UNLIKELY(!OmsIsReportFieldsMatch(*ini, *chkFields))) {
@@ -251,11 +248,11 @@ static void OmsTwf9_ProcessPendingReport(OmsResource& res, const OmsRequestBase&
       OmsRecalcLeavesQtyFromReport(inCoreRunner, ordraw.Offer_);
    }
 }
-void OmsTwfReport9::ProcessPendingReport(OmsResource& res) const {
-   OmsTwf9_ProcessPendingReport(res, *this, this);
+void OmsTwfReport9::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   OmsTwf9_ProcessPendingReport(prevRunner, *this, this);
 }
-void OmsTwfRequestChg9::ProcessPendingReport(OmsResource& res) const {
-   OmsTwf9_ProcessPendingReport(res, *this, nullptr);
+void OmsTwfRequestChg9::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   OmsTwf9_ProcessPendingReport(prevRunner, *this, nullptr);
 }
 
 } // namespaces

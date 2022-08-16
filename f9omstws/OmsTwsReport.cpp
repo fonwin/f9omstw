@@ -63,7 +63,7 @@ void OmsTwsReport::RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder& o
    base::RunReportInCore_Order(std::move(checker), order);
 }
 void OmsTwsReport::RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) {
-   AdjustReportQtys(runner.OrderRaw_.Order(), runner.Resource_, *this);
+   AdjustReportQtys(runner.OrderRaw().Order(), runner.Resource_, *this);
    base::RunReportInCore_NewOrder(std::move(runner));
 }
 //--------------------------------------------------------------------------//
@@ -79,8 +79,7 @@ bool OmsTwsReport::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) {
 }
 //--------------------------------------------------------------------------//
 void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) {
-   assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
-   OmsTwsOrderRaw&  ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
+   OmsTwsOrderRaw&  ordraw = inCoreRunner.OrderRawT<OmsTwsOrderRaw>();
    // AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
    ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
    ordraw.OType_ = RptOType2OrdOType(*this);
@@ -99,8 +98,7 @@ static void OmsTwsReport_AssignFromIni(OmsTwsReport& rpt, const OmsTwsRequestIni
 }
 void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
-   assert(dynamic_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_) != nullptr);
-   OmsTwsOrderRaw&  ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
+   OmsTwsOrderRaw&  ordraw = inCoreRunner.OrderRawT<OmsTwsOrderRaw>();
    // AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
    OmsTwsReport_Update(ordraw);
@@ -110,14 +108,14 @@ void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    }
 }
 //--------------------------------------------------------------------------//
-static void OrderRawFromPendingReport(OmsResource& res, const OmsRequestBase& rpt, const OmsTwsReport* chkFields) {
-   OmsProcessPendingReport<OmsTwsOrderRaw, OmsTwsRequestIni>(res, rpt, chkFields);
+static void OrderRawFromPendingReport(const OmsRequestRunnerInCore& prevRunner, const OmsRequestBase& rpt, const OmsTwsReport* chkFields) {
+   OmsProcessPendingReport<OmsTwsOrderRaw, OmsTwsRequestIni>(prevRunner, rpt, chkFields);
 }
-void OmsTwsReport::ProcessPendingReport(OmsResource& res) const {
-   OrderRawFromPendingReport(res, *this, this);
+void OmsTwsReport::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   OrderRawFromPendingReport(prevRunner, *this, this);
 }
-void OmsTwsRequestChg::ProcessPendingReport(OmsResource& res) const {
-   OrderRawFromPendingReport(res, *this, nullptr);
+void OmsTwsRequestChg::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   OrderRawFromPendingReport(prevRunner, *this, nullptr);
 }
 //--------------------------------------------------------------------------//
 void OmsTwsReport::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {

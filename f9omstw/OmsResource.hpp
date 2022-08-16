@@ -121,21 +121,18 @@ protected:
 
 //--------------------------------------------------------------------------//
 
+inline void OmsOrder::RunnerEndUpdate(const OmsRequestRunnerInCore& runner) {
+   if (fon9_LIKELY(this->OrderEndUpdate(runner.OrderRaw()))) {
+      if (fon9_UNLIKELY(this->FirstPending_ != nullptr
+                        && runner.OrderRaw().RequestSt_ > f9fmkt_TradingRequestSt_LastRunStep))
+         this->ProcessPendingReport(runner);
+      if (fon9_UNLIKELY(IsEnumContains(this->Flags_, OmsOrderFlag::IsNeedsOnOrderUpdated)))
+         this->OnOrderUpdated(runner);
+   }
+}
 inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
    this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
-   this->OrderRaw_.Order().EndUpdate(this->OrderRaw_, &this->Resource_);
-}
-
-template <class SymbId>
-inline OmsSymb* OmsOrder::GetSymb(OmsResource& res, const SymbId& symbid) {
-   if (OmsSymb* retval = this->ScResource_.Symb_.get())
-      return retval;
-   return (this->ScResource_.Symb_ = this->FindSymb(res, ToStrView(symbid))).get();
-}
-inline OmsSymb* OmsOrder::GetSymb(OmsResource& res, const fon9::StrView& symbid) {
-   if (OmsSymb* retval = this->ScResource_.Symb_.get())
-      return retval;
-   return (this->ScResource_.Symb_ = this->FindSymb(res, symbid)).get();
+   this->OrderRaw_.Order().RunnerEndUpdate(*this);
 }
 
 inline OmsIvBaseSP GetIvr(OmsResource& res, const OmsRequestIni& inireq) {

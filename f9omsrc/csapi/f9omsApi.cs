@@ -120,6 +120,16 @@ namespace f9oms
       public static unsafe extern int SendRequestBatch(ref f9rc.RcClientSession ses, RequestBatch[] reqBatch, uint reqCount);
       public static unsafe int SendRequestBatch(f9rc.ClientSession ses, RequestBatch[] reqBatch)
          => SendRequestBatch(ref *ses.RcSes_, reqBatch, (uint)reqBatch.Length);
+      /// 取得 SendRequestBatch() 最大打包資料量.
+      /// 因 TCP/Ethernet 封包的特性, 若資料量超過 MSS, 則在網路線上傳送時, 需要拆包送出,
+      /// 接收端需要等候併包後才能處理, 反而造成更大的延遲, 所以系統供一個最大打包資料量.
+      /// 一旦批次下單打包資料量超過此值, 就先送出, 然後繼續打包後續的下單要求.
+      [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_GetRequestBatchMSS")]
+      public static extern uint GetRequestBatchMSS();
+      /// 設定新的 SendRequestBatch() 最大打包資料量.
+      /// 返回設定前的值.
+      [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_SetRequestBatchMSS")]
+      public static extern uint SetRequestBatchMSS(uint value);
 
       /// 傳送下單要求之前, 可以自行檢查流量.
       /// 傳回需要等候的 microseconds. 傳回 0 表示不需管制.

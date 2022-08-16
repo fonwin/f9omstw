@@ -39,16 +39,25 @@ void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
 void OmsBackend::SaveQuItems(QuItems& quItems) {
    fon9::DcQueueList dcq;
    for (QuItem& qi : quItems) {
+      auto exsz = fon9::CalcDataSize(qi.ExLog_.cfront());
       if (fon9_UNLIKELY(qi.Item_ && qi.Item_->RxSNO() == 0)) {
+         if (exsz == 0)
+            fon9::RevPrint(qi.ExLog_, '\n');
          qi.Item_->RevPrint(qi.ExLog_);
          fon9::RevPrint(qi.ExLog_, "NoRecover:");
+         exsz = fon9::CalcDataSize(qi.ExLog_.cfront());
       }
-      if (auto exsz = fon9::CalcDataSize(qi.ExLog_.cfront()))
+      if (exsz != 0)
          fon9::RevPrint(qi.ExLog_, *fon9_kCSTR_CELLSPL, exsz + 1, *fon9_kCSTR_CELLSPL);
-      if (qi.Item_ && qi.Item_->RxSNO() != 0) {
-         fon9::RevPrint(qi.ExLog_, *fon9_kCSTR_ROWSPL);
-         qi.Item_->RevPrint(qi.ExLog_);
-         fon9::RevPrint(qi.ExLog_, qi.Item_->RxSNO(), *fon9_kCSTR_CELLSPL);
+      if (qi.Item_) {
+         if (fon9_LIKELY(qi.Item_->RxSNO() != 0)) {
+            fon9::RevPrint(qi.ExLog_, *fon9_kCSTR_ROWSPL);
+            qi.Item_->RevPrint(qi.ExLog_);
+            fon9::RevPrint(qi.ExLog_, qi.Item_->RxSNO(), *fon9_kCSTR_CELLSPL);
+         }
+         else {
+            intrusive_ptr_release(qi.Item_);
+         }
       }
       dcq.push_back(qi.ExLog_.MoveOut());
    }
@@ -89,14 +98,16 @@ struct OmsBackend::Loader {
       req->RxSNO_ = this->LastSNO_;
       req->SetInCore();
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*req}, ln);
+      req->OnAfterReloadFields(this->Resource_);
+
       if (ln.size() >= sizeof(f9omstw_kCSTR_RequestAbandonHeader)
       && memcmp(ln.begin(), f9omstw_kCSTR_RequestAbandonHeader, sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1) == 0) {
          ln.SetBegin(ln.begin() + sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1);
          OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(&ln, fon9::underlying_type_t<OmsErrCode>{0}));
          if (ln.size() <= 1)
-            req->Abandon(ec);
+            req->Abandon(ec, nullptr, nullptr);
          else
-            req->Abandon(ec, std::string(ln.begin() + 1, ln.end()));
+            req->Abandon(ec, std::string(ln.begin() + 1, ln.end()), nullptr, nullptr);
       }
       this->Items_.AppendHistory(*req);
       return nullptr;
@@ -114,8 +125,14 @@ struct OmsBackend::Loader {
       OmsOrderRaw*       ordraw = nullptr;
       OmsOrder*          order;
       const OmsOrderRaw* lastupd = reqFrom->LastUpdated();
-      if (lastupd)
+      if (lastupd) {
          order = &lastupd->Order();
+         if (reqFrom->RxKind() == f9fmkt_RxKind_Filled) {
+            // 子單成交 => 更新母單.
+            if (auto* parentOrder = order->GetParentOrder())
+               order = parentOrder;
+         }
+      }
       else { // ln = reqFrom 的首次異動 => order 的首次異動? 或後續異動?
          if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
             auto iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
@@ -139,8 +156,9 @@ struct OmsBackend::Loader {
             }
          }
       }
+      assert(order != nullptr);
+      assert(&order->Creator() == flds.Factory_);
       if (ordraw == nullptr) {
-         assert(order != nullptr);
          lastupd = order->Tail();
          ordraw = order->BeginUpdate(*reqFrom);
       }
@@ -155,7 +173,7 @@ struct OmsBackend::Loader {
                   return "Loader.MakeOrder: OrdNo exists.";
                }
       }
-      order->EndUpdate(*ordraw, nullptr);
+      order->OrderEndUpdate(*ordraw);
       return nullptr;
    }
    const char* MakeEvent(fon9::StrView ln, const FieldsRec& flds) {
@@ -217,7 +235,7 @@ struct OmsBackend::Loader {
          fon9_LOG_ERROR("OmsBackend.Load|pos=", lnpos, "|sno=", sno, "|last=", this->LastSNO_, "|err=dup sno?");
          return;
       }
-      this->LastSNO_ = sno;
+      this->LastSNO_ = this->Resource_.Backend_.LastSNO_ = sno;
       ln.SetBegin(ln.begin() + 1);
 
       auto  tag = fon9::StrFetchNoTrim(ln, *fon9_kCSTR_CELLSPL);
@@ -302,9 +320,17 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
    Loader      loader{resource, *items};
    const auto  fsize = res.GetResult();
    if (fsize > 0) {
+      // 在載入過程中, 不會有其他 thread 共用 this->Items_,
+      // 且在載入過程中, 可能會有需要 lock,
+      // 例: 建立 child order 時, OmsOrder::InitializeByStarter() 需要取得 ParentOrder;
+      // 所以這裡先 unlock;
+      items.unlock();
       res = loader.ReloadAll(this->RecorderFd_, fsize);
-      if (res.IsError())
+      if (res.IsError()) {
+         this->LastSNO_ = this->PublishedSNO_ = 0;
          goto __OPEN_ERROR;
+      }
+      items.lock();
 
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
       if (items->RxHistory_.size() <= loader.LastSNO_) // 可能資料檔有不認識的 factory name 造成的.
@@ -315,10 +341,9 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          auto* const icur = items->RxHistory_[sno];
          if (icur == nullptr)
             continue;
-         OmsOrder*          order;
          const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(icur->CastToOrder());
          if (ordraw) {
-            order = &ordraw->Order();
+            OmsOrder* order = &ordraw->Order();
             if (ordraw == order->Tail()) {
                // 遇到 Order 的最後一筆 OrderRaw 時, 重算風控資料.
                resource.Core_.Owner_->RecalcSc(resource, *order);
@@ -332,7 +357,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
                // - 如果回報亂序, 也有可能會有2筆 ordraw:
                //   - f9fmkt_TradingRequestSt_Filled + f9fmkt_OrderSt_ReportPending;
                //   - f9fmkt_TradingRequestSt_Filled + f9fmkt_OrderSt_PartFilled(f9fmkt_OrderSt_FullFilled);
-               // - 所以不能用 ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled判斷; 必須使用 RxKind 來判斷;
+               // - 所以不能用 ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled 判斷; 必須使用 RxKind 來判斷;
                if (auto filled = dynamic_cast<const OmsReportFilled*>(&ordraw->Request())) {
                   if (fon9_LIKELY(order->InsertFilled(filled) == nullptr))
                      continue;
@@ -350,31 +375,14 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
                resource.Core_.Owner_->ReloadEvent(resource, *ev, items);
             continue;
          }
-         if ((ordraw = req->LastUpdated()) == nullptr)
-            continue;
-         order = &ordraw->Order();
-         if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
-                        || ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
-            if (order->LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled) {
-               // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
-               // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
-               // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
-               //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
-               items.unlock();
-               if (OmsOrderRaw* ordupd = order->BeginUpdate(*req)) {
-                  OmsRequestRunnerInCore runner{resource, *ordupd, 0u};
-                  runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "System restart.");
-               }
-               items.lock();
-            }
-         }
+         req->OnAfterBackendReload(resource, &items);
       }
    }
    fon9::RevBufferList rbuf{128};
    loader.MakeLayout(rbuf, resource.Core_.Owner_->RequestFactoryPark());
    loader.MakeLayout(rbuf, resource.Core_.Owner_->OrderFactoryPark());
    loader.MakeLayout(rbuf, resource.Core_.Owner_->EventFactoryPark());
-   fon9::RevPrint(rbuf, "===== OMS start @ ", fon9::UtcNow(), " | ", logFileName, " =====\n");
+   fon9::RevPrint(rbuf, "===== OMS start @ ", fon9::LocalNow(), " | ", logFileName, " =====\n");
    if (fsize > 0)
       fon9::RevPrint(rbuf, '\n');
    fon9::DcQueueList dcq{rbuf.MoveOut()};

@@ -16,16 +16,41 @@ using namespace fon9;
 using namespace fon9::io;
 using namespace fon9::rc;
 using namespace fon9::seed;
-//#define fon9_OmsRcSyn_PRINT_DEBUG_INFO
 //--------------------------------------------------------------------------//
 static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg);
 static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt);
 //--------------------------------------------------------------------------//
+enum RcSynFactoryKind : uint8_t {
+   /// 一般回報要求: TwsRpt, TwfRpt...
+   Report,
+   /// 成交回報要求: TwsFil, TwfFil, TwfFil2...
+   Filled,
+   /// 母單回報要求: Factory_ 建立出來的 req->IsParentRequest()==true;
+   Parent,
+};
+static RcSynFactoryKind GetRequestFactoryKind(OmsRequestFactory& fac) {
+   if (auto req = fac.MakeReportIn(f9fmkt_RxKind_RequestNew, fon9::TimeStamp{}))
+      if (req->IsParentRequest())
+         return RcSynFactoryKind::Parent;
+   return RcSynFactoryKind::Report;
+}
+struct RcSynRequestFactory {
+   OmsRequestFactory*   Factory_{};
+   RcSynFactoryKind     Kind_{};
+   char                 Padding____[7];
+   void Set(OmsRequestFactory& fac, RcSynFactoryKind kind) {
+      this->Factory_ = &fac;
+      this->Kind_ = kind;
+   }
+   void Set(OmsRequestFactory& fac) {
+      this->Set(fac, GetRequestFactoryKind(fac));
+   }
+};
 class OmsRcSyn_SessionFactory : public OmsIoSessionFactory, public RcFunctionMgr {
    fon9_NON_COPY_NON_MOVE(OmsRcSyn_SessionFactory);
    using base = OmsIoSessionFactory;
 
-   using RptFactoryMap = SortedVector<CharVector, OmsRequestFactory*>;
+   using RptFactoryMap = SortedVector<CharVector, RcSynRequestFactory>;
    RptFactoryMap  RptFactoryMap_;
 
    using HostMapImpl = SortedVector<HostId, RemoteReqMapSP>;
@@ -71,33 +96,38 @@ public:
       this->Add(RcFunctionAgentSP{new RcFuncConnClient("f9OmsRcSyn.0", "f9OmsRcSyn")});
       this->Add(RcFunctionAgentSP{new RcFuncSaslClient{}});
       const OmsRequestFactoryPark& facPark = this->OmsCoreMgr_->RequestFactoryPark();
-      OmsRequestFactory*           facRpt;
-      // TODO: this->RptFactoryMap_ 對照表由外部設定檔匯入.
-      // ----- 台灣證券.
-      if ((facRpt = facPark.GetFactory("TwsRpt")) != nullptr) {
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsNew"})).second = facRpt;
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsChg"})).second = facRpt;
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsRpt"})).second = facRpt;
-      }
-      if ((facRpt = facPark.GetFactory("TwsFil")) != nullptr) {
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwsFil"})).second = facRpt;
-      }
-      // ----- 台灣期權: 報價單=TwfRptQ、一般單(單式、複式)=TwfRpt.
-      if ((facRpt = facPark.GetFactory("TwfRpt")) != nullptr) {
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfNew"})).second = facRpt;
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfChg"})).second = facRpt;
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfRpt"})).second = facRpt;
-      }
-      if ((facRpt = facPark.GetFactory("TwfRptQ")) != nullptr) {
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfNewQ"})).second = facRpt;
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfChgQ"})).second = facRpt;
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfRptQ"})).second = facRpt;
-      }
-      if ((facRpt = facPark.GetFactory("TwfFil")) != nullptr) {
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfFil"})).second = facRpt;
-      }
-      if ((facRpt = facPark.GetFactory("TwfFil2")) != nullptr) {
-         this->RptFactoryMap_.kfetch(CharVector::MakeRef(StrView{"TwfFil2"})).second = facRpt;
+      const std::string kRpt{"Rpt"};
+      const std::string kFil{"Fil"};
+      for (size_t idx = facPark.GetTabCount(); idx > 0;) {
+         if (OmsRequestFactory* facRpt = static_cast<OmsRequestFactory*>(facPark.GetTab(--idx))) {
+            CharVector facName{facRpt->Name_};
+            auto       ifind = facRpt->Name_.find(kRpt);
+            if (ifind == std::string::npos) {
+               ifind = facRpt->Name_.find(kFil);
+               if (ifind == std::string::npos)
+                  continue;
+               // TwsFil, TwfFil, TwfFil2:
+               // - 母單成交回報, 則需配合使用 ordraw(ParentOrderRaw) 的內容回報,
+               //   因為母單成交後, 可能觸發母單的其他行為, 造成其他欄位的異動,
+               //   必須使用 ordraw 回報更新, 才能正確反映這類情況。
+               // - 非母單成交回報: 直接使用 OmsReportFilled 回報,
+               //   不需要結合 ordraw(TwsOrderRaw, TwfOrderRaw...) 的內容;
+               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt, RcSynFactoryKind::Filled);
+            }
+            else {
+               // 將 "Rpt" 取代成 New, Chg, 也就是一旦 facPark 找到 "*Rpt*" 則建立:
+               // "*Rpt*", "*New*", "*Chg*" 三個回報接收 factory;
+               // 例如:
+               //    "TwfRpt"  => "TwfRpt",  "TwfNew",  "TwfChg";
+               //    "TwfRptQ" => "TwfRptQ", "TwfNewQ", "TwfChgQ";
+               // 回報內容結合 TwfNew + TwfOrd 填入 TwfRpt 然後進行回報.
+               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
+               memcpy(facName.begin() + ifind, "New", 3);
+               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
+               memcpy(facName.begin() + ifind, "Chg", 3);
+               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
+            }
+         }
       }
       // -----
       this->OnAfterCtor();
@@ -173,9 +203,9 @@ public:
          retval.reset(new RemoteReqMap);
       return retval;
    }
-   OmsRequestFactory* GetRptReportFactory(StrView layoutName) const {
+   const RcSynRequestFactory* GetRptReportFactory(StrView layoutName) const {
       auto ifind = this->RptFactoryMap_.find(CharVector::MakeRef(layoutName));
-      return ifind == this->RptFactoryMap_.end() ? nullptr : ifind->second;
+      return ifind == this->RptFactoryMap_.end() ? nullptr : &ifind->second;
    }
 };
 //--------------------------------------------------------------------------//
@@ -241,18 +271,29 @@ static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsR
    auto iRptMap = synSes->RptMap_.begin();
    for(auto& iLayout : rptLayouts) {
       const fon9::StrView strLayoutName{iLayout->LayoutName_};
-      OmsRequestFactory*  facRpt = ud->GetRptReportFactory(strLayoutName);
-      if (facRpt == nullptr) {
-         if ((facRpt = ud->GetRptReportFactory(iLayout->ExParam_)) == nullptr) {
+      auto*  synfac = ud->GetRptReportFactory(strLayoutName);
+      if (synfac == nullptr) {
+         if ((synfac = ud->GetRptReportFactory(iLayout->ExParam_)) == nullptr) {
             ++iRptMap;
             continue;
          }
+         if(iLayout->LayoutKind_ == f9OmsRc_LayoutKind_ReportOrder
+            && synfac->Kind_ == RcSynFactoryKind::Filled) {
+            // [LayoutName = 母單Ord; ExParam = 成交Req;] 的回報;
+            //    => 使用[母單Rpt] 的 Request 處理;
+            // 例: BergOrd + TwfFil  => BergRpt
+            std::string rptName = strLayoutName.ToString();
+            const auto  ipos = rptName.find("Ord");
+            if (ipos != rptName.npos) {
+               rptName.replace(ipos, 3, "Rpt");
+               if (auto* synParentRpt = ud->GetRptReportFactory(&rptName)) {
+                  if (synParentRpt->Kind_ == RcSynFactoryKind::Parent)
+                     synfac = synParentRpt;
+               }
+            }
+         }
       }
-   #ifdef fon9_OmsRcSyn_PRINT_DEBUG_INFO
-      printf("[%d]%s=>%s:[%d:%s]\n", iLayout->LayoutId_,
-             iLayout->Name_.c_str(), (facRpt ? facRpt->Name_.c_str() : ""),
-             iLayout->LayoutKind_, iLayout->ExParam_.Begin_);
-   #endif
+      OmsRequestFactory*  facRpt = synfac->Factory_;
       auto* pLayoutFld = iLayout->FieldArray_;
       std::vector<bool> isFldAssigned; // 是否已有名稱完全相符的欄位?
       iRptMap->Fields_.resize(iLayout->FieldCount_);
@@ -308,17 +349,11 @@ static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsR
             }
          }
       __NEXT_LAYOUT_FLD:;
-      #ifdef fon9_OmsRcSyn_PRINT_DEBUG_INFO
-         printf("\t" "%-13s=> %s\n", pLayoutFld->Named_.Name_.Begin_, iRptFld ? iRptFld->Name_.c_str() : "-----");
-      #endif
          ++pLayoutFld;
       }
       iRptMap->RptFactory_ = facRpt;
       ++iRptMap;
    }
-#ifdef fon9_OmsRcSyn_PRINT_DEBUG_INFO
-   puts("-----");
-#endif
 
    synSes->OmsCore_ = std::move(omsCore);
    f9OmsRc_SubscribeReport(ses, cfg, remote->LastSNO_ + 1, f9OmsRc_RptFilter_NoExternal);
@@ -353,6 +388,7 @@ static OmsRequestSP OnOmsRcSyn_MakeRpt(const OmsRcSynClientSession::RptDefine& r
                          ? static_cast<f9fmkt_RxKind>(*rpt->FieldArray_[rpt->Layout_->IdxKind_].Begin_)
                          : f9fmkt_RxKind_Unknown); // 此時應該是 f9fmkt_RxKind_Order;
    OmsRequestSP  req = rptdef.RptFactory_->MakeReportIn(kind, fon9::UtcNow());
+   req->SetSynReport();
    OnOmsRcSyn_AssignReq(rptdef, rpt, *req);
    return req;
 }
@@ -388,20 +424,6 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
    if (rptdef.RptFactory_ == nullptr)
       return;
    // -----
-#ifdef fon9_OmsRcSyn_PRINT_DEBUG_INFO
-   char  msgbuf[1024 * 4];
-   char* pmsg = msgbuf;
-   pmsg += sprintf(pmsg, "%u:%s(%u|%s)[sno=%lu|ref=%lu]", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_,
-                   rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_,
-                   static_cast<unsigned long>(rpt->ReportSNO_), static_cast<unsigned long>(rpt->ReferenceSNO_));
-   for (unsigned L = 0; L < rpt->Layout_->FieldCount_; ++L) {
-      pmsg += sprintf(pmsg, "|%s=%s",
-                      rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
-                      rpt->FieldArray_[L].Begin_);
-   }
-   puts(msgbuf);
-#endif
-   // -----
    if (snoMap->size() <= rpt->ReportSNO_)
       snoMap->resize(rpt->ReportSNO_ + 1024 * 1024);
    else {
@@ -418,7 +440,7 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
    }
    const OmsRequestBase* ref = (*snoMap)[rpt->ReferenceSNO_].get();
    if (ref == nullptr) {
-      // 新單從外部來, 刪改的下單要求, 則 rpt->ReferenceSNO_ 可能沒有對應的新單回報;
+      // 新單從外部來, 後續的刪改要求, 則 rpt->ReferenceSNO_ 可能沒有對應的新單回報;
       (*snoMap)[rpt->ReportSNO_] = OnOmsRcSyn_MakeRpt(rptdef, rpt);
       return; // 接下來需要等到 ordraw 回報, 才執行回報處理.
    }
@@ -450,8 +472,11 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
       }
       else {
          // 刪改回報: 等最後結果再處理; 不理會 Sending, Queuing.
-         if (ref->ReportSt() <= f9fmkt_TradingRequestSt_LastRunStep)
-            return;
+         if (ref->ReportSt() <= f9fmkt_TradingRequestSt_LastRunStep) {
+            if (!req->IsParentRequest())
+               return;
+            // 母單的刪改回報: 因為在 Sending 狀態時仍有可能更新其他欄位, 所以必須執行回報處理.
+         }
       }
       ref = nullptr;
    }
@@ -470,18 +495,41 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
          req->OnSynReport(ref, nullptr);
          /* fall through */
       case f9fmkt_RxKind_RequestNew:
-         // 接下來需要等到 ordraw 回報, 才執行回報處理.
+         // 接下來需要等到 ordraw 回報, 才知道 req 的結果, 到時才可正確處理回報.
          return;
       case f9fmkt_RxKind_Filled:
-         if (ref->RxKind() == f9fmkt_RxKind_Filled) // 不處理: filled 的 ordraw.
+         if (ref->RxKind() == f9fmkt_RxKind_Filled) {
+            // 此次的 rpt 必定為: filled 的 ordraw: rpt->Layout_ = "?Ord", rpt->ExParam_ = "?Fil?";
+            // 母單成交: 需要用 ordraw(for filled) 進行回報處理;
+            //          此時 req 為 ParentRpt(req->RxKind == f9fmkt_RxKind_Order) 不會來到此處.
+            // 其他成交: 使用 [回報req:TwsFil,TwfFil,TwfFil2] 進行; 所以這裡直接 return; 不用回報.
             return;
+         }
+         // 來到此處的 req 為 [成交回報:TwsFil,TwfFil,TwfFil2], 且 ref 為 New;
+         // 成交回報: 直接到 OmsCore 進行處理, 不用等候 [成交的ordraw];
+         // 因為每個 OmsCore 同一筆委託的狀態不一定相同, 成交回報, 只需進行相關成交的運算即可, 不需要遠端的 ordraw;
          break;
       case f9fmkt_RxKind_Unknown:
       case f9fmkt_RxKind_Order:
          if (ref->RxKind() != f9fmkt_RxKind_RequestNew) {
-            // ref = 已進入 OmsCore 的刪改, 則 req 必須流程結束(Sending, Queuing 不處理).
+            // ref = 已進入 OmsCore 的刪改, 則 req 須等到流程結束(Sending, Queuing 不處理), 才進行回報.
             if (req->ReportSt() <= f9fmkt_TradingRequestSt_LastRunStep)
                return;
+            // 來到此處: req 必定為底下情況之一:
+            // - req 為 遠端刪改Request(ref) 的回報.
+            // - req(ParentRpt) 為母單成交回報的 ordraw;
+            //   由於 ParentRpt 一般不會包含 Cum* 欄位,
+            //   所以 ParentOrder 處理 ParentRpt(filled) 時:
+            //    - 先更新 ParentRpt 的欄位.
+            //    - 處理: 子單成交(ref) 的回報.
+            if (ref->RxKind() == f9fmkt_RxKind_Filled) {
+               // 母單成交回報: 必定是 [ses連線的主機] 建立的母單, 才會收到母單的(成交)回報.
+               assert(req->IsParentRequest());
+               // 在底下, 執行 MoveToCore() 之前, 會先執行 req->OnSynReport(ref, message);
+               // 此時由 req 保留 ref, 可參考 OmsParentRequestIni::OnSynReport();
+               // 然後在 OmsParentRequestIni::RunReportInCore() 可得知 RequestFilled(=此處的ref) 的所在.
+               break;
+            }
          }
          break;
       }
@@ -491,6 +539,7 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
       message = rpt->FieldArray_[rpt->Layout_->IdxMessage_];
    req->OnSynReport(ref, message);
    req->SetReportNeedsLog();
+   req->SetParentReport((*snoMap)[req->GetParentRequestSNO()].get());
    // -----
    OmsRequestRunner runner;
    runner.Request_ = req;

@@ -10,6 +10,7 @@
 #include "f9twf/ExgMdFmtMatch.hpp"
 #include "f9twf/ExgMdFmtI060.hpp"
 #include "f9twf/ExgMdFmtSysInfo.hpp" // I140:306 收盤訊息, 通知 Symb.
+#include "f9twf/ExgMdFmtBS.hpp"
 
 namespace f9omstw {
 
@@ -26,27 +27,46 @@ public:
    }
    ~OmsTwfMiSystem() {
    }
-   void OnMiChannelNoData(f9twf::ExgMiChannel& ch) override {
-      auto core = this->OmsCoreMgr_->CurrentCore();
-      if (!core)
-         return;
-      core->RunCoreTask([this, &ch](OmsResource& coreResource) {
-         auto mkt = ch.Market_;
-         auto sid = this->TradingSessionId_;
-         auto symbs = coreResource.Symbs_->SymbMap_.Lock();
-         for (const auto& isymb : *symbs) {
-            if (auto* symb = static_cast<OmsSymb*>(isymb.second.get())) {
-               if (symb->TradingMarket_ == mkt && symb->TradingSessionId_ == sid) {
-                  symb->OnMdNoData(coreResource);
+   void OnMdReceiverStChanged(f9twf::ExgMiChannel& ch, fon9::fmkt::MdReceiverSt bf, fon9::fmkt::MdReceiverSt af) override {
+      // DailyClear => * 設定 Symb 的 MdSt 位置.
+      const bool isNoData = MdReceiverSt_IsNoData(af);
+      if (isNoData || bf == fon9::fmkt::MdReceiverSt::DailyClear) {
+         auto core = this->OmsCoreMgr_->CurrentCore();
+         if (!core)
+            return;
+         core->RunCoreTask([this, &ch, isNoData](OmsResource& coreResource) {
+            auto mkt = ch.Market_;
+            auto sid = this->TradingSessionId_;
+            auto symbs = coreResource.Symbs_->SymbMap_.Lock();
+            for (const auto& isymb : *symbs) {
+               if (auto* symb = static_cast<OmsSymb*>(isymb.second.get())) {
+                  if (symb->TradingMarket_ == mkt && symb->TradingSessionId_ == sid) {
+                     symb->SetMdReceiverStPtr(ch.GetMdReceiverStPtr());
+                     if (isNoData)
+                        symb->OnMdNoData(coreResource);
+                  }
                }
             }
-         }
-      });
+         });
+      }
    }
 
    static bool StartupPlugins(fon9::seed::PluginsHolder& holder, fon9::StrView args);
 };
+static OmsSymbSP FetchOmsSymb(f9twf::ExgMiChannel& channel, const f9twf::ExgMdProdId20& prodId) {
+   OmsTwfMiSystem& misys = *static_cast<OmsTwfMiSystem*>(&channel.MiSystem_);
+   auto            core = misys.OmsCoreMgr_->CurrentCore();
+   if (!core)
+      return nullptr;
+   auto symb = core->GetSymbs()->FetchOmsSymb(fon9::StrView_eos_or_all(prodId.Chars_, ' '));
+   if (!symb)
+      return nullptr;
+   symb->TradingSessionId_ = misys.TradingSessionId_;
+   symb->SetMdReceiverStPtr(channel.GetMdReceiverStPtr());
+   return symb;
+}
 
+/// Symbol LastPrice.
 struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
    fon9_NON_COPY_NON_MOVE(OmsTwfMiI020);
    using base = f9twf::ExgMiHandlerPkCont;
@@ -54,23 +74,13 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
    void PkContOnReceived(const void* pk, unsigned pksz, SeqT seq) override {
       (void)pksz;
       this->CheckLogLost(pk, seq);
-      auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
-      auto  core = coreMgr.CurrentCore();
-      if (!core)
-         return;
       auto& pkI020 = *static_cast<const f9twf::ExgMiI020*>(pk);
-      auto  symb = core->GetSymbs()->FetchOmsSymb(fon9::StrView_eos_or_all(pkI020.ProdId_.Chars_, ' '));
+      auto  symb = FetchOmsSymb(this->PkSys_, pkI020.ProdId_);
       if (!symb)
          return;
-      auto* twfsymb = dynamic_cast<TwfExgSymbBasic*>(symb.get());
+      auto* twfsymb = symb->GetMdLastPriceEv();
       if (!twfsymb)
          return;
-      if (fon9_UNLIKELY(symb->PriceOrigDiv_ == 0 && pkI020.ProdId_.Chars_[5] == '/')) {
-         // 期貨價差: 從leg1取得相關必要欄位. TODO:應在建立新的 symb 時填入 PriceOrigDiv_ 及相關事項(例: Contract_).
-         if (auto leg1 = core->GetSymbs()->GetOmsSymb(fon9::StrView{pkI020.ProdId_.Chars_, 5})) {
-            symb->PriceOrigDiv_ = leg1->PriceOrigDiv_;
-         }
-      }
       const uint8_t                       count = static_cast<uint8_t>(pkI020.MatchDisplayItem_ & 0x7f);
       const f9twf::ExgMdMatchData* const  pend = pkI020.MatchData_ + count;
       if (!twfsymb->IsNeedsOnMdLastPriceEv()) {
@@ -85,6 +95,7 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
          OmsMdLastPrice bf = *twfsymb;
          pkI020.FirstMatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
          twfsymb->TotalQty_ += fon9::PackBcdTo<fon9::fmkt::Qty>(pkI020.FirstMatchQty_);
+         auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
          for (;;) {
             if (*twfsymb != bf)
                twfsymb->OnMdLastPriceEv(bf, coreMgr);
@@ -98,6 +109,7 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
       }
    }
 };
+/// Contract LastPrice.
 struct OmsTwfMiI060 : public f9twf::ExgMiHandlerPkCont {
    fon9_NON_COPY_NON_MOVE(OmsTwfMiI060);
    using base = f9twf::ExgMiHandlerPkCont;
@@ -124,6 +136,7 @@ struct OmsTwfMiI060 : public f9twf::ExgMiHandlerPkCont {
       }
    }
 };
+/// Session St.
 struct OmsTwfMiI140 : public f9twf::ExgMiHandlerAnySeq {
    fon9_NON_COPY_NON_MOVE(OmsTwfMiI140);
    using base = f9twf::ExgMiHandlerAnySeq;
@@ -156,6 +169,39 @@ struct OmsTwfMiI140 : public f9twf::ExgMiHandlerAnySeq {
             }
          }
       });
+   }
+};
+/// Symbol Bid/Ask.
+struct OmsTwfMiI080 : public f9twf::ExgMiHandlerPkCont {
+   fon9_NON_COPY_NON_MOVE(OmsTwfMiI080);
+   using base = f9twf::ExgMiHandlerPkCont;
+   using base::base;
+
+   static inline void AssignPQ(const f9twf::ExgMdOrderPQ& pk, fon9::fmkt::PriQty& md, const OmsSymb& symb) {
+      pk.Price_.AssignTo(md.Pri_, symb.PriceOrigDiv_);
+      md.Qty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(pk.Qty_);
+   }
+   void PkContOnReceived(const void* pk, unsigned pksz, SeqT seq) override {
+      (void)pksz;
+      this->CheckLogLost(pk, seq);
+      auto& pkI080 = *static_cast<const f9twf::ExgMiI080*>(pk);
+      auto  symb = FetchOmsSymb(this->PkSys_, pkI080.ProdId_);
+      if (!symb)
+         return;
+      auto* twfsymb = symb->GetMdBSEv();
+      if (!twfsymb)
+         return;
+      if (twfsymb->IsNeedsOnMdBSEv()) {
+         auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
+         const OmsMdBS bf = *twfsymb;
+         AssignPQ(pkI080.BuyOrderBook_[0], twfsymb->Buy_, *symb);
+         AssignPQ(pkI080.SellOrderBook_[0], twfsymb->Sell_, *symb);
+         twfsymb->OnMdBSEv(bf, coreMgr);
+      }
+      else {
+         AssignPQ(pkI080.BuyOrderBook_[0], twfsymb->Buy_, *symb);
+         AssignPQ(pkI080.SellOrderBook_[0], twfsymb->Sell_, *symb);
+      }
    }
 };
 
@@ -204,11 +250,13 @@ bool OmsTwfMiSystem::StartupPlugins(fon9::seed::PluginsHolder& holder, fon9::Str
          channel->RegMiHandler<'2', '1', 4>(f9twf::ExgMiHandlerSP{new OmsTwfMiI020{*channel}});
          channel->RegMiHandler<'1', '5', 3>(f9twf::ExgMiHandlerSP{new OmsTwfMiI060{*channel}});
          channel->RegMiHandler<'2', '3', 6>(f9twf::ExgMiHandlerSP{new OmsTwfMiI140{*channel}});
-         
+         channel->RegMiHandler<'2', '2', 2>(f9twf::ExgMiHandlerSP{new OmsTwfMiI080{*channel}});
+
          channel = pthis->GetChannel(2);
          channel->RegMiHandler<'5', '1', 4>(f9twf::ExgMiHandlerSP{new OmsTwfMiI020{*channel}});
          channel->RegMiHandler<'4', '5', 3>(f9twf::ExgMiHandlerSP{new OmsTwfMiI060{*channel}});
          channel->RegMiHandler<'5', '3', 6>(f9twf::ExgMiHandlerSP{new OmsTwfMiI140{*channel}});
+         channel->RegMiHandler<'5', '2', 2>(f9twf::ExgMiHandlerSP{new OmsTwfMiI080{*channel}});
 
          pthis->StartupMdSystem();
          pthis->PlantIoMgr(*holder.Root_, iomArgs);

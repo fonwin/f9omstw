@@ -11,5 +11,13 @@ OmsMdLastPriceSubject::~OmsMdLastPriceSubject() {
 void OmsMdLastPriceSubject::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr& omsCoreMgr) {
    this->Subject_.Publish(*this, bf, omsCoreMgr);
 }
+//--------------------------------------------------------------------------//
+OmsMdBSEv::~OmsMdBSEv() {
+}
+OmsMdBSSubject::~OmsMdBSSubject() {
+}
+void OmsMdBSSubject::OnMdBSEv(const OmsMdBS& bf, OmsCoreMgr& omsCoreMgr) {
+   this->Subject_.Publish(*this, bf, omsCoreMgr);
+}
 
 } // namespaces

@@ -36,7 +36,7 @@ public:
 
    using base::base;
 
-   void ProcessPendingReport(OmsResource& res) const override;
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
    void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {

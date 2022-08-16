@@ -173,13 +173,15 @@ typedef struct {
    f9OmsRc_FieldIndexS  IdxCumAmt2_;
    f9OmsRc_FieldIndexS  IdxMatchQty2_;
    f9OmsRc_FieldIndexS  IdxMatchPri2_;
+   /// 子單下單要求, 會有對應的母單序號.
+   f9OmsRc_FieldIndexS  IdxParentRequestSNO_;
 
    /// 券商提供的特殊欄位.
    /// 可在收到 FnOnConfig_ 事件時透過:
    /// `f9OmsRc_GetRequestLayout();`
    /// `f9OmsRc_GetReportLayout();`
    /// 取得 layout 之後設定這裡的值.
-   f9OmsRc_FieldIndexS  IdxUserFields_[16];
+   f9OmsRc_FieldIndexS  IdxUserFields_[15];
 } f9OmsRc_Layout;
 
 //--------------------------------------------------------------------------//
@@ -377,6 +379,14 @@ f9OmsRc_API_FN(int)
 f9OmsRc_SendRequestBatch(f9rc_ClientSession*         ses,
                          const f9OmsRc_RequestBatch* reqBatch,
                          unsigned                    reqCount);
+/// 取得 f9OmsRc_SendRequestBatch() 最大打包資料量.
+/// 因 TCP/Ethernet 封包的特性, 若資料量超過 MSS, 則在網路線上傳送時, 需要拆包送出,
+/// 接收端需要等候併包後才能處理, 反而造成更大的延遲, 所以系統供一個最大打包資料量.
+/// 一旦批次下單打包資料量超過此值, 就先送出, 然後繼續打包後續的下單要求.
+f9OmsRc_API_FN(unsigned) f9OmsRc_GetRequestBatchMSS(void);
+/// 設定新的 f9OmsRc_SendRequestBatch() 最大打包資料量.
+/// 返回設定前的值.
+f9OmsRc_API_FN(unsigned) f9OmsRc_SetRequestBatchMSS(unsigned value);
 
 #ifdef __cplusplus
 }//extern "C"

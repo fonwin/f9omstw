@@ -465,4 +465,12 @@
   <ItemGroup>
     <Text Include="..\..\..\f9omsrc\f9OmsRcApi.ver.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\f9omsrc\OmsRc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omsrc\OmsRcClient.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>

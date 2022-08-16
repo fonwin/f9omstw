@@ -14,6 +14,26 @@ OmsOrder::~OmsOrder() {
 void OmsOrder::FreeThis() {
    delete this;
 }
+
+void OmsOrder::SetParentOrder(OmsOrder& parentOrder) {
+   (void)parentOrder;
+   assert(!"Not support OmsOrder::SetParentOrder()");
+}
+OmsOrder* OmsOrder::GetParentOrder() const {
+   if (this->IsChildOrder() && this->Head_)
+      if (const auto* headReq = this->Head_->Request_)
+         if (const auto* parentIni = headReq->GetParentRequest())
+            if (const auto* parentOrdraw = parentIni->LastUpdated())
+               return &parentOrdraw->Order();
+   return nullptr;
+}
+void OmsOrder::OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) {
+   (void)childRunner;
+}
+void OmsOrder::OnOrderUpdated(const OmsRequestRunnerInCore& runner) {
+   runner.OrderRaw().Request().OnOrderUpdated(runner);
+}
+
 OmsSymbSP OmsOrder::FindSymb(OmsResource& res, const fon9::StrView& symbid) {
    return res.Symbs_->GetOmsSymb(symbid);
 }
@@ -33,6 +53,12 @@ OmsOrderRaw* OmsOrder::InitializeByStarter(OmsOrderFactory& creator, OmsRequestB
    OmsOrderRaw* retval = creator.MakeOrderRawImpl();
    retval->InitializeByStarter(*this, starter);
    this->Head_ = this->Tail_ = retval;
+
+   auto* parentRequest = starter.GetParentRequest();
+   if (fon9_UNLIKELY(parentRequest != nullptr)) {
+      if (const auto* parentOrdraw = parentRequest->LastUpdated())
+         this->SetParentOrder(parentOrdraw->Order());
+   }
    return retval;
 }
 OmsOrderRaw* OmsOrder::BeginUpdate(const OmsRequestBase& req) {
@@ -48,7 +74,7 @@ OmsOrderRaw* OmsOrder::BeginUpdate(const OmsRequestBase& req) {
       this->Tail_ = retval;
    return retval;
 }
-void OmsOrder::ProcessPendingReport(OmsResource& res) {
+void OmsOrder::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) {
    assert(this->FirstPending_ != nullptr);
    const OmsOrderRaw* afFirstPending;
    const OmsOrderRaw* pord = this->FirstPending_;
@@ -59,7 +85,7 @@ void OmsOrder::ProcessPendingReport(OmsResource& res) {
       while (pord) {
          if (pord->UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending) {
             if (pord->Request_->LastUpdated() == pord) {
-               pord->Request_->ProcessPendingReport(res);
+               pord->Request_->ProcessPendingReport(prevRunner);
                if (afFirstPending == nullptr && pord->Request_->LastUpdated() == pord)
                   afFirstPending = pord;
             }

@@ -58,7 +58,7 @@ void OmsTwsFilled::RunReportInCore_FilledOrder(OmsReportChecker&& checker, OmsOr
    base::RunReportInCore_FilledOrder(std::move(checker), order);
 }
 void OmsTwsFilled::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCoreRunner) const {
-   OmsTwsOrderRaw&   ordraw = *static_cast<OmsTwsOrderRaw*>(&inCoreRunner.OrderRaw_);
+   OmsTwsOrderRaw&   ordraw = inCoreRunner.OrderRawT<OmsTwsOrderRaw>();
    ordraw.LastFilledTime_ = this->Time_;
    OmsRunReportInCore_FilledUpdateCum(std::move(inCoreRunner), ordraw, this->Pri_, this->Qty_, *this);
 }

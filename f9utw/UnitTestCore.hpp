@@ -182,8 +182,8 @@ struct UomsReqIniRiskCheck : public f9omstw::OmsRequestRunStep {
    using base::base;
 
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
-      assert(dynamic_cast<const ReqIniT*>(runner.OrderRaw_.Order().Initiator()) != nullptr);
-      auto& ordraw = *static_cast<OrdRawT*>(&runner.OrderRaw_);
+      assert(dynamic_cast<const ReqIniT*>(runner.OrderRaw().Order().Initiator()) != nullptr);
+      auto& ordraw = runner.OrderRawT<OrdRawT>();
       auto* inireq = static_cast<const ReqIniT*>(ordraw.Order().Initiator());
       AssignOrdRaw(ordraw, *inireq);
       // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
@@ -207,8 +207,8 @@ struct UomsReqIni9RiskCheck : public f9omstw::OmsRequestRunStep {
    using base::base;
 
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
-      assert(dynamic_cast<const ReqIniT*>(runner.OrderRaw_.Order().Initiator()) != nullptr);
-      auto& ordraw = *static_cast<OrdRawT*>(&runner.OrderRaw_);
+      assert(dynamic_cast<const ReqIniT*>(runner.OrderRaw().Order().Initiator()) != nullptr);
+      auto& ordraw = runner.OrderRawT<OrdRawT>();
       auto* inireq = static_cast<const ReqIniT*>(ordraw.Order().Initiator());
       // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
       if (&ordraw.Request() == inireq) {
@@ -232,10 +232,11 @@ struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
    char                       padding_____[4];
 
    void TestRun(f9omstw::OmsRequestRunnerInCore& runner) {
-      if (runner.OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew)
-         runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_NewSending;
-      runner.OrderRaw_.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
-      runner.OrderRaw_.Message_.assign("Sending by 8610T1");
+      auto& ordraw = runner.OrderRaw();
+      if (ordraw.Request().RxKind() == f9fmkt_RxKind_RequestNew)
+         ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewSending;
+      ordraw.RequestSt_ = f9fmkt_TradingRequestSt_Sending;
+      ordraw.Message_.assign("Sending by 8610T1");
    }
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       // 排隊 or 送單.
@@ -244,7 +245,7 @@ struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
          return;
       this->TestRun(runner);
       fon9::RevPrint(runner.ExLogForUpd_, "<<Sending packet for: ",
-                     runner.OrderRaw_.Request().ReqUID_, ">>\n");
+                     runner.OrderRaw().Request().ReqUID_, ">>\n");
    }
    virtual bool RerunCheck(f9omstw::OmsOrderRaw& ordraw) {
       assert(dynamic_cast<f9omstw::OmsTwsOrderRaw*>(&ordraw) != nullptr);
@@ -259,13 +260,13 @@ struct UomsTwsExgSender : public f9omstw::OmsRequestRunStep {
       return true;
    }
    void RerunRequest(f9omstw::OmsReportRunnerInCore&& runner) override {
-      if (!this->RerunCheck(runner.OrderRaw_))
+      if (!this->RerunCheck(runner.OrderRaw()))
          return;
       this->TestRun(runner);
       if (runner.ExLogForUpd_.cfront() != nullptr)
          fon9::RevPrint(runner.ExLogForUpd_, ">" fon9_kCSTR_CELLSPL);
       fon9::RevPrint(runner.ExLogForUpd_, "<<Resending packet for: ",
-                     runner.OrderRaw_.Request().ReqUID_, ">>" fon9_kCSTR_ROWSPL);
+                     runner.OrderRaw().Request().ReqUID_, ">>" fon9_kCSTR_ROWSPL);
    }
 };
 struct UomsTwfExgSender : public UomsTwsExgSender {

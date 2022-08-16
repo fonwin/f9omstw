@@ -48,6 +48,12 @@
     <Filter Include="Source Files\_md_cx">
       <UniqueIdentifier>{f811c038-1b3f-416d-bb8b-fd3c469ac3f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\_parent_child">
+      <UniqueIdentifier>{650df148-519a-4957-8ff3-026e1cd86a69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\_parent_child">
+      <UniqueIdentifier>{9462ffb6-03c5-4674-9432-31df398bccb7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp">
@@ -221,6 +227,18 @@
     <ClInclude Include="..\..\..\f9omstw\OmsCxRequest.hpp">
       <Filter>Header Files\_md_cx</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsChildRequest.hpp">
+      <Filter>Header Files\_parent_child</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsParentOrder.hpp">
+      <Filter>Header Files\_parent_child</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsParentBase.hpp">
+      <Filter>Header Files\_parent_child</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsParentRequest.hpp">
+      <Filter>Header Files\_parent_child</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -372,6 +390,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsCxRequest.cpp">
       <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsParentOrder.cpp">
+      <Filter>Source Files\_parent_child</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsParentRequest.cpp">
+      <Filter>Source Files\_parent_child</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

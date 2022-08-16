@@ -80,6 +80,7 @@ fon9::io::RecvBufferSize TwfRptFromB50::OnDevice_Recv(fon9::io::Device& dev, fon
       rpt.Time_ = rpt.CrTime(); // pkAfSym->TransactTime_.ToTimeStamp();
       rpt.Qty_ = 0;
       rpt.QtyCanceled_ = f9twf::TmpGetValueU(pkAfSym->LeavesQty_);
+      rpt.SetErrCode(OmsErrCode_SessionClosed);
       rpt.MatchKey_ = f9twf::TmpGetValueU(pkAfSym->UniqId_)
                     + 9000000000ull;
       SetupReport0Symbol(*runner.Request_, pkBfSym->IvacFcmId_, &pkBfSym->SymbolType_, rpt.Symbol_,

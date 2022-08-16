@@ -35,8 +35,9 @@ public:
       assert(dynamic_cast<OmsRequestTrade*>(this->Request_.get()) != nullptr);
       return static_cast<OmsRequestTrade*>(this->Request_.get())->BeforeReqInCore(*this, res);
    }
-   void RequestAbandon(OmsResource* res, OmsErrCode errCode);
-   void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason);
+   void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::string reason = std::string{}) {
+      this->Request_->Abandon(errCode, std::move(reason), res, &this->ExLog_);
+   }
    void RequestAbandon(OmsResource* res, OmsErrCode errCode, std::nullptr_t) = delete;
 
    /// 檢查是否有回報補單權限, 由收到回報補單的人自主檢查.
@@ -64,15 +65,15 @@ inline void OmsForceAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
 ///   - this->OrderRaw_.Request_->LastUpdated() 尚未設定成 &this->OrderRaw_;
 ///     所以 this->OrderRaw_.Request_->LastUpdated() 有可能仍是 nullptr;
 /// - 解構時: ~OmsRequestRunnerInCore()
-///   - this->Resource_.Backend_.OnAfterOrderUpdated(*this);
+///   - this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
 ///     - 將 req, this->OrderRaw_ 加入 backend;
 ///     - 設定 this->OrderRaw_.Request_->SetLastUpdated(&this->OrderRaw_);
-///   - this->OrderRaw_.Order().EndUpdate(this->OrderRaw_, &this->Resource_);
+///   - this->OrderRaw_.Order().EndUpdate(*this);
 class OmsRequestRunnerInCore {
    fon9_NON_COPY_NON_MOVE(OmsRequestRunnerInCore);
+   OmsOrderRaw&         OrderRaw_;
 public:
    OmsResource&         Resource_;
-   OmsOrderRaw&         OrderRaw_;
    /// 例如: 儲存送給交易所的封包.
    fon9::RevBufferList  ExLogForUpd_;
    /// 例如: 儲存下單要求的原始封包.
@@ -81,8 +82,8 @@ public:
 
    /// 收到下單要求: 準備進行下單流程.
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, fon9::RevBufferList&& exLogForReq, fon9::BufferNodeSize updExLogSize)
-      : Resource_(resource)
-      , OrderRaw_(ordRaw)
+      : OrderRaw_(ordRaw)
+      , Resource_(resource)
       , ExLogForUpd_{updExLogSize}
       , ExLogForReq_(std::move(exLogForReq)) {
    }
@@ -90,19 +91,52 @@ public:
    /// 收到交易所回報時: 找回下單要求, 建立委託更新物件.
    template <class ExLogForUpdArg>
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, ExLogForUpdArg&& exLogForUpdArg)
-      : Resource_(resource)
-      , OrderRaw_(ordRaw)
+      : OrderRaw_(ordRaw)
+      , Resource_(resource)
       , ExLogForUpd_{std::forward<ExLogForUpdArg>(exLogForUpdArg)}
       , ExLogForReq_{0} {
    }
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw)
-      : Resource_(resource)
-      , OrderRaw_(ordRaw)
+      : OrderRaw_(ordRaw)
+      , Resource_(resource)
       , ExLogForUpd_{0}
       , ExLogForReq_{0} {
    }
+   /// 接續前一次執行完畢後, 的繼續執行.
+   /// prevRunner 可能是同一個 order, 也可能是 child 或 parent;
+   OmsRequestRunnerInCore(const OmsRequestRunnerInCore& prevRunner, OmsOrderRaw& ordRaw)
+      : OrderRaw_(ordRaw)
+      , Resource_(prevRunner.Resource_)
+      , ExLogForUpd_{0}
+      , ExLogForReq_{0}
+      , BackendLocker_{prevRunner.BackendLocker_} {
+   }
+   OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, const OmsRequestRunnerInCore* prevRunner)
+      : OrderRaw_(ordRaw)
+      , Resource_(resource)
+      , ExLogForUpd_{0}
+      , ExLogForReq_{0}
+      , BackendLocker_{prevRunner ? prevRunner->BackendLocker_ : nullptr} {
+   }
 
    ~OmsRequestRunnerInCore();
+
+   OmsOrderRaw& OrderRaw() {
+      return this->OrderRaw_;
+   }
+   const OmsOrderRaw& OrderRaw() const {
+      return this->OrderRaw_;
+   }
+   template <class RawT>
+   RawT& OrderRawT() {
+      assert(dynamic_cast<RawT*>(&this->OrderRaw_) != nullptr);
+      return *static_cast<RawT*>(&this->OrderRaw_);
+   }
+   template <class RawT>
+   const RawT& OrderRawT() const {
+      assert(dynamic_cast<const RawT*>(&this->OrderRaw_) != nullptr);
+      return *static_cast<const RawT*>(&this->OrderRaw_);
+   }
 
    /// - 更新 this->OrderRaw_.RequestSt_ = reqst;
    /// - 如果是新單要求的異動

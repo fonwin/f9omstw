@@ -132,7 +132,7 @@ public:
    /// 處理 order.LastOrderSt() >= f9fmkt_OrderSt_NewDone 之後的成交回報:
    /// if (this->RunReportInCore_FilledIsFieldsMatch(*order.Initiator()))
    ///    this->RunReportInCore_FilledUpdateCum(std::move(inCoreRunner));
-   void ProcessPendingReport(OmsResource& res) const override;
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
 
    /// 預設, 從 ref 複製: OmsOrdKey; Market; SessionId; IniSNO;
    void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;

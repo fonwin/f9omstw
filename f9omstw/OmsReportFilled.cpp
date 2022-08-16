@@ -119,7 +119,7 @@ void OmsReportFilled::RunReportInCore_FilledOrder(OmsReportChecker&& checker, Om
       this->IniSNO_ = iniReq->RxSNO();
 
    if (fon9_LIKELY(order.LastOrderSt() >= f9fmkt_OrderSt_NewDone
-                   && !this->RunReportInCore_FilledIsNeedsReportPending(inCoreRunner.OrderRaw_)))
+                   && !this->RunReportInCore_FilledIsNeedsReportPending(inCoreRunner.OrderRaw())))
       this->RunReportInCore_FilledUpdateCum(std::move(inCoreRunner));
    else
       inCoreRunner.UpdateFilled(f9fmkt_OrderSt_ReportPending, *this);
@@ -131,18 +131,18 @@ OmsOrderRaw* OmsReportFilled::RunReportInCore_FilledMakeOrder(OmsReportChecker& 
       return ordfac->MakeOrder(*this, nullptr);
    return nullptr;
 }
-void OmsReportFilled::ProcessPendingReport(OmsResource& res) const {
+void OmsReportFilled::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
    assert(this->LastUpdated()->UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending);
    OmsOrder& order = this->LastUpdated()->Order();
    if (order.LastOrderSt() < f9fmkt_OrderSt_NewDone
        || this->RunReportInCore_FilledIsNeedsReportPending(*order.Tail()))
       return;
    const OmsRequestIni*    ini = order.Initiator();
-   OmsReportRunnerInCore   inCoreRunner{res, *order.BeginUpdate(*this)};
+   OmsReportRunnerInCore   inCoreRunner{prevRunner, *order.BeginUpdate(*this)};
    if (ini && this->RunReportInCore_FilledIsFieldsMatch(*ini))
       this->RunReportInCore_FilledUpdateCum(std::move(inCoreRunner));
    else {
-      inCoreRunner.OrderRaw_.ErrCode_ = OmsErrCode_FieldNotMatch;
+      inCoreRunner.OrderRaw().ErrCode_ = OmsErrCode_FieldNotMatch;
    }
 }
 bool OmsReportFilled::RunReportInCore_FilledIsNeedsReportPending(const OmsOrderRaw& lastOrdUpd) const {

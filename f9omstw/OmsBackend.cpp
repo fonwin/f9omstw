@@ -26,7 +26,7 @@ void OmsBackend::OnBeforeDestroy() {
    items->QuItems_.clear();
 
    fon9::RevBufferList rbuf{128};
-   fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::UtcNow(), " =====\n");
+   fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::LocalNow(), " =====\n");
    fon9::DcQueueList dcq{rbuf.MoveOut()};
    this->RecorderFd_.Append(dcq);
 
@@ -75,7 +75,7 @@ void OmsBackend::ThrRun(std::string thrName) {
          items.unlock();
          // ------------
          // ----- quItems: 寫檔、回報...
-         // this->SaveQuItems(quItems); // 為了加快回報速度, 所以改成: 先處理回報, 再處理存檔.
+         // this->SaveQuItems(quItems); // 為了加快回報速度, 所以改成: 先處理回報, 再處理存檔. 但這樣會增加資料遺失的風險.
          // ----- Report.
          for (QuItem& qi : quItems) {
             if (qi.Item_ == nullptr)
@@ -88,7 +88,7 @@ void OmsBackend::ThrRun(std::string thrName) {
             else { // 不加入 History(無法回補), 但需要發行訊息的回報.
                if ((qi.Item_->RxItemFlags() & OmsRequestFlag_ForcePublish) == OmsRequestFlag_ForcePublish)
                   this->ReportSubject_.Publish(core, *qi.Item_);
-               intrusive_ptr_release(qi.Item_);
+               // intrusive_ptr_release(qi.Item_); 應在 SaveQuItems() 時處理.
             }
          }
          // ----- quItems: 寫檔、回報...
@@ -190,22 +190,23 @@ void OmsBackend::LogAppend(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
 void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
    // !this->Thread_.joinable() = Reloading;
+   auto& ordraw = runner.OrderRaw();
    assert(runner.Resource_.Core_.IsThisThread() || !this->Thread_.joinable());
-   assert(runner.OrderRaw_.Order().Tail() == &runner.OrderRaw_);
+   assert(ordraw.Order().Tail() == &ordraw);
 
    // 如果 isNeedsReqAppend == true: req 進入 core, 首次與 order 連結之後的異動.
-   const bool  isNeedsReqAppend = (runner.OrderRaw_.Request().LastUpdated() == nullptr);
+   const bool  isNeedsReqAppend = (ordraw.Request().LastUpdated() == nullptr);
    // req 有可能因為需要編製 RequestId 而先呼叫了 FetchSNO(),
    // 等流程告一段落時才會來到這裡, 所以此時 req 的 SNO 必定等於 LastSNO_;
-   assert(!isNeedsReqAppend || runner.OrderRaw_.Request().RxSNO() == this->LastSNO_);
-   assert(runner.OrderRaw_.RxSNO() == 0);
+   assert(!isNeedsReqAppend || ordraw.Request().RxSNO() == this->LastSNO_);
+   assert(ordraw.RxSNO() == 0);
 
-   runner.OrderRaw_.SetRxSNO(++this->LastSNO_);
-   runner.OrderRaw_.Request().SetLastUpdated(runner.OrderRaw_);
-   runner.OrderRaw_.UpdateTime_ = fon9::UtcNow();
+   ordraw.SetRxSNO(++this->LastSNO_);
+   ordraw.Request().SetLastUpdated(ordraw);
+   ordraw.UpdateTime_ = fon9::UtcNow();
    runner.Resource_.Core_.Owner_->UpdateSc(runner);
    assert(runner.Resource_.Brks_.get() != nullptr);
-   FetchScResourceIvr(runner.Resource_, runner.OrderRaw_.Order());
+   FetchScResourceIvr(runner.Resource_, ordraw.Order());
    if (fon9_LIKELY(runner.BackendLocker_ == nullptr)) {
       Locker items{this->Items_};
       this->EndAppend(items, runner, isNeedsReqAppend);
@@ -217,11 +218,11 @@ void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
 void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend) {
    if (isNeedsReqAppend) {
       // req 首次異動, 應先將 req 加入 backend.
-      assert(!runner.OrderRaw_.Request().IsAbandoned()); // 必定沒有 Abandon.
-      assert(runner.OrderRaw_.Request().RxSNO() != 0);   // 必定已經編過號.
-      items->Append(runner.OrderRaw_.Request(), std::move(runner.ExLogForReq_));
+      assert(!runner.OrderRaw().Request().IsAbandoned()); // 必定沒有 Abandon.
+      assert(runner.OrderRaw().Request().RxSNO() != 0);   // 必定已經編過號.
+      items->Append(runner.OrderRaw().Request(), std::move(runner.ExLogForReq_));
    }
-   items->Append(runner.OrderRaw_, std::move(runner.ExLogForUpd_));
+   items->Append(runner.OrderRaw(), std::move(runner.ExLogForUpd_));
    if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
       items->IsNotified_ = true;
       this->Items_.NotifyOne(items);

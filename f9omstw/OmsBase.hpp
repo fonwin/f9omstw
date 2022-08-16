@@ -93,6 +93,8 @@ using OmsErrCodeActSP = fon9::intrusive_ptr<const OmsErrCodeAct>;
 class OmsEventFactory;
 using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
 
+class OmsSymb;
+
 //--------------------------------------------------------------------------//
 
 template <class T>

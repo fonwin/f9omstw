@@ -26,8 +26,14 @@ public:
    OmsSymbSP GetOmsSymb(const fon9::StrView& symbid) {
       return fon9::static_pointer_cast<OmsSymb>(this->GetSymb(symbid));
    }
+   OmsSymbSP GetOmsSymb(const Locker& symbs, const fon9::StrView& symbid) {
+      return fon9::static_pointer_cast<OmsSymb>(this->GetSymb(symbs, symbid));
+   }
    OmsSymbSP FetchOmsSymb(const fon9::StrView& symbid) {
       return fon9::static_pointer_cast<OmsSymb>(this->FetchSymb(symbid));
+   }
+   OmsSymbSP FetchOmsSymb(const Locker& symbs, const fon9::StrView& symbid) {
+      return fon9::static_pointer_cast<OmsSymb>(this->FetchSymb(symbs, symbid));
    }
 
    constexpr static fon9::seed::TreeFlag DefaultTreeFlag() {

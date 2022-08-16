@@ -68,7 +68,8 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
    TwfTradingLineMgr&      lineMgr = *static_cast<TwfTradingLineMgr*>(&this->LineMgr_);
    const OmsRequestTrade*  curReq  = static_cast<OmsRequestTrade*>(&req);
    OmsRequestRunnerInCore* runner  = lineMgr.MakeRunner(tmpRunner, *curReq, 256u);
-   OmsOrder&               order   = runner->OrderRaw_.Order();
+   auto&                   ordraw  = runner->OrderRaw();
+   OmsOrder&               order   = ordraw.Order();
 
    // 一般下單 / 詢價要求 / 報價(Bid/Offer)?
    assert(dynamic_cast<const OmsTwfRequestIni0*>(order.Initiator()) != nullptr);
@@ -136,7 +137,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
             pkSym = &r07.Sym_.Num_;
             r07.Source_ = iniReq0->TmpSource_;
          }
-         pkr7bf->OrderNo_ = runner->OrderRaw_.OrdNo_;
+         pkr7bf->OrderNo_ = ordraw.OrdNo_;
          f9twf::TmpPutValue(pkr7bf->OrdId_, static_cast<uint32_t>(curReq->RxSNO()));
          f9twf::TmpPutValue(pkr7bf->IvacFcmId_, brk->FcmId_);
          pkr7bf->SymbolType_ = symType;
@@ -425,7 +426,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
    }
    // ====================================
    if (fon9_LIKELY(pkr1bf)) { // R01/R31/R09/R39
-      pkr1bf->OrderNo_ = runner->OrderRaw_.OrdNo_;
+      pkr1bf->OrderNo_ = ordraw.OrdNo_;
       f9twf::TmpPutValue(pkr1bf->OrdId_, static_cast<uint32_t>(curReq->RxSNO()));
       f9twf::TmpPutValue(pkr1bf->CmId_, brk->CmId_);
       f9twf::TmpPutValue(pkr1bf->IvacFcmId_, brk->FcmId_);
@@ -441,7 +442,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       this->SendTmpAddSeqNum(now, std::move(buf));
    else
       this->SendTmpSeqNum0(now, std::move(buf));
-   static_cast<OmsTwfOrderRaw0*>(&runner->OrderRaw_)->OutPvcId_ = this->OutPvcId_;
+   static_cast<OmsTwfOrderRaw0*>(&ordraw)->OutPvcId_ = this->OutPvcId_;
    runner->Update(f9fmkt_TradingRequestSt_Sending, ToStrView(this->StrSendingBy_));
    this->Fc_.ForceUsed(now);
    return SendResult::Sent;

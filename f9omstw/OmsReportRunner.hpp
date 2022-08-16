@@ -75,11 +75,11 @@ fon9_WARN_DISABLE_PADDING;
 /// - 協助處理 ErrCodeAct.
 /// - 建構時設定:
 ///   - this->ErrCodeAct_;
-///   - this->OrderRaw_.ErrCode_;
-///   - this->OrderRaw_.RequestSt_;
+///   - this->OrderRaw().ErrCode_;
+///   - this->OrderRaw().RequestSt_;
 ///     填入 this->ErrCodeAct_->ReqSt_ 或 rpt->ReportSt();
 ///   - 若條件成立, 但需等 NewDone 才 Rerun, 則應將此次異動放到 ReportPending:
-///     this->OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+///     this->OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
 class OmsReportRunnerInCore : public OmsRequestRunnerInCore {
    fon9_NON_COPY_NON_MOVE(OmsReportRunnerInCore);
    using base = OmsRequestRunnerInCore;
@@ -108,6 +108,16 @@ public:
       : base{resource, ordRaw}
       , ErrCodeAct_{CheckErrCodeAct(*this, nullptr)} {
    }
+   /// 接續前一次執行完畢後, 的繼續執行.
+   /// prevRunner 可能是同一個 order, 也可能是 child 或 parent;
+   OmsReportRunnerInCore(const OmsRequestRunnerInCore& prevRunner, OmsOrderRaw& ordRaw)
+      : base{prevRunner, ordRaw}
+      , ErrCodeAct_{CheckErrCodeAct(*this, nullptr)} {
+   }
+   OmsReportRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, const OmsRequestRunnerInCore* prevRunner)
+      : base{resource, ordRaw, prevRunner}
+      , ErrCodeAct_{CheckErrCodeAct(*this, nullptr)} {
+   }
    fon9_MSC_WARN_POP;
 
    ~OmsReportRunnerInCore();
@@ -119,19 +129,19 @@ public:
    }
 
    /// 回報最後的更新:
-   /// - 若 rpt 有 Message_ 欄位, 則將 rpt.Message_ 複製或移動到 this->OrderRaw_.Message_;
+   /// - 若 rpt 有 Message_ 欄位, 則將 rpt.Message_ 複製或移動到 this->OrderRaw().Message_;
    /// - 若 rpt.RequestFlags() 有設定 OmsRequestFlag_ReportNeedsLog; 且 rpt 是現有 request 的回報:
    ///   - 則將 rpt 內容寫入 log.
-   /// - 如果 this->OrderRaw_.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale 則:
-   ///   - this->OrderRaw_.Message_.append("(stale)");
-   /// - 最後呼叫 base::Update(this->OrderRaw_.RequestSt_);
+   /// - 如果 this->OrderRaw().UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale 則:
+   ///   - this->OrderRaw().Message_.append("(stale)");
+   /// - 最後呼叫 base::Update(this->OrderRaw().RequestSt_);
    template <class ReportT>
    void UpdateReport(ReportT& rpt) {
-      OmsAssignReportMessage(&this->OrderRaw_, &rpt);
+      OmsAssignReportMessage(&this->OrderRaw(), &rpt);
       this->UpdateReportImpl(rpt);
    }
    void UpdateSt(f9fmkt_OrderSt ordst, f9fmkt_TradingRequestSt reqst) {
-      this->OrderRaw_.UpdateOrderSt_ = ordst;
+      this->OrderRaw().UpdateOrderSt_ = ordst;
       this->Update(reqst);
    }
    void UpdateFilled(f9fmkt_OrderSt ordst, const OmsReportFilled& rptFilled) {

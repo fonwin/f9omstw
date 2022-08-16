@@ -124,12 +124,12 @@ inline bool Sc_Symbol_PriLmt(OmsRequestRunnerInCore& runner, OrderRawT& ordraw, 
    else if (fon9_LIKELY(symb)) {
       if (fon9_UNLIKELY(!pris->PriDnLmt_.IsNullOrZero() && ordraw.LastPri_ < pris->PriDnLmt_)) {
          runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_OverPriDnLmt, nullptr);
-         runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>("DnLmt=", pris->PriDnLmt_);
+         runner.OrderRaw().Message_ = fon9::RevPrintTo<fon9::CharVector>("DnLmt=", pris->PriDnLmt_);
          return false;
       }
       if (fon9_UNLIKELY(!pris->PriUpLmt_.IsNullOrZero() && ordraw.LastPri_ > pris->PriUpLmt_)) {
          runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_OverPriUpLmt, nullptr);
-         runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>("UpLmt=", pris->PriUpLmt_);
+         runner.OrderRaw().Message_ = fon9::RevPrintTo<fon9::CharVector>("UpLmt=", pris->PriUpLmt_);
          return false;
       }
       if (fon9_UNLIKELY(pris->PriRef_.IsNullOrZero())) {
@@ -185,7 +185,7 @@ inline bool Sc_Symbol_PriFixed(OmsRequestRunnerInCore& runner, OrderRawT& ordraw
 
 inline void Sc_Symbol_QtyOver(OmsRequestRunnerInCore& runner, const uint32_t shqty, const uint32_t maxqty) {
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_QtyOver, nullptr);
-   runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>("ShUnit=", shqty, "|MaxQty=", maxqty);
+   runner.OrderRaw().Message_ = fon9::RevPrintTo<fon9::CharVector>("ShUnit=", shqty, "|MaxQty=", maxqty);
 }
 inline void Sc_Symbol_LogShUnit(OmsRequestRunnerInCore& runner, const uint32_t shqty) {
    f9oms_SC_LOG(runner, "ShUnit=", shqty);
@@ -205,7 +205,7 @@ inline bool Sc_Symbol_QtyUnit(OmsRequestRunnerInCore& runner, RequestIniT& inire
    assert(shqty != 0);
    if (fon9_UNLIKELY((inireq.Qty_ % shqty) != 0)) {
       runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Sc_QtyUnit, nullptr);
-      runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>("ShUnit=", shqty);
+      runner.OrderRaw().Message_ = fon9::RevPrintTo<fon9::CharVector>("ShUnit=", shqty);
       return false;
    }
    const auto maxqty = shqty * 499;
@@ -263,7 +263,7 @@ inline bool Sc_BalQty(OmsRequestRunnerInCore& runner, OmsErrCode ec, QtyT bal, Q
       return true;
    }
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, ec, nullptr);
-   runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>(
+   runner.OrderRaw().Message_ = fon9::RevPrintTo<fon9::CharVector>(
       "Bal=", bal, "|Leaves=", leaves, "|Filled=", filled, "|Add=", add,
       "|Over=", rhs - bal);
    return false;
@@ -296,7 +296,7 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
       return true;
    }
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, ec, nullptr);
-   runner.OrderRaw_.Message_ = fon9::RevPrintTo<fon9::CharVector>(
+   runner.OrderRaw().Message_ = fon9::RevPrintTo<fon9::CharVector>(
          lmtName, '=', lmt, "|Used=", used, "|Add=", add, "|Over=", over);
    return false;
 }
@@ -323,6 +323,34 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
 #define OmsErrCode_CondSc_OverPriUpLmt           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_OverPriUpLmt)
 #define OmsErrCode_CondSc_OverPriDnLmt           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_OverPriDnLmt)
 #define OmsErrCode_CondSc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_BadPriTickSize)
+
+/// Symb 無法取得所需要的行情價: msSymb.GetMdBSEv() 或 mdSymb.GetMdLastPriceEv();
+/// 通常為系統設計錯誤.
+#define OmsErrCode_CondSc_MdSymb                 static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_SymbPriNotFound)
+
+//--------------------------------------------------------------------------//
+static inline OmsErrCode CheckPriTickSize(fon9::fmkt::Pri curpri, OmsOrder& order) {
+   return fon9::fmkt::CheckPriTickSize(order.ScResource().Symb_->LvPriSteps(), curpri)
+      ? OmsErrCode_NoError : OmsErrCode_Sc_BadPriTickSize;
+}
+
+extern OmsErrCode CheckLmtPri(fon9::fmkt::Pri curpri, fon9::fmkt::Pri upLmt, fon9::fmkt::Pri dnLmt, fon9::RevBuffer& rbuf);
+
+/// 根據 execPriSel 及 priTicksAway 取得下單價.
+/// 若 execPriSel == f9fmkt_ExecPriSel_Unknown, 則應直接使用 [固定價], 與行情無關, 此時 out 不變.
+/// 可能返回 OmsErrCode_CondSc_MdSymb; 通常為設計有誤.
+extern OmsErrCode GetExecPri(OmsSymb& mdSymb, f9fmkt_ExecPriSel execPriSel, int8_t priTicksAway, fon9::fmkt::Pri& out);
+static inline bool CheckExecPri(OmsRequestRunnerInCore& runner,
+                                OmsSymb& mdSymb, f9fmkt_ExecPriSel execPriSel, int8_t priTicksAway, fon9::fmkt::Pri& out) {
+   OmsErrCode errCode = GetExecPri(mdSymb, execPriSel, priTicksAway, out);
+   if (fon9_LIKELY(errCode == OmsErrCode_NoError))
+      return true;
+   runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, errCode, nullptr);
+   return false;
+}
+
+/// 檢查 reqPri 的檔位, 及漲跌停範圍;
+extern bool CheckPriTickSizeAndLmt(OmsRequestRunnerInCore& runner, OmsSymb& mdSymb, fon9::fmkt::Pri reqPri);
 
 } // namespaces
 #endif//__f9omstw_OmsScBase_hpp__

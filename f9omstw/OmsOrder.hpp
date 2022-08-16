@@ -10,7 +10,6 @@
 
 namespace f9omstw {
 
-fon9_WARN_DISABLE_PADDING;
 /// 委託書的相關風控資源.
 /// - 放在 OmsOrder 裡面.
 /// - 當委託有異動時, 可以快速調整風控計算, 不用再查一次表格.
@@ -28,7 +27,18 @@ struct OmsScResource {
       this->OrdPri_ = rhs.OrdPri_;
    }
 };
-fon9_WARN_POP;
+
+enum class OmsOrderFlag : uint8_t {
+   IsNeedsOnOrderUpdated = 0x01,
+   IsChildOrder = 0x02 | IsNeedsOnOrderUpdated,
+
+   /// 有此旗標, 才會觸發生出子單.
+   /// 在 RequestParentNew.RunStep 設定。
+   /// 重啟、同步不會設定此旗標。
+   IsParentWorking = 0x04,
+   IsParentOrder = 0x08,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(OmsOrderFlag);
 
 /// - OmsOrder 沒有擁有者, 死亡時機:
 ///   - 當 OmsRequestBase 死亡時
@@ -45,11 +55,12 @@ class OmsOrder {
    const OmsOrderRaw*      TailPrev_{nullptr};
    const OmsOrderRaw*      FirstPending_{nullptr};
    f9fmkt_OrderSt          LastOrderSt_{};
-   char                    padding___[7];
+   OmsOrderFlag            Flags_{};
+   char                    padding___[6];
 
-   void ProcessPendingReport(OmsResource& res);
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner);
 
-protected:     
+protected:
    virtual ~OmsOrder();
 
    /// - 當 this->GetSymb() 時, 若 this->ScResource_.Symb_.get() == nullptr;
@@ -59,7 +70,7 @@ protected:
 
 public:
    /// 若透過類似 ObjSupplier 的機制, 無法提供建構時參數.
-   /// 實際使用前再配合 Initialize(OmsOrderFactory& creator, OmsScResource* scRes) 初始化;
+   /// 實際使用前再配合 InitializeByStarter() 初始化;
    OmsOrder();
    /// 若有提供 scRes, 則會將 std::move(*scRes) 用於 this->ScResource_ 的初始化.
    OmsOrderRaw* InitializeByStarter(OmsOrderFactory& creator, OmsRequestBase& starter, OmsScResource* scRes);
@@ -92,21 +103,84 @@ public:
 
    OmsBrk* GetBrk(OmsResource& res) const;
 
+   OmsSymb* GetSymb(OmsResource& res, const fon9::StrView& symbid) {
+      if (OmsSymb* retval = this->ScResource_.Symb_.get())
+         return retval;
+      return (this->ScResource_.Symb_ = this->FindSymb(res, symbid)).get();
+   }
    template <class SymbId>
-   OmsSymb* GetSymb(OmsResource& res, const SymbId& symbid);
-   OmsSymb* GetSymb(OmsResource& res, const fon9::StrView& symbid);
+   OmsSymb* GetSymb(OmsResource& res, const SymbId& symbid) {
+      if (OmsSymb* retval = this->ScResource_.Symb_.get())
+         return retval;
+      return (this->ScResource_.Symb_ = this->FindSymb(res, ToStrView(symbid))).get();
+   }
 
    /// 透過 this->Creator_->MakeOrderRawImpl() 建立委託異動資料.
    /// - 通常配合 OmsRequestRunnerInCore 建立 runner; 然後執行下單(或回報)步驟.
    /// - 或是 Backend.Reload 時.
    OmsOrderRaw* BeginUpdate(const OmsRequestBase& req);
+   /// 呼叫通常來自 Backend 或 this->RunnerEndUpdate();
    /// last 必定是 this->BeginUpdate() 的返回值.
-   /// - 如果 res == nullptr 則不考慮 ProcessPendingReport(); 用在 Backend.Reload 時.
-   void EndUpdate(const OmsOrderRaw& last, OmsResource* res);
+   /// \retval false 亂序回報(last.UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending),
+   ///               不更新  this->LastOrderSt_; 可能設定 this->FirstPending_;
+   /// \retval true  依序回報(last.UpdateOrderSt_ != f9fmkt_OrderSt_ReportPending),
+   ///               若 (last.UpdateOrderSt_ >= f9fmkt_OrderSt_IniAccepted) 則會更新 this->LastOrderSt_;
+   bool OrderEndUpdate(const OmsOrderRaw& last);
+   /// if (this->OrderEndUpdate(runner.OrderRaw())) {
+   ///    若有需要: this->ProcessPendingReport(runner);
+   ///    若有需要: this->OnOrderUpdated(runner);
+   /// }
+   void RunnerEndUpdate(const OmsRequestRunnerInCore& runner);
 
    const OmsReportFilled* InsertFilled(const OmsReportFilled* currFilled) {
       return OmsReportFilled::Insert(&this->FilledHead_, &this->FilledLast_, currFilled);
    }
+
+   // ----- 底下為 [子母單機制] 的支援 {
+   /// 在 OmsOrder::InitializeByStarter() 裡面呼叫;
+   /// 預設 assert(!"Not support");
+   virtual void SetParentOrder(OmsOrder& parentOrder);
+   /// 若 this->IsChildOrder()
+   /// 則透過 this->Head()->Request_->GetParentRequest() 取得 ParentOrder;
+   OmsOrder* GetParentOrder() const;
+   /// 在 OmsRequestBase::OnOrderUpdated():
+   /// 若沒有 ParentRequest, 但有 ParentOrder, 則呼叫 ParentOrder.OnChildOrderUpdated();
+   /// 只有 [成交回報 or 手動刪改子單回報] 才會來到這裡.
+   /// 預設 do nothing;
+   virtual void OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner);
+   /// 設定 OmsOrderFlag::IsParentWorking 旗標.
+   /// SetParentWorking() 只能執行一次.
+   void SetParentWorking() {
+      assert(!IsEnumContains(this->Flags_, OmsOrderFlag::IsParentWorking));
+      this->Flags_ |= OmsOrderFlag::IsParentWorking;
+   }
+   void ClearParentWorking() {
+      this->Flags_ -= OmsOrderFlag::IsParentWorking;
+   }
+   bool IsParentWorking() const {
+      return IsEnumContains(this->Flags_,OmsOrderFlag::IsParentWorking);
+   }
+   bool IsChildOrder() const {
+      return IsEnumContains(this->Flags_, OmsOrderFlag::IsChildOrder);
+   }
+   bool IsParentOrder() const {
+      return IsEnumContains(this->Flags_, OmsOrderFlag::IsParentOrder);
+   }
+protected:
+   /// 設定 OmsOrderFlag::IsChildParent 旗標.
+   void SetThisIsParentOrder() {
+      this->Flags_ |= OmsOrderFlag::IsParentOrder;
+   }
+   /// 設定 OmsOrderFlag::IsChildOrder 旗標.
+   void SetThisIsChildOrder(OmsOrder& parentOrder) {
+      (void)parentOrder;
+      assert(!IsEnumContains(this->Flags_, OmsOrderFlag::IsChildOrder)); // SetThisIsChildOrder() 只能執行一次.
+      this->Flags_ |= OmsOrderFlag::IsChildOrder;
+   }
+   /// 只有在有提供 OmsOrderFlag::IsNeedsOnOrderUpdated 才會觸發此事件.
+   /// 預設: runner.OrderRaw().Request().OnOrderUpdated(runner);
+   virtual void OnOrderUpdated(const OmsRequestRunnerInCore& runner);
+   // ----- 以上為 [子母單機制] 的支援 };
 };
 
 //--------------------------------------------------------------------------//
@@ -117,7 +191,7 @@ public:
 ///   - 然後透過 OmsOrderFactory::Form_ 填入全部的欄位;
 /// - OmsOrderFactory::MakeOrderRaw() 使用 ObjectPool 機制:
 ///   - 使用 OmsOrderRaw 預設建構, 放到 ObjectPool.
-///   - 使用前再透過 OmsOrderRaw::Initialize() 初始化.
+///   - 使用前再透過 OmsOrderRaw::InitializeBy*() 初始化.
 class OmsOrderRaw : public OmsRxItem {
    fon9_NON_COPY_NON_MOVE(OmsOrderRaw);
    using base = OmsRxItem;
@@ -149,8 +223,8 @@ protected:
    }
 
    /// 若 OmsOrderFactory::MakeOrderRaw() 使用 ObjectPool 機制, 則可能先建立 OmsOrderRaw,
-   /// 然後在 OmsOrder::BeginUpdate() 返回前, 再透過 OmsOrderRaw::Initialize() 初始化.
-   /// 在此預設建構裡面, 應先將一些欄位初始化, 讓 OmsOrderRaw::Initialize() 可以快一些.
+   /// 然後在 OmsOrder::BeginUpdate() 返回前, 再透過 OmsOrderRaw::InitializeBy*() 初始化.
+   /// 在此預設建構裡面, 應先將一些欄位初始化, 讓 OmsOrderRaw::InitializeBy*() 可以快一些.
    OmsOrderRaw() : base(f9fmkt_RxKind_Order) {
    }
    virtual ~OmsOrderRaw();
@@ -235,13 +309,24 @@ public:
       return lgOut;
    }
 };
-
 //--------------------------------------------------------------------------//
+template <class OrderBase>
+class OmsChildOrderT : public OrderBase {
+   fon9_NON_COPY_NON_MOVE(OmsChildOrderT);
+   using base = OrderBase;
+public:
+   using base::base;
+   OmsChildOrderT() = default;
 
+   void SetParentOrder(OmsOrder& parentOrder) override {
+      this->SetThisIsChildOrder(parentOrder);
+   }
+};
+//--------------------------------------------------------------------------//
 inline OmsOrderRaw* OmsOrderFactory::MakeOrder(OmsRequestBase& starter, OmsScResource* scRes) {
    return this->MakeOrderImpl()->InitializeByStarter(*this, starter, scRes);
 }
-
+// -----
 inline const OmsRequestIni* OmsOrder::Initiator() const {
    assert(this->Head_ != nullptr);
    if (fon9_UNLIKELY(this->Head_->UpdateOrderSt_ < f9fmkt_OrderSt_IniAccepted))
@@ -249,24 +334,27 @@ inline const OmsRequestIni* OmsOrder::Initiator() const {
    assert(dynamic_cast<const OmsRequestIni*>(this->Head_->Request_) != nullptr);
    return static_cast<const OmsRequestIni*>(this->Head_->Request_);
 }
-inline void OmsOrder::EndUpdate(const OmsOrderRaw& last, OmsResource* res) {
+inline bool OmsOrder::OrderEndUpdate(const OmsOrderRaw& last) {
    assert(this->Tail_ == &last);
-   if (fon9_UNLIKELY(last.UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending)) {
-      if (this->FirstPending_ == nullptr)
-         this->FirstPending_ = &last;
-   }
-   else {
+   if (fon9_LIKELY(last.UpdateOrderSt_ != f9fmkt_OrderSt_ReportPending)) {
       if (last.UpdateOrderSt_ >= f9fmkt_OrderSt_IniAccepted)
          this->LastOrderSt_ = last.UpdateOrderSt_;
-      if (fon9_UNLIKELY(res && this->FirstPending_ != nullptr
-                        && last.RequestSt_ > f9fmkt_TradingRequestSt_LastRunStep))
-         this->ProcessPendingReport(*res);
+      return true;
    }
+   if (this->FirstPending_ == nullptr)
+      this->FirstPending_ = &last;
+   return false;
 }
 inline bool OmsOrder::IsWorkingOrder() const {
    if (const auto* tail = this->Tail_)
       return !tail->IsFrozeScLeaves_ && tail->IsWorking();
    return false;
+}
+// -----
+inline void OmsRequestBase::SetLastUpdated(OmsOrderRaw& lastupd) const {
+   // 若 lastupd 來自 Parent, 但 this 為 child 的成交, 則不可改變 this->LastUpdated_;
+   if (this->LastUpdated_ == nullptr || &this->LastUpdated_->Order() == &lastupd.Order())
+      this->LastUpdated_ = &lastupd;
 }
 
 } // namespaces

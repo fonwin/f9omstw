@@ -34,6 +34,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_RequestStepNotFound = 10,
    /// 無法將 req 轉成適當的 OmsRequest(例如: OmsTwsRequestChg);
    OmsErrCode_UnknownRequestType = 11,
+   /// 改單要求不支援此種委託.
+   OmsErrCode_RequestNotSupportThisOrder = 12,
 
    /// OmsRequestIni::BeforeReq_CheckOrdKey();
    /// 下單要求的 BrkId 找不到對應的券商資料.
@@ -116,6 +118,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_FailSending = 902,
    /// 條件單, 尚未觸發前, 發現行情斷線.
    OmsErrCode_MdNoData = 903,
+   /// 下單要求在尚未執行(RunInCore)前, 被取消.
+   OmsErrCode_AbandonBeforeRun = 904,
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.

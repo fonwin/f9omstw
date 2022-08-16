@@ -77,17 +77,17 @@ void OmsTwfFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, Om
       return;
    OmsReportRunnerInCore inCoreRunner{resource, *order.BeginUpdate(*order.Initiator())};
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
-      assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
+      auto& ordraw1 = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
       // 新單補單後的處理,不會走到這兒,會在 RunReportInCore_FilledUpdateCum() 更新 LastPri_;
       if (!this->PriOrd_.IsNullOrZero())
-         static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_)->LastPri_ = this->PriOrd_;
-      if (static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_)->LastPriTime_.IsNull())
-         static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_)->LastPriTime_ = this->Time_;
+         ordraw1.LastPri_ = this->PriOrd_;
+      if (ordraw1.LastPriTime_.IsNull())
+         ordraw1.LastPriTime_ = this->Time_;
    }
    else { // 報價.
-      assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
+      assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw()) != nullptr);
    }
-   static_cast<OmsTwfOrderRaw0*>(&inCoreRunner.OrderRaw_)->LastExgTime_ = this->Time_;
+   inCoreRunner.OrderRawT<OmsTwfOrderRaw0>().LastExgTime_ = this->Time_;
    inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeAccepted, f9fmkt_TradingRequestSt_ExchangeAccepted);
 }
 bool OmsTwfFilled::RunReportInCore_FilledIsNeedsReportPending(const OmsOrderRaw& lastOrdUpd) const {
@@ -117,13 +117,13 @@ void OmsTwfFilled::RunReportInCore(OmsReportChecker&& checker) {
                         : f9fmkt_TradingRequestSt_ExchangeCanceled);
    }
    base::RunReportInCore(std::move(checker));
-   this->CheckPartFilledQtyCanceled(checker.Resource_);
+   this->CheckPartFilledQtyCanceled(checker.Resource_, nullptr);
 }
-void OmsTwfFilled::ProcessPendingReport(OmsResource& res) const {
-   base::ProcessPendingReport(res);
-   this->CheckPartFilledQtyCanceled(res);
+void OmsTwfFilled::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   base::ProcessPendingReport(prevRunner);
+   this->CheckPartFilledQtyCanceled(prevRunner.Resource_, &prevRunner);
 }
-void OmsTwfFilled::CheckPartFilledQtyCanceled(OmsResource& res) const {
+void OmsTwfFilled::CheckPartFilledQtyCanceled(OmsResource& res, const OmsRequestRunnerInCore* prevRunner) const {
    if (this->QtyCanceled_ <= 0 || this->Qty_ <= 0)
       return;
    const OmsOrderRaw* lastupd = this->LastUpdated();
@@ -132,14 +132,13 @@ void OmsTwfFilled::CheckPartFilledQtyCanceled(OmsResource& res) const {
       // 這裡要用 order.BeginUpdate(*order.Initiator()) 或 order.BeginUpdate(*this)?
       // 對於委託最終狀態沒有影響, 使用 order.BeginUpdate(*this) 較為合理, 且可傳遞 ErrCode;
       //this->ProcessQtyCanceled(OmsReportRunnerInCore{res, *order.BeginUpdate(*order.Initiator())});
-      this->ProcessQtyCanceled(OmsReportRunnerInCore{res, *order.BeginUpdate(*this)});
+      this->ProcessQtyCanceled(OmsReportRunnerInCore{res, *order.BeginUpdate(*this), prevRunner});
    }
 }
 void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) const {
    // assert(this->QtyCanceled_ > 0); 有可能是 40048 的 Canceled: Qty_ == QtyCanceled_ == 0;
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
-      assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
-      OmsTwfOrderRaw1&  ordraw = *static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_);
+      OmsTwfOrderRaw1&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
       assert(this->QtyCanceled_ == ordraw.LeavesQty_);
       ordraw.LastExgTime_ = this->Time_;
       ordraw.LeavesQty_ = ordraw.AfterQty_ = 0;
@@ -149,8 +148,7 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeCanceled, f9fmkt_TradingRequestSt_ExchangeCanceled);
    }
    else { // 期交所自動取消報價.
-      assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
-      OmsTwfOrderRaw9&  ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+      OmsTwfOrderRaw9&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();
       ordraw.QuoteReportSide_ = this->Side_;
       ordraw.LastExgTime_ = this->Time_;
       switch (this->Side_) {
@@ -164,7 +162,7 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
          break;
       case f9fmkt_Side_Unknown:
       default:
-         inCoreRunner.OrderRaw_.Message_.assign("TwfFilled(Canceled): Unknown QuodeSide.");
+         ordraw.Message_.assign("TwfFilled(Canceled): Unknown QuodeSide.");
          return;
       }
       inCoreRunner.UpdateSt((ordraw.Bid_.LeavesQty_ <= 0 && ordraw.Offer_.LeavesQty_ <= 0
@@ -225,14 +223,12 @@ void OmsTwfFilled1::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCo
    }
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
       // 一般單式商品.
-      assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
-      OmsTwfOrderRaw1&  ordraw = *static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_);
+      OmsTwfOrderRaw1&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
       ordraw.LastFilledTime_ = this->Time_;
       OmsRunReportInCore_FilledUpdateCum(std::move(inCoreRunner), ordraw, this->Pri_, this->Qty_, *this);
    }
    else { // 報價成交.
-      assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_) != nullptr);
-      OmsTwfOrderRaw9&  ordraw = *static_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_);
+      OmsTwfOrderRaw9&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();
       ordraw.QuoteReportSide_ = this->Side_;
       ordraw.LastFilledTime_ = this->Time_;
       switch (this->Side_) {
@@ -244,7 +240,7 @@ void OmsTwfFilled1::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCo
          break;
       case f9fmkt_Side_Unknown:
       default:
-         inCoreRunner.OrderRaw_.Message_.assign("TwfFilled1: Unknown QuodeSide.");
+         ordraw.Message_.assign("TwfFilled1: Unknown QuodeSide.");
          inCoreRunner.UpdateFilled(f9fmkt_OrderSt_ExchangeAccepted, *this);
          return;
       }
@@ -270,10 +266,9 @@ void OmsTwfFilled2::RunReportInCore_FilledUpdateCum(OmsReportRunnerInCore&& inCo
       return;
    }
    assert(this->PosEff_ != OmsTwfPosEff::Quote);
-   assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
-   assert(dynamic_cast<const OmsTwfRequestIni0*>(inCoreRunner.OrderRaw_.Order().Initiator()) != nullptr);
+   assert(dynamic_cast<const OmsTwfRequestIni0*>(inCoreRunner.OrderRaw().Order().Initiator()) != nullptr);
    // 一般複式商品.
-   OmsTwfOrderRaw1&         ordraw = *static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_);
+   OmsTwfOrderRaw1&         ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
    const OmsTwfRequestIni0& reqini = *static_cast<const OmsTwfRequestIni0*>(ordraw.Order().Initiator());
    ordraw.LastFilledTime_ = this->Time_;
 

@@ -6,46 +6,49 @@
 
 namespace f9omstw {
 
+char OmsOrdNoStr_BeginValue[] = "\0" "00000";
+
 OmsOrdNoMap::~OmsOrdNoMap() {
 }
-
 bool OmsOrdNoMap::GetNextOrdNo(const OmsOrdTeam team, OmsOrdNo& out, FnIncOrdNo fnIncOrdNo) {
    assert(team.size() > 0);
    // 尋找 team 的最後號.
    struct OrdNoStr : public fon9::CharAryL<OmsOrdNo::size()> {
-      using base = fon9::CharAryL<OmsOrdNo::size()>;
       void clear() {
-         base::clear();
-         memset(this->begin(), '0', this->max_size());
+         #define kCSTR_FirstOrdNo   OmsOrdNoStr_BeginValue
+         static_assert(sizeof(kCSTR_FirstOrdNo) - 1 == sizeof(*this), "");
+         memcpy(this, kCSTR_FirstOrdNo, sizeof(*this));
+         static_assert(sizeof(*this) == sizeof(OmsOrdNo) + 1, "");
+         assert(this->size() == 0);
       }
       void PutToOrdNo(OmsOrdNo& dst) {
-         // 此時雖然 this->size() 不是 max_size(); 但因為 clear() 時, 已填 '0',
-         // 所以可已直接取用 ordno.GetOrigCharAry();
+         // 此時雖然 this->size() 可能不是 max_size();
+         // 但因為 clear() 時, 已填妥初始值, 所以可直接使用 this->Ary_;
          dst = *static_cast<const OmsOrdNo*>(&this->Ary_);
       }
    };
-   OrdNoStr ordno;
-   this->find_tail_keystr(ToStrView(team), ordno);
+   OrdNoStr strOrdNo;
+   this->find_tail_keystr(ToStrView(team), strOrdNo);
 
    #ifdef F9OMS_ORDNO_IS_NUM
       fnIncOrdNo = f9omstw_IncStrDec;
    #endif
 
-   if (fon9_UNLIKELY(ordno.size() < team.size())) {
+   if (fon9_UNLIKELY(strOrdNo.size() < team.size())) {
       do {
-         ordno.push_back(team[ordno.size()]);
-      } while (ordno.size() < team.size());
+         strOrdNo.push_back(team[strOrdNo.size()]);
+      } while (strOrdNo.size() < team.size());
    }
-   else if (fon9_UNLIKELY(!fnIncOrdNo(ordno.begin() + team.size(), ordno.begin() + ordno.max_size()))) {
+   else if (fon9_UNLIKELY(!fnIncOrdNo(strOrdNo.begin() + team.size(), strOrdNo.begin() + strOrdNo.max_size()))) {
       return false;
    }
-   ordno.PutToOrdNo(out);
+   strOrdNo.PutToOrdNo(out);
    return true;
 }
 bool OmsOrdNoMap::AllocByTeam(OmsRequestRunnerInCore& runner, const OmsOrdTeam team, FnIncOrdNo fnIncOrdNo) {
-   OmsOrdNo& ordno = runner.OrderRaw_.OrdNo_;
+   OmsOrdNo& ordno = runner.OrderRaw().OrdNo_;
    if (fon9_LIKELY(this->GetNextOrdNo(team, ordno, fnIncOrdNo))) {
-      auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, &runner.OrderRaw_.Order());
+      auto ires = this->emplace(fon9::StrView{ordno.begin(), ordno.end()}, &runner.OrderRaw().Order());
       (void)ires; assert(ires.second == true);
       return true;
    }
@@ -66,7 +69,7 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
 }
 bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo reqOrdNo) {
    OmsOrdTeamGroupId tgId;
-   if (const auto* reqPolicy = runner.OrderRaw_.Order().Initiator()->Policy()) {
+   if (const auto* reqPolicy = runner.OrderRaw().Order().Initiator()->Policy()) {
       if ((tgId = reqPolicy->OrdTeamGroupId()) != 0)
          goto __READY_GroupId;
    }
@@ -95,9 +98,9 @@ __READY_GroupId:
    }
 __ORD_TEAM_ALLOW:;
    if (peos == nullptr) { // req = 完整委託書號.
-      auto ires = this->emplace(fon9::StrView{reqOrdNo.begin(), reqOrdNo.end()}, &runner.OrderRaw_.Order());
+      auto ires = this->emplace(fon9::StrView{reqOrdNo.begin(), reqOrdNo.end()}, &runner.OrderRaw().Order());
       if (ires.second) {  // 成功將 order 設定在指定的委託書號.
-         runner.OrderRaw_.OrdNo_ = reqOrdNo;
+         runner.OrderRaw().OrdNo_ = reqOrdNo;
          return true;
       }
       return this->Reject(runner, OmsErrCode_OrderAlreadyExists);

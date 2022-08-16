@@ -6,6 +6,9 @@
 #include "f9omstw/OmsErrCode.h"
 #include "fon9/seed/Tab.hpp"
 #include "fon9/TimeStamp.hpp"
+#include "fon9/seed/FieldMaker.hpp"
+
+namespace fon9 { class RevBufferList; }
 
 namespace f9omstw {
 
@@ -15,6 +18,8 @@ enum OmsRequestFlag : uint8_t {
 
    /// 回報要求, 包含成交回報、券商回報、其他 f9oms 的回報...
    OmsRequestFlag_ReportIn = 0x02,
+   /// 從遠端同步(RcSyn模組)而來的回報, TwfRpt、TwsRpt、TwsFil、TwfFil… 都會設定此旗標
+   OmsRequestFlag_IsSynReport = 0x04,
 
    /// 由建立 Report 的人決定: 如果 rpt 的 origReq 已存在, 是否要用 ExInfo 記錄 rpt?
    /// - 因為如果 origReq 已存在, 則「回報物件」在回報處理完畢後, 會被刪除, 不會留在 history 裡面.
@@ -83,9 +88,7 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
    OmsErrCode              ErrCode_{OmsErrCode_NoError};
 
    friend class OmsBackend; // 取得修改 SetLastUpdated() 的權限.
-   void SetLastUpdated(OmsOrderRaw& lastupd) const {
-      this->LastUpdated_ = &lastupd;
-   }
+   void SetLastUpdated(OmsOrderRaw& lastupd) const;
 
    union {
       /// 當 this->IsAbandoned(): 此時這裡記錄中斷要求的原因.
@@ -220,16 +223,25 @@ public:
    const std::string* AbandonReason() const {
       return this->IsAbandoned() ? this->AbandonReason_ : nullptr;
    }
-   void Abandon(OmsErrCode errCode) {
-      assert((this->RxItemFlags_ & (OmsRequestFlag_Abandon | OmsRequestFlag_Initiator)) == OmsRequestFlag{});
-      this->RxItemFlags_ |= OmsRequestFlag_Abandon;
-      this->ErrCode_ = errCode;
+   fon9::StrView AbandonReasonStrView() const {
+      if (auto* abandonReason = this->AbandonReason())
+         return fon9::StrView{abandonReason};
+      return fon9::StrView{nullptr};
    }
-   void Abandon(OmsErrCode errCode, std::string reason) {
-      this->Abandon(errCode);
+   /// - 若有提供 res: res->Backend_.Append(*this, std::move(*exLog));
+   /// - 返回前呼叫 this->OnRequestAbandon(res);
+   void Abandon(OmsErrCode errCode, OmsResource* res, fon9::RevBufferList* exLog);
+   void Abandon(OmsErrCode errCode, std::string reason, OmsResource* res, fon9::RevBufferList* exLog) {
+      assert(this->AbandonReason_ == nullptr); // Abandon() 不可重覆呼叫.
       if (!reason.empty())
          this->AbandonReason_ = new std::string(std::move(reason));
+      this->Abandon(errCode, res, exLog);
    }
+   /// - 失敗的下單要求.
+   /// - 沒有設定 RxSNO, 且不用設定 RxSNO.
+   /// - res.Backend_.LogAppend(*this, std::move(exLog));
+   /// - 返回前呼叫 this->OnRequestAbandon(&res);
+   void LogAbandon(OmsErrCode errCode, std::string reason, OmsResource& res, fon9::RevBufferList&& exLog);
 
    void SetReportSt(f9fmkt_TradingRequestSt rptSt) {
       this->ReportSt_ = rptSt;
@@ -245,7 +257,7 @@ public:
    /// 若 this->LastUpdated()->OrderSt_ == f9fmkt_OrderSt_ReportPending;
    /// 則會透過這裡通知繼續處理回報.
    /// 預設 assert(!"Derived must override ProcessPendingReport()");
-   virtual void ProcessPendingReport(OmsResource& res) const;
+   virtual void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const;
 
    /// 從另一 oms 同步而來的回報, 呼叫時機: 已填入回報來源提供的欄位之後.
    /// - 在此應從 ref 複製所需欄位.
@@ -256,8 +268,73 @@ public:
    ///   - OmsRequestId: 如果 OmsIsReqUIDEmpty(*this);
    ///   - RxKind: 如果 this->RxKind_ == f9fmkt_RxKind_Unknown;
    virtual void OnSynReport(const OmsRequestBase* ref, fon9::StrView message);
+   void SetSynReport() {
+      this->RxItemFlags_ |= OmsRequestFlag_IsSynReport;
+   }
+   bool IsSynReport() const {
+      return (this->RxItemFlags_ & OmsRequestFlag_IsSynReport) == OmsRequestFlag_IsSynReport;
+   }
 
+   // ----- 底下為 [子母單機制] 的支援 {
+   /// 當 this 為子單回報(有 ParentRequestSNO 欄位).
+   /// - 則收到此筆子單的人(例:RcSyn), 有必要找到此回報原本的母單, 然後透過此處設定.
+   /// - 不可直接呼叫 SetParentRequest(), 因為其必須在 Reload or CoreThread(母單建立子單時) 之中執行,
+   ///   如果在回報接收程序裡直接呼叫 SetParentRequest() 無法保證 thread safe.
+   /// - 預設: do nothing, 實際可參考 OmsChildRequestT<>::SetParentReport() 的做法及說明.
+   virtual void SetParentReport(const OmsRequestBase* parentReport);
+   /// assert(!"Not support");
+   virtual void SetParentRequest(const OmsRequestBase& parentRequest, OmsRequestRunnerInCore* parentRunner);
+   /// 預設返回 nullptr;
+   virtual const OmsRequestBase* GetParentRequest() const;
+   /// 預設返回 0;
+   virtual OmsRxSNO GetParentRequestSNO() const;
+   /// 預設返回 false;
+   virtual bool IsParentRequest() const;
+   /// 在 childReq.SetParentRequest() 時, 主動通知.
+   /// 預設 do nothing.
+   virtual void OnAddChildRequest(const OmsRequestBase& childReq, OmsRequestRunnerInCore* parentRunner) const;
+   /// - 當收到遠端的 Request, 且有提供 ParentRequestSNO(遠端的), 但找不到 [對應本機的 ParentRequest],
+   ///   則必須清除 ParentRequestSNO, 避免重啟時找錯 Parent;
+   /// - 當 Request 尚未進入 RunInCore(), 就要求刪除子單, 此時應先解除與 Parent 的關聯, 然後呼叫 Abandon();
+   /// - 預設: do nothing;
+   virtual void ClearParentRequest();
+   /// 當 Backend.Reload 會呼叫此處, 此時僅將欄位重新載入完畢, 尚未處理 Abandon.
+   /// - 預設: 若 this->GetParentRequestSNO() 有效,
+   ///   則在此呼叫 this->SetParentRequest(); 重建與 Parent 的關聯.
+   virtual void OnAfterReloadFields(OmsResource& res);
+   /// 當 Backend 已將全部資料載入完畢, 全部的 req 會依序呼叫此處.
+   /// 預設:
+   /// - 通知 parentRequest->OnAfterBackendReloadChild(*this);
+   /// - 調整 RequestSt_ == Queuing or WaitingCond; => QueuingCanceled;
+   ///    調整前需要先 backendLocker.unlock(); 調整後需要重新 backendLocker.lock();
+   virtual void OnAfterBackendReload(OmsResource& res, void* backendLocker) const;
+   /// 當 Backend 已將全部資料載入完畢, 則全部的 childReq, 會依序呼叫此處通知 parentReq.
+   /// 預設 do nothing.
+   virtual void OnAfterBackendReloadChild(const OmsRequestBase& childReq) const;
+   /// 當委託有設定 OmsOrderFlag::IsNeedsOnOrderUpdated 旗標,
+   /// 則在 OmsOrder::OnOrderUpdated() 時, 會通知 Request;
+   /// - 預設, 若有提供 runner:
+   ///   - 且有 reqParent = this->GetParentRequest();
+   ///     則呼叫: reqParent->OnChildOrderUpdated(*runner);
+   ///   - 若沒有 reqParent, 但有 ParentOrder, 則呼叫 ParentOrder.OnChildOrderUpdated();
+   virtual void OnOrderUpdated(const OmsRequestRunnerInCore& runner) const;
+   /// 子單建立完畢後, 透過這裡執行.
+   /// \retval false: MoveToCore() 失敗, 返回前會先呼叫 this->OnMoveChildRunnerToCoreError();
+   bool MoveChildRunnerToCore(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const;
 protected:
+   /// - 在設定 this->Abandon(errCode); 完成, 返回前, 通知衍生者.
+   /// - res==nullptr 表示 this 為系統重載時, 重建的失敗要求.
+   /// - 若 res 有效, 且有 reqParent = this->GetParentRequest();
+   ///   則呼叫: reqParent->OnChildAbandoned(*this, *res);
+   virtual void OnRequestAbandoned(OmsResource* res);
+   /// 預設: do nothing;
+   virtual void OnChildAbandoned(const OmsRequestBase& reqChild, OmsResource& res) const;
+   /// 預設: do nothing;
+   virtual void OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) const;
+   /// 預設: do nothing;
+   virtual void OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const;
+   // ----- 以上為 [子母單機制] 的支援 };
+
    void RunReportInCore_Start(OmsReportChecker&& checker);
 
    /// RunReportInCore_Start() 的過程:

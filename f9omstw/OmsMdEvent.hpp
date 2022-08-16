@@ -57,6 +57,49 @@ public:
 protected:
    Subject  Subject_;
 };
+//--------------------------------------------------------------------------//
+struct OmsMdBS {
+   fon9::fmkt::PriQty   Buy_;
+   fon9::fmkt::PriQty   Sell_;
+};
+class OmsMdBSEv : public OmsMdBS {
+   fon9_NON_COPY_NON_MOVE(OmsMdBSEv);
+protected:
+   bool IsNeedsOnMdBSEv_{false};
+   char Padding_____[7];
+public:
+   OmsMdBSEv() = default;
+   virtual ~OmsMdBSEv();
+   virtual void OnMdBSEv(const OmsMdBS& bf, OmsCoreMgr&) = 0;
+   /// 是否需要觸發 this->OnMdBSEv()?
+   bool IsNeedsOnMdBSEv() const {
+      return this->IsNeedsOnMdBSEv_;
+   }
+};
+class OmsMdBSSubject : public OmsMdBSEv {
+   fon9_NON_COPY_NON_MOVE(OmsMdBSSubject);
+public:
+   using Handler = std::function<void(const OmsMdBSSubject& sender, const OmsMdBS& bf, OmsCoreMgr&)>;
+   using Subject = fon9::Subject<Handler>;
+
+   OmsMdBSSubject() = default;
+   ~OmsMdBSSubject();
+   void OnMdBSEv(const OmsMdBS& bf, OmsCoreMgr&) override;
+
+   void MdBS_Subscribe(fon9::SubConn* subConn, Handler&& handler) {
+      this->Subject_.Subscribe(subConn, std::move(handler));
+      this->IsNeedsOnMdBSEv_ = true;
+   }
+   void MdBS_Unsubscribe(fon9::SubConn* subConn) {
+      if (this->Subject_.Unsubscribe(subConn)) {
+         auto subj = this->Subject_.Lock();
+         this->IsNeedsOnMdBSEv_ = !subj->empty();
+      }
+   }
+
+protected:
+   Subject  Subject_;
+};
 
 } // namespaces
 #endif//__f9omstw_OmsMdEvent_hpp__

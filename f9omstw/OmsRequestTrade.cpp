@@ -20,6 +20,16 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
 
 //--------------------------------------------------------------------------//
 
+void CopyRequestIni(OmsRequestIni& dst, const OmsRequestIni& src) {
+   dst.SetPolicy(src.Policy());
+   dst.BrkId_ = src.BrkId_;
+   dst.SetMarket(src.Market());
+   dst.SetSessionId(src.SessionId());
+   *static_cast<OmsRequestIniDat*>(&dst) = src;
+   *static_cast<OmsRequestCliDef*>(&dst) = src;
+   *static_cast<OmsRequestFrom*>(&dst) = src;
+}
+
 bool OmsRequestIni::ValidateInUser(OmsRequestRunner& reqRunner) {
    if (this->RxKind_ == f9fmkt_RxKind_RequestNew && !OmsIsOrdNoEmpty(this->OrdNo_)) {
       const OmsRequestPolicy* pol = this->Policy();
@@ -186,8 +196,8 @@ OmsOrderRaw* OmsRequestUpd::BeforeReqInCore(OmsRequestRunner& runner, OmsResourc
 bool OmsRequestUpd::PreOpQueuingRequest(fon9::fmkt::TradingLineManager& from) const {
    if (auto* lmgr = dynamic_cast<OmsTradingLineMgrBase*>(&from)) {
       if (OmsRequestRunnerInCore* currRunner = lmgr->CurrRunner()) {
-         assert(this == &currRunner->OrderRaw_.Request());
-         if (currRunner->OrderRaw_.Order().LastOrderSt() < f9fmkt_OrderSt_NewSending)
+         assert(this == &currRunner->OrderRaw().Request());
+         if (currRunner->OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewSending)
             return true;
       }
    }

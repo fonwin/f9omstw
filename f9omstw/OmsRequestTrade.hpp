@@ -205,6 +205,9 @@ public:
    bool BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res) const;
 };
 
+/// 複製 OmsRequestIni 基本資料, 及 Policy: dst.SetPolicy(src.Policy());
+void CopyRequestIni(OmsRequestIni& dst, const OmsRequestIni& src);
+
 static inline bool IsOverVaTimeMS(const fon9::fmkt::TradingRequest& req, fon9::TimeStamp now) {
    if (fon9_LIKELY(req.RxKind() == f9fmkt_RxKind_RequestNew)) {
       assert(dynamic_cast<const OmsRequestIni*>(&req) != nullptr);
@@ -236,6 +239,15 @@ protected:
    /// this->BeforeReqInCore(); 呼叫此處取得 order;
    /// 衍生者也可呼叫此處取得 order, 然後檢查是否可繼續下單步驟, 或 runner.RequestAbandon();
    OmsOrder* BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsResource& res);
+   template <class OrderT, class OmsRequestRunner>
+   OrderT* BeforeReqInCore_GetOrderT(OmsRequestRunner& runner, OmsResource& res) {
+      if (auto* order = this->BeforeReqInCore_GetOrder(runner, res)) {
+         if (fon9_LIKELY(dynamic_cast<OrderT*>(order) != nullptr))
+            return static_cast<OrderT*>(order);
+         runner.RequestAbandon(&res, OmsErrCode_RequestNotSupportThisOrder);
+      }
+      return nullptr;
+   }
 
 public:
    using base::base;
@@ -258,6 +270,12 @@ public:
    }
 
    OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override;
+   template <class OrderT>
+   OmsOrderRaw* BeforeReqInCoreT(OmsRequestRunner& runner, OmsResource& res) {
+      if (auto* order = this->BeforeReqInCore_GetOrderT<OrderT>(runner, res))
+         return order->BeginUpdate(*this);
+      return nullptr;
+   }
 
    template <class RequestUpdT, class OmsRequestRunnerT>
    static bool RequestUpd_AutoRxKind(RequestUpdT& req, OmsRequestRunnerT& runner) {

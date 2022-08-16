@@ -132,17 +132,17 @@ inline void OmsUpdateOrderSt_WhenRecalcLeaves0(OmsReportRunnerInCore& inCoreRunn
    assert(ordQtys.LeavesQty_ == 0);
    // 只允許單邊委託(OrderRaw 指包含一個 LeavesQty),
    // Bid/Offer 應使用: OmsUpdateOrderSt_WhenRecalcLeaves0_Quote();
-   assert(&inCoreRunner.OrderRaw_ == &ordQtys);
-   inCoreRunner.OrderRaw_.UpdateOrderSt_ = (ordQtys.AfterQty_ == 0
-                                            ? f9fmkt_OrderSt_UserCanceled
-                                            : f9fmkt_OrderSt_AsCanceled);
+   assert(&inCoreRunner.OrderRaw() == &ordQtys);
+   inCoreRunner.OrderRaw().UpdateOrderSt_ = (ordQtys.AfterQty_ == 0
+                                             ? f9fmkt_OrderSt_UserCanceled
+                                             : f9fmkt_OrderSt_AsCanceled);
 }
 template <class OrdQuoteQtysT>
 inline void OmsUpdateOrderSt_WhenRecalcLeaves0_Quote(OmsReportRunnerInCore& inCoreRunner, OrdQuoteQtysT& ordQuoteQtys) {
    if (ordQuoteQtys.Bid_.LeavesQty_ == 0 && ordQuoteQtys.Offer_.LeavesQty_ == 0)
-      inCoreRunner.OrderRaw_.UpdateOrderSt_ = (ordQuoteQtys.Bid_.AfterQty_ == 0 && ordQuoteQtys.Offer_.AfterQty_ == 0
-                                            ? f9fmkt_OrderSt_UserCanceled
-                                            : f9fmkt_OrderSt_AsCanceled);
+      inCoreRunner.OrderRaw().UpdateOrderSt_ = (ordQuoteQtys.Bid_.AfterQty_ == 0 && ordQuoteQtys.Offer_.AfterQty_ == 0
+                                                ? f9fmkt_OrderSt_UserCanceled
+                                                : f9fmkt_OrderSt_AsCanceled);
 }
 
 /// 還原 OmsRecalcLeavesQtyFromReport() 扣掉的 LeavesQty;
@@ -183,12 +183,12 @@ inline bool OmsIsReportFieldsMatch(const RequestIniT& ini, const ReportT& rpt) {
 //--------------------------------------------------------------------------//
 
 /// 判斷 ordPris->LastPriTime_ 是否回過時回報.
-/// 如果過時, 則設定 inCoreRunner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
+/// 如果過時, 則設定 inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
 template <class OrdPrisT, class ReportT>
 inline auto OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OrdPrisT* ordPris, ReportT* rpt)
 ->decltype(ordPris->LastPriTime_, bool()) {
    if (!ordPris->LastPriTime_.IsNull() && ordPris->LastPriTime_ >= rpt->ExgTime_)
-      inCoreRunner->OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
+      inCoreRunner->OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
    return true;
 }
 inline bool OmsCheckReportChgPriStale(...) {
@@ -216,10 +216,10 @@ bool OmsAssignQtysFromReportBfAf(OmsReportRunnerInCore& inCoreRunner, OrdQtysT& 
    const auto  isReportRejected = f9fmkt_TradingRequestSt_IsAnyRejected(rpt.ReportSt());
    if (fon9_UNLIKELY(isReportRejected)) {
       assert(rptBeforeQty == rptAfterQty); // 失敗的刪改, 數量不會變動, 所以必定 rptBeforeQty == rptAfterQty;
-      if (inCoreRunner.OrderRaw_.RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {
+      if (inCoreRunner.OrderRaw().RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {
          if (ordQtys.LeavesQty_ > 0) {
             ordQtys.BeforeQty_ = ordQtys.AfterQty_ = 0;
-            inCoreRunner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+            inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
             return true;
          }
       }
@@ -229,11 +229,11 @@ bool OmsAssignQtysFromReportBfAf(OmsReportRunnerInCore& inCoreRunner, OrdQtysT& 
 __REPORT_PENDING:
       ordQtys.BeforeQty_ = rptBeforeQty;
       ordQtys.AfterQty_ = rptAfterQty;
-      inCoreRunner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+      inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
       return true;
    }
    // 尚未收到新單結果: 將改單結果存於 ordQtys, 等收到新單結果時再處理.
-   if (fon9_UNLIKELY(inCoreRunner.OrderRaw_.Order().LastOrderSt() < f9fmkt_OrderSt_NewDone))
+   if (fon9_UNLIKELY(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone))
       goto __REPORT_PENDING;
    // ----- 刪減回報 ------------------------------------------
    if (rpt.RxKind() == f9fmkt_RxKind_RequestChgQty
@@ -405,7 +405,7 @@ bool OmsIsReadyForPendingReport(const OrderQtysT& lastQtys, const OrderQtysT& rp
 
 /// ProcessPendingReport() 的範本(範例), 適用於一般委託(非報價、有改價)
 template <class OrderRawT, class RequestIniT, class ReportT>
-void OmsProcessPendingReport(OmsResource& res, const OmsRequestBase& rpt, const ReportT* chkFields) {
+void OmsProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const OmsRequestBase& rpt, const ReportT* chkFields) {
    assert(dynamic_cast<const OrderRawT*>(rpt.LastUpdated()) != nullptr);
    const OrderRawT&  rptraw = *static_cast<const OrderRawT*>(rpt.LastUpdated());
    OmsOrder&         order = rpt.LastUpdated()->Order();
@@ -413,8 +413,8 @@ void OmsProcessPendingReport(OmsResource& res, const OmsRequestBase& rpt, const 
       return;
    if (!OmsIsReadyForPendingReport(*static_cast<const OrderRawT*>(order.Tail()), rptraw, rptraw))
       return;
-   OmsReportRunnerInCore  inCoreRunner{res, *order.BeginUpdate(rpt)};
-   OrderRawT&             ordraw = *static_cast<OrderRawT*>(&inCoreRunner.OrderRaw_);
+   OmsReportRunnerInCore  inCoreRunner{prevRunner, *order.BeginUpdate(rpt)};
+   OrderRawT&             ordraw = inCoreRunner.OrderRawT<OrderRawT>();
    if (chkFields) {
       if (auto ini = dynamic_cast<const RequestIniT*>(order.Initiator())) {
          if (fon9_UNLIKELY(!OmsIsReportFieldsMatch(*ini, *chkFields))) {

@@ -22,7 +22,7 @@ protected:
    bool RunReportInCore_FilledIsNeedsReportPending(const OmsOrderRaw& lastOrdUpd) const override;
    OmsOrderRaw* RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) override;
    /// 檢查是否需要處理: 剩餘刪除(部分成交).
-   void CheckPartFilledQtyCanceled(OmsResource& res) const;
+   void CheckPartFilledQtyCanceled(OmsResource& res, const OmsRequestRunnerInCore* prevRunner) const;
    void ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) const;
 
    static void MakeFields(fon9::seed::Fields& flds);
@@ -56,7 +56,7 @@ public:
    using base::base;
 
    void RunReportInCore(OmsReportChecker&& checker) override;
-   void ProcessPendingReport(OmsResource& res) const override;
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
    void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 };
 

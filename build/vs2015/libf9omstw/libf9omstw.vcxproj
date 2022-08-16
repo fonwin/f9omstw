@@ -78,6 +78,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsBrk.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsBrkTree.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsChildRequest.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCore.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCoreByThread.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsCoreMgr.hpp" />
@@ -99,7 +100,10 @@
     <ClInclude Include="..\..\..\f9omstw\OmsMdEvent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrder.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsParentBase.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsParentOrder.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdNoMap.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsParentRequest.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvList.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsPoIvListAgent.hpp" />
@@ -156,7 +160,9 @@
     <ClCompile Include="..\..\..\f9omstw\OmsMdEvent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrderFactory.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsParentOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdNoMap.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsParentRequest.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoIvList.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoIvListAgent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsPoRequest.cpp" />

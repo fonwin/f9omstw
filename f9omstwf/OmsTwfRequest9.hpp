@@ -59,9 +59,10 @@ public:
    /// 如果沒填 RequestKind, 則根據 Qty 設定 RequestKind.
    /// 然後返回 base::ValidateInUser();
    bool ValidateInUser(OmsRequestRunner& reqRunner) override;
+   OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override;
 
    /// 匯入尚未處理的刪改回報. (因為之前可能有回報亂序);
-   void ProcessPendingReport(OmsResource& res) const;
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const;
 
    OpQueuingRequestResult OpQueuingRequest(fon9::fmkt::TradingLineManager& from,
                                            TradingRequest& queuingRequest) override;

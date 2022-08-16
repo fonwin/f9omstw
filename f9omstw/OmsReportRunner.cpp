@@ -17,8 +17,7 @@ void OmsReportChecker::ReportAbandon(fon9::StrView reason) {
    this->CheckerSt_ = OmsReportCheckerSt::Abandoned;
    OmsLogSplit(this->ExLog_);
    if ((this->Report_->RxItemFlags() & OmsRequestFlag_ForcePublish) == OmsRequestFlag_ForcePublish) {
-      this->Report_->Abandon(OmsErrCode_Bad_Report, reason.ToString());
-      this->Resource_.Backend_.LogAppend(*this->Report_, std::move(this->ExLog_));
+      this->Report_->LogAbandon(OmsErrCode_Bad_Report, reason.ToString(), this->Resource_, std::move(this->ExLog_));
    }
    else {
       fon9::RevPrint(this->ExLog_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL, reason);
@@ -122,12 +121,13 @@ const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
 OmsReportRunnerInCore::~OmsReportRunnerInCore() {
    if (!this->ErrCodeAct_ || this->ErrCodeAct_->RerunTimes_ <= 0)
       return;
-   if (this->OrderRaw_.UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending) {
+   auto& ordraw = this->OrderRaw();
+   if (ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending) {
       if (this->IsReportPending_)
          return;
-      this->OrderRaw_.UpdateOrderSt_ = this->OrderRaw_.Order().LastOrderSt();
+      ordraw.UpdateOrderSt_ = ordraw.Order().LastOrderSt();
    }
-   if (this->OrderRaw_.RequestSt_ == f9fmkt_TradingRequestSt_PartExchangeRejected)
+   if (ordraw.RequestSt_ == f9fmkt_TradingRequestSt_PartExchangeRejected)
       // 雙邊單須等到完整回報(f9fmkt_TradingRequestSt_ExchangeRejected)時, 才重送.
       return;
    // 在這裡處理 ErrCodeAct: Rerun.
@@ -137,10 +137,10 @@ OmsReportRunnerInCore::~OmsReportRunnerInCore() {
    //   - 必要時設定 OrderSt (NewSending)
    // - 如果在異動結束後才 Rerun, 則 LeavesQty 會從 0 調回 NewQty,
    //   如此會造成委託狀態變化的怪異現象, 所以應在異動結束前 Rerun.
-   auto step = this->OrderRaw_.Request().Creator().RunStep_.get();
+   auto step = ordraw.Request().Creator().RunStep_.get();
    if (step == nullptr)
       return;
-   if (this->OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew) {
+   if (ordraw.Request().RxKind() == f9fmkt_RxKind_RequestNew) {
       // 如果是新單要重送, 但有收到「刪單要求」, 則不應再重送.
       if (this->HasDeleteRequest_)
          return;
@@ -159,19 +159,18 @@ OmsReportRunnerInCore::~OmsReportRunnerInCore() {
    //    => 如果沒有線路 (TradingLine重新連線後,正在回補,尚未ApReady)
    //       => 就直接 No ready line. 拒絕吧!
 
-   const auto reqst = this->OrderRaw_.RequestSt_;
+   const auto reqst = ordraw.RequestSt_;
    step->RerunRequest(std::move(*this));
-   if (reqst != this->OrderRaw_.RequestSt_) {
-      fon9::RevPrintAppendTo(this->OrderRaw_.Message_,
-                              "(Re:", this->RequestRunTimes_, ')');
+   if (reqst != ordraw.RequestSt_) {
+      fon9::RevPrintAppendTo(ordraw.Message_, "(Re:", this->RequestRunTimes_, ')');
    }
 }
 void OmsReportRunnerInCore::CalcRequestRunTimes() {
    this->RequestRunTimes_ = 0;
-   const OmsOrderRaw* ordraw = this->OrderRaw_.Order().Head();
+   const OmsOrderRaw* ordraw = this->OrderRaw().Order().Head();
    while (ordraw) {
       if (ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Sending
-          && (&ordraw->Request() == &this->OrderRaw_.Request())) {
+          && (&ordraw->Request() == &this->OrderRaw().Request())) {
          ++this->RequestRunTimes_;
       }
       if (ordraw->Request().RxKind() == f9fmkt_RxKind_RequestDelete)
@@ -180,15 +179,16 @@ void OmsReportRunnerInCore::CalcRequestRunTimes() {
    }
 }
 void OmsReportRunnerInCore::UpdateReportImpl(OmsRequestBase& rpt) {
-   if (&this->OrderRaw_.Request() != &rpt) {
+   auto& ordraw = this->OrderRaw();
+   if (&ordraw.Request() != &rpt) {
       if (IsEnumContains(rpt.RequestFlags(), OmsRequestFlag_ReportNeedsLog)) {
          OmsLogSplit(this->ExLogForUpd_);
          rpt.RevPrint(this->ExLogForUpd_);
       }
    }
-   if (this->OrderRaw_.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale)
-      this->OrderRaw_.Message_.append("(stale)");
-   this->Update(this->OrderRaw_.RequestSt_);
+   if (ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale)
+      ordraw.Message_.append("(stale)");
+   this->Update(ordraw.RequestSt_);
 }
 //--------------------------------------------------------------------------//
 static bool CheckSrc(fon9::StrView cfg, const OmsRequestTrade* req) {
@@ -228,20 +228,21 @@ static bool IsNewSending(const OmsRequestTrade& rptReq, const OmsRequestBase* rp
 }
 
 OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runner, const OmsRequestBase* rpt) {
+   auto& ordraw = runner.OrderRaw();
    if (rpt) { // 一般依序回報.
-      runner.OrderRaw_.ErrCode_ = rpt->ErrCode();
-      runner.OrderRaw_.RequestSt_ = rpt->ReportSt();
+      ordraw.ErrCode_ = rpt->ErrCode();
+      ordraw.RequestSt_ = rpt->ReportSt();
    }
    else { // ProcessPendingReport: 亂序回報後的補正.
-      auto rptupd = runner.OrderRaw_.Request().LastUpdated();
-      runner.OrderRaw_.ErrCode_ = rptupd->ErrCode_;
-      runner.OrderRaw_.RequestSt_ = rptupd->RequestSt_;
+      auto rptupd = ordraw.Request().LastUpdated();
+      ordraw.ErrCode_ = rptupd->ErrCode_;
+      ordraw.RequestSt_ = rptupd->RequestSt_;
    }
-   OmsErrCodeActSP act = runner.Resource_.Core_.Owner_->GetErrCodeAct(runner.OrderRaw_.ErrCode_);
+   OmsErrCodeActSP act = runner.Resource_.Core_.Owner_->GetErrCodeAct(ordraw.ErrCode_);
    if (!act)
       return nullptr;
-   const OmsRequestTrade*  rptReq = dynamic_cast<const OmsRequestTrade*>(&runner.OrderRaw_.Request());
-   auto                    iniReq = runner.OrderRaw_.Order().Initiator();
+   const OmsRequestTrade*  rptReq = dynamic_cast<const OmsRequestTrade*>(&ordraw.Request());
+   auto                    iniReq = ordraw.Order().Initiator();
    fon9::TimeStamp         utcNow = fon9::UtcNow();
    fon9::DayTime           dayNow = fon9::GetDayTime(utcNow + fon9::GetLocalTimeZoneOffset());
    for (; act; act = act->Next_) {
@@ -259,7 +260,7 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
          continue;
       if (!CheckSrc(ToStrView(act->NewSrcs_), iniReq))
          continue;
-      if (!runner.OrderRaw_.CheckErrCodeAct(*act))
+      if (!ordraw.CheckErrCodeAct(*act))
          continue;
       if (act->RerunTimes_ > 0) {
          unsigned runTimes = runner.RequestRunTimes();
@@ -274,7 +275,7 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
             continue;
       }
       if (act->IsAtNewDone_) {
-         if (runner.OrderRaw_.Order().LastOrderSt() >= f9fmkt_OrderSt_NewDone) {
+         if (ordraw.Order().LastOrderSt() >= f9fmkt_OrderSt_NewDone) {
             if (!IsNewSending(*rptReq, rpt))
                continue;
          }
@@ -282,7 +283,7 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
             if (act->RerunTimes_ <= 0)
                continue;
             // 以上條件都成立, 但需等 NewDone 才 Rerun, 則應將此次異動放到 ReportPending.
-            runner.OrderRaw_.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+            ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
             runner.IsReportPending_ = true;
          }
       }
@@ -292,11 +293,12 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
 }
 OmsErrCodeActSP OmsReportRunnerInCore::CheckErrCodeAct(OmsReportRunnerInCore& runner, const OmsRequestBase* rpt) {
    if (OmsErrCodeActSP act = GetErrCodeAct(runner, rpt)) {
+      auto& ordraw = runner.OrderRaw();
       if (act->ReqSt_)
-         runner.OrderRaw_.RequestSt_ = act->ReqSt_;
+         ordraw.RequestSt_ = act->ReqSt_;
       if (act->ReErrCode_ != OmsErrCode_MaxV)
-         runner.OrderRaw_.ErrCode_ = act->ReErrCode_;
-      if (runner.OrderRaw_.Request().RxKind() != f9fmkt_RxKind_RequestQuery)
+         ordraw.ErrCode_ = act->ReErrCode_;
+      if (ordraw.Request().RxKind() != f9fmkt_RxKind_RequestQuery)
          return act;
    }
    return nullptr;

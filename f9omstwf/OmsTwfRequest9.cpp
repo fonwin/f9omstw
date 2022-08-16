@@ -37,6 +37,9 @@ bool OmsTwfRequestChg9::ValidateInUser(OmsRequestRunner& reqRunner) {
    }
    return base::ValidateInUser(reqRunner);
 }
+OmsOrderRaw* OmsTwfRequestChg9::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
+   return this->BeforeReqInCoreT<OmsTwfOrder9>(runner, res);
+}
 OmsTwfRequestChg9::OpQueuingRequestResult OmsTwfRequestChg9::OpQueuingRequest(fon9::fmkt::TradingLineManager& from,
                                                                               TradingRequest& queuingRequest) {
    if (queuingRequest.RxKind() != f9fmkt_RxKind_RequestNew || this->IniSNO() != queuingRequest.RxSNO())
@@ -71,8 +74,7 @@ OmsTwfRequestChg9::OpQueuingRequestResult OmsTwfRequestChg9::OpQueuingRequest(fo
    // ...
    // iniRunner.Update(f9fmkt_TradingRequestSt_QueuingCanceled);
    // -----
-   assert(dynamic_cast<OmsTwfOrderRaw9*>(&currRunner->OrderRaw_) != nullptr);
-   auto* ordraw = static_cast<OmsTwfOrderRaw9*>(&currRunner->OrderRaw_);
+   auto& ordraw = currRunner->OrderRawT<OmsTwfOrderRaw9>();
    if (this->RxKind() == f9fmkt_RxKind_RequestQuery) {
       // 查詢, 不改變任何狀態: 讓回報機制直接回覆最後的 OrderRaw 即可.
       currRunner->Update(f9fmkt_TradingRequestSt_Done);
@@ -85,16 +87,16 @@ OmsTwfRequestChg9::OpQueuingRequestResult OmsTwfRequestChg9::OpQueuingRequest(fo
       }
    };
    if (this->RxKind() == f9fmkt_RxKind_RequestChgPri) {
-      AssignAux::Pri(ordraw->LastBidPri_, this->BidPri_);
-      AssignAux::Pri(ordraw->LastOfferPri_, this->OfferPri_);
+      AssignAux::Pri(ordraw.LastBidPri_, this->BidPri_);
+      AssignAux::Pri(ordraw.LastOfferPri_, this->OfferPri_);
       currRunner->Update(f9fmkt_TradingRequestSt_Done);
       return Op_ThisDone;
    }
    assert(this->RxKind() == f9fmkt_RxKind_RequestChgQty || this->RxKind() == f9fmkt_RxKind_RequestDelete);
-   OmsTradingLineMgrBase::CalcInternalChgQty(ordraw->Bid_, this->BidQty_);
-   OmsTradingLineMgrBase::CalcInternalChgQty(ordraw->Offer_, this->OfferQty_);
-   if (ordraw->Bid_.AfterQty_ == 0 && ordraw->Offer_.AfterQty_ == 0) {
-      ordraw->UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
+   OmsTradingLineMgrBase::CalcInternalChgQty(ordraw.Bid_, this->BidQty_);
+   OmsTradingLineMgrBase::CalcInternalChgQty(ordraw.Offer_, this->OfferQty_);
+   if (ordraw.Bid_.AfterQty_ == 0 && ordraw.Offer_.AfterQty_ == 0) {
+      ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
       currRunner->Update(f9fmkt_TradingRequestSt_QueuingCanceled);
       return Op_AllDone;
    }

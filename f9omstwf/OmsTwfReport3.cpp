@@ -54,15 +54,14 @@ void OmsTwfReport3::RunReportInCore_FromOrig(OmsReportChecker&& checker, const O
    }
    OmsOrder&               order = lastupd.Order();
    OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order.BeginUpdate(origReq)};
-   assert(dynamic_cast<OmsTwfOrderRaw0*>(&inCoreRunner.OrderRaw_) != nullptr);
-   static_cast<OmsTwfOrderRaw0*>(&inCoreRunner.OrderRaw_)->LastExgTime_ = this->ExgTime_;
-   if (OmsTwfOrderRaw1* ordraw1 = dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_)) {
+   inCoreRunner.OrderRawT<OmsTwfOrderRaw0>().LastExgTime_ = this->ExgTime_;
+   if (OmsTwfOrderRaw1* ordraw1 = dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw())) {
       if (this->RxKind_ == f9fmkt_RxKind_RequestNew)
          ordraw1->AfterQty_ = ordraw1->LeavesQty_ = 0;
       else
          OmsAssignQtysFromReportBfAf(inCoreRunner, *ordraw1, *this, ordraw1->LeavesQty_, ordraw1->LeavesQty_);
    }
-   else if (OmsTwfOrderRaw9* ordraw9 = dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw_)) {
+   else if (OmsTwfOrderRaw9* ordraw9 = dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw())) {
       ordraw9->QuoteReportSide_ = this->Side_;
       if (this->RxKind_ == f9fmkt_RxKind_RequestNew) {
          if (this->Side_ != f9fmkt_Side_Sell)
@@ -110,8 +109,8 @@ void OmsTwfReport3::RunReportInCore_OrderNotFound(OmsReportChecker&& checker, Om
    //   雖然刪改查的狀態可能仍在 Sending, 使用者必須自行判斷, 該次「刪改查」是失敗的.
    checker.ReportAbandon("TwfReport3: order not found.");
 }
-void OmsTwfReport3::ProcessPendingReport(OmsResource& res) const {
-   (void)res;
+void OmsTwfReport3::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   (void)prevRunner;
    // R03本身不支援亂序, 所以不可能執行到這兒.
    // 但被 R03 處理的 Request(OmsTwfRequestChg9,OmsTwfRequestChg1) 有可能會有 ReportPending.
    // 交給 Request::ProcessPendingReport() 處理.

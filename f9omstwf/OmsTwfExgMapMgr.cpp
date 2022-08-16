@@ -71,11 +71,10 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
             continue;
          const auto        shortId = ToStrView(p08.ShortId_);
          OmsSymbSP         symb = symbsTree.FetchOmsSymb(shortId);
-         TwfExgSymbBasic*  symbP08 = dynamic_cast<TwfExgSymbBasic*>(symb.get());
+         TwfExgSymbBasic*  symbP08 = symb->GetTwfExgSymbBasic();
          if (symbP08 == nullptr)
             continue;
-         if (!symbP08->Contract_ && ctree)
-            symbP08->Contract_ = ctree->ContractMap_.FetchContract(f9twf::ContractId{shortId.begin(), 3});
+         symbP08->SetContract(*symb, ctree.get());
          fon9::StrView newLongId = ToStrView(p08.LongId_);
          fon9::StrView oldLongId = ToStrView(symbP08->LongId_);
          const bool    isLongIdChanged = (newLongId != oldLongId);
@@ -143,7 +142,7 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
 void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType sysType, MapsConstLocker&& lk) {
    (void)src;
    fon9::intrusive_ptr<TwfExgMapMgr> pthis{this};
-   this->RunCoreTask(std::move(lk), [pthis, sysType](OmsResource&) {
+   this->RunCoreTask(std::move(lk), [pthis, sysType](OmsResource& coreResource) {
       auto  maps = pthis->Lock();
       auto& p09recs = maps->MapP09Recs_[f9twf::ExgSystemTypeToIndex(sysType)];
       if (p09recs.empty())
@@ -151,11 +150,12 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
       auto ctree = pthis->ContractTree_;
       if (!ctree)
          return;
+      const auto mkt = f9twf::ExgSystemTypeToMarket(sysType);
       for (auto& p09 : p09recs) {
          auto contract = ctree->ContractMap_.FetchContract(ToStrView(p09.ContractId_));
          if (!contract)
             continue;
-         contract->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
+         contract->TradingMarket_ = mkt;
          if (!p09.stock_id_.empty1st()) // P09 未設定 stock_id_, 不應清除 contract->TargetId_, 因為可能在其他地方有設定.
             contract->TargetId_.AssignFrom(ToStrView(p09.stock_id_));
          contract->SubType_ = static_cast<f9twf::ExgContractType>(p09.subtype_);
@@ -182,6 +182,15 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
             contract->PriDecLoc_ = static_cast<uint8_t>(p09.decimal_locator_.Chars_[0] - '0');
          if (fon9::isdigit(p09.strike_price_decimal_locator_.Chars_[0]))
             contract->SpDecLoc_ = static_cast<uint8_t>(p09.strike_price_decimal_locator_.Chars_[0] - '0');
+      }
+      maps.unlock();
+      OmsSymbTree&         symbsTree = *coreResource.Symbs_;
+      OmsSymbTree::Locker  symbs{symbsTree.SymbMap_};
+      for (const auto& isymb : *symbs) {
+         auto* symb = static_cast<OmsSymb*>(isymb.second.get());
+         if (TwfExgSymbBasic* twfsymb = symb->GetTwfExgSymbBasic())
+            if (twfsymb->Contract_)
+               symb->CheckSetLvPriSteps(twfsymb->Contract_->LvPriSteps_);
       }
    });
 }

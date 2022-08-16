@@ -78,8 +78,9 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    }
    fon9_WARN_POP;
 
-   OmsOrder&               order  = runner->OrderRaw_.Order();
-   const OmsTwsRequestIni* iniReq = static_cast<const OmsTwsRequestIni*>(order.Initiator());
+   auto& ordraw = runner->OrderRawT<OmsTwsOrderRaw>();
+   auto& order  = ordraw.Order();
+   auto* iniReq = static_cast<const OmsTwsRequestIni*>(order.Initiator());
    assert(iniReq != nullptr);
 
    f9fix::FixBuilder fixb;
@@ -243,11 +244,10 @@ __REQUEST_DELETE:
    }
    pout = RevCopyFill(pout, f9tws::StkNo::size(), ToStrView(iniReq->Symbol_));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(Symbol));
-   assert(ToStrView(runner->OrderRaw_.OrdNo_).size() == sizeof(OmsOrdNo));
-   pout = RevPutStr(pout, runner->OrderRaw_.OrdNo_.begin(), sizeof(OmsOrdNo));
+   assert(ToStrView(ordraw.OrdNo_).size() == sizeof(OmsOrdNo));
+   pout = RevPutStr(pout, ordraw.OrdNo_.begin(), sizeof(OmsOrdNo));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(OrderID));
-   assert(dynamic_cast<OmsTwsOrderRaw*>(&runner->OrderRaw_) != nullptr);
-   static_cast<OmsTwsOrderRaw*>(&runner->OrderRaw_)->OutPvcId_ = this->LineArgs_.SocketId_;
+   ordraw.OutPvcId_ = this->LineArgs_.SocketId_;
    // ClOrdID
    pout = RevCopyFill(pout, f9tws::ClOrdID::size(), ToStrView(curReq->ReqUID_));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(ClOrdID));

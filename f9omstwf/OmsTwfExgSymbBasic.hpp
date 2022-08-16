@@ -4,9 +4,9 @@
 #define __f9omstwf_OmsTwfExgSymbBasic_hpp__
 #include "f9omstwf/OmsTwfTypes.hpp"
 #include "f9omstw/OmsMdEvent.hpp"
+#include "f9omstw/OmsSymb.hpp"
 #include "fon9/ConfigUtils.hpp"
 #include "fon9/seed/PodOp.hpp"
-#include "fon9/fmkt/FmktTools.hpp"
 
 namespace f9omstw {
 
@@ -161,11 +161,8 @@ public:
    /// 履約價小數位數.
    uint8_t                 SpDecLoc_{};
 
-   /// LvUpLmt_ == 0 使用 PriLmts_[0];
-   /// - 預告: -1 or -2;
-   /// - 實施:  1 or  2;
-   int8_t                  LvUpLmt_{0};
-   int8_t                  LvDnLmt_{0};
+   /// define: union { LvLmts_[2]; struct { LvUpLmt_, LvDnLmt_ }};
+   f9twf_DEF_MEMBERS_LvLmts;
 
    char                    Padding____[2];
    /// 選擇權參照的 [標的期貨].
@@ -206,13 +203,6 @@ public:
    const fon9::fmkt::LvPriStep*  LvPriSteps_{};
    fon9::CharVector              LvPriStepsStr_;
 };
-static inline uint8_t TwfGetLmtLv(int8_t lvContract, int8_t lvSymb) {
-   if (fon9_UNLIKELY(lvContract < 0)) // 預告,尚未實施.
-      lvContract = static_cast<int8_t>((-lvContract) - 1); // 所以使用前一檔.
-   if (fon9_UNLIKELY(lvSymb < 0))
-      lvSymb = static_cast<int8_t>((-lvSymb) - 1);
-   return fon9::unsigned_cast(std::max(lvContract, lvSymb));
-}
 
 using TwfExgContractMap = TwfContractMap<TwfExgContract>;
 using TwfExgContractTree = TwfExgContractMap::ContainsMapTree;
@@ -233,6 +223,13 @@ public:
 
    /// 在 TwfExgMapMgr::OnP08Updated() 會設定此值.
    TwfExgContractSP  Contract_;
+
+   void SetContract(OmsSymb& symb, TwfExgContractTree* ctree) {
+      if (!this->Contract_ && ctree) {
+         this->Contract_ = ctree->ContractMap_.FetchContract(f9twf::ContractId{symb.SymbId_.begin(), 3});
+         symb.CheckSetLvPriSteps(this->Contract_->LvPriSteps_);
+      }
+   }
 };
 
 } // namespaces

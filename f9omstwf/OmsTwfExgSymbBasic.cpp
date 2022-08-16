@@ -1,7 +1,6 @@
 ﻿// \file f9omstwf/OmsTwfExgSymbBasic.cpp
 // \author fonwinz@gmail.com
 #include "f9omstwf/OmsTwfExgSymbBasic.hpp"
-#include "fon9/seed/RawWr.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {

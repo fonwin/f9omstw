@@ -77,7 +77,7 @@ public:
                                       unsigned exLogForUpdArg) {
       if (fon9_LIKELY(this->CurrRunner_)) {
          // 從上一個步驟(例:風控檢查)而來的, 會來到這, 使用相同的 runner 繼續處理.
-         assert(&this->CurrRunner_->OrderRaw_.Request() == &req);
+         assert(&this->CurrRunner_->OrderRaw().Request() == &req);
          return this->CurrRunner_;
       }
       // 來到這裡, 建立新的 runner:
@@ -128,23 +128,22 @@ public:
       // ...
       // iniRunner.Update(f9fmkt_TradingRequestSt_QueuingCanceled);
       // -----
-      assert(dynamic_cast<OrderRawT*>(&currRunner->OrderRaw_) != nullptr);
-      auto* ordraw = static_cast<OrderRawT*>(&currRunner->OrderRaw_);
+      auto& ordraw = currRunner->OrderRawT<OrderRawT>();
       if (uReq.RxKind() == f9fmkt_RxKind_RequestQuery) {
          // 查詢, 不改變任何狀態: 讓回報機制直接回覆最後的 OrderRaw 即可.
          currRunner->Update(f9fmkt_TradingRequestSt_Done);
          return f9fmkt::TradingRequest::Op_ThisDone;
       }
       if (uReq.RxKind() == f9fmkt_RxKind_RequestChgPri) {
-         ordraw->LastPri_ = uReq.Pri_;
-         ordraw->LastPriType_ = uReq.PriType_;
+         ordraw.LastPri_ = uReq.Pri_;
+         ordraw.LastPriType_ = uReq.PriType_;
          currRunner->Update(f9fmkt_TradingRequestSt_Done);
          return f9fmkt::TradingRequest::Op_ThisDone;
       }
       assert(uReq.RxKind() == f9fmkt_RxKind_RequestChgQty || uReq.RxKind() == f9fmkt_RxKind_RequestDelete);
-      CalcInternalChgQty(*ordraw, uReq.Qty_);
-      if (ordraw->AfterQty_ == 0) {
-         ordraw->UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
+      CalcInternalChgQty(ordraw, uReq.Qty_);
+      if (ordraw.AfterQty_ == 0) {
+         ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
          currRunner->Update(f9fmkt_TradingRequestSt_QueuingCanceled);
          return f9fmkt::TradingRequest::Op_AllDone;
       }
@@ -208,7 +207,7 @@ public:
       assert(this->CurrRunner_ == nullptr);
       assert(this->OmsCore_.get() == &runner.Resource_.Core_);
       this->CurrRunner_ = &runner;
-      if (fon9_UNLIKELY(this->SendRequest(*const_cast<OmsRequestBase*>(&runner.OrderRaw_.Request()), tsvr)
+      if (fon9_UNLIKELY(this->SendRequest(*const_cast<OmsRequestBase*>(&runner.OrderRaw().Request()), tsvr)
                         == f9fmkt::SendRequestResult::Queuing)) {
          runner.Update(f9fmkt_TradingRequestSt_Queuing, ToStrView(this->StrQueuingIn_));
       }

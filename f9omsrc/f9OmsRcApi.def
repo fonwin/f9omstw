@@ -49,3 +49,5 @@ EXPORTS
       f9OmsRc_GetReportLayout;
       f9OmsRc_CheckFcRequest;
       f9OmsRc_SendRequestBatch;
+      f9OmsRc_GetRequestBatchMSS;
+      f9OmsRc_SetRequestBatchMSS;

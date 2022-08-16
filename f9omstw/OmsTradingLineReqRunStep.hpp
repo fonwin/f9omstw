@@ -45,7 +45,7 @@ public:
    void RerunRequest(OmsReportRunnerInCore&& runner) override {
       if (auto* lmgr = this->LineGroupMgr_.GetLineMgr(runner)) {
          if (runner.ErrCodeAct_->IsUseNewLine_) {
-            if (auto* inireq = runner.OrderRaw_.Order().Initiator())
+            if (auto* inireq = runner.OrderRaw().Order().Initiator())
                lmgr->SelectPreferNextLine(*inireq);
          }
          lmgr->RunRequest(std::move(runner));
@@ -147,7 +147,7 @@ public:
    }
    /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
    typename LgItem::LineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
-      return this->GetLineMgr(runner.OrderRaw_, &runner);
+      return this->GetLineMgr(runner.OrderRaw(), &runner);
    }
    typename LgItem::LineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
       if (auto* lgItem = this->GetLgItem(ordraw.GetLgOut())) {

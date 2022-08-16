@@ -10,8 +10,8 @@ struct UomsRequestIni9RiskCheck : public OmsRequestRunStep {
    using base::base;
 
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
-      assert(dynamic_cast<const OmsTwfRequestIni9*>(runner.OrderRaw_.Order().Initiator()) != nullptr);
-      auto& ordraw = *static_cast<OmsTwfOrderRaw9*>(&runner.OrderRaw_);
+      assert(dynamic_cast<const OmsTwfRequestIni9*>(runner.OrderRaw().Order().Initiator()) != nullptr);
+      auto& ordraw = runner.OrderRawT<OmsTwfOrderRaw9>();
       auto* inireq = static_cast<const OmsTwfRequestIni9*>(ordraw.Order().Initiator());
       // 風控成功, 設定委託剩餘數量及價格(提供給風控資料計算), 然後執行下一步驟.
       if (&ordraw.Request() == inireq) {

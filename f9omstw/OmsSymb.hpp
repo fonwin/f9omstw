@@ -5,14 +5,20 @@
 #include "fon9/fmkt/SymbTwa.hpp"
 #include "fon9/fmkt/SymbTws.hpp"
 #include "fon9/fmkt/SymbTwf.hpp"
+#include "fon9/fmkt/FmktTypes.hpp"
 
 namespace f9omstw {
 
 class OmsResource;
+class TwfExgSymbBasic;
+class OmsMdLastPriceEv;
+class OmsMdBSEv;
 
 class OmsSymb : public fon9::fmkt::SymbTwa {
    fon9_NON_COPY_NON_MOVE(OmsSymb);
    using base = fon9::fmkt::SymbTwa;
+   const fon9::fmkt::MdReceiverSt* MdReceiverStPtr_{nullptr};
+
 public:
    using base::base;
    ~OmsSymb();
@@ -28,6 +34,24 @@ public:
    /// 在 OmsTwfMiSystem.OnMiChannelNoData() 觸發.
    /// 預設 do nothing.
    virtual void OnMdNoData(OmsResource& coreResource);
+
+   fon9::fmkt::MdReceiverSt MdReceiverSt() const {
+      return this->MdReceiverStPtr_ ? *this->MdReceiverStPtr_ : fon9::fmkt::MdReceiverSt::DailyClear;
+   }
+   void SetMdReceiverStPtr(const fon9::fmkt::MdReceiverSt* pMdReceiverSt) {
+      this->MdReceiverStPtr_ = pMdReceiverSt;
+   }
+
+   /// 提供給一些通用模組使用, 會比使用 dynamic_cast<OmsMdLastPriceEv*>(); 快一些!
+   /// 預設傳回 nullptr;
+   virtual TwfExgSymbBasic* GetTwfExgSymbBasic();
+   /// 取得現在的漲跌停價, 若不支援, 則不改變內容, 返回 false.
+   /// 例如, 期貨複式單, 就無法從[複式商品]直接取得, 需要用 leg1, leg2 的價格組合.
+   /// 衍生者可能會在建構時(例: OnBeforeInsertToTree()), 儲存 Leg1, Leg2, 此時就可以支援了.
+   virtual bool GetPriLmt(fon9::fmkt::Pri* upLmt, fon9::fmkt::Pri* dnLmt) const;
+
+   virtual OmsMdLastPriceEv* GetMdLastPriceEv();
+   virtual OmsMdBSEv* GetMdBSEv();
 };
 using OmsSymbSP = fon9::intrusive_ptr<OmsSymb>;
 

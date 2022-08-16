@@ -74,6 +74,10 @@ bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
    return false;
 }
 void OmsCore::RunInCore(OmsRequestRunner&& runner) {
+   if (fon9_UNLIKELY(runner.Request_->IsAbandoned())) {
+      this->Backend_.LogAppend(*runner.Request_, std::move(runner.ExLog_));
+      return;
+   }
    if (fon9_UNLIKELY(runner.Request_->IsReportIn())) {
       runner.Request_->RunReportInCore(OmsReportChecker{*this, std::move(runner)});
       return;

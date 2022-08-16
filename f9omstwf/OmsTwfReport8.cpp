@@ -34,8 +34,7 @@ void OmsTwfReport8::RunReportInCore_FromOrig(OmsReportChecker&& checker, const O
    }
    OmsOrder&               order = origReq.LastUpdated()->Order();
    OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order.BeginUpdate(origReq)};
-   assert(dynamic_cast<OmsTwfOrderRaw7*>(&inCoreRunner.OrderRaw_) != nullptr);
-   static_cast<OmsTwfOrderRaw7*>(&inCoreRunner.OrderRaw_)->LastExgTime_ = this->ExgTime_;
+   inCoreRunner.OrderRawT<OmsTwfOrderRaw7>().LastExgTime_ = this->ExgTime_;
    inCoreRunner.UpdateReport(*this);
 }
 void OmsTwfReport8::RunReportInCore_MakeReqUID() {
@@ -49,8 +48,7 @@ void OmsTwfReport8::RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder& 
       checker.ReportAbandon("TwfReport7: Order is not QuoteR.");
 }
 void OmsTwfReport8::RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) {
-   OmsTwfOrderRaw7& ordraw = *static_cast<OmsTwfOrderRaw7*>(&runner.OrderRaw_);
-   assert(dynamic_cast<OmsTwfOrderRaw7*>(&runner.OrderRaw_) != nullptr);
+   OmsTwfOrderRaw7& ordraw = runner.OrderRawT<OmsTwfOrderRaw7>();
    runner.Resource_.Backend_.FetchSNO(*this);
    ordraw.OrdNo_ = this->OrdNo_;
    ordraw.LastExgTime_ = this->ExgTime_;

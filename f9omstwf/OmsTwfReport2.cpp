@@ -67,16 +67,14 @@ void OmsTwfReport2::RunReportInCore_OrderNotFound(OmsReportChecker&& checker, Om
    }
 }
 void OmsTwfReport2::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) {
-   assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
-   OmsTwfOrderRaw1&  ordraw = *static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_);
+   OmsTwfOrderRaw1&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
    ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
    ordraw.PosEff_   = this->PosEff_;
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
 }
 void OmsTwfReport2::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
-   assert(dynamic_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_) != nullptr);
-   OmsTwfOrderRaw1&  ordraw = *static_cast<OmsTwfOrderRaw1*>(&inCoreRunner.OrderRaw_);
+   OmsTwfOrderRaw1&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
    OmsRunReportInCore_DCQ(std::move(inCoreRunner), ordraw, *this);
 }
 void OmsTwfReport2::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
@@ -85,14 +83,14 @@ void OmsTwfReport2::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
    this->PriStyle_ = OmsReportPriStyle::HasDecimal;
 }
 //--------------------------------------------------------------------------//
-static void OmsTwf1_ProcessPendingReport(OmsResource& res, const OmsRequestBase& rpt, const OmsTwfReport2* chkFields) {
-   OmsProcessPendingReport<OmsTwfOrderRaw1, OmsTwfRequestIni1>(res, rpt, chkFields);
+static void OmsTwf1_ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const OmsRequestBase& rpt, const OmsTwfReport2* chkFields) {
+   OmsProcessPendingReport<OmsTwfOrderRaw1, OmsTwfRequestIni1>(prevRunner, rpt, chkFields);
 }
-void OmsTwfReport2::ProcessPendingReport(OmsResource& res) const {
-   OmsTwf1_ProcessPendingReport(res, *this, this);
+void OmsTwfReport2::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   OmsTwf1_ProcessPendingReport(prevRunner, *this, this);
 }
-void OmsTwfRequestChg1::ProcessPendingReport(OmsResource& res) const {
-   OmsTwf1_ProcessPendingReport(res, *this, nullptr);
+void OmsTwfRequestChg1::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
+   OmsTwf1_ProcessPendingReport(prevRunner, *this, nullptr);
 }
 
 } // namespaces

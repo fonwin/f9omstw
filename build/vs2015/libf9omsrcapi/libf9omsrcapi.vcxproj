@@ -215,6 +215,10 @@ call ..\..\fon9\make_proj_verinfo.bat</Command>
   <ItemGroup>
     <Text Include="..\..\..\f9omsrc\f9OmsRcApi.ver.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\f9omsrc\OmsRc.h" />
+    <ClInclude Include="..\..\..\f9omsrc\OmsRcClient.hpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -150,20 +150,22 @@ static void SendRevPackBatchImpl(f9rc_ClientSession*         ses,
    fon9::RevPutBitv(pkbuf, fon9_BitvV_NumberNull);
    static_cast<fon9::rc::RcClientSession*>(ses)->Send(f9rc_FunctionCode_OmsApi, std::move(pkbuf));
 }
+
+// gMaxPkSizeMSS 盡量接近 TCP MSS(ethernet=1460) 但不要超過, 還要扣除 rc protocol 的 header.
+static unsigned gMaxPkSizeMSS = 1300;
+
 static void SendRevPackBatch(f9rc_ClientSession*         ses,
                              const f9OmsRc_RequestBatch* reqBatch,
                              unsigned                    reqCount) {
    if (fon9_UNLIKELY(reqCount <= 0))
       return;
    reqBatch -= reqCount;
-   // kMaxPkSize 盡量接近 TCP MSS(ethernet=1460) 但不要超過, 還要扣除 rc protocol 的 header.
-   constexpr unsigned kMaxPkSize = 1300;
    size_t   pksz = 0;
    unsigned pkCount = 0;
    while (++pkCount < reqCount) {
       pksz += (reqBatch->ReqStr_.End_ - reqBatch->ReqStr_.Begin_) + 5;
       ++reqBatch;
-      if (fon9_UNLIKELY(pksz >= kMaxPkSize)) {
+      if (fon9_UNLIKELY(pksz >= gMaxPkSizeMSS)) {
          SendRevPackBatchImpl(ses, reqBatch, pkCount);
          reqCount -= pkCount;
          pksz = 0;
@@ -206,6 +208,14 @@ f9OmsRc_SendRequestBatch(f9rc_ClientSession*         ses,
    } // fc unlock.
    SendRevPackBatch(ses, reqBatch + packCount, packCount);
    return true;
+}
+f9OmsRc_API_FN(unsigned) f9OmsRc_GetRequestBatchMSS() {
+   return gMaxPkSizeMSS;
+}
+f9OmsRc_API_FN(unsigned) f9OmsRc_SetRequestBatchMSS(unsigned value) {
+   unsigned old = gMaxPkSizeMSS;
+   gMaxPkSizeMSS = value;
+   return old;
 }
 
 f9OmsRc_API_FN(int)

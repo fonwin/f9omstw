@@ -46,5 +46,8 @@ OmsTwfRequestChg1::OpQueuingRequestResult OmsTwfRequestChg1::OpQueuingRequest(fo
       return lmgr->OpQueuingRequest<OmsTwfOrderRaw1, OmsTwfRequestIni1>(*this, queuingRequest);
    return Op_NotSupported;
 }
+OmsOrderRaw* OmsTwfRequestChg1::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
+   return this->BeforeReqInCoreT<OmsTwfOrder1>(runner, res);
+}
 
 } // namespaces

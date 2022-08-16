@@ -9,6 +9,11 @@
 
 namespace f9omstw {
 
+/// 委託書[序號]的初始值, 預設為 "\0" "00000";
+/// 若要改成從 1 開始編號, 則應在呼叫 AllocOrdNo() 之前先設定:
+/// OmsOrdNoStr_BeginValue[sizeof(OmsOrdNoStr_BeginValue) - 2] = '1';
+extern char OmsOrdNoStr_BeginValue[OmsOrdNo::size() + 2];
+
 class OmsOrdNoMap : public fon9::intrusive_ref_counter<OmsOrdNoMap>,
                     private fon9::Trie<
                                  #ifdef F9OMS_ORDNO_IS_NUM

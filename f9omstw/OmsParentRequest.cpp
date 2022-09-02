@@ -10,6 +10,7 @@
 namespace f9omstw {
 
 OmsOrdTeamGroupId  gParentRequestTgId{};
+OmsOrdTeamGroupId  gChildRequestTgId{};
 //--------------------------------------------------------------------------//
 static void CopyErr_FromChild_ToParent(OmsOrderRaw& parent, const OmsRequestBase& childReq) {
    if (const auto* childOrdraw = childReq.LastUpdated()) {
@@ -200,7 +201,6 @@ void OmsParentRequestIni::OnChildOrderUpdated(const OmsRequestRunnerInCore& chil
          ordraw.DecChildParentLeavesQty(fon9::unsigned_cast(-childAdjQty));
       }
       if (isParentDone) { // 母單已完畢(且子單已全部回報), 中途可能有: 成功、失敗、成交、刪改...
-         assert(!parentOrder.IsWorkingOrder());
          ordraw.RequestSt_ = f9fmkt_TradingRequestSt_ExchangeAccepted;
          if (ordraw.CumQty_ > 0)
             ordraw.UpdateOrderSt_ = (ordraw.LeavesQty_ > 0 ? f9fmkt_OrderSt_PartFilled : f9fmkt_OrderSt_FullFilled);

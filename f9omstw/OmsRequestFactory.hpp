@@ -58,6 +58,11 @@ public:
       return retval;
    }
 };
+static inline OmsRequestSP OmsMakeRequest(OmsRequestFactory* fac) {
+   if (fon9_LIKELY(fac))
+      return fac->MakeRequest();
+   return nullptr;
+}
 
 template <class RequestBaseT>
 class OmsRequestFactoryBaseT : public OmsRequestFactory {

@@ -26,8 +26,8 @@ public:
    OmsSymbSP GetOmsSymb(const fon9::StrView& symbid) {
       return fon9::static_pointer_cast<OmsSymb>(this->GetSymb(symbid));
    }
-   OmsSymbSP GetOmsSymb(const Locker& symbs, const fon9::StrView& symbid) {
-      return fon9::static_pointer_cast<OmsSymb>(this->GetSymb(symbs, symbid));
+   static OmsSymbSP GetOmsSymb(const Locker& symbs, const fon9::StrView& symbid) {
+      return fon9::static_pointer_cast<OmsSymb>(GetSymb(symbs, symbid));
    }
    OmsSymbSP FetchOmsSymb(const fon9::StrView& symbid) {
       return fon9::static_pointer_cast<OmsSymb>(this->FetchSymb(symbid));

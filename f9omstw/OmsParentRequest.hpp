@@ -13,7 +13,9 @@ namespace f9omstw {
 /// - 如果交易所下單時有提供 user_define 欄位,
 ///   可在送交易所時加上[母單委託書號]註記,
 ///   這樣可以在線路切到備援主機時, 有尋找母單的依據.
+/// - 也許應該將 gParentRequestTgId, gChildRequestTgId 放到 OmsCore?
 extern OmsOrdTeamGroupId  gParentRequestTgId;
+extern OmsOrdTeamGroupId  gChildRequestTgId;
 //--------------------------------------------------------------------------//
 using RunningChildCount = uint32_t;
 /// \retval true: (res遞減後) == 0;

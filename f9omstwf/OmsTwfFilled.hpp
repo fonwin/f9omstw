@@ -9,8 +9,6 @@
 
 namespace f9omstw {
 
-class OmsTwfRequestIni1;
-
 class OmsTwfFilled : public OmsReportFilled {
    fon9_NON_COPY_NON_MOVE(OmsTwfFilled);
    using base = OmsReportFilled;

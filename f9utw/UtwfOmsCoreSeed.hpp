@@ -82,6 +82,8 @@ public:
                       FnSetRequestLgOut fnSetRequestLgOut = &OmsSetRequestLgOut_UseIvac)
       : base(std::move(name), std::move(owner), fnSetRequestLgOut) {
    }
+   virtual void OnPluginCreated() {
+   }
 
    OmsRequestRunStepSP CreateSenderStep() const {
       if(this->TwfLineG1_)
@@ -314,6 +316,7 @@ public:
       coreMgrSeed->AddCore(now);
       twfExgMap->Restart_SchTask(fon9::TimeInterval{});
       // ------------------------------------------------------------------
+      coreMgrSeed->OnPluginCreated();
       return true;
    }
 };

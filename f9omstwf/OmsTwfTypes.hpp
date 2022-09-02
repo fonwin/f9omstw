@@ -8,6 +8,11 @@
 
 namespace f9omstw {
 
+class OmsTwfRequestIni1;
+class OmsTwfRequestChg1;
+class OmsTwfOrderRaw1;
+class OmsTwfFilled;
+
 /// 配合 P08 的小數位最大值: 小數最多 9 位.
 /// 但也要配合 fmkt 的 Pri = Decimal<int64_t, 8>; 這樣 symb->PriceOrigDiv_ 才能共用;
 using OmsTwfPri = fon9::fmkt::Pri;

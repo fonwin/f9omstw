@@ -93,6 +93,8 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
       else {
          const f9twf::ExgMdMatchData*  pbeg = pkI020.MatchData_;
          OmsMdLastPrice bf = *twfsymb;
+         if (twfsymb->TotalQty_ == 0) // 開盤後第一筆, 一律需要觸發事件.
+            bf.LastPrice_.AssignNull();
          pkI020.FirstMatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
          twfsymb->TotalQty_ += fon9::PackBcdTo<fon9::fmkt::Qty>(pkI020.FirstMatchQty_);
          auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;

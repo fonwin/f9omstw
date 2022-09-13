@@ -55,9 +55,9 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
       }
    }
    else {
-      // 手動刪改子單 or 未成交刪單(fa:ExchangeCanceled, OmsErrCode_SessionClosed);
+      // 手動刪改子單 or 未成交刪單(fa:ExchangeCanceled, OmsErrCode_SessionClosed, OmsErrCode_Twf_DynPriBandRej);
       parentOrdraw.ErrCode_ = childOrdraw.ErrCode_;
-      if (parentOrdraw.ErrCode_ == OmsErrCode_SessionClosed) {
+      if (parentOrdraw.ErrCode_ == OmsErrCode_SessionClosed || parentOrdraw.ErrCode_ == OmsErrCode_Twf_DynPriBandRej) {
          parentOrdraw.LeavesQty_ = parentOrdraw.ChildLeavesQty_;
          this->ClearParentWorking();
       }
@@ -78,21 +78,16 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
    fnOnAfterChildOrderUpdated(*this, *parentIni, std::move(parentRunner), udata);
 }
 void OmsParentOrder::OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) {
-   // TODO: 如果[原母單主機]已死, childRunner 是來自[非原母單主機]的刪改,
-   //       接下來不會有母單回報, 此時應該要處理 childRunner 的異動.
-   //       但是要如何判斷呢?
-   //       解析 childRunner.OrderRaw().Request().ReqUID_; 與 this->Initiator()->ReqUID_;
-   //       取得 HostId 來判斷?
-   if (!childRunner.OrderRaw().Request().IsSynReport()) {
-      this->RunChildOrderUpdated(childRunner.OrderRaw(), childRunner.Resource_, &childRunner, nullptr,
+   const auto& childOrdraw = childRunner.OrderRaw();
+   if (!childOrdraw.Request().IsSynReport()) {
+      this->RunChildOrderUpdated(childOrdraw, childRunner.Resource_, &childRunner, const_cast<OmsOrderRaw*>(&childOrdraw),
          [](OmsParentOrder& parentOrder, const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, void* udata) {
-            (void)udata;
-            parentOrder.OnAfterChildOrderUpdated(parentIni, std::move(parentRunner));
+            parentOrder.OnAfterChildOrderUpdated(parentIni, std::move(parentRunner), *static_cast<const OmsOrderRaw*>(udata));
       });
    }
 }
-void OmsParentOrder::OnAfterChildOrderUpdated(const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner) {
-   (void)parentIni, (void)parentRunner;
+void OmsParentOrder::OnAfterChildOrderUpdated(const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, const OmsOrderRaw& childOrdraw) {
+   (void)parentIni, (void)parentRunner; (void)childOrdraw;
 }
 //--------------------------------------------------------------------------//
 OmsParentOrder::OnEachWorkingChild::CheckResult OmsParentOrder::OnEachWorkingChild::CheckNeedsChildChange(const OmsRequestIni& childReqIni) {

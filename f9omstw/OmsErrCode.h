@@ -134,6 +134,10 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_FromTwSEC = 20000,
    OmsErrCode_FromTwOTC = 30000,
    OmsErrCode_FromTwFEX = 40000,
+   /// 期交所因價穩措施刪單.
+   OmsErrCode_Twf_DynPriBandRej = OmsErrCode_FromTwFEX + 47,
+   /// 期交所價穩措施刪單後, 告知實際的限制價格.
+   OmsErrCode_Twf_DynPriBandRpt = OmsErrCode_FromTwFEX + 48,
 };
 
 #ifdef __cplusplus

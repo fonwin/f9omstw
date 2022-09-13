@@ -79,7 +79,21 @@ void OmsReportFilled::RunReportInCore_Filled(OmsReportChecker&& checker) {
    if (ordnoMap == nullptr)
       return;
    this->RunReportInCore_MakeReqUID();
-   if (fon9_UNLIKELY((order = ordnoMap->GetOrder(this->OrdNo_)) != nullptr)) {
+   if (fon9_UNLIKELY(OmsIsOrdNoEmpty(this->OrdNo_))) {
+      if (auto* ini = checker.Resource_.Backend_.GetItem(this->IniSNO_)) {
+         assert(ini->RxKind() == f9fmkt_RxKind_RequestNew && dynamic_cast<const OmsRequestBase*>(ini) != nullptr);
+         if (ini->RxKind() == f9fmkt_RxKind_RequestNew) {
+            if (auto* ordraw = static_cast<const OmsRequestBase*>(ini)->LastUpdated()) {
+               this->OrdNo_ = ordraw->OrdNo_;
+               this->RunReportInCore_FilledOrder(std::move(checker), ordraw->Order());
+               return;
+            }
+         }
+      }
+      checker.ReportAbandon("OmsFilled: OrdNo cannot empty.");
+      return;
+   }
+   if (fon9_LIKELY((order = ordnoMap->GetOrder(this->OrdNo_)) != nullptr)) {
       this->RunReportInCore_FilledOrder(std::move(checker), *order);
       return;
    }

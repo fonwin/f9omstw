@@ -162,6 +162,9 @@ public:
    const OmsRxItem* GetRxItem(OmsRxSNO sno, const OmsBackend::Locker& rxItems) const {
       return this->Backend_.GetItem(sno, rxItems);
    }
+   const OmsRxItem* GetRxItem(OmsRxSNO sno) {
+      return this->Backend_.GetItem(sno, this->Backend_.Lock());
+   }
 
    /// OmsSymbTree 有 lock 保護, 所以不需要透過 Resource 取用.
    OmsSymbTree* GetSymbs() const { return this->Symbs_.get(); }

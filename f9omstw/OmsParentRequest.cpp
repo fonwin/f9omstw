@@ -31,43 +31,44 @@ bool OmsParentRequestIni::IsParentRequest() const {
 void OmsParentRequestIni::OnAfterBackendReload(OmsResource& res, void* backendLocker) const {
    if (this->IsReportIn())
       return;
-   if (auto* lastOrdraw = static_cast<const OmsParentOrderRaw*>(this->LastUpdated())) {
-      lastOrdraw = static_cast<const OmsParentOrderRaw*>(lastOrdraw->Order().Tail());
-      if (lastOrdraw->ChildLeavesQty_ < lastOrdraw->LeavesQty_) {
-         // 重啟後, 所有母單進入完畢狀態.
-         static_cast<OmsBackend::Locker*>(backendLocker)->unlock();
-         if (OmsOrderRaw* ordupd = lastOrdraw->Order().BeginUpdate(*this)) {
-            OmsRequestRunnerInCore runner{res, *ordupd, 0u};
-            auto* upd = static_cast<OmsParentOrderRaw*>(ordupd);
-            upd->AfterQty_ = upd->LeavesQty_ = upd->ChildLeavesQty_;
-            upd->Message_.assign("System restart");
-            upd->ErrCode_ = OmsErrCode_Parent_OnlyDel;
-            upd->RequestSt_ = f9fmkt_TradingRequestSt_Done;
-            if (upd->LeavesQty_ > 0) {
-               // 還有剩餘量 => 母單結束, 等候子單成交.
-               if (upd->CumQty_ == 0) {
-                  // 還有剩餘量, 目前無成交.
-                  upd->UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeAccepted;
-               }
-               else {
-                  upd->UpdateOrderSt_ = f9fmkt_OrderSt_PartFilled;
-               }
-            }
-            else {
-               if (upd->CumQty_ == 0) {
-                  // 已無剩餘量, 無成交 => 全都取消.
-                  upd->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
-                  upd->UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
-               }
-               else {
-                  // 已無剩餘量, 有成交 => 已全部成交.
-                  upd->UpdateOrderSt_ = f9fmkt_OrderSt_FullFilled;
-               }
-            }
-         }
-         static_cast<OmsBackend::Locker*>(backendLocker)->lock();
-      }
-   }
+   // 可能由備援主機接手母單, 所以重啟後, 不改變母單狀態.
+   // if (auto* lastOrdraw = static_cast<const OmsParentOrderRaw*>(this->LastUpdated())) {
+   //    lastOrdraw = static_cast<const OmsParentOrderRaw*>(lastOrdraw->Order().Tail());
+   //    if (lastOrdraw->ChildLeavesQty_ < lastOrdraw->LeavesQty_) {
+   //       // 重啟後, 所有母單進入完畢狀態.
+   //       static_cast<OmsBackend::Locker*>(backendLocker)->unlock();
+   //       if (OmsOrderRaw* ordupd = lastOrdraw->Order().BeginUpdate(*this)) {
+   //          OmsRequestRunnerInCore runner{res, *ordupd, 0u};
+   //          auto* upd = static_cast<OmsParentOrderRaw*>(ordupd);
+   //          upd->AfterQty_ = upd->LeavesQty_ = upd->ChildLeavesQty_;
+   //          upd->Message_.assign("System restart");
+   //          upd->ErrCode_ = OmsErrCode_Parent_OnlyDel;
+   //          upd->RequestSt_ = f9fmkt_TradingRequestSt_Done;
+   //          if (upd->LeavesQty_ > 0) {
+   //             // 還有剩餘量 => 母單結束, 等候子單成交.
+   //             if (upd->CumQty_ == 0) {
+   //                // 還有剩餘量, 目前無成交.
+   //                upd->UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeAccepted;
+   //             }
+   //             else {
+   //                upd->UpdateOrderSt_ = f9fmkt_OrderSt_PartFilled;
+   //             }
+   //          }
+   //          else {
+   //             if (upd->CumQty_ == 0) {
+   //                // 已無剩餘量, 無成交 => 全都取消.
+   //                upd->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
+   //                upd->UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
+   //             }
+   //             else {
+   //                // 已無剩餘量, 有成交 => 已全部成交.
+   //                upd->UpdateOrderSt_ = f9fmkt_OrderSt_FullFilled;
+   //             }
+   //          }
+   //       }
+   //       static_cast<OmsBackend::Locker*>(backendLocker)->lock();
+   //    }
+   // }
    base::OnAfterBackendReload(res, backendLocker);
 }
 void OmsParentRequestIni::OnAfterBackendReloadChild(const OmsRequestBase& childReq) const {
@@ -270,6 +271,10 @@ void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
          if (fon9_LIKELY(IsReportRefMatch(*this, *this->ReportRef_))) {
             OmsOrder&               order = this->ReportRef_->LastUpdated()->Order();
             OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order.BeginUpdate(*this->ReportRef_)};
+            if (!order.IsParentWorking() && this->ReportRef_->ReportSt() == f9fmkt_TradingRequestSt_Sending) {
+               // 讓備援機收到的母單, 可以主動備援.
+               order.SetParentWorking();
+            }
             this->OnParentReportInCore_NewUpdate(inCoreRunner);
             inCoreRunner.UpdateReport(*this);
          }

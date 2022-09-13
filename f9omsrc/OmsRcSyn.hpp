@@ -6,6 +6,7 @@
 #ifndef __f9omsrc_OmsRcSyn_hpp__
 #define __f9omsrc_OmsRcSyn_hpp__
 #include "f9omstw/OmsRequestTrade.hpp"
+#include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/rc/RcClientSession.hpp"
 #include <deque>
 
@@ -35,6 +36,8 @@ public:
 
    RemoteReqMapSP RemoteMapSP_;
    OmsCoreSP      OmsCore_;
+   fon9::HostId   HostId_;
+   char           Padding____[4];
 
    using RptFields = std::vector<const fon9::seed::Field*>;
    struct RptDefine {
@@ -46,6 +49,33 @@ public:
 
    bool OnDevice_BeforeOpen(fon9::io::Device& dev, std::string& cfgstr) override;
    void OnDevice_StateChanged(fon9::io::Device& dev, const fon9::io::StateChangedArgs& e) override;
+};
+//--------------------------------------------------------------------------//
+enum RcSynFactoryKind : uint8_t {
+   /// 一般回報要求: TwsRpt, TwfRpt...
+   Report,
+   /// 成交回報要求: TwsFil, TwfFil, TwfFil2...
+   Filled,
+   /// 母單回報要求: Factory_ 建立出來的 req->IsParentRequest()==true;
+   Parent,
+};
+static inline RcSynFactoryKind GetRequestFactoryKind(OmsRequestFactory& fac) {
+   if (auto req = fac.MakeReportIn(f9fmkt_RxKind_RequestNew, fon9::TimeStamp{}))
+      if (req->IsParentRequest())
+         return RcSynFactoryKind::Parent;
+   return RcSynFactoryKind::Report;
+}
+struct RcSynRequestFactory {
+   OmsRequestFactory*   Factory_{};
+   RcSynFactoryKind     Kind_{};
+   char                 Padding____[7];
+   void Set(OmsRequestFactory& fac, RcSynFactoryKind kind) {
+      this->Factory_ = &fac;
+      this->Kind_ = kind;
+   }
+   void Set(OmsRequestFactory& fac) {
+      this->Set(fac, GetRequestFactoryKind(fac));
+   }
 };
 
 } // namespaces

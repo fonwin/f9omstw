@@ -10,8 +10,6 @@
 
 namespace f9omstw {
 
-#define kERCODE_Canceling    40047
-
 void OmsTwfFilled::MakeFields(fon9::seed::Fields& flds) {
    base::MakeFields<OmsTwfFilled>(flds);
    flds.Add(fon9_MakeField2(OmsTwfFilled, Time));
@@ -112,7 +110,7 @@ OmsOrderRaw* OmsTwfFilled::RunReportInCore_FilledMakeOrder(OmsReportChecker& che
 //--------------------------------------------------------------------------//
 void OmsTwfFilled::RunReportInCore(OmsReportChecker&& checker) {
    if (fon9_UNLIKELY(this->Qty_ == 0)) {
-      this->SetReportSt(this->ErrCode() == kERCODE_Canceling
+      this->SetReportSt(this->ErrCode() == OmsErrCode_Twf_DynPriBandRej
                         ? f9fmkt_TradingRequestSt_ExchangeCanceling
                         : f9fmkt_TradingRequestSt_ExchangeCanceled);
    }
@@ -136,13 +134,13 @@ void OmsTwfFilled::CheckPartFilledQtyCanceled(OmsResource& res, const OmsRequest
    }
 }
 void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) const {
-   // assert(this->QtyCanceled_ > 0); 有可能是 40048 的 Canceled: Qty_ == QtyCanceled_ == 0;
+   // assert(this->QtyCanceled_ > 0); 有可能是 OmsErrCode_Twf_DynPriBandRpt 的 Canceled: Qty_ == QtyCanceled_ == 0;
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
       OmsTwfOrderRaw1&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
       assert(this->QtyCanceled_ == ordraw.LeavesQty_);
       ordraw.LastExgTime_ = this->Time_;
       ordraw.LeavesQty_ = ordraw.AfterQty_ = 0;
-      if(this->ErrCode() == kERCODE_Canceling)
+      if(this->ErrCode() == OmsErrCode_Twf_DynPriBandRej)
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_Canceling, f9fmkt_TradingRequestSt_ExchangeCanceling);
       else
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeCanceled, f9fmkt_TradingRequestSt_ExchangeCanceled);

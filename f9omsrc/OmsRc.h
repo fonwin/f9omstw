@@ -63,6 +63,13 @@ fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
    /// 僅回補 WorkingOrder, 即時回報不考慮此旗標.
    f9OmsRc_RptFilter_RecoverWorkingOrder = 0x02,
 
+   /// 在 NoExternal 的情況下, 是否要回報[其他主機]的新單Request(例: TwsRpt、TwfRpt)?
+   /// - OmsRcSyn 模組可設定此旗標.
+   /// - 雙主機備援: 若某主機死亡後, 當日不啟用死亡主機, 則可不用設定此旗標.
+   /// - 多主機(>2)備援: 備援主機會接手死亡主機的線路, 則需要啟用此旗標.
+   ///   這樣才能在 [A主機] 死亡, [B主機] 接手 [A主機] 線路後, [B主機] 將成交回報正確地送給 [C主機];
+   f9OmsRc_RptFilter_IncludeRcSynNew = 0x08,
+
    /// Queuing 不回報(也不回補).
    f9OmsRc_RptFilter_NoQueuing = 0x10,
    /// Sending 不回報(也不回補).

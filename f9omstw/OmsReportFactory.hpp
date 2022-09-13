@@ -18,9 +18,9 @@ class OmsReportFactoryT : public OmsFactoryBase {
 public:
    using base::base;
 
-   OmsReportFactoryT(std::string name, OmsOrderFactorySP ordFactory)
-      : base(ordFactory, nullptr, fon9::Named(std::move(name)),
-             f9omstw::MakeFieldsT<ReportBaseT>()) {
+   OmsReportFactoryT(std::string name, OmsOrderFactorySP ordFactory, OmsRequestRunStepSP&& rptRerunStepList = nullptr)
+      : base(ordFactory, nullptr, fon9::Named(std::move(name)), f9omstw::MakeFieldsT<ReportBaseT>()) {
+      this->SetRptRerunStep(std::move(rptRerunStepList));
    }
 };
 

@@ -18,6 +18,15 @@ class OmsRequestFactory : public fon9::seed::Tab {
    virtual OmsRequestSP MakeRequestImpl();
    virtual OmsRequestSP MakeReportInImpl(f9fmkt_RxKind reqKind);
 
+   /// 備援主機透過 Rpt(例:BergRpt...) 主動重新執行母單.
+   OmsRequestRunStepSP  RptRerunStep_;
+
+protected:
+   void SetRptRerunStep(OmsRequestRunStepSP&& rptRerunStep) {
+      assert(this->RptRerunStep_.get() == nullptr);
+      this->RptRerunStep_ = std::move(rptRerunStep);
+   }
+
 public:
    /// 如果 this 建立的 request 屬於 OmsRequestIni 或 回報(包含成交回報),
    /// 則必須提供此類 request 對應的 OrderFactory;
@@ -41,6 +50,10 @@ public:
    }
 
    virtual ~OmsRequestFactory();
+
+   OmsRequestRunStep* RptRerunStep() const {
+      return this->RptRerunStep_.get();
+   }
 
    /// 預設傳回 nullptr, 表示此 factory 不支援下單.
    OmsRequestSP MakeRequest(fon9::TimeStamp now = fon9::UtcNow()) {

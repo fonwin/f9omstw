@@ -18,7 +18,7 @@ class OmsParentOrder : public OmsOrder {
 
 protected:
    /// 預設 do nothing.
-   virtual void OnAfterChildOrderUpdated(const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner);
+   virtual void OnAfterChildOrderUpdated(const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, const OmsOrderRaw& childOrdraw);
    virtual void OnChildFilled(OmsParentOrderRaw& parentOrdraw, const OmsRequestBase& childFilled) = 0;
 
 public:

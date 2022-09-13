@@ -367,27 +367,6 @@ static inline bool CheckReqUserId(fon9::StrView sesUserId, fon9::StrView reqUser
       return memcmp(sesUserId.begin(), reqUserId.begin(), sesSz) == 0;
    return false;
 }
-static bool IsExternalReport(const OmsOrderRaw& ordraw) {
-   if (!ordraw.Request().IsReportIn()) // 不是回報程序收到的, 一定是 internal.
-      return false;                    // 所以返回 false=不是External;
-   if (ordraw.Request().RxKind() == f9fmkt_RxKind_Filled) {
-      assert(dynamic_cast<const OmsReportFilled*>(&ordraw.Request()) != nullptr);
-      if (static_cast<const OmsReportFilled*>(&ordraw.Request())->IsForceInternalRpt())
-         return false;
-      if (auto* ini = ordraw.Order().Initiator())
-         return ini->IsReportIn() ? !ini->IsForceInternalRpt() : false;
-      return true;
-   }
-   else {
-      // 這裡如果 ordraw 是 internal, 但 req 不是, 即使將 ordraw 送給了 Client(OmsRcSyn),
-      // Client 收到 ordraw 後, 也找不到對應的 req, 所以即使送了也毫無意義。
-      // TODO: 除非此時自動補送 req, 但 (1)如何補送? (2)補送req是否會引發其他問題?
-      // if (ordraw.IsForceInternalRpt())
-      //    return false;
-      assert(dynamic_cast<const OmsRequestTrade*>(&ordraw.Request()) != nullptr);
-      return !static_cast<const OmsRequestTrade*>(&ordraw.Request())->IsForceInternalRpt();
-   }
-}
 ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    auto* ses = static_cast<fon9::rc::RcSession*>(this->Device_->Session_.get());
    // 檢查: UserId, 可用帳號, this->RptFilter_;
@@ -406,10 +385,6 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          break;
       }
       fon9_WARN_POP;
-      if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
-         if (IsExternalReport(*ordraw))
-            return nullptr;
-      }
    }
    else {
       const OmsRequestBase* reqb = static_cast<const OmsRequestBase*>(item.CastToRequest());
@@ -430,9 +405,40 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          // abandon 不考慮可用帳號回報.
          return nullptr;
       }
-      if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
-         if (IsExternalReport(*ordraw))
-            return nullptr;
+   }
+   auto& order = ordraw->Order();
+   auto* ini = order.Initiator();
+   if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
+      auto& req = ordraw->Request();
+      while (req.IsReportIn()) {
+         // 回報程序收到的(TwsRpt, TwfRpt, TwsFil, TwfFil...), 才需要判斷是否為 External.
+         const OmsRequestTrade* reqTrade;
+         // 這裡如果 ordraw 是 internal, 但 req 不是, 即使將 ordraw 送給了 Client(OmsRcSyn),
+         // Client 收到 ordraw 後, 也找不到對應的 req, 所以即使送了也毫無意義。
+         // => 若對方有此需求, 則應設定 f9OmsRc_RptFilter_IncludeRcSynNew 旗標.
+         // => 但是無法處理改單要求對應的回報.
+         //    => 這點不會造成問題, 因為改單回報如果沒有對應的 RequestChg,
+         //       則會使用 Rpt(TwsRpt,TwfRpt) 處理.
+         if (req.RxKind() == f9fmkt_RxKind_Filled) {
+            assert(dynamic_cast<const OmsReportFilled*>(&req) != nullptr);
+            if (static_cast<const OmsReportFilled*>(&req)->IsForceInternalRpt())
+               break;
+            if ((reqTrade = ini) == nullptr)
+               return nullptr;
+            if (!reqTrade->IsReportIn())
+               break;
+         }
+         else {
+            if ((this->RptFilter_ & f9OmsRc_RptFilter_IncludeRcSynNew)
+                && item.RxKind() == f9fmkt_RxKind_RequestNew
+                && static_cast<const OmsRequestBase*>(&item)->IsSynReport())
+               break;
+            assert(dynamic_cast<const OmsRequestTrade*>(&req) != nullptr);
+            reqTrade = static_cast<const OmsRequestTrade*>(&req);
+         }
+         if (reqTrade->IsForceInternalRpt())
+            break;
+         return nullptr;
       }
    }
    if (this->RptFilter_ & f9OmsRc_RptFilter_MatchOnly) {
@@ -440,11 +446,10 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
          return nullptr;
    }
    // -----
-   if (auto ini = ordraw->Order().Initiator())
-      if (CheckReqUserId(sesUserId, ToStrView(ini->UserId_)))
-         return ses;
-   // 如果有重啟過, Ivr_ 會在 Backend 載入時建立, 所以這裡可以放心使用 ordraw->Order().ScResource().Ivr_;
-   auto rights = this->RequestPolicy_->GetIvRights(ordraw->Order().ScResource().Ivr_.get(), nullptr);
+   if (ini && CheckReqUserId(sesUserId, ToStrView(ini->UserId_)))
+      return ses;
+   // 如果有重啟過, Ivr_ 會在 Backend 載入時建立, 所以這裡可以放心使用 order.ScResource().Ivr_;
+   auto rights = this->RequestPolicy_->GetIvRights(order.ScResource().Ivr_.get(), nullptr);
    if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
        || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
       return ses;

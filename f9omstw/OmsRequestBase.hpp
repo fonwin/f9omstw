@@ -198,6 +198,9 @@ public:
    void SetForceInternal() {
       this->RxItemFlags_ |= OmsRequestFlag_ForceInternal;
    }
+   bool HasForceInternalFlag() const {
+      return(this->RxItemFlags_ & OmsRequestFlag_ForceInternal) == OmsRequestFlag_ForceInternal;
+   }
 
    void SetInCore() {
       this->RxItemFlags_ |= OmsRequestFlag_InCore;

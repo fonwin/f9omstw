@@ -537,22 +537,22 @@ void TestErrCodeAct_ReNew(TestCoreSP& core) {
    const char* cstrTestList[] = {
 kTwfNew,
 kChkOrderNewSending,
-// ----- ReNew 3 次.
-"-L1=" kTwfR03(N,                    kTIME0)                   kErrCode_Rerun3,
-kChkOrderST(Sending,         10,0,10,kTIME0) kOrdPri(R,200,"") kErrCode_Rerun3,
-"-L1=" kTwfR03(N,                    kTIME1)                   kErrCode_Rerun3,
-kChkOrderST(Sending,         10,0,10,kTIME1) kOrdPri(R,200,"") kErrCode_Rerun3,
-"-L1=" kTwfR03(N,                    kTIME2)                   kErrCode_Rerun3,
-kChkOrderST(Sending,         10,0,10,kTIME2) kOrdPri(R,200,"") kErrCode_Rerun3,
-"-L1=" kTwfR03(N,                    kTIME3)                   kErrCode_Rerun3,
-kChkOrderST(ExchangeRejected,10,0, 0,kTIME3) kOrdPri(R,200,"") kErrCode_Rerun3,
+// ----- ReNew 3 次: Resend 時的 BfQty, AfQty, LeavesQty 不可改變, 否則會造成風控重複計算.
+"-L1=" kTwfR03(N,                     kTIME0)                   kErrCode_Rerun3,
+kChkOrderST(Sending,         10,10,10,kTIME0) kOrdPri(R,200,"") kErrCode_Rerun3, // 新單重送, LeavesQty=AfterQty=BeforeQty; 這樣才不會造成風控重複計算.
+"-L1=" kTwfR03(N,                     kTIME1)                   kErrCode_Rerun3,
+kChkOrderST(Sending,         10,10,10,kTIME1) kOrdPri(R,200,"") kErrCode_Rerun3,
+"-L1=" kTwfR03(N,                     kTIME2)                   kErrCode_Rerun3,
+kChkOrderST(Sending,         10,10,10,kTIME2) kOrdPri(R,200,"") kErrCode_Rerun3,
+"-L1=" kTwfR03(N,                     kTIME3)                   kErrCode_Rerun3,
+kChkOrderST(ExchangeRejected,10, 0, 0,kTIME3) kOrdPri(R,200,"") kErrCode_Rerun3, // 最終失敗.
 
 // ----- ReNew 過程中 Delete.
 kTwfNew,
 kChkOrderNewSending,
 // New(Re:1)
 "-L11=" kTwfR03(N,                    kTIME0)                   kErrCode_Rerun3,
-kChkOrderST(Sending,          10,0,10,kTIME0) kOrdPri(R,200,"") kErrCode_Rerun3,
+kChkOrderST(Sending,         10,10,10,kTIME0) kOrdPri(R,200,"") kErrCode_Rerun3,
 
 // 然後收到刪單要求.
 "*1.TwfChg" kOrdKey "|Qty=0",

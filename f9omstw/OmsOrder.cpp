@@ -146,6 +146,9 @@ void OmsOrderRaw::OnOrderReject() {
 bool OmsOrderRaw::CheckErrCodeAct(const OmsErrCodeAct&) const {
    return true;
 }
+bool OmsOrderRaw::OnBeforeRerun(const OmsReportRunnerInCore&) {
+   return true;
+}
 
 void OmsOrderRaw::MakeFieldsImpl(fon9::seed::Fields& flds) {
    using namespace fon9;

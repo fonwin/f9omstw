@@ -160,8 +160,12 @@ OmsReportRunnerInCore::~OmsReportRunnerInCore() {
    //       => 就直接 No ready line. 拒絕吧!
 
    const auto reqst = ordraw.RequestSt_;
+   if (!ordraw.OnBeforeRerun(*this))
+      return;
    step->RerunRequest(std::move(*this));
    if (reqst != ordraw.RequestSt_) {
+      if (ordraw.RequestSt_ == f9fmkt_TradingRequestSt_Sending && ordraw.Request().RxKind() == f9fmkt_RxKind_RequestNew)
+         ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewSending;
       fon9::RevPrintAppendTo(ordraw.Message_, "(Re:", this->RequestRunTimes_, ')');
    }
 }

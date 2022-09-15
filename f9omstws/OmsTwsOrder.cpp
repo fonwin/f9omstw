@@ -42,5 +42,11 @@ bool OmsTwsOrderRaw::CheckErrCodeAct(const OmsErrCodeAct& act) const {
 bool OmsTwsOrderRaw::IsWorking() const {
    return this->LeavesQty_ > 0;
 }
+bool OmsTwsOrderRaw::OnBeforeRerun(const OmsReportRunnerInCore& runner) {
+   (void)runner;
+   if (this->Request().RxKind() == f9fmkt_RxKind_RequestNew)
+      this->LeavesQty_ = this->AfterQty_ = this->BeforeQty_;
+   return this->LeavesQty_ > 0;
+}
 
 } // namespaces

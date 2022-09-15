@@ -39,6 +39,14 @@ void OmsTwfOrderRaw9::OnOrderReject() {
 bool OmsTwfOrderRaw9::IsWorking() const {
    return this->Bid_.LeavesQty_ > 0 && this->Offer_.LeavesQty_ > 0;
 }
+bool OmsTwfOrderRaw9::OnBeforeRerun(const OmsReportRunnerInCore& runner) {
+   (void)runner;
+   if (this->Request().RxKind() == f9fmkt_RxKind_RequestNew) {
+      this->Bid_.LeavesQty_ = this->Bid_.AfterQty_ = this->Bid_.BeforeQty_;
+      this->Offer_.LeavesQty_ = this->Offer_.AfterQty_ = this->Offer_.BeforeQty_;
+   }
+   return this->IsWorking();
+}
 
 //--------------------------------------------------------------------------//
 

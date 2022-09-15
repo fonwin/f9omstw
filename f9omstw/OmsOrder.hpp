@@ -298,6 +298,10 @@ public:
    /// 通常為: LeavesQty_ > 0;
    /// 但也有例外: 詢價, 報價. 
    virtual bool IsWorking() const = 0;
+   /// 若 ErrCodeAct 設定為 Rerun, 且確實將要進行 step->RerunRequest(); 則在此通知;
+   /// 此時若為新單 Rerun, 則應重新設定 LeavesQty = AfterQty = BeforeQty;
+   /// 返回 true(預設) 表示允許執行 step->RerunRequest();
+   virtual bool OnBeforeRerun(const OmsReportRunnerInCore& runner);
 
    LgOut GetLgOut() const {
       assert(dynamic_cast<const OmsRequestTrade*>(this->Request_) != nullptr);

@@ -431,22 +431,22 @@ void TestErrCodeAct_ReNew(TestCoreSP& core) {
    const char* cstrTestList[] = {
 kTwsNew,
 kChkOrderNewSending,
-// ----- ReNew 3 次.
-"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME0)                 kErrCode_Rerun3,
-kChkOrderST(Sending,               10000,0,10000,kTIME0) kOrdPri(200,"") kErrCode_Rerun3,
-"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME1)                 kErrCode_Rerun3,
-kChkOrderST(Sending,               10000,0,10000,kTIME1) kOrdPri(200,"") kErrCode_Rerun3,
-"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME2)                 kErrCode_Rerun3,
-kChkOrderST(Sending,               10000,0,10000,kTIME2) kOrdPri(200,"") kErrCode_Rerun3,
-"-L1=" kTwsRpt(ExchangeRejected,N,     0,0,      kTIME3)                 kErrCode_Rerun3,
-kChkOrderST(ExchangeRejected,      10000,0,    0,kTIME3) kOrdPri(200,"") kErrCode_Rerun3,
+// ----- ReNew 3 次: Resend 時的 BfQty, AfQty, LeavesQty 不可改變, 否則會造成風控重複計算.
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,    0,      kTIME0)                 kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,10000,10000,kTIME0) kOrdPri(200,"") kErrCode_Rerun3,
+"-L1=" kTwsRpt(ExchangeRejected,N, 10000,    0,      kTIME1)                 kErrCode_Rerun3, // TSEC.FIX 新單失敗, Bf=OrderQty, Af=LeavesQty=0;
+kChkOrderST(Sending,               10000,10000,10000,kTIME1) kOrdPri(200,"") kErrCode_Rerun3, // 新單重送, LeavesQty=AfterQty=BeforeQty; 這樣才不會造成風控重複計算.
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,    0,      kTIME2)                 kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,10000,10000,kTIME2) kOrdPri(200,"") kErrCode_Rerun3,
+"-L1=" kTwsRpt(ExchangeRejected,N,     0,    0,      kTIME3)                 kErrCode_Rerun3,
+kChkOrderST(ExchangeRejected,      10000,    0,    0,kTIME3) kOrdPri(200,"") kErrCode_Rerun3, // 最終失敗.
 
 // ----- ReNew 過程中 Delete.
 kTwsNew,
 kChkOrderNewSending,
 // New(Re:1)
 "-L11=" kTwsRpt(ExchangeRejected,N,    0,    0,      kTIME0)                 kErrCode_Rerun3,
-kChkOrderST(Sending,               10000,    0,10000,kTIME0) kOrdPri(200,"") kErrCode_Rerun3,
+kChkOrderST(Sending,               10000,10000,10000,kTIME0) kOrdPri(200,"") kErrCode_Rerun3,
 
 // 然後收到刪單要求.
 "*1.TwsChg" kOrdKey "|Qty=0",

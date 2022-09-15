@@ -71,6 +71,7 @@ public:
 
    void OnOrderReject() override;
    bool IsWorking() const override;
+   bool OnBeforeRerun(const OmsReportRunnerInCore& runner) override;
 };
 
 } // namespaces

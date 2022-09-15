@@ -88,6 +88,7 @@ public:
    void OnOrderReject() override;
    bool CheckErrCodeAct(const OmsErrCodeAct& act) const override;
    bool IsWorking() const override;
+   bool OnBeforeRerun(const OmsReportRunnerInCore& runner) override;
 };
 
 } // namespaces

@@ -65,10 +65,29 @@ static void FnRptApiField_IniField(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& 
    else
       fon9::RevPrint(rbuf, "C0");
 }
+static void FnRptApiField_IniSNO(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& cfg, const ApiRptFieldArg* arg) {
+   (void)cfg;
+   if (fon9_LIKELY(arg)) {
+      if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(arg->Item_.CastToOrder())) {
+      __GET_INI_SNO:;
+         if (auto* ini = ordraw->Order().Initiator()) {
+            fon9::RevPrint(rbuf, ini->RxSNO());
+            return;
+         }
+      }
+      else if (const OmsRequestBase* req = static_cast<const OmsRequestBase*>(arg->Item_.CastToRequest())) {
+         if ((ordraw = req->LastUpdated()) != nullptr)
+            goto __GET_INI_SNO;
+      }
+   }
+   else
+      fon9::RevPrint(rbuf, fon9::seed::GetFieldIntTypeId<OmsRxSNO>());
+}
 static FnRptApiField_Register regFnRptApiField_Abandon{
    "IniField",       &FnRptApiField_IniField,
    "AbandonErrCode", &FnRptApiField_AbandonErrCode,
-   "AbandonReason",  &FnRptApiField_AbandonReason
+   "AbandonReason",  &FnRptApiField_AbandonReason,
+   "IniSNO",         &FnRptApiField_IniSNO
 };
 
 //--------------------------------------------------------------------------//

@@ -182,13 +182,14 @@ typedef struct {
    f9OmsRc_FieldIndexS  IdxMatchPri2_;
    /// 子單下單要求, 會有對應的母單序號.
    f9OmsRc_FieldIndexS  IdxParentRequestSNO_;
+   f9OmsRc_FieldIndexS  IdxIniSNO_;
 
    /// 券商提供的特殊欄位.
    /// 可在收到 FnOnConfig_ 事件時透過:
    /// `f9OmsRc_GetRequestLayout();`
    /// `f9OmsRc_GetReportLayout();`
    /// 取得 layout 之後設定這裡的值.
-   f9OmsRc_FieldIndexS  IdxUserFields_[15];
+   f9OmsRc_FieldIndexS  IdxUserFields_[14];
 } f9OmsRc_Layout;
 
 //--------------------------------------------------------------------------//

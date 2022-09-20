@@ -267,13 +267,16 @@ namespace f9oms
       public FieldIndexS IdxCumAmt2_;
       public FieldIndexS IdxMatchQty2_;
       public FieldIndexS IdxMatchPri2_;
+      /// 子單下單要求, 會有對應的母單序號.
+      public FieldIndexS IdxParentRequestSNO_;
+      public FieldIndexS IdxIniSNO_;
 
       /// 券商提供的特殊欄位.
       /// 可在收到 FnOnConfig_ 事件時透過:
       /// `GetRequestLayout();`
       /// `GetReportLayout();`
       /// 取得 layout 之後設定這裡的值.
-      public unsafe fixed FieldIndexS IdxUserFields_[16];
+      public unsafe fixed FieldIndexS IdxUserFields_[14];
    }
 
    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]

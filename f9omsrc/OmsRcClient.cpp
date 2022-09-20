@@ -229,6 +229,7 @@ void OmsRcLayout::Initialize() {
    SET_FIELD_IDX(this, MatchPri2);
 
    SET_FIELD_IDX(this, ParentRequestSNO);
+   SET_FIELD_IDX(this, IniSNO);
    memset(this->IdxUserFields_, 0xff, sizeof(this->IdxUserFields_));
 }
 static void ParseReqLayout(fon9::StrView& cfgstr, OmsRcReqLayouts& layouts) {

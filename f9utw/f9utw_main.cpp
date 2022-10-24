@@ -7,6 +7,12 @@
 #include "f9omstw/OmsPoUserRightsAgent.hpp"
 #include "proj_verinfo.h"
 
+#include "fon9/auth/PassIdMgr.hpp"
+#include "f9tws/ExgLineArgs.hpp"
+#include "f9twf/ExgLineTmpArgs.hpp"
+static_assert(sizeof(f9tws::ExgLineArgs::PassKey_) == fon9::auth::PassIdMgr::kPassKeyMaxLength, "");
+static_assert(sizeof(f9twf::ExgLineTmpArgs::PassKey_) >= fon9::auth::PassIdMgr::kPassKeyMaxLength, "");
+
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_NamedIoManager;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_TcpServer;
 extern "C" fon9_API fon9::seed::PluginsDesc f9p_TcpClient;
@@ -52,6 +58,8 @@ int fon9sys_BeforeStart(fon9::Framework& fon9sys) {
    f9omstw::OmsPoIvListAgent::Plant(*fon9sys.MaAuth_);
    f9omstw::OmsPoUserRightsAgent::Plant(*fon9sys.MaAuth_);
    f9omstw::OmsPoUserDenysAgent::Plant(*fon9sys.MaAuth_);
+   // 使用 PassIdMgr 支援 PassKey.
+   fon9::auth::PassIdMgr::PlantPassKeyMgr(*fon9sys.MaAuth_, "PassIdMgr");
    ForceLinkSomething();
 
    //

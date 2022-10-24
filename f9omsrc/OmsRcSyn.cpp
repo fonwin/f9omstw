@@ -11,6 +11,7 @@
 #include "fon9/rc/RcFuncConn.hpp"
 #include "fon9/FileReadAll.hpp"
 #include "fon9/FilePath.hpp"
+#include "fon9/PassKey.hpp"
 
 namespace f9omstw {
 using namespace fon9;
@@ -170,15 +171,20 @@ public:
       // f9rcCliParams.LogFlags_ = ;
 
       std::string cfgstr = iocfg.SessionArgs_.ToString();
-      StrView  cfgs{&cfgstr};
-      StrView  tag, value;
+      CharVector  passbuf;
+      StrView     cfgs{&cfgstr};
+      StrView     tag, value;
       while (SbrFetchTagValue(cfgs, tag, value)) {
          if (const char* pend = value.end())
             *const_cast<char*>(pend) = '\0';
-         if (tag == "user")
+         if (fon9::iequals(tag, "user"))
             f9rcCliParams.UserId_ = value.begin();
-         else if (tag == "pass")
+         else if (fon9::iequals(tag, "pass"))
             f9rcCliParams.Password_ = value.begin();
+         else if (fon9::iequals(tag, "PassKey")) {
+            PassKeyToPassword(value, passbuf);
+            f9rcCliParams.Password_ = passbuf.begin();
+         }
          else {
             errReason = tag.ToString("Unknown tag: ");
             return nullptr;

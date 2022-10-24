@@ -40,7 +40,7 @@ extern "C" {
 //--------------------------------------------------------------------------//
 
 fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
-   f9OmsRc_OpKind_Config,
+   f9OmsRc_OpKind_Config = 0,
 
    /// C <- S.
    /// 如果 server 正在建立新的 OmsCore, 則 Client 可能先收到 TDayChanged 然後才收到 Config.
@@ -51,7 +51,7 @@ fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
 
    /// C -> S: 回補要求.
    /// C <- S: 回補結束通知.
-   f9OmsRc_OpKind_ReportSubscribe,
+   f9OmsRc_OpKind_ReportSubscribe = 2,
 };
 
 fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
@@ -240,7 +240,9 @@ typedef struct {
    /// 下單流量管制.
    uint16_t                      FcReqCount_;
    uint16_t                      FcReqMS_;
-   char                          Padding4__[4]; 
+   /// enum class OmsUserRightFlag;
+   uint8_t                       RightFlags_;
+   char                          Padding3__[3];
    /// 可用櫃號列表.
    fon9_CStrView                 OrdTeams_;
 } f9OmsRc_ClientConfig;

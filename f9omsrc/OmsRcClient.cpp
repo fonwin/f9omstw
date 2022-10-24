@@ -135,6 +135,12 @@ void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFu
       fon9::ZeroStruct(rpt);
       fon9::BitvTo(param.RecvBuffer_, tday);
       fon9::BitvTo(param.RecvBuffer_, rpt.ReportSNO_);
+      if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9oms_ClientLogFlag_Report) {
+         fon9_LOG_INFO("OmsRcClient.RxReport.RecoverEnd|ses=",
+                       fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
+                       "|TDay=", tday, fon9::kFmtYMD_HMS,
+                       "|LastSNO=", rpt.ReportSNO_);
+      }
       if (this->Config_.TDay_ == tday && this->Params_.FnOnReport_)
          this->Params_.FnOnReport_(static_cast<fon9::rc::RcClientSession*>(&ses), &rpt);
       return;
@@ -340,6 +346,8 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
                cfg.FcReqCount_ = fon9::StrTo(rec[fld->GetIndex()], decltype(cfg.FcReqCount_){0});
             if (const auto* fld = tab->Fields_.Get("FcReqMS"))
                cfg.FcReqMS_ = fon9::StrTo(rec[fld->GetIndex()], decltype(cfg.FcReqMS_){0});
+            if (const auto* fld = tab->Fields_.Get("Flags"))
+               cfg.RightFlags_ = static_cast<decltype(cfg.RightFlags_)>(fon9::HexStrTo(rec[fld->GetIndex()]));
          }
       }
    }
@@ -353,7 +361,7 @@ void OmsRcClientNote::OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFu
    fon9::BitvTo(param.RecvBuffer_, this->ChangingTDay_);
    if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9oms_ClientLogFlag_Config)
       fon9_LOG_INFO("OmsRcClient.Recv|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
-                    "TDayChanged=", this->ChangingTDay_, fon9::kFmtYMD_HMS);
+                    "|TDayChanged=", this->ChangingTDay_, fon9::kFmtYMD_HMS);
    if (this->Config_.TDay_.GetOrigValue() == 0) {
       // 尚未收到 Config, 就先收到 TDayChanged, 等收到 Config 時, 再回 TDayConfirm;
    }
@@ -365,7 +373,7 @@ void OmsRcClientNote::OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFu
 void OmsRcClientNote::SendTDayConfirm(fon9::rc::RcSession& ses) {
    if (static_cast<fon9::rc::RcClientSession*>(&ses)->LogFlags_ & f9oms_ClientLogFlag_Config)
       fon9_LOG_INFO("OmsRcClient.Send|ses=", fon9::ToPtr(static_cast<f9rc_ClientSession*>(static_cast<fon9::rc::RcClientSession*>(&ses))),
-                    "TDayConfirm=", this->ChangingTDay_, fon9::kFmtYMD_HMS);
+                    "|TDayConfirm=", this->ChangingTDay_, fon9::kFmtYMD_HMS);
    fon9::RevBufferList rbuf{128};
    fon9::ToBitv(rbuf, this->ChangingTDay_);
    fon9::ToBitv(rbuf, f9OmsRc_OpKind_TDayConfirm);

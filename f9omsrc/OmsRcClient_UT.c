@@ -70,6 +70,8 @@ void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_Client
       }
    }
    else { // if (rpt->Layout_ == NULL) // 回補結束.
+      PrintEvSplit("OnClientReport.RecoverEnd");
+      printf("LastSNO=%" PRIu64 "\n", rpt->ReportSNO_);
    }
    ud->LastSNO_ = rpt->ReportSNO_;
 

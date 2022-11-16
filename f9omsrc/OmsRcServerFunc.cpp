@@ -320,6 +320,8 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
             if (item->RxSNO() < this->WkoRecoverSNO_) {
                if (ordraw == nullptr) {
                   const OmsRequestBase* req = static_cast<const OmsRequestBase*>(item->CastToRequest());
+                  if (req == nullptr)
+                     return item->RxSNO() + 1;
                   ordraw = req->LastUpdated();
                }
                if (ordraw && !ordraw->Order().IsWorkingOrder())

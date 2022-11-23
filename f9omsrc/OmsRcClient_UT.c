@@ -781,9 +781,10 @@ __USAGE:
    memset(&ud, 0, sizeof(ud));
    f9rcCliParams.UserData_ = &ud;
 
-   f9OmsRc_Initialize(logFileFmt);
+   const char* iosvCfg = NULL;// "Cpus=0,1|ThreadCount=2|Wait=Block"; // OmsRc 綁核的範例.
+   f9OmsRc_Initialize2(logFileFmt, iosvCfg);
    f9sv_Initialize(NULL);
-   fon9_Finalize();
+   fon9_Finalize(); // 配對 f9sv_Initialize();
    f9rc_CreateClientSession(&ud.Session_, &f9rcCliParams);
    // ----------------------------
    char cmdbuf[4096];
@@ -885,7 +886,7 @@ __USAGE:
    // ----------------------------
 __QUIT:
    f9rc_DestroyClientSession_Wait(ud.Session_);
-   fon9_Finalize();
+   fon9_Finalize(); // 配對 f9OmsRc_Initialize();
    f9omstw_FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
    printf("OmsRcClient test quit.%s\n", fon9_AppBreakMsg ? fon9_AppBreakMsg : "");
 }

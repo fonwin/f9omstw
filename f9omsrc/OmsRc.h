@@ -324,6 +324,7 @@ f9OmsRc_API_FN(const char*) f9OmsRc_ApiVersionInfo(void);
 ///   - 建立 Session 時, 必須提供 f9OmsRc_ClientSessionParams; 參數.
 ///   - 且需要經過 f9OmsRc_InitClientSessionParams() 初始化.
 f9OmsRc_API_FN(int) f9OmsRc_Initialize(const char* logFileFmt);
+f9OmsRc_API_FN(int) f9OmsRc_Initialize2(const char* logFileFmt, const char* iosvCfg);
 
 /// 用指定名稱取得「下單表單格式」.
 /// - cfg 必須是在 FnOnConfig_ 事件裡面提供的那個;

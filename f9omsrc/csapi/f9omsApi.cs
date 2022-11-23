@@ -29,6 +29,8 @@ namespace f9oms
       ///   - 且需要經過 f9OmsRc_InitClientSessionParams() 初始化.
       [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_Initialize", CharSet = CharSet.Ansi)]
       public static extern int Initialize([MarshalAs(UnmanagedType.LPStr)] string logFileFmt);
+      [DllImport(fon9.DotNetApi.kDllName, EntryPoint = "f9OmsRc_Initialize2", CharSet = CharSet.Ansi)]
+      public static extern int Initialize2([MarshalAs(UnmanagedType.LPStr)] string logFileFmt, [MarshalAs(UnmanagedType.LPStr)] string iosvCfg);
 
       // ------------------------------------------------------------------
       /// 載入錯誤代碼文字翻譯檔.

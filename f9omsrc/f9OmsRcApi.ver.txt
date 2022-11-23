@@ -41,6 +41,7 @@ F9OMSRCAPI_1.0 {
 
       f9OmsRc_ApiVersionInfo;
       f9OmsRc_Initialize;
+      f9OmsRc_Initialize2;
       f9OmsRc_GetRequestLayout;
       f9OmsRc_SendRequestFields;
       f9OmsRc_SendRequestString;

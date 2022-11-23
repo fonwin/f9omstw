@@ -7,7 +7,11 @@ extern "C" {
 
 f9OmsRc_API_FN(int)
 f9OmsRc_Initialize(const char* logFileFmt) {
-   int retval = fon9_Initialize(logFileFmt);
+   return f9OmsRc_Initialize2(logFileFmt, NULL);
+}
+f9OmsRc_API_FN(int)
+f9OmsRc_Initialize2(const char* logFileFmt, const char* iosvCfg) {
+   int retval = f9rc_Initialize(logFileFmt, iosvCfg);
    if (retval == 0 && fon9::rc::RcClientMgr_->Get(f9rc_FunctionCode_OmsApi) == nullptr)
       fon9::rc::RcClientMgr_->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::OmsRcClientAgent});
    return retval;

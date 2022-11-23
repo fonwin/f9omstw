@@ -36,11 +36,14 @@ public:
    /// 根據 runner.OrderRaw_.Market() 取得 TwsTradingLineMgr;
    /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
    TwsTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
-      return this->GetLineMgr(runner.OrderRaw(), &runner);
+      return this->GetLineMgr(runner.OrderRaw().Market(), &runner);
    }
    TwsTradingLineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
+      return this->GetLineMgr(ordraw.Market(), runner);
+   }
+   TwsTradingLineMgr* GetLineMgr(const f9fmkt_TradingMarket mkt, OmsRequestRunnerInCore* runner) const {
       fon9_WARN_DISABLE_SWITCH;
-      switch (ordraw.Market()) {
+      switch (mkt) {
       case f9fmkt_TradingMarket_TwSEC:
          return this->TseTradingLineMgr_.get();
       case f9fmkt_TradingMarket_TwOTC:
@@ -51,6 +54,21 @@ public:
          return nullptr;
       }
       fon9_WARN_POP;
+   }
+   TwsTradingLineMgr* GetLineMgr(const fon9::fmkt::TradingRequest& req) const {
+      return this->GetLineMgr(req.Market(), nullptr);
+   }
+   TwsTradingLineMgr* GetLineMgr(const fon9::fmkt::TradingLineManager& ref) const;
+
+   TwsTradingLineMgr* GetLineMgr(unsigned lmgrIndex) const {
+      switch (lmgrIndex) {
+      case 0: return this->TseTradingLineMgr_.get();
+      case 1: return this->OtcTradingLineMgr_.get();
+      }
+      return nullptr;
+   }
+   static unsigned LgLineMgrCount() {
+      return 2;
    }
 };
 

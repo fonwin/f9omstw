@@ -95,6 +95,8 @@ using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
 
 class OmsSymb;
 
+using LgOut = fon9::fmkt::LgOut;
+
 //--------------------------------------------------------------------------//
 
 template <class T>
@@ -105,27 +107,6 @@ inline auto OmsIsSymbolEmpty(const T& symbid) -> decltype(symbid.empty()) {
 template <size_t arysz, typename CharT, CharT kChFiller>
 inline bool OmsIsSymbolEmpty(const fon9::CharAry<arysz, CharT, kChFiller>& symbid) {
    return symbid.empty1st();
-}
-
-//--------------------------------------------------------------------------//
-
-/// 線路群組代號.
-/// '0'..'9', 'A'..'Z'
-enum class LgOut : char {
-   /// 應使用 IsValidateLgOut(lgId); 來判斷 lgId 是否有效.
-   /// LgOut::Unknown 只是用來初始化無效資料.
-   Unknown = 0,
-   /// 通用線路.
-   Common = '0',
-   Count = 36,
-};
-inline uint8_t LgOutToIndex(LgOut lg) {
-   uint8_t idx = static_cast<uint8_t>(fon9::Alpha2Seq(static_cast<char>(lg)));
-   return(idx < static_cast<uint8_t>(LgOut::Count) ? idx : static_cast<uint8_t>(0));
-}
-inline bool IsValidateLgOut(LgOut lgId) {
-   return(fon9::isdigit(static_cast<unsigned char>(lgId))
-          || fon9::isupper(static_cast<unsigned char>(lgId)));
 }
 
 //--------------------------------------------------------------------------//

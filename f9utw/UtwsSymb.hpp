@@ -17,6 +17,7 @@ public:
 
    fon9::fmkt::SymbData* GetSymbData(int tabid) override;
    fon9::fmkt::SymbData* FetchSymbData(int tabid) override;
+   TwfExgSymbBasic* GetTwfExgSymbBasic() override;
    void OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr&) override;
 
    static fon9::seed::LayoutSP MakeLayout(fon9::seed::TreeFlag flags);

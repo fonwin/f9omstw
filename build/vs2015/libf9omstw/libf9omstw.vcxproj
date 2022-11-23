@@ -129,6 +129,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsOrdTeam.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTools.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsToolsC.h" />
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineHelper1.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTradingLineReqRunStep.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgr.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.hpp" />
@@ -186,6 +187,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsOrdTeam.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTools.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsToolsC.c" />
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineHelper1.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgr.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsTree.cpp" />

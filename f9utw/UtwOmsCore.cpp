@@ -5,6 +5,7 @@
 #include "f9utw/UtwSpCmdTws.hpp"
 #include "f9omstw/OmsCoreMgrSeed.hpp"
 #include "f9omstw/OmsEventSessionSt.hpp"
+#include "f9omstw/OmsTradingLineHelper1.hpp"
 
 #include "f9omstws/OmsTwsSenderStepG1.hpp"
 #include "f9omstws/OmsTwsSenderStepLgMgr.hpp"
@@ -237,6 +238,7 @@ public:
             lgMgr = TwsTradingLgMgr::Plant(coreMgr, holder, iocfgs);
             twsNewSenderStep.reset(new OmsTwsSenderStepLgMgr{*lgMgr});
             twsChgSenderStep.reset(new OmsTwsSenderStepLgMgr{*lgMgr});
+            OmsLocalHelperMaker1{coreMgr}.MakeTradingLgLocalHelper(*lgMgr);
          }
          coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twsOrdFactory});
          coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
@@ -321,6 +323,7 @@ public:
             twfNewQRSenderStep.reset(new OmsTwfSenderStepLgMgr{*lgMgr});
             twfNewQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
             twfChgQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
+            OmsLocalHelperMaker1{coreMgr}.MakeTradingLgLocalHelper(*lgMgr);
          }
          // ------------------
          coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twfOrd1Factory, twfOrd7Factory, twfOrd9Factory});

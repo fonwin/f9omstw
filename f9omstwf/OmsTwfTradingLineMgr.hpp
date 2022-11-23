@@ -22,6 +22,7 @@ using TwfTradingLineMgrSP = fon9::intrusive_ptr<TwfTradingLineMgr>;
 
 class TwfTradingLineGroup {
    fon9_NON_COPY_NON_MOVE(TwfTradingLineGroup);
+   TwfTradingLineMgr* GetLineMgr(f9fmkt_TradingSessionId sid, f9fmkt_TradingMarket mkt, OmsRequestRunnerInCore* runner) const;
 public:
    TwfTradingLineMgrSP  TradingLineMgr_[f9twf::ExgSystemTypeCount()];
    using LineMgr = TwfTradingLineMgr;
@@ -36,7 +37,18 @@ public:
    TwfTradingLineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
       return this->GetLineMgr(runner.OrderRaw(), &runner);
    }
-   TwfTradingLineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const;
+   TwfTradingLineMgr* GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
+      return this->GetLineMgr(ordraw.SessionId(), ordraw.Market(), runner);
+   }
+   TwfTradingLineMgr* GetLineMgr(const fon9::fmkt::TradingRequest& req) const {
+      return this->GetLineMgr(req.SessionId(), req.Market(), nullptr);
+   }
+   TwfTradingLineMgr* GetLineMgr(const fon9::fmkt::TradingLineManager& ref) const;
+   TwfTradingLineMgr* GetLineMgr(unsigned lmgrIndex) const;
+
+   static unsigned LgLineMgrCount() {
+      return f9twf::ExgSystemTypeCount();
+   }
 };
 
 /// 會在 owner 加入 2 個 seed:

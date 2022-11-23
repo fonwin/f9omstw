@@ -16,6 +16,9 @@ static inline fon9::fmkt::SymbData* GetUtwsSymbData(UtwsSymb* pthis, int tabid) 
 }
 UtwsSymb::~UtwsSymb() {
 }
+TwfExgSymbBasic* UtwsSymb::GetTwfExgSymbBasic() {
+   return this;
+}
 fon9::fmkt::SymbData* UtwsSymb::GetSymbData(int tabid) {
    return GetUtwsSymbData(this, tabid);
 }

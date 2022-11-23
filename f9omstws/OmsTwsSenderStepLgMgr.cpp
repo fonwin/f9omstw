@@ -20,9 +20,9 @@ void TwsTradingLgMgr::SetTradingSessionSt(fon9::TimeStamp tday, f9fmkt_TradingMa
    for (auto& lgItem : this->LgItems_) {
       if (lgItem) {
          if (mkt == f9fmkt_TradingMarket_TwSEC)
-            lgItem->TseTradingLineMgr_->SetTradingSessionSt(tday, sesId, sesSt);
+            static_cast<LgItem*>(lgItem.get())->TseTradingLineMgr_->SetTradingSessionSt(tday, sesId, sesSt);
          if (mkt == f9fmkt_TradingMarket_TwOTC)
-            lgItem->OtcTradingLineMgr_->SetTradingSessionSt(tday, sesId, sesSt);
+            static_cast<LgItem*>(lgItem.get())->OtcTradingLineMgr_->SetTradingSessionSt(tday, sesId, sesSt);
       }
    }
 }

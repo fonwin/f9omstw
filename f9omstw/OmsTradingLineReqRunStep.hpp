@@ -4,7 +4,7 @@
 #define __f9omstw_OmsTradingLineReqRunStep_hpp__
 #include "f9omstw/OmsCoreMgr.hpp"
 #include "f9omstw/OmsReportRunner.hpp"
-#include "fon9/fmkt/TradingLine.hpp"
+#include "fon9/fmkt/TradingLineGroup.hpp"
 #include "fon9/framework/IoManager.hpp"
 
 namespace f9omstw {
@@ -45,8 +45,12 @@ public:
    void RerunRequest(OmsReportRunnerInCore&& runner) override {
       if (auto* lmgr = this->LineGroupMgr_.GetLineMgr(runner)) {
          if (runner.ErrCodeAct_->IsUseNewLine_) {
-            if (auto* inireq = runner.OrderRaw().Order().Initiator())
-               lmgr->SelectPreferNextLine(*inireq);
+            if (auto* inireq = runner.OrderRaw().Order().Initiator()) {
+               auto tsvr = lmgr->Lock();
+               lmgr->SelectPreferNextLine(*inireq, tsvr);
+               lmgr->RunRequest(std::move(runner), tsvr);
+               return;
+            }
          }
          lmgr->RunRequest(std::move(runner));
       }
@@ -57,47 +61,35 @@ public:
 /// - 負責處理 TDay 改變事件的後續相關作業: 轉送給各群組的 OnTDayChangedInCore(resource);
 /// - 在 this 之下, 建立對應的 LineGroup seed;
 template <class LineGroup>
-class OmsTradingLgMgrT : public fon9::seed::NamedMaTree {
+class OmsTradingLgMgrT : public fon9::fmkt::TradingLgMgrBase {
    fon9_NON_COPY_NON_MOVE(OmsTradingLgMgrT);
-   using base = fon9::seed::NamedMaTree;
+   using base = fon9::fmkt::TradingLgMgrBase;
 protected:
-   class LgItem : public fon9::seed::NamedMaTree, public LineGroup {
+   class LgItem : public LgItemBase, public LineGroup {
       fon9_NON_COPY_NON_MOVE(LgItem);
-      using base = fon9::seed::NamedMaTree;
+      using base = LgItemBase;
    public:
       using base::base;
    };
    using LgItemSP = fon9::intrusive_ptr<LgItem>;
-   LgItemSP LgItems_[static_cast<uint8_t>(LgOut::Count)];
+   LgItemBaseSP CreateLgItem(Named&& named) override {
+      return new LgItem{std::move(named)};
+   }
+   fon9::fmkt::TradingLineManager* GetLineMgr(LgItemBase& lg, const fon9::fmkt::TradingRequest& req) const override {
+      assert(dynamic_cast<LgItem*>(&lg) != nullptr);
+      return static_cast<LgItem*>(&lg)->GetLineMgr(req);
+   }
+   fon9::fmkt::TradingLineManager* GetLineMgr(LgItemBase& lg, const fon9::fmkt::TradingLineManager& ref) const override {
+      assert(dynamic_cast<LgItem*>(&lg) != nullptr);
+      return static_cast<LgItem*>(&lg)->GetLineMgr(ref);
+   }
+   fon9::fmkt::TradingLineManager* GetLineMgr(LgItemBase& lg, unsigned lmgrIndex) const override {
+      assert(dynamic_cast<LgItem*>(&lg) != nullptr);
+      return static_cast<LgItem*>(&lg)->GetLineMgr(lmgrIndex);
+   }
 
-   /// tag:   "Lg?"; 例: "Lg0"
-   /// cfgln: "Title, Description"; 例: "VIP線路";
    LgItemSP MakeLgItem(fon9::StrView tag, fon9::StrView cfgln) {
-      constexpr char fon9_kCSTR_LgTAG_LEAD[] = "Lg";
-      constexpr auto fon9_kSIZE_LgTAG_LEAD = (sizeof(fon9_kCSTR_LgTAG_LEAD) - 1);
-      if (tag.size() != fon9_kSIZE_LgTAG_LEAD + 1)
-         return nullptr;
-      const char* ptag = tag.begin();
-      // Unknown tag.
-      if (memcmp(ptag, fon9_kCSTR_LgTAG_LEAD, fon9_kSIZE_LgTAG_LEAD) != 0)
-         return nullptr;
-      const LgOut lgId = static_cast<LgOut>(ptag[fon9_kSIZE_LgTAG_LEAD]);
-      // Unknown LgId.
-      if (!IsValidateLgOut(lgId))
-         return nullptr;
-      const uint8_t lgIdx = LgOutToIndex(lgId);
-      // Dup Lg.
-      if (this->LgItems_[lgIdx].get() != nullptr)
-         return nullptr;
-      fon9::StrView  title = fon9::SbrFetchNoTrim(cfgln, ',');
-      LgItemSP retval{new LgItem{fon9::Named(
-         tag.ToString(),
-         fon9::StrView_ToNormalizeStr(fon9::StrTrimRemoveQuotes(title)),
-         fon9::StrView_ToNormalizeStr(fon9::StrTrimRemoveQuotes(cfgln))
-      )}};
-      this->LgItems_[lgIdx] = retval;
-      this->Sapling_->Add(retval);
-      return retval;
+      return fon9::dynamic_pointer_cast<LgItem>(base::MakeLgItem(tag, cfgln));
    }
 
 public:
@@ -109,9 +101,9 @@ public:
 
    void OnTDayChangedInCore(OmsResource& resource) {
      if (resource.Core_.IsCurrentCore())
-        for (LgItemSP& lgItem : this->LgItems_) {
+        for (auto& lgItem : this->LgItems_) {
            if (lgItem)
-              lgItem->OnTDayChangedInCore(resource);
+              static_cast<LgItem*>(lgItem.get())->OnTDayChangedInCore(resource);
         }
    }
 
@@ -136,14 +128,13 @@ public:
    }
 
    LineGroup* GetIndexLineGroup(unsigned idx) const {
-      return this->LgItems_[idx].get();
+      return static_cast<LgItem*>(this->LgItems_[idx].get());
    }
    /// 根據 Request.LgOut_ 選用適當的線路群組.
    const LgItem* GetLgItem(LgOut lg) const {
-      auto idx = LgOutToIndex(lg);
-      if (const LgItem* retval = this->LgItems_[idx].get())
+      if (auto* retval = static_cast<const LgItem*>(this->LgItems_[LgOutToIndex(lg)].get()))
          return retval;
-      return this->LgItems_[0].get();
+      return static_cast<const LgItem*>(this->LgItems_[0].get());
    }
    /// 若返回 nullptr, 則返回前, 會先執行 runner.Reject();
    typename LgItem::LineMgr* GetLineMgr(OmsRequestRunnerInCore& runner) const {
@@ -156,6 +147,9 @@ public:
       if (runner)
          runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_LgOut, nullptr);
       return nullptr;
+   }
+   unsigned LgLineMgrCount() const override {
+      return LineGroup::LgLineMgrCount();
    }
 };
 

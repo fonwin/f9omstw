@@ -16,6 +16,7 @@ set(f9omstw_src
  OmsScBase.cpp
  OmsTradingLineMgr.cpp
  OmsTradingLineMgrCfg.cpp
+ OmsTradingLineHelper1.cpp
  OmsImporter.cpp
  OmsIoSessionFactory.cpp
 

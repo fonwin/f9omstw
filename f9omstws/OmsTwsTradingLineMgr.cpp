@@ -3,10 +3,15 @@
 #include "f9omstws/OmsTwsTradingLineMgr.hpp"
 #include "f9omstw/OmsTradingLineMgrCfg.hpp"
 #include "fon9/FilePath.hpp"
+#include "fon9/fmkt/TradingLineManagerSeed.hpp"
 
 namespace f9omstw {
 
 TwsTradingLineGroup::~TwsTradingLineGroup() {
+}
+TwsTradingLineMgr* TwsTradingLineGroup::GetLineMgr(const fon9::fmkt::TradingLineManager& ref) const {
+   assert(dynamic_cast<const TwsTradingLineMgr*>(&ref) != nullptr);
+   return this->GetLineMgr(static_cast<const TwsTradingLineMgr*>(&ref)->Market_, nullptr);
 }
 
 TwsTradingLineMgrSP CreateTwsTradingLineMgr(fon9::seed::MaTree&  owner,
@@ -23,7 +28,7 @@ TwsTradingLineMgrSP CreateTwsTradingLineMgr(fon9::seed::MaTree&  owner,
    ioargs.Name_ = std::move(orgName);
 
    OmsTradingLineMgrCfgSeed* cfgmgr;
-   if (!owner.Add(new fon9::seed::NamedSapling(linemgr, linemgr->Name_))
+   if (!owner.Add(new fon9::fmkt::TradingLineManagerSeed(linemgr, linemgr->Name_))
     || !owner.Add(cfgmgr = new OmsTradingLineMgrCfgSeed(*linemgr, ioargs.Name_ + "_cfg")))
       return nullptr;
    cfgmgr->BindConfigFile(&cfgpath);

@@ -8,8 +8,9 @@ namespace f9omstw {
 #define GetCommonName(p)    fon9::StrView{p->StrQueuingIn_.begin() + sizeof(kCSTR_QueuingIn) - 1, \
                                           p->StrQueuingIn_.end()}
 
-OmsTradingLineMgrBase::OmsTradingLineMgrBase(fon9::StrView name)
-   : StrQueuingIn_{fon9::RevPrintTo<fon9::CharVector>(kCSTR_QueuingIn, name)} {
+OmsTradingLineMgrBase::OmsTradingLineMgrBase(fon9::StrView name, f9fmkt::TradingLineManager& thisLineMgr)
+   : StrQueuingIn_{fon9::RevPrintTo<fon9::CharVector>(kCSTR_QueuingIn, name)}
+   , ThisLineMgr_(thisLineMgr) {
 }
 OmsTradingLineMgrBase::~OmsTradingLineMgrBase() {
 }
@@ -25,26 +26,38 @@ f9fmkt::SendRequestResult OmsTradingLineMgrBase::NoReadyLineReject(f9fmkt::Tradi
    this->CurrRunner_->Reject(f9fmkt_TradingRequestSt_LineRejected, OmsErrCode_NoReadyLine, ToStrView(rbuf));
    return f9fmkt::SendRequestResult::NoReadyLine;
 }
-bool OmsTradingLineMgrBase::CheckNoReadyLineBroken() {
+bool OmsTradingLineMgrBase::CheckUnsendableBroken() {
    switch (this->State_) {
    default:
-   case TradingLineMgrState::NoReadyLineBroken:
    case TradingLineMgrState::Ready:
+   {
+      // 由於並不是每次的 [無線路 & 無Helper] 都會透過 ClearReqQueue() 處理, 有時會透過 SendReqQueue(),
+      // 所以需在此判斷 IsSendable(); 來決定是否仍處在 TradingLineMgrState::Ready 狀態.
+      auto lk = this->LockLineMgr();
+      if (!lk->IsSendable())
+         this->SetState(TradingLineMgrState::UnsendableReject, lk);
       break;
-   case TradingLineMgrState::NoReadyLineReject:
-   case TradingLineMgrState::NoReadyLineBroken1:
-      auto lk = this->Lock();
+   }
+   case TradingLineMgrState::UnsendableBroken:
+      break;
+   case TradingLineMgrState::UnsendableReject:
+   case TradingLineMgrState::UnsendableBroken1:
+      auto lk = this->LockLineMgr();
+      if (lk->IsSendable()) {
+         this->SetState(TradingLineMgrState::Ready, lk);
+         return false;
+      }
       switch (this->State_) {
       default:
-      case TradingLineMgrState::NoReadyLineBroken:
+      case TradingLineMgrState::UnsendableBroken:
       case TradingLineMgrState::Ready:
          return false;
-      case TradingLineMgrState::NoReadyLineReject:
-         // 下次檢查時, 若仍為 NoReadyLineBroken1, 則確定無法恢復連線, 才會進入 NoReadyLineBroken 狀態.
-         this->State_ = TradingLineMgrState::NoReadyLineBroken1;
+      case TradingLineMgrState::UnsendableReject:
+         // 下次檢查時, 若仍為 UnsendableBroken1, 則確定無法恢復連線, 才會進入 UnsendableBroken 狀態.
+         this->State_ = TradingLineMgrState::UnsendableBroken1;
          break;
-      case TradingLineMgrState::NoReadyLineBroken1:
-         this->State_ = TradingLineMgrState::NoReadyLineBroken;
+      case TradingLineMgrState::UnsendableBroken1:
+         this->State_ = TradingLineMgrState::UnsendableBroken;
          return true;
       }
    }
@@ -69,10 +82,10 @@ OmsCoreSP OmsTradingLineMgrBase::IsNeedsUpdateOrdTeamConfig(fon9::CharVector ord
    return this->OmsCore_;
 }
 void OmsTradingLineMgrBase::OnOrdTeamConfigChanged(fon9::CharVector ordTeamConfig) {
-   if (OmsCoreSP core = this->IsNeedsUpdateOrdTeamConfig(std::move(ordTeamConfig), this->Lock())) {
+   if (OmsCoreSP core = this->IsNeedsUpdateOrdTeamConfig(std::move(ordTeamConfig), this->LockLineMgr())) {
       ThisSP pthis{this};
       core->RunCoreTask([pthis](OmsResource& coreResource) {
-         pthis->SetOrdTeamGroupId(coreResource, pthis->Lock());
+         pthis->SetOrdTeamGroupId(coreResource, pthis->LockLineMgr());
       });
    }
 }
@@ -88,13 +101,14 @@ bool OmsTradingLineMgrBase::SetOmsCore(OmsResource& coreResource, Locker&& tsvr)
    return true;
 }
 void OmsTradingLineMgrBase::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, OmsCoreSP core) {
-   auto reqs = std::move(tsvr->ReqQueue_);
+   fon9::fmkt::TradingLineManager::Reqs reqs;
+   tsvr->ReqQueueMoveTo(reqs);
    if (reqs.empty())
       return;
 
-   fon9_WARN_DISABLE_PADDING;
    using Reqs = fon9::decay_t<decltype(reqs)>;
    struct RejInCore : public fon9::intrusive_ref_counter<RejInCore> {
+      char              Padding____[4];
       OmsCoreSP         OmsCore_;
       fon9::CharVector  Cause_;
       Reqs              Reqs_;
@@ -103,7 +117,6 @@ void OmsTradingLineMgrBase::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, Om
          , Cause_{cause} {
       }
    };
-   fon9_WARN_POP;
    struct RejInCoreSP : public fon9::intrusive_ptr<RejInCore> {
       RejInCoreSP(RejInCore* p) : fon9::intrusive_ptr<RejInCore>{p} {
       }
@@ -123,6 +136,36 @@ void OmsTradingLineMgrBase::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, Om
 
    rejInCore->Reqs_ = std::move(reqs);
    rejInCore->OmsCore_->RunCoreTask(rejInCore);
+}
+void OmsTradingLineMgrBase::ToCore_SendReqQueue(Locker&& tsvr) {
+   if (tsvr->IsReqQueueEmpty())
+      return;
+   if (OmsCoreSP core = this->OmsCore_) {
+      tsvr.unlock(); // 如果 RunCoreTask 立即執行, 則在 CoreTask_SendReqQueue() 裡面的 LockLineMgr() 會死結, 所以這裡必須先解鎖.
+      core->RunCoreTask(std::bind(&OmsTradingLineMgrBase::CoreTask_SendReqQueue, ThisSP{this}, std::placeholders::_1));
+   }
+}
+void OmsTradingLineMgrBase::CoreTask_SendReqQueue(OmsResource& resource) {
+   Locker tsvr = this->LockLineMgr();
+   if (this->OmsCore_.get() == &resource.Core_) {
+      this->CurrOmsResource_ = &resource;
+      tsvr->SendReqQueue(&tsvr);
+      this->CurrOmsResource_ = nullptr;
+   }
+   else {
+      // pthis->OmsCore_ 已經改變, 則必定已呼叫過 this->ClearReqQueue(resource.Core_);
+      // 如果此時 ReqQueue 還有下單要求, 則必定不屬於 resource.Core_ 的!
+   }
+}
+void OmsTradingLineMgrBase::RunRequest(OmsRequestRunnerInCore&& runner, const Locker& tsvr) {
+   assert(this->CurrRunner_ == nullptr);
+   assert(this->OmsCore_.get() == &runner.Resource_.Core_);
+   this->CurrRunner_ = &runner;
+   if (fon9_UNLIKELY(this->ThisLineMgr_.SendRequest(*const_cast<OmsRequestBase*>(&runner.OrderRaw().Request()), tsvr)
+                     == f9fmkt::SendRequestResult::Queuing)) {
+      runner.Update(f9fmkt_TradingRequestSt_Queuing, ToStrView(this->StrQueuingIn_));
+   }
+   this->CurrRunner_ = nullptr;
 }
 
 } // namespaces

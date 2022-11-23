@@ -3,6 +3,7 @@
 #include "f9omstwf/OmsTwfTradingLineMgr.hpp"
 #include "f9omstw/OmsTradingLineMgrCfg.hpp"
 #include "fon9/FilePath.hpp"
+#include "fon9/fmkt/TradingLineManagerSeed.hpp"
 
 namespace f9omstw {
 
@@ -14,9 +15,9 @@ void TwfTradingLineGroup::OnTDayChangedInCore(OmsResource& resource) {
       this->TradingLineMgr_[L]->OnOmsCoreChanged(resource);
    }
 }
-TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(const OmsOrderRaw& ordraw, OmsRequestRunnerInCore* runner) const {
+TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(f9fmkt_TradingSessionId sid, f9fmkt_TradingMarket mkt, OmsRequestRunnerInCore* runner) const {
    unsigned idx;
-   switch (ordraw.SessionId()) {
+   switch (sid) {
    case f9fmkt_TradingSessionId_AfterHour: idx = 1; break;
    case f9fmkt_TradingSessionId_Normal:    idx = 0; break;
    default:
@@ -24,7 +25,7 @@ TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(const OmsOrderRaw& ordraw, Om
          runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_SessionId, nullptr);
       return nullptr;
    }
-   switch (ordraw.Market()) {
+   switch (mkt) {
    case f9fmkt_TradingMarket_TwFUT:
       idx = f9twf::ExgSystemTypeToIndex(idx ? f9twf::ExgSystemType::FutAfterHour : f9twf::ExgSystemType::FutNormal);
       break;
@@ -37,6 +38,13 @@ TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(const OmsOrderRaw& ordraw, Om
       return nullptr;
    }
    return this->TradingLineMgr_[idx].get();
+}
+TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(const fon9::fmkt::TradingLineManager& ref) const {
+   assert(dynamic_cast<const TwfTradingLineMgr*>(&ref) != nullptr);
+   return this->GetLineMgr(f9twf::ExgSystemTypeToIndex(static_cast<const TwfTradingLineMgr*>(&ref)->ExgSystemType_));
+}
+TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(unsigned lmgrIndex) const {
+   return lmgrIndex < fon9::numofele(this->TradingLineMgr_) ? this->TradingLineMgr_[lmgrIndex].get() : nullptr;
 }
 
 TwfTradingLineMgrSP CreateTwfTradingLineMgr(fon9::seed::MaTree&  owner,
@@ -56,7 +64,7 @@ TwfTradingLineMgrSP CreateTwfTradingLineMgr(fon9::seed::MaTree&  owner,
    ioargs.Name_ = std::move(orgName);
 
    OmsTradingLineMgrCfgSeed* cfgmgr;
-   if (!owner.Add(new fon9::seed::NamedSapling(linemgr, linemgr->Name_))
+   if (!owner.Add(new fon9::fmkt::TradingLineManagerSeed(linemgr, linemgr->Name_))
     || !owner.Add(cfgmgr = new OmsTradingLineMgrCfgSeed(*linemgr, ioargs.Name_ + "_cfg")))
       return nullptr;
    cfgmgr->BindConfigFile(&cfgpath);

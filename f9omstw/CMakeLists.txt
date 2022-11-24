@@ -11,6 +11,7 @@ set(f9omstw_src
  OmsBackend.cpp
  OmsBackendRecorder.cpp
  OmsOrdTeam.cpp
+ OmsOrdTeamIdConfig.cpp
  OmsOrdNoMap.cpp
  OmsErrCodeAct.cpp
  OmsScBase.cpp

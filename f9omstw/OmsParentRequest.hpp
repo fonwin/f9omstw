@@ -7,16 +7,6 @@
 
 namespace f9omstw {
 
-/// 母單預設的櫃號. 必須自行在 InitCoreTables() 期間先設定好.
-/// 母單雖然不會送給交易所, 但因底下原因, 必須[編製委託書號]:
-/// - 在多主機同步機制, 必須使用委託書號來找尋.
-/// - 如果交易所下單時有提供 user_define 欄位,
-///   可在送交易所時加上[母單委託書號]註記,
-///   這樣可以在線路切到備援主機時, 有尋找母單的依據.
-/// - 也許應該將 gParentRequestTgId, gChildRequestTgId 放到 OmsCore?
-extern OmsOrdTeamGroupId  gParentRequestTgId;
-extern OmsOrdTeamGroupId  gChildRequestTgId;
-//--------------------------------------------------------------------------//
 using RunningChildCount = uint32_t;
 /// \retval true: (res遞減後) == 0;
 static inline bool DecRunningChildCount(RunningChildCount& res) {

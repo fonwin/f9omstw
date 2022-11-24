@@ -9,9 +9,6 @@
 
 namespace f9omstw {
 
-OmsOrdTeamGroupId  gParentRequestTgId{};
-OmsOrdTeamGroupId  gChildRequestTgId{};
-//--------------------------------------------------------------------------//
 static void CopyErr_FromChild_ToParent(OmsOrderRaw& parent, const OmsRequestBase& childReq) {
    if (const auto* childOrdraw = childReq.LastUpdated()) {
       parent.ErrCode_ = childOrdraw->ErrCode_;

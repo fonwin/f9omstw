@@ -100,6 +100,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsMdEvent.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrder.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrderFactory.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsOrdTeamIdConfig.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsParentBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsParentOrder.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsOrdNoMap.hpp" />
@@ -161,6 +162,7 @@
     <ClCompile Include="..\..\..\f9omstw\OmsMdEvent.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrderFactory.cpp" />
+    <ClCompile Include="..\..\..\f9omstw\OmsOrdTeamIdConfig.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsParentOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsOrdNoMap.cpp" />
     <ClCompile Include="..\..\..\f9omstw\OmsParentRequest.cpp" />

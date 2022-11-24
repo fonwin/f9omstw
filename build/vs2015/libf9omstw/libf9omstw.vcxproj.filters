@@ -54,6 +54,12 @@
     <Filter Include="Source Files\_parent_child">
       <UniqueIdentifier>{9462ffb6-03c5-4674-9432-31df398bccb7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\_TradingLine">
+      <UniqueIdentifier>{b79d87a1-9ccd-4465-88f5-c3525bfa9beb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\_TradingLine">
+      <UniqueIdentifier>{43f7326b-9f55-449e-83a3-bf9e430f6a46}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp">
@@ -194,12 +200,6 @@
     <ClInclude Include="..\..\..\f9omstw\OmsMakeErrMsg.h">
       <Filter>Header Files\_core</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgr.hpp">
-      <Filter>Header Files\_core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.hpp">
-      <Filter>Header Files\_core</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsReportTools.hpp">
       <Filter>Header Files\_ord_rpt_evt</Filter>
     </ClInclude>
@@ -217,9 +217,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsPoRequest.hpp">
       <Filter>Header Files\_policy</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineReqRunStep.hpp">
-      <Filter>Header Files\_core</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9omstw\OmsMdEvent.hpp">
       <Filter>Header Files\_md_cx</Filter>
@@ -239,8 +236,20 @@
     <ClInclude Include="..\..\..\f9omstw\OmsParentRequest.hpp">
       <Filter>Header Files\_parent_child</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineHelper1.hpp">
+    <ClInclude Include="..\..\..\f9omstw\OmsOrdTeamIdConfig.hpp">
       <Filter>Header Files\_core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineHelper1.hpp">
+      <Filter>Header Files\_TradingLine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgr.hpp">
+      <Filter>Header Files\_TradingLine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.hpp">
+      <Filter>Header Files\_TradingLine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsTradingLineReqRunStep.hpp">
+      <Filter>Header Files\_TradingLine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -364,12 +373,6 @@
     <ClCompile Include="..\..\..\f9omstw\OmsMakeErrMsg.cpp">
       <Filter>Source Files\_core</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgr.cpp">
-      <Filter>Source Files\_core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.cpp">
-      <Filter>Source Files\_core</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsReportTools.cpp">
       <Filter>Source Files\_ord_rpt_evt</Filter>
     </ClCompile>
@@ -400,8 +403,17 @@
     <ClCompile Include="..\..\..\f9omstw\OmsParentRequest.cpp">
       <Filter>Source Files\_parent_child</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineHelper1.cpp">
+    <ClCompile Include="..\..\..\f9omstw\OmsOrdTeamIdConfig.cpp">
       <Filter>Source Files\_core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineHelper1.cpp">
+      <Filter>Source Files\_TradingLine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgr.cpp">
+      <Filter>Source Files\_TradingLine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.cpp">
+      <Filter>Source Files\_TradingLine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -169,8 +169,18 @@ public:
    TwfExgMapMgr* GetTwfExgMapMgr() const {
       return this->TwfExgMapMgr_;
    }
+
+   /// 母單預設的櫃號. 必須自行在 InitCoreTables() 期間先設定好.
+   /// 母單雖然不會送給交易所, 但因底下原因, 必須[編製委託書號]:
+   /// - 在多主機同步機制, 必須使用委託書號來找尋.
+   /// - 如果交易所下單時有提供 user_define 欄位,
+   ///   可在送交易所時加上[母單委託書號]註記,
+   ///   這樣可以在線路切到備援主機時, 有尋找母單的依據.
+   /// - 可透過 OmsOrdTeamIdConfigSeed 協助設定.
+   OmsOrdTeamGroupId  ParentRequestTgId_{};
+   OmsOrdTeamGroupId  ChildRequestTgId_{};
 };
 fon9_WARN_POP;
 
 } // namespaces
-#endif//__f9omstw_OmsCore_hpp__
+#endif//__f9omstw_OmsCoreMgr_hpp__

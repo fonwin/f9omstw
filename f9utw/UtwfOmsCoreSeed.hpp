@@ -160,41 +160,41 @@ public:
       int                  changeDayHHMMSS = -1; // 換日時間, 現貨 00:00 換日, 期權 6:00 換日;
       while (fon9::SbrFetchTagValue(args, tag, value)) {
          fon9::IoManagerArgs* ioargs;
-         if (tag == "Name")
+         if (fon9::iequals(tag, "Name"))
             omsName = value;
-         else if (tag == "IoFut") {
+         else if (fon9::iequals(tag, "IoFut") || fon9::iequals(tag, "IoFutN")) {
             ioargs = &ioargsFutNormal;
          __SET_IO_ARGS:;
             if (!ioargs->SetIoServiceCfg(holder, value))
                return false;
          }
-         else if (tag == "IoOpt") {
+         else if (fon9::iequals(tag, "IoOpt") || fon9::iequals(tag, "IoOptN")){
             ioargs = &ioargsOptNormal;
             goto __SET_IO_ARGS;
          }
-         else if (tag == "IoFutA") {
+         else if (fon9::iequals(tag, "IoFutA")) {
             ioargs = &ioargsFutAfterHour;
             goto __SET_IO_ARGS;
          }
-         else if (tag == "IoOptA") {
+         else if (fon9::iequals(tag, "IoOptA")) {
             ioargs = &ioargsOptAfterHour;
             goto __SET_IO_ARGS;
          }
-         else if (tag == "BrkId")
+         else if (fon9::iequals(tag, "BrkId"))
             brkId = value;
-         else if (tag == "BrkCount")
+         else if (fon9::iequals(tag, "BrkCount"))
             brkCount = fon9::StrTo(value, 0u);
-         else if (tag == "Wait")
+         else if (fon9::iequals(tag, "Wait"))
             howWait = fon9::StrToHowWait(value);
-         else if (tag == "Cpu")
+         else if (fon9::iequals(tag, "Cpu"))
             cpuId = fon9::StrTo(value, cpuId);
-         else if (tag == "FlushInterval")
+         else if (fon9::iequals(tag, "FlushInterval"))
             flushInterval = fon9::StrTo(value, flushInterval);
-         else if (tag == "Lg")
+         else if (fon9::iequals(tag, "Lg"))
             lgCfgFileName = value;
-         else if (tag == "CmId")
+         else if (fon9::iequals(tag, "CmId"))
             cmId = fon9::StrTo(value, cmId);
-         else if (tag == "ChgTDay")
+         else if (fon9::iequals(tag, "ChgTDay"))
             changeDayHHMMSS = fon9::StrTo(value, changeDayHHMMSS);
          else {
             holder.SetPluginsSt(fon9::LogLevel::Error, fon9_kCSTR_UtwOmsCoreName ".Create|err=Unknown tag: ", tag);

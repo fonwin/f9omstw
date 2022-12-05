@@ -21,14 +21,31 @@ class OmsParentRequestIni : public OmsRequestIni {
    fon9_NON_COPY_NON_MOVE(OmsParentRequestIni);
    using base = OmsRequestIni;
 
-   void OnChildError(const OmsRequestIni& childReq, OmsResource& res, const OmsRequestRunnerInCore* childRunner) const;
+   void OnChildError(const OmsRequestBase& childReq, OmsResource& res, const OmsRequestRunnerInCore* childRunner) const;
 
    mutable RunningChildCount  RunningChildCount_{0};
-   char  Padding____[4];
+   /// 原始來源主機, 在 RcSyn 收到回報時填入.
+   /// 在使用 SeedCommand 啟用 ParentOrder 時使用;
+   /// 不儲存, 重啟後歸0: 因為系統重啟前, Parent/Child 的狀態都無法正確更新, 所以重啟後不可以啟用 ParentOrder.
+   fon9::HostId               OrigHostId_{};
+   /// 透過 this->OnSynReport() 設定;
+   /// 在處理回報時的原始下單要求(新刪改): 從 RcSyn 收到回報時的 ReferenceSNO 取得.
+   /// 協助 this->RunReportInCore() 的處理.
+   const OmsRequestBase*      ReportRef_{};
 
 protected:
-   const OmsRequestBase* ReportRef_{};
    void RunReportInCore(OmsReportChecker&& checker) override;
+   /// 若不需要處理回報, 則應返回 false; 並在返回前呼叫 checker.ReportAbandon();
+   /// 預設: 透過 this->IsNeedsReport() 檢查;
+   virtual bool IsNeedsReport_ForNew(OmsReportChecker& checker, const OmsRequestBase& ref);
+   virtual bool IsNeedsReport_ForChg(OmsReportChecker& checker, const OmsRequestBase& ref);
+   /// return(this->GetSrcUTime() > Tail.SrcUTime_);
+   virtual bool IsNeedsReport(const OmsRequestBase& ref) const;
+   /// 回報來源的異動時間, 用於協助判斷是否為重複回報, 來自回報的 OrdRaw.UpdateTime 欄位;
+   /// 母單回報 Request(例: BergReport), 必須包含 UpdateTime 欄位, 並在此返回.
+   /// 預設返回 fon9::TimeStamp::Null();
+   virtual fon9::TimeStamp GetSrcUTime() const;
+
    /// 預設: do nothing.
    virtual void OnParentReportInCore_Filled(OmsParentOrderRaw& ordraw);
    /// 新增[新單]回報.
@@ -65,8 +82,11 @@ public:
    void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
    bool IsParentRequest() const override;
    void OnChildAbandoned(const OmsRequestBase& childReq, OmsResource& res) const override;
-   void OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) const override;
+   void OnChildRequestUpdated(const OmsRequestRunnerInCore& childRunner) const override;
    void OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const override;
+
+   fon9::HostId OrigHostId() const override;
+   void SetOrigHostId(fon9::HostId origHostId) override;
 };
 //--------------------------------------------------------------------------//
 class OmsParentRequestChg : public OmsRequestUpd {
@@ -92,7 +112,7 @@ public:
 
    bool IsParentRequest() const override;
    void OnChildAbandoned(const OmsRequestBase& childReq, OmsResource& res) const override;
-   void OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) const override;
+   void OnChildRequestUpdated(const OmsRequestRunnerInCore& childRunner) const override;
    void OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const override;
 };
 

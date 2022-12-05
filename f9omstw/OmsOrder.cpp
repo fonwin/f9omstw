@@ -33,6 +33,10 @@ void OmsOrder::OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) {
 void OmsOrder::OnOrderUpdated(const OmsRequestRunnerInCore& runner) {
    runner.OrderRaw().Request().OnOrderUpdated(runner);
 }
+bool OmsOrder::RerunParent(OmsResource& resource) {
+   (void)resource;
+   return false;
+}
 
 OmsSymbSP OmsOrder::FindSymb(OmsResource& res, const fon9::StrView& symbid) {
    return res.Symbs_->GetOmsSymb(symbid);

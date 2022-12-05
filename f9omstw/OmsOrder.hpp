@@ -32,11 +32,17 @@ enum class OmsOrderFlag : uint8_t {
    IsNeedsOnOrderUpdated = 0x01,
    IsChildOrder = 0x02 | IsNeedsOnOrderUpdated,
 
-   /// 有此旗標, 才會觸發生出子單.
-   /// 在 RequestParentNew.RunStep 設定。
-   /// 重啟、同步不會設定此旗標。
-   IsParentWorking = 0x04,
-   IsParentOrder = 0x08,
+   /// 有此旗標: 會觸發生出子單.
+   /// - 在 RequestParentNew.RunStep or OmsOrder.RerunParent() 設定。
+   /// - 重啟、同步不會設定此旗標。
+   IsParentRunning = 0x10,
+   /// 有此旗標: 子單異動時, 同時更新母單.
+   /// - 當有 IsParentRunning 時, 則必定有 IsParentEnabled;
+   IsParentEnabled = 0x20,
+
+   // 備援主機, 尚未接手母單, EraseChild() 暫時先不會移除.
+   // 等母單完結後, 才會清除 this->WorkingChildRequests_;
+   IsParentOrder = 0x40 | IsNeedsOnOrderUpdated,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsOrderFlag);
 
@@ -135,6 +141,9 @@ public:
    const OmsReportFilled* InsertFilled(const OmsReportFilled* currFilled) {
       return OmsReportFilled::Insert(&this->FilledHead_, &this->FilledLast_, currFilled);
    }
+   const OmsReportFilled* FindFilled(OmsReportFilled::MatchKey matchKey) {
+      return OmsReportFilled::Find(this->FilledHead_, this->FilledLast_, matchKey);
+   }
 
    // ----- 底下為 [子母單機制] 的支援 {
    /// 在 OmsOrder::InitializeByStarter() 裡面呼叫;
@@ -148,23 +157,44 @@ public:
    /// 只有 [成交回報 or 手動刪改子單回報] 才會來到這裡.
    /// 預設 do nothing;
    virtual void OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner);
-   /// 設定 OmsOrderFlag::IsParentWorking 旗標.
-   /// SetParentWorking() 只能執行一次.
-   void SetParentWorking() {
-      assert(!IsEnumContains(this->Flags_, OmsOrderFlag::IsParentWorking));
-      this->Flags_ |= OmsOrderFlag::IsParentWorking;
+   /// 重新執行 Parent, 預設 do nothing, 由 OmsParentOrder::RerunParent() 處理.
+   virtual bool RerunParent(OmsResource& resource);
+   /// 設定 OmsOrderFlag::IsParentRunning 旗標.
+   /// SetParentRunning() 只能執行一次.
+   void SetParentRunning() {
+      assert(!IsEnumContains(this->Flags_, OmsOrderFlag::IsParentRunning));
+      this->Flags_ |= OmsOrderFlag::IsParentRunning | OmsOrderFlag::IsParentEnabled;
    }
-   void ClearParentWorking() {
-      this->Flags_ -= OmsOrderFlag::IsParentWorking;
+   /// 停止繼續生出子單, 但仍會持續與已有的子單連動.
+   /// 通常在母單執行完畢時呼叫 SetParentStopRun();
+   /// 但後續仍可能會有子單異動後的更新.
+   void SetParentStopRun() {
+      this->Flags_ -= OmsOrderFlag::IsParentRunning;
    }
-   bool IsParentWorking() const {
-      return IsEnumContains(this->Flags_,OmsOrderFlag::IsParentWorking);
+   bool IsParentRunning() const {
+      return IsEnumContains(this->Flags_,OmsOrderFlag::IsParentRunning);
+   }
+   /// 設定母單與現有子單連動更新.
+   /// 底下2種情況會設定 IsParentEnabled 旗標, 但不會有 SetParentDisabled() 的需求:
+   /// - 在 RequestParentNew.RunStep or OmsOrder.RerunParent() 呼叫 SetParentRunning();
+   /// - 主機重啟後會在 OmsParentRequestIni::OnAfterBackendReload() 重新設定 [本機母單] 的狀態.
+   /// - 一旦設定 IsParentRunning 或 IsParentEnabled 之後, 就會取得母單的所有權, 直到主機死亡.
+   /// - 擁有母單的主機: 負責更新母單的狀態. 若同時有 IsParentRunning 則需負責建立子單.
+   void SetParentEnabled() {
+      this->Flags_ |= OmsOrderFlag::IsParentEnabled;
+   }
+   // void SetParentDisabled() {
+   //    this->Flags_ -= OmsOrderFlag::IsParentEnabled;
+   // }
+   bool IsParentEnabled() const {
+      return IsEnumContains(this->Flags_, OmsOrderFlag::IsParentEnabled);
+   }
+
+   bool IsParentOrder() const {
+      return IsEnumContains(this->Flags_, OmsOrderFlag::IsParentOrder);
    }
    bool IsChildOrder() const {
       return IsEnumContains(this->Flags_, OmsOrderFlag::IsChildOrder);
-   }
-   bool IsParentOrder() const {
-      return IsEnumContains(this->Flags_, OmsOrderFlag::IsParentOrder);
    }
 protected:
    /// 設定 OmsOrderFlag::IsChildParent 旗標.

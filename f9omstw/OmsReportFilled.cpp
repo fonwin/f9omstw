@@ -46,6 +46,19 @@ const OmsReportFilled* OmsReportFilled::Insert(const OmsReportFilled** ppHead,
    }
    return nullptr;
 }
+const OmsReportFilled* OmsReportFilled::Find(const OmsReportFilled* pHead, const OmsReportFilled* pLast, MatchKey matchKey) {
+   if (pLast == nullptr || pLast->MatchKey_ < matchKey)
+      return nullptr;
+   assert(pHead != nullptr);
+   do {
+      if (matchKey < pHead->MatchKey_)
+         return nullptr;
+      if (matchKey == pHead->MatchKey_)
+         return pHead;
+      pHead = pHead->Next_;
+   } while (pHead);
+   return nullptr;
+}
 //--------------------------------------------------------------------------//
 void OmsReportFilled::RunReportInCore_MakeReqUID() {
    fon9::NumOutBuf nbuf;

@@ -278,6 +278,15 @@ public:
       return (this->RxItemFlags_ & OmsRequestFlag_IsSynReport) == OmsRequestFlag_IsSynReport;
    }
 
+   /// 設定/取得 [原始收單主機Id].
+   /// - 在 RcSyn 收到回報時填入.
+   /// - 在 SeedCommand [啟用 ParentOrder] 時會用到;
+   /// - 不儲存, 重啟後歸0: 因為系統重啟前, Parent/Child 的狀態都無法正確更新, 所以重啟後不可以啟用 ParentOrder.
+   /// - 由 OmsParentRequestIni 實作, 預設 do nothing.
+   virtual void SetOrigHostId(fon9::HostId origHostId);
+   /// - 由 OmsParentRequestIni 實作, 預設返回 0.
+   virtual fon9::HostId OrigHostId() const;
+
    // ----- 底下為 [子母單機制] 的支援 {
    /// 當 this 為子單回報(有 ParentRequestSNO 欄位).
    /// - 則收到此筆子單的人(例:RcSyn), 有必要找到此回報原本的母單, 然後透過此處設定.
@@ -318,8 +327,9 @@ public:
    /// 則在 OmsOrder::OnOrderUpdated() 時, 會通知 Request;
    /// - 預設, 若有提供 runner:
    ///   - 且有 reqParent = this->GetParentRequest();
-   ///     則呼叫: reqParent->OnChildOrderUpdated(*runner);
+   ///     則呼叫: reqParent->OnChildRequestUpdated(*runner);
    ///   - 若沒有 reqParent, 但有 ParentOrder, 則呼叫 ParentOrder.OnChildOrderUpdated();
+   ///     - 這種情況為 [手動刪改子單] or [成交回報]
    virtual void OnOrderUpdated(const OmsRequestRunnerInCore& runner) const;
    /// 子單建立完畢後, 透過這裡執行.
    /// \retval false: MoveToCore() 失敗, 返回前會先呼叫 this->OnMoveChildRunnerToCoreError();
@@ -332,8 +342,9 @@ protected:
    virtual void OnRequestAbandoned(OmsResource* res);
    /// 預設: do nothing;
    virtual void OnChildAbandoned(const OmsRequestBase& reqChild, OmsResource& res) const;
+   /// 來自 this 衍生出的子單的回報.
    /// 預設: do nothing;
-   virtual void OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) const;
+   virtual void OnChildRequestUpdated(const OmsRequestRunnerInCore& childRunner) const;
    /// 預設: do nothing;
    virtual void OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const;
    // ----- 以上為 [子母單機制] 的支援 };

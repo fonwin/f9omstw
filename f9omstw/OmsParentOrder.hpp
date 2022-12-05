@@ -8,6 +8,7 @@
 namespace f9omstw {
 
 class OmsParentOrderRaw;
+struct OmsParentOrderRawDat;
 
 class OmsParentOrder : public OmsOrder {
    fon9_NON_COPY_NON_MOVE(OmsParentOrder);
@@ -16,10 +17,33 @@ class OmsParentOrder : public OmsOrder {
    using ChildRequests = std::vector<const OmsRequestIni*>;
    ChildRequests  WorkingChildRequests_;
 
+   /// 重新執行母單.
+   /// newParent = RecalcAllChild() 的返回值, 可能為 nullptr, 表示最後狀態沒變, 但需要 Rerun.
+   /// 若有提供 newParent, 則不論返回值, 返回前都有需要主動執行: OmsRequestRunnerInCore;
+   virtual bool OnRerunParent(OmsResource& resource, OmsParentOrderRaw* newParent) = 0;
+   /// 返回新的母單最後狀態, 若沒有變動, 則返回 nullptr;
+   /// 若返回有異動, 則需: OmsRequestRunnerInCore runner{resource, *retval...};
+   OmsParentOrderRaw* RecalcAllChild();
+   /// recalc 為單純的 OmsParentOrderRawDat, 不可 cast 成別種型別.
+   /// 重新將 child 累加到 recalc 裡面, 包含:
+   /// - recalc.ChildLeavesQty_ += childTail.LeavesQty_;
+   /// - recalc.CumQty_         += childTail.CumQty_;
+   /// - recalc.CumAmt_         += childTail.CumAmt_;
+   /// - recalc.Leg1CumQty_     += childTail.Leg1CumQty_;
+   /// - recalc.Leg2CumQty_     += childTail.Leg2CumQty_;
+   /// - recalc.Leg1CumAmt_     += childTail.Leg1CumAmt_;
+   /// - recalc.Leg2CumAmt_     += childTail.Leg2CumAmt_;
+   virtual void RecalcParent(OmsParentOrderRawDat& recalc, const OmsOrderRaw& childTail) const = 0;
+
 protected:
    /// 預設 do nothing.
    virtual void OnAfterChildOrderUpdated(const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, const OmsOrderRaw& childOrdraw);
+   /// 預設 do nothing.
    virtual void OnChildFilled(OmsParentOrderRaw& parentOrdraw, const OmsRequestBase& childFilled) = 0;
+
+   /// 設定: "Parent rerun@LocalHostId"
+   static void AssignRerunMessage(fon9::CharVector& message);
+   bool ParentRerunStep(OmsResource& resource, OmsParentOrderRaw* newParent, OmsRequestRunStep& rerunStep);
 
 public:
    OmsParentOrder() {
@@ -30,19 +54,17 @@ public:
    size_t WorkingChildRequestCount() const {
       return this->WorkingChildRequests_.size();
    }
+   /// 將 childReq 加入 Parent.
+   /// 當 Parent 的刪改需要觸及已送出的 Child 時, 從這裡查找工作中的 Child.
    void AddChild(const OmsRequestIni& childReq) {
+      assert(childReq.RxKind() == f9fmkt_RxKind_RequestNew);
+      assert(std::find(this->WorkingChildRequests_.begin(), this->WorkingChildRequests_.end(), &childReq) == this->WorkingChildRequests_.end());
       this->WorkingChildRequests_.push_back(&childReq);
    }
-   bool EraseChild(const OmsRequestIni* childReq) {
-      // childReq 無法繼續: Abandoned or !IsWorkingOrder(Rejected or 全部成交);
-      assert(childReq->IsAbandoned() || !childReq->LastUpdated()->Order().IsWorkingOrder());
-      auto ifind = std::find(this->WorkingChildRequests_.begin(), this->WorkingChildRequests_.end(), childReq);
-      assert(ifind != this->WorkingChildRequests_.end());
-      if (ifind == this->WorkingChildRequests_.end())
-         return false;
-      this->WorkingChildRequests_.erase(ifind);
-      return true;
-   }
+   /// 移除已完成的 childReq: Abandoned or !IsWorkingOrder(Rejected or 全部成交 or 刪單);
+   bool EraseChild(const OmsRequestIni* childReq);
+   void OnOrderUpdated(const OmsRequestRunnerInCore& runner) override;
+   void OnAfterBackendReload(OmsResource& res, void* backendLocker);
 
    struct OnEachWorkingChild {
       enum CheckResult {
@@ -71,7 +93,7 @@ public:
    size_t DelEachWorkingChild(OmsRequestRunnerInCore&& parentRunner, OmsRequestFactory& chgfac);
 
    /// 成交回報 or 手動刪改子單回報.
-   /// - 會先排除 childRequest.IsSynReport();
+   /// - 必須是本地工作中的母單才會更新, 否則由遠端更新.
    /// - 若 childRunner 為成交, 則會透過 this->OnChildFilled() 處理成交回報.
    /// - 返回前:
    ///   會呼叫 this->OnAfterChildOrderUpdated(OmsRequestRunnerInCore&& parentRunner);
@@ -94,6 +116,15 @@ public:
    /// 請參考 GetChildOrderQtysT<>();
    virtual void GetChildOrderQtys(const OmsOrderRaw& childOrdraw, OmsParentQty& childLeavesQty, OmsParentQtyS& childAdjQty) const = 0;
    virtual OmsParentQty GetChildRequestIniQty(const OmsRequestIni& childReqIni) const = 0;
+
+   /// - 先判斷是否需要重新執行?
+   ///   - 是否正在執行中?
+   ///   - this->Tail()->LeavesQty_ > 0?
+   /// - 如果不需重新執行, 則返回 false;
+   /// - 如果需要重新執行:
+   ///   - 重新計算母單狀態;
+   ///   - 則返回 this->OnRerunParent(); 由衍生者提供;
+   bool RerunParent(OmsResource& resource) override;
 };
 //--------------------------------------------------------------------------//
 /// - BeforeQty_, AfterQty_ 用來表示 LeavesQty_ 異動前後的數量;
@@ -127,10 +158,14 @@ struct OmsParentOrderRawDat {
    OmsParentQty   Leg2CumQty_;
    OmsParentAmt   Leg1CumAmt_;
    OmsParentAmt   Leg2CumAmt_;
+   /// 原始回報來源的異動時間, 用於協助判斷是否為重複回報.
+   /// 來自回報的 OrdRaw.UpdateTime 欄位;
+   fon9::TimeStamp   SrcUTime_;
 
    /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
       fon9::ForceZeroNonTrivial(this);
+      this->SrcUTime_.AssignNull();
    }
    /// 先從 prev 複製全部, 然後修改:
    /// - this->BeforeQty_ = this->AfterQty_ = this.LeavesQty_;

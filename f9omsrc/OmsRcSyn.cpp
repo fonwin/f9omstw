@@ -1,12 +1,14 @@
 ﻿// \file f9omsrc/OmsRcSyn.cpp
 //
-// #. 如何避免暴露密碼? 不使用帳密?
-// #. 需要調整 oms rc 協定嗎?
+// 如何避免暴露密碼? 不使用帳密?
+// ==> 使用 PassKey 機制:
+//     fon9/PassKey.hpp
+//     fon9/auth/PassIdMgr.hpp
+//       fon9::auth::PassIdMgr::PlantPassKeyMgr(*this->MaAuth_, "PassIdMgr"); // 在程式啟動時執行;
 //
 // \author fonwinz@gmail.com
 #define _CRT_SECURE_NO_WARNINGS
 #include "f9omsrc/OmsRcSyn.hpp"
-#include "f9omstw/OmsIoSessionFactory.hpp"
 #include "f9omsrc/OmsRcClient.hpp"
 #include "fon9/rc/RcFuncConn.hpp"
 #include "fon9/FileReadAll.hpp"
@@ -18,241 +20,301 @@ using namespace fon9;
 using namespace fon9::io;
 using namespace fon9::rc;
 using namespace fon9::seed;
+
+static const char kCSTR_SplRemoteStillConnectedLn[] = "|The remote host is still connected.\n";
 //--------------------------------------------------------------------------//
 static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg);
 static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt);
 //--------------------------------------------------------------------------//
-class OmsRcSyn_SessionFactory : public OmsIoSessionFactory, public RcFunctionMgr {
-   fon9_NON_COPY_NON_MOVE(OmsRcSyn_SessionFactory);
-   using base = OmsIoSessionFactory;
-
-   using RptFactoryMap = SortedVector<CharVector, RcSynRequestFactory>;
-   RptFactoryMap  RptFactoryMap_;
-
-   using HostMapImpl = SortedVector<HostId, RemoteReqMapSP>;
-   using HostMap = MustLock<HostMapImpl>;
-   HostMap  HostMap_;
-   SubConn  SubConnTDayChanged_{};
-   File     LogMapSNO_;
-
-   friend unsigned intrusive_ptr_add_ref(const OmsRcSyn_SessionFactory* p) BOOST_NOEXCEPT {
-      return intrusive_ptr_add_ref(static_cast<const SessionFactory*>(p));
-   }
-   friend unsigned intrusive_ptr_release(const OmsRcSyn_SessionFactory* p) BOOST_NOEXCEPT {
-      return intrusive_ptr_release(static_cast<const SessionFactory*>(p));
-   }
-   unsigned RcFunctionMgrAddRef() override {
-      return intrusive_ptr_add_ref(this);
-   }
-   unsigned RcFunctionMgrRelease() override {
-      return intrusive_ptr_release(this);
-   }
-
-   void OnParentTreeClear(Tree&) override {
-      this->HostMap_.Lock()->clear();
-   }
-   void OnTDayChanged(OmsCore& omsCore) override {
-      base::OnTDayChanged(omsCore);
-      HostMapImpl hosts = std::move(*this->HostMap_.Lock());
-      for (auto& ihost : hosts) {
-         auto lk = ihost.second->MapSNO_.Lock();
-         if (auto* synSes = static_cast<OmsRcSynClientSession*>(ihost.second->Session_)) {
-            synSes->GetDevice()->AsyncClose("TDayChanged");
-         }
-      }
-      this->ReloadLastSNO(&omsCore);
-   }
-
-   void ReloadLogMapSNO(OmsCore& omsCore, OmsBackend::Locker& coreLocker) {
-      if (!(this->RptFilter_ & f9OmsRc_RptFilter_IncludeRcSynNew))
-         return;
-      auto res = this->LogMapSNO_.Open(fon9::FilePath::AppendPath(&omsCore.LogPath(), "OmsRcSynMap.log"),
-                                       FileMode::Append | FileMode::CreatePath | FileMode::Read);
-      if (res.IsError()) {
-         fon9_LOG_ERROR("OmsRcSyn: Open log|fname=", this->LogMapSNO_.GetOpenName(), '|', res);
-         return;
-      }
-      File::PosType  fpos = 0;
-      LinePeeker     lnPeeker;
-      OmsRequestId   reqUID;
-      FileReadAll(this->LogMapSNO_, fpos, [&](DcQueueList& rdbuf, File::Result& rdres) {
-         (void)rdres;
-         while (const char* pln = lnPeeker.PeekUntil(rdbuf, '\n')) {
-            StrView  lnstr{pln, lnPeeker.LineSize_ - 1};// -1:不用換行字元.
-            HostId   srcHostId = StrTo(&lnstr, HostId{});
-            lnstr.SetBegin(lnstr.begin() + 1);
-            OmsRxSNO srcSNO = StrTo(&lnstr, OmsRxSNO{});
-            lnstr.SetBegin(lnstr.begin() + 1);
-            reqUID.ReqUID_.AssignFrom(lnstr);
-            HostId   origHostId;
-            OmsRxSNO origSNO = OmsReqUID_Builder::ParseReqUID(reqUID, origHostId);
-            RemoteReqMap::OmsRequestSP origReq;
-            if (origHostId == fon9::LocalHostId_) {
-               if (auto* rxitem = omsCore.GetRxItem(origSNO, coreLocker))
-                  origReq.reset(static_cast<const OmsRequestBase*>(rxitem->CastToRequest()));
-            }
-            else {
-               auto origMap = this->FetchRemoteMap(origHostId)->MapSNO_.Lock();
-               assert(origSNO < origMap->size());
-               if (origSNO < origMap->size())
-                  origReq = (*origMap)[origSNO];
-            }
-            if (origReq) {
-               auto srcHost = this->FetchRemoteMap(srcHostId);
-               auto srcMap = srcHost->MapSNO_.Lock();
-               if (srcMap->size() <= srcSNO)
-                  srcMap->resize(srcSNO + 1024 * 1024);
-               assert((*srcMap)[srcSNO].get() == nullptr);
-               (*srcMap)[srcSNO] = origReq;
-               if (srcHost->LastSNO_ < srcSNO)
-                  srcHost->LastSNO_ = srcSNO;
-            }
-            lnPeeker.PopConsumed(rdbuf);
-         }
-         return true;
-      });
-   }
-
-public:
-   const f9OmsRc_RptFilter RptFilter_;
-   bool                    IsOmsCoreRecovering_{};
-   char                    Padding_____[6];
-
-   OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr, f9OmsRc_RptFilter rptFilter)
-      : base(std::move(name), std::move(omsCoreMgr))
-      , RptFilter_{rptFilter} {
-      this->Add(RcFunctionAgentSP{new OmsRcClientAgent});
-      this->Add(RcFunctionAgentSP{new RcFuncConnClient("f9OmsRcSyn.0", "f9OmsRcSyn")});
-      this->Add(RcFunctionAgentSP{new RcFuncSaslClient{}});
-      const OmsRequestFactoryPark& facPark = this->OmsCoreMgr_->RequestFactoryPark();
-      const std::string kRpt{"Rpt"};
-      const std::string kFil{"Fil"};
-      for (size_t idx = facPark.GetTabCount(); idx > 0;) {
-         if (OmsRequestFactory* facRpt = static_cast<OmsRequestFactory*>(facPark.GetTab(--idx))) {
-            CharVector facName{facRpt->Name_};
-            auto       ifind = facRpt->Name_.find(kRpt);
-            if (ifind == std::string::npos) {
-               ifind = facRpt->Name_.find(kFil);
-               if (ifind == std::string::npos)
-                  continue;
-               // TwsFil, TwfFil, TwfFil2:
-               // - 母單成交回報, 則需配合使用 ordraw(ParentOrderRaw) 的內容回報,
-               //   因為母單成交後, 可能觸發母單的其他行為, 造成其他欄位的異動,
-               //   必須使用 ordraw 回報更新, 才能正確反映這類情況。
-               // - 非母單成交回報: 直接使用 OmsReportFilled 回報,
-               //   不需要結合 ordraw(TwsOrderRaw, TwfOrderRaw...) 的內容;
-               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt, RcSynFactoryKind::Filled);
-            }
-            else {
-               // 將 "Rpt" 取代成 New, Chg, 也就是一旦 facPark 找到 "*Rpt*" 則建立:
-               // "*Rpt*", "*New*", "*Chg*" 三個回報接收 factory;
-               // 例如:
-               //    "TwfRpt"  => "TwfRpt",  "TwfNew",  "TwfChg";
-               //    "TwfRptQ" => "TwfRptQ", "TwfNewQ", "TwfChgQ";
-               // 回報內容結合 TwfNew + TwfOrd 填入 TwfRpt 然後進行回報.
-               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
-               memcpy(facName.begin() + ifind, "New", 3);
-               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
-               memcpy(facName.begin() + ifind, "Chg", 3);
-               this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
-            }
-         }
-      }
-      // -----
-      this->OnAfterCtor();
-   }
-
-   SessionSP CreateSession(IoManager& mgr, const IoConfigItem& iocfg, std::string& errReason) override {
-      (void)mgr;
-      f9rc_ClientSessionParams f9rcCliParams;
-      ZeroStruct(&f9rcCliParams);
-      f9rcCliParams.UserData_ = this;
-      // f9rcCliParams.RcFlags_ = f9rc_RcFlag_NoChecksum;
-      // f9rcCliParams.LogFlags_ = ;
-
-      std::string cfgstr = iocfg.SessionArgs_.ToString();
-      CharVector  passbuf;
-      StrView     cfgs{&cfgstr};
-      StrView     tag, value;
-      while (SbrFetchTagValue(cfgs, tag, value)) {
-         if (const char* pend = value.end())
-            *const_cast<char*>(pend) = '\0';
-         if (fon9::iequals(tag, "user"))
-            f9rcCliParams.UserId_ = value.begin();
-         else if (fon9::iequals(tag, "pass"))
-            f9rcCliParams.Password_ = value.begin();
-         else if (fon9::iequals(tag, "PassKey")) {
-            PassKeyToPassword(value, passbuf);
-            f9rcCliParams.Password_ = passbuf.begin();
+OmsRcSyn_SessionFactory::OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr, f9OmsRc_RptFilter rptFilter)
+   : base(std::move(name), std::move(omsCoreMgr))
+   , RptFilter_{rptFilter} {
+   this->Add(RcFunctionAgentSP{new OmsRcClientAgent});
+   this->Add(RcFunctionAgentSP{new RcFuncConnClient("f9OmsRcSyn.0", "f9OmsRcSyn")});
+   this->Add(RcFunctionAgentSP{new RcFuncSaslClient{}});
+   const OmsRequestFactoryPark& facPark = this->OmsCoreMgr_->RequestFactoryPark();
+   const std::string kRpt{"Rpt"};
+   const std::string kFil{"Fil"};
+   for (size_t idx = facPark.GetTabCount(); idx > 0;) {
+      if (OmsRequestFactory* facRpt = static_cast<OmsRequestFactory*>(facPark.GetTab(--idx))) {
+         CharVector facName{facRpt->Name_};
+         auto       ifind = facRpt->Name_.find(kRpt);
+         if (ifind == std::string::npos) {
+            ifind = facRpt->Name_.find(kFil);
+            if (ifind == std::string::npos)
+               continue;
+            // TwsFil, TwfFil, TwfFil2:
+            // - 母單成交回報, 則需配合使用 ordraw(ParentOrderRaw) 的內容回報,
+            //   因為母單成交後, 可能觸發母單的其他行為, 造成其他欄位的異動,
+            //   必須使用 ordraw 回報更新, 才能正確反映這類情況。
+            // - 非母單成交回報: 直接使用 OmsReportFilled 回報,
+            //   不需要結合 ordraw(TwsOrderRaw, TwfOrderRaw...) 的內容;
+            this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt, RcSynFactoryKind::Filled);
          }
          else {
-            errReason = tag.ToString("Unknown tag: ");
-            return nullptr;
+            // 將 "Rpt" 取代成 New, Chg, 也就是一旦 facPark 找到 "*Rpt*" 則建立:
+            // "*Rpt*", "*New*", "*Chg*" 三個回報接收 factory;
+            // 例如:
+            //    "TwfRpt"  => "TwfRpt",  "TwfNew",  "TwfChg";
+            //    "TwfRptQ" => "TwfRptQ", "TwfNewQ", "TwfChgQ";
+            // 回報內容結合 TwfNew + TwfOrd 填入 TwfRpt 然後進行回報.
+            this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
+            memcpy(facName.begin() + ifind, "New", 3);
+            this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
+            memcpy(facName.begin() + ifind, "Chg", 3);
+            this->RptFactoryMap_.kfetch(facName).second.Set(*facRpt);
          }
       }
-      f9OmsRc_ClientSessionParams   omsRcParams;
-      f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
-      omsRcParams.FnOnConfig_ = &OnOmsRcSyn_Config;
-      omsRcParams.FnOnReport_ = &OnOmsRcSyn_Report;
-
-      return new OmsRcSynClientSession(this, &f9rcCliParams);
    }
-   SessionServerSP CreateSessionServer(IoManager&, const IoConfigItem&, std::string& errReason) override {
-      errReason = "OmsRcSyn_SessionFactory: Not support server.";
-      return nullptr;
-   }
+   // -----
+   this->OnAfterCtor();
+}
+unsigned OmsRcSyn_SessionFactory::RcFunctionMgrAddRef() {
+   return intrusive_ptr_add_ref(this);
+}
+unsigned OmsRcSyn_SessionFactory::RcFunctionMgrRelease() {
+   return intrusive_ptr_release(this);
+}
 
-   void ReloadLastSNO(OmsCoreSP core) {
-      if (!core)
+SessionSP OmsRcSyn_SessionFactory::CreateSession(IoManager& mgr, const IoConfigItem& iocfg, std::string& errReason) {
+   (void)mgr;
+   f9rc_ClientSessionParams f9rcCliParams;
+   ZeroStruct(&f9rcCliParams);
+   f9rcCliParams.UserData_ = this;
+   // f9rcCliParams.RcFlags_ = f9rc_RcFlag_NoChecksum;
+   // f9rcCliParams.LogFlags_ = ;
+
+   std::string cfgstr = iocfg.SessionArgs_.ToString();
+   CharVector  passbuf;
+   StrView     cfgs{&cfgstr};
+   StrView     tag, value;
+   while (SbrFetchTagValue(cfgs, tag, value)) {
+      if (const char* pend = value.end())
+         *const_cast<char*>(pend) = '\0';
+      if (fon9::iequals(tag, "user"))
+         f9rcCliParams.UserId_ = value.begin();
+      else if (fon9::iequals(tag, "pass"))
+         f9rcCliParams.Password_ = value.begin();
+      else if (fon9::iequals(tag, "PassKey")) {
+         PassKeyToPassword(value, passbuf);
+         f9rcCliParams.Password_ = passbuf.begin();
+      }
+      else {
+         errReason = tag.ToString("Unknown tag: ");
+         return nullptr;
+      }
+   }
+   f9OmsRc_ClientSessionParams   omsRcParams;
+   f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
+   omsRcParams.FnOnConfig_ = &OnOmsRcSyn_Config;
+   omsRcParams.FnOnReport_ = &OnOmsRcSyn_Report;
+   return new OmsRcSynClientSession(this, &f9rcCliParams);
+}
+SessionServerSP OmsRcSyn_SessionFactory::CreateSessionServer(IoManager&, const IoConfigItem&, std::string& errReason) {
+   errReason = "OmsRcSyn_SessionFactory: Not support server.";
+   return nullptr;
+}
+
+void OmsRcSyn_SessionFactory::OnParentTreeClear(Tree&) {
+   this->HostMap_.Lock()->clear();
+}
+void OmsRcSyn_SessionFactory::OnTDayChanged(OmsCore& omsCore) {
+   base::OnTDayChanged(omsCore);
+   HostMapImpl hosts = std::move(*this->HostMap_.Lock());
+   for (auto& ihost : hosts) {
+      auto lk = ihost.second->MapSNO_.Lock();
+      if (auto* synSes = static_cast<OmsRcSynClientSession*>(ihost.second->Session_)) {
+         synSes->GetDevice()->AsyncClose("TDayChanged");
+      }
+   }
+   this->ReloadLastSNO(&omsCore);
+}
+
+void OmsRcSyn_SessionFactory::ReloadLastSNO(OmsCoreSP core) {
+   if (!core)
+      return;
+   this->IsOmsCoreRecovering_ = true;
+   auto coreLocker = core->LockRxItems();
+   const auto last = core->LastSNO();
+   for (OmsRxSNO snoL = 0; snoL <= last;) {
+      const auto* item = core->GetRxItem(++snoL, coreLocker);
+      if (item == nullptr)
+         continue;
+      const auto* req = static_cast<const OmsRequestBase*>(item->CastToRequest());
+      if (req == nullptr)
+         continue;
+      HostId   hostid;
+      OmsRxSNO sno = OmsReqUID_Builder::ParseReqUID(*req, hostid);
+      if (sno && hostid && hostid != fon9::LocalHostId_) {
+         const_cast<OmsRequestBase*>(req)->SetSynReport();
+         #ifdef _DEBUG
+            const_cast<OmsRequestBase*>(req)->SetOrigHostId(hostid);
+         #endif
+         auto remote = this->FetchRemoteMap(hostid);
+         auto snoMap = remote->MapSNO_.Lock();
+         if (remote->LastSNO_ < sno)
+            remote->LastSNO_ = sno;
+         if (snoMap->size() <= sno)
+            snoMap->resize(sno + 1024 * 1024);
+         (*snoMap)[sno].reset(req);
+      }
+   }
+   this->ReloadLogMapSNO(*core, coreLocker);
+   this->IsOmsCoreRecovering_ = false;
+}
+void OmsRcSyn_SessionFactory::ReloadLogMapSNO(OmsCore& omsCore, OmsBackend::Locker& coreLocker) {
+   if (!(this->RptFilter_ & f9OmsRc_RptFilter_IncludeRcSynNew))
+      return;
+   auto res = this->LogMapSNO_.Open(fon9::FilePath::AppendPath(&omsCore.LogPath(), "OmsRcSynMap.log"),
+                                    FileMode::Append | FileMode::CreatePath | FileMode::Read);
+   if (res.IsError()) {
+      fon9_LOG_ERROR("OmsRcSyn: Open log|fname=", this->LogMapSNO_.GetOpenName(), '|', res);
+      return;
+   }
+   File::PosType  fpos = 0;
+   LinePeeker     lnPeeker;
+   OmsRequestId   reqUID;
+   FileReadAll(this->LogMapSNO_, fpos, [&](DcQueueList& rdbuf, File::Result& rdres) {
+      (void)rdres;
+      while (const char* pln = lnPeeker.PeekUntil(rdbuf, '\n')) {
+         StrView  lnstr{pln, lnPeeker.LineSize_ - 1};// -1:不用換行字元.
+         HostId   srcHostId = StrTo(&lnstr, HostId{});
+         lnstr.SetBegin(lnstr.begin() + 1);
+         OmsRxSNO srcSNO = StrTo(&lnstr, OmsRxSNO{});
+         lnstr.SetBegin(lnstr.begin() + 1);
+         reqUID.ReqUID_.AssignFrom(lnstr);
+         HostId   origHostId;
+         OmsRxSNO origSNO = OmsReqUID_Builder::ParseReqUID(reqUID, origHostId);
+         RemoteReqMap::OmsRequestSP origReq;
+         if (origHostId == fon9::LocalHostId_) {
+            if (auto* rxitem = omsCore.GetRxItem(origSNO, coreLocker))
+               origReq.reset(static_cast<const OmsRequestBase*>(rxitem->CastToRequest()));
+         }
+         else {
+            auto origMap = this->FetchRemoteMap(origHostId)->MapSNO_.Lock();
+            assert(origSNO < origMap->size());
+            if (origSNO < origMap->size())
+               origReq = (*origMap)[origSNO];
+         }
+         if (origReq) {
+            auto srcHost = this->FetchRemoteMap(srcHostId);
+            auto srcMap = srcHost->MapSNO_.Lock();
+            if (srcMap->size() <= srcSNO)
+               srcMap->resize(srcSNO + 1024 * 1024);
+            assert((*srcMap)[srcSNO].get() == nullptr);
+            (*srcMap)[srcSNO] = origReq;
+            if (srcHost->LastSNO_ < srcSNO)
+               srcHost->LastSNO_ = srcSNO;
+         }
+         lnPeeker.PopConsumed(rdbuf);
+      }
+      return true;
+   });
+}
+
+RemoteReqMapSP OmsRcSyn_SessionFactory::FetchRemoteMap(HostId hostid) {
+   HostMap::Locker hmap{this->HostMap_};
+   RemoteReqMapSP& retval = hmap->kfetch(hostid).second;
+   if (!retval)
+      retval.reset(new RemoteReqMap);
+   return retval;
+}
+RemoteReqMapSP OmsRcSyn_SessionFactory::FindRemoteMap(HostId hostid) {
+   HostMap::Locker hmap{this->HostMap_};
+   auto            ifind = hmap->find(hostid);
+   return(ifind == hmap->end() ? nullptr : ifind->second);
+}
+const RcSynRequestFactory* OmsRcSyn_SessionFactory::GetRptReportFactory(StrView layoutName) const {
+   auto ifind = this->RptFactoryMap_.find(CharVector::MakeRef(layoutName));
+   return ifind == this->RptFactoryMap_.end() ? nullptr : &ifind->second;
+}
+void OmsRcSyn_SessionFactory::AppendMapSNO(HostId srcHostId, OmsRxSNO srcSNO, const OmsRequestId& origId) {
+   if (this->LogMapSNO_.IsOpened()) {
+      RevBufferFixedSize<256> rbuf;
+      RevPrint(rbuf, srcHostId, '|', srcSNO, '|', origId.ReqUID_, '\n');
+      this->LogMapSNO_.Append(ToStrView(rbuf));
+   }
+}
+
+void OmsRcSyn_SessionFactory::RerunParentInCore(fon9::HostId hostid, OmsResource& resource) {
+   RemoteReqMapSP remoteHost = this->FindRemoteMap(hostid);
+   RevBufferList  rbuf{256};
+   if (!remoteHost) {
+      RevPrint(rbuf, "Host not found.\n");
+   __RETURN_LOG_ERROR_HEAD:
+      RevPrint(rbuf, fon9::LocalNow(), "|RcSyn.EnableParent|HostId=", hostid);
+      resource.LogAppend(std::move(rbuf));
+      return;
+   }
+   if (remoteHost->Session_) {
+      RevPrint(rbuf, kCSTR_SplRemoteStillConnectedLn);
+      goto __RETURN_LOG_ERROR_HEAD;
+   }
+   RevPrint(rbuf, fon9::LocalNow(), "|RcSyn.EnableParent.Start|HostId=", hostid, '\n');
+   resource.LogAppend(std::move(rbuf));
+   RevPrint(rbuf, '\n');
+   OmsRxSNO count = 0;
+   {
+      auto reqs = remoteHost->MapSNO_.Lock();
+      auto maxLoop = remoteHost->LastSNO_ + 1; // +1: 序號0也要執行一次;
+      for (auto& ireq : *reqs) {
+         if (maxLoop <= 0)
+            break;
+         --maxLoop;
+         if (!ireq || ireq->OrigHostId() != hostid)
+            continue;
+         if (auto* ordraw = ireq->LastUpdated()) {
+            if (ordraw->Order().RerunParent(resource)) {
+               RevPrint(rbuf, '|', ireq->ReqUID_);
+               ++count;
+            }
+         }
+      }
+   }
+   RevPrint(rbuf, fon9::LocalNow(), "|RcSyn.EnableParent.End|HostId=", hostid, "|count=", count);
+   resource.LogAppend(std::move(rbuf));
+}
+void OmsRcSyn_SessionFactory::OnSeedCommand(SeedOpResult& res, StrView cmdln, FnCommandResultHandler resHandler,
+                                            MaTreeBase::Locker&& ulk, SeedVisitor* visitor) {
+#define kCSTR_RerunParent_Prefix    "rerun."
+#define kSIZE_RerunParent_Prefix    (sizeof(kCSTR_RerunParent_Prefix)-1)
+   std::string strResult;
+   if (cmdln == "?") {
+      // 每個 HostId 建立一個 MenuItem;
+      auto hosts = HostMap_.Lock();
+      char chSpl = 0;
+      for (auto i : *hosts) {
+         if (chSpl)
+            strResult.push_back(chSpl);
+         fon9::RevPrintAppendTo(strResult, kCSTR_RerunParent_Prefix, i.first, fon9_kCSTR_CELLSPL "Host.", i.first, ": Rerun ParentOrder");
+         chSpl = *fon9_kCSTR_ROWSPL;
+      }
+   }
+   else if (cmdln.size() > kSIZE_RerunParent_Prefix && memcmp(cmdln.begin(), kCSTR_RerunParent_Prefix, kSIZE_RerunParent_Prefix) == 0) {
+      fon9::HostId hostid = StrTo(StrView{cmdln.begin() + kSIZE_RerunParent_Prefix, cmdln.end()}, fon9::HostId{});
+      if (RemoteReqMapSP remoteHost = this->FindRemoteMap(hostid)) {
+         if (remoteHost->Session_) {
+            // 遠端主機然在連線中, 禁止在本地啟用 hostid 的 ParentOrder.
+            // 因為: 可能造成雙方同持觸發送出子單!
+            res.OpResult_ = OpResult::bad_command_argument;
+            resHandler(res, StrView{kCSTR_SplRemoteStillConnectedLn + 1, sizeof(kCSTR_SplRemoteStillConnectedLn) - 3});
+            return;
+         }
+         this->OmsCoreMgr_->CurrentCore()->RunCoreTask(std::bind(&OmsRcSyn_SessionFactory::RerunParentInCore, this, hostid, std::placeholders::_1));
+         strResult = fon9::RevPrintTo<std::string>("Enable ParentOrder: HostId=", hostid);
+      }
+      else {
+         res.OpResult_ = OpResult::bad_command_argument;
+         resHandler(res, "HostId not found.");
          return;
-      this->IsOmsCoreRecovering_ = true;
-      auto coreLocker = core->LockRxItems();
-      const auto last = core->LastSNO();
-      for (OmsRxSNO snoL = 0; snoL <= last;) {
-         const auto* item = core->GetRxItem(++snoL, coreLocker);
-         if (item == nullptr)
-            continue;
-         const auto* req = static_cast<const OmsRequestBase*>(item->CastToRequest());
-         if (req == nullptr)
-            continue;
-         // && (req->RxItemFlags() & OmsRequestFlag_ReportIn)
-         HostId   hostid;
-         OmsRxSNO sno = OmsReqUID_Builder::ParseReqUID(*req, hostid);
-         if (sno && hostid && hostid != fon9::LocalHostId_) {
-            const_cast<OmsRequestBase*>(req)->SetSynReport();
-            auto remote = this->FetchRemoteMap(hostid);
-            auto snoMap = remote->MapSNO_.Lock();
-            if (remote->LastSNO_ < sno)
-               remote->LastSNO_ = sno;
-            if (snoMap->size() <= sno)
-               snoMap->resize(sno + 1024 * 1024);
-            (*snoMap)[sno].reset(req);
-         }
-      }
-      this->ReloadLogMapSNO(*core, coreLocker);
-      this->IsOmsCoreRecovering_ = false;
-   }
-
-   RemoteReqMapSP FetchRemoteMap(HostId hostid) {
-      HostMap::Locker hmap{this->HostMap_};
-      RemoteReqMapSP& retval = hmap->kfetch(hostid).second;
-      if (!retval)
-         retval.reset(new RemoteReqMap);
-      return retval;
-   }
-   const RcSynRequestFactory* GetRptReportFactory(StrView layoutName) const {
-      auto ifind = this->RptFactoryMap_.find(CharVector::MakeRef(layoutName));
-      return ifind == this->RptFactoryMap_.end() ? nullptr : &ifind->second;
-   }
-
-   void AppendMapSNO(HostId srcHostId, OmsRxSNO srcSNO, const OmsRequestId& origId) {
-      if (this->LogMapSNO_.IsOpened()) {
-         RevBufferFixedSize<256> rbuf;
-         RevPrint(rbuf, srcHostId, '|', srcSNO, '|', origId.ReqUID_, '\n');
-         this->LogMapSNO_.Append(ToStrView(rbuf));
       }
    }
-};
+   else {
+      base::OnSeedCommand(res, cmdln, std::move(resHandler), std::move(ulk), visitor);
+      return;
+   }
+   resHandler(res, &strResult);
+}
 //--------------------------------------------------------------------------//
 bool OmsRcSynClientSession::OnDevice_BeforeOpen(Device& dev, std::string& cfgstr) {
    (void)cfgstr;
@@ -488,6 +550,7 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
       if (ud->RptFilter_ & f9OmsRc_RptFilter_IncludeRcSynNew) {
          fon9::HostId   origHostId;
          const OmsRxSNO origSNO = OmsReqUID_Builder::ParseReqUID(*rptreq, origHostId);
+         rptreq->SetOrigHostId(origHostId);
          if (fon9_LIKELY(origHostId != synSes->HostId_)) {
             if (fon9_UNLIKELY(origHostId == fon9::LocalHostId_)) {
                if (auto* origReq = dynamic_cast<const OmsRequestBase*>(synSes->OmsCore_->GetRxItem(origSNO)))
@@ -595,7 +658,28 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
             //    - 先更新 ParentRpt 的欄位.
             //    - 處理: 子單成交(ref) 的回報.
             if (ref->RxKind() == f9fmkt_RxKind_Filled) {
-               // 母單成交回報: 必定是 [ses連線的主機] 建立的母單, 才會收到母單的(成交)回報.
+               // ref=母單成交回報, [ses連線的主機] 建立的母單, 會強制送來[母單的(成交)回報], 不論該成交的來源.
+               // 所以, ref 可能是重複的回報 => 應該要找到在本地端的 FilledRequest.
+               // => 但為了避免 ref 為正常成交回報, 但尚未進入 Core, 所以應在 Core 裡面處理.
+               // => 可參考 OmsParentRequestIni::RunReportInCore();
+               // -------------------------------------------------------------------------
+               // => 所以當 B主機啟用 A主機線路後, B主機收到 A主機的子單成交回報, 會有底下的情況:
+               //    => B 更新子單成交; 但不會更新母單;
+               //       => B 送出子單成交回報給 A;
+               //          => 因為: B收到的成交為 IsForceInternalRpt();
+               //    => A 更新子單及母單成交;
+               //       => A 送出 [子單及母單] 成交回報給 B;
+               //          => 因為: A為該子單及母單的建立者 !IsReportIn();
+               //          => 且 B訂閱時有 f9OmsRc_RptFilter_IncludeRcSynNew 旗標;
+               //    => B 收到 A的子單成交回報: "OmsFilled: Duplicate MatchKey."
+               //    => B 收到 A的母單成交回報: B 更新母單;
+               //       => 因為該成交為 B 從交易所收到的, 所以 IsForceInternalRpt();
+               //       => 因此 B 會送出 [母單成交回報] 給 A;
+               //       => A 會排除重複回報.
+               //    => 所以若有第3台主機 C, 則會收到 2 次成交回報:
+               //       => 一次來自 B, 因為: ReqFilled.IsForceInternalRpt();
+               //       => 一次來自 A, 因為: !ReqInitiator.IsReportIn();
+               // -------------------------------------------------------------------------
                assert(rptreq->IsParentRequest());
                // 在底下, 執行 MoveToCore() 之前, 會先執行 rptreq->OnSynReport(ref, message);
                // 此時由 rptreq 保留 ref, 可參考 OmsParentRequestIni::OnSynReport();
@@ -618,36 +702,32 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
    synSes->OmsCore_->MoveToCore(std::move(runner));
 }
 //--------------------------------------------------------------------------//
+bool OmsRcSyn_SessionFactory::Creator::OnUnknownTag(PluginsHolder& holder, StrView tag, StrView value) {
+   if (tag == "IncludeRcSynNew") {
+      if (fon9::toupper(value.Get1st()) == 'Y')
+         this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ | f9OmsRc_RptFilter_IncludeRcSynNew);
+      else
+         this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ & ~f9OmsRc_RptFilter_IncludeRcSynNew);
+      return true;
+   }
+   return base::OnUnknownTag(holder, tag, value);
+}
+intrusive_ptr<OmsRcSyn_SessionFactory> OmsRcSyn_SessionFactory::Creator::CreateRcSynSessionFactory(OmsCoreMgrSP&& omsCoreMgr) {
+   return new OmsRcSyn_SessionFactory(this->Name_, std::move(omsCoreMgr), this->RptFilter_);
+}
+SessionFactorySP OmsRcSyn_SessionFactory::Creator::CreateSessionFactory() {
+   if (auto omsCoreMgr = this->GetOmsCoreMgr()) {
+      if (auto retval = this->CreateRcSynSessionFactory(std::move(omsCoreMgr))) {
+         // 不能在建構時呼叫 retval->ReloadLastSNO(this->OmsCoreMgr_->CurrentCore());
+         // 因為裡面有 intrusive_ptr<OmsRcSyn_SessionFactory> pthis; 可能會造成建構完成前刪除!
+         retval->ReloadLastSNO(retval->OmsCoreMgr_->CurrentCore());
+         return retval;
+      }
+   }
+   return nullptr;
+}
 static bool OmsRcSyn_Start(PluginsHolder& holder, StrView args) {
-   class OmsRcSyn_ArgsParser : public OmsIoSessionFactoryConfigParser {
-      fon9_NON_COPY_NON_MOVE(OmsRcSyn_ArgsParser);
-      using base = OmsIoSessionFactoryConfigParser;
-      f9OmsRc_RptFilter RptFilter_{static_cast<f9OmsRc_RptFilter>(f9OmsRc_RptFilter_NoExternal | f9OmsRc_RptFilter_IncludeRcSynNew)};
-      char              Padding___[7];
-   public:
-      using base::base;
-      bool OnUnknownTag(PluginsHolder& holder, StrView tag, StrView value) override {
-         if (tag == "IncludeRcSynNew") {
-            if (fon9::toupper(value.Get1st()) == 'Y')
-               this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ | f9OmsRc_RptFilter_IncludeRcSynNew);
-            else
-               this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ & ~f9OmsRc_RptFilter_IncludeRcSynNew);
-            return true;
-         }
-         return base::OnUnknownTag(holder, tag, value);
-      }
-      SessionFactorySP CreateSessionFactory() override {
-         if (auto omsCoreMgr = this->GetOmsCoreMgr()) {
-            intrusive_ptr<OmsRcSyn_SessionFactory> retval{new OmsRcSyn_SessionFactory(this->Name_, std::move(omsCoreMgr), this->RptFilter_)};
-            // 不能在建構時呼叫 retval->ReloadLastSNO(this->OmsCoreMgr_->CurrentCore());
-            // 因為裡面有 intrusive_ptr<OmsRcSyn_SessionFactory> pthis; 可能會造成建構完成前刪除!
-            retval->ReloadLastSNO(retval->OmsCoreMgr_->CurrentCore());
-            return retval;
-         }
-         return nullptr;
-      }
-   };
-   return OmsRcSyn_ArgsParser(holder, "OmsRcSynCli").Parse(args);
+   return OmsRcSyn_SessionFactory::Creator(holder, "OmsRcSynCli").Parse(args);
 }
 
 } // namespaces

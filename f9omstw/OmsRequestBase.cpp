@@ -130,11 +130,11 @@ void OmsRequestBase::OnAfterBackendReloadChild(const OmsRequestBase& childReq) c
 }
 void OmsRequestBase::OnOrderUpdated(const OmsRequestRunnerInCore& runner) const {
    if (auto* reqParent = this->GetParentRequest())
-      reqParent->OnChildOrderUpdated(runner);
+      reqParent->OnChildRequestUpdated(runner);
    else if (OmsOrder* ordParent = runner.OrderRaw().Order().GetParentOrder())
       ordParent->OnChildOrderUpdated(runner);
 }
-void OmsRequestBase::OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) const {
+void OmsRequestBase::OnChildRequestUpdated(const OmsRequestRunnerInCore& childRunner) const {
    (void)childRunner;
 }
 bool OmsRequestBase::MoveChildRunnerToCore(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const {
@@ -262,6 +262,12 @@ void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView messag
       if (this->RxKind_ == f9fmkt_RxKind_Unknown)
          this->RxKind_ = ref->RxKind();
    }
+}
+void OmsRequestBase::SetOrigHostId(fon9::HostId origHostId) {
+   (void)origHostId;
+}
+fon9::HostId OmsRequestBase::OrigHostId() const {
+   return 0;
 }
 //--------------------------------------------------------------------------//
 void OmsRequestBase::RunReportInCore(OmsReportChecker&& checker) {

@@ -121,7 +121,8 @@ public:
    /// \retval !nullptr 與 curr->MatchKey_ 相同的那個 request.
    static const OmsReportFilled* Insert(const OmsReportFilled** ppHead,
                                         const OmsReportFilled** ppLast,
-                                        const OmsReportFilled* curr);
+                                        const OmsReportFilled*  curr);
+   static const OmsReportFilled* Find(const OmsReportFilled* pHead, const OmsReportFilled* pLast, MatchKey matchKey);
 
    const OmsReportFilled* Next() {
       return this->Next_;

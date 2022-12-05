@@ -22,6 +22,7 @@ class OmsRequestFactory : public fon9::seed::Tab {
    OmsRequestRunStepSP  RptRerunStep_;
 
 protected:
+   /// 在 OmsReportFactoryT<> 建構時可以指定 RptRerunStep;
    void SetRptRerunStep(OmsRequestRunStepSP&& rptRerunStep) {
       assert(this->RptRerunStep_.get() == nullptr);
       this->RptRerunStep_ = std::move(rptRerunStep);
@@ -51,8 +52,13 @@ public:
 
    virtual ~OmsRequestFactory();
 
+   /// 在收到回報後, 可能需要的後續處理, 由回報處理者 [主動呼叫執行].
+   /// 例: BergOrder 在收到子單異動回報時: OnAfterChildOrderUpdated, 使用此處提供的 RunStep 執行後續的步驟.
    OmsRequestRunStep* RptRerunStep() const {
       return this->RptRerunStep_.get();
+   }
+   OmsRequestRunStep* GetRunOrRptRerunStep() const {
+      return this->RunStep_ ? this->RunStep_.get() : this->RptRerunStep_.get();
    }
 
    /// 預設傳回 nullptr, 表示此 factory 不支援下單.

@@ -7,6 +7,7 @@ namespace f9omstw {
 
 OmsParentOrder::~OmsParentOrder() {
 }
+
 void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsResource& res, const OmsRequestRunnerInCore* childRunner, void* udata,
                                           FnOnAfterChildOrderUpdated fnOnAfterChildOrderUpdated) {
    OmsParentQty  childLeavesQty;
@@ -59,7 +60,7 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
       parentOrdraw.ErrCode_ = childOrdraw.ErrCode_;
       if (parentOrdraw.ErrCode_ == OmsErrCode_SessionClosed || parentOrdraw.ErrCode_ == OmsErrCode_Twf_DynPriBandRej) {
          parentOrdraw.LeavesQty_ = parentOrdraw.ChildLeavesQty_;
-         this->ClearParentWorking();
+         this->SetParentStopRun();
       }
       // ===== 子單刪減成功後的 OrderSt =====
       // 刪減後還有剩餘量 => 狀態不變(Sending, PartRejected, PartAccepted, PartFilled...)
@@ -78,16 +79,166 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
    fnOnAfterChildOrderUpdated(*this, *parentIni, std::move(parentRunner), udata);
 }
 void OmsParentOrder::OnChildOrderUpdated(const OmsRequestRunnerInCore& childRunner) {
-   const auto& childOrdraw = childRunner.OrderRaw();
-   if (!childOrdraw.Request().IsSynReport()) {
+   // 手動刪改子單 or 成交回報.
+   if (this->IsParentEnabled()) {
+      const auto& childOrdraw = childRunner.OrderRaw();
       this->RunChildOrderUpdated(childOrdraw, childRunner.Resource_, &childRunner, const_cast<OmsOrderRaw*>(&childOrdraw),
-         [](OmsParentOrder& parentOrder, const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, void* udata) {
-            parentOrder.OnAfterChildOrderUpdated(parentIni, std::move(parentRunner), *static_cast<const OmsOrderRaw*>(udata));
+                                 [](OmsParentOrder& parentOrder, const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, void* udata) {
+         parentOrder.OnAfterChildOrderUpdated(parentIni, std::move(parentRunner), *static_cast<const OmsOrderRaw*>(udata));
       });
    }
 }
 void OmsParentOrder::OnAfterChildOrderUpdated(const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, const OmsOrderRaw& childOrdraw) {
-   (void)parentIni, (void)parentRunner; (void)childOrdraw;
+   (void)parentIni; (void)parentRunner; (void)childOrdraw;
+}
+
+void OmsParentOrder::OnAfterBackendReload(OmsResource& res, void* backendLocker) {
+   (void)res; (void)backendLocker;
+   if (static_cast<const OmsParentOrderRaw*>(this->Tail())->LeavesQty_ <= 0) {
+      assert(static_cast<const OmsParentOrderRaw*>(this->Tail())->ChildLeavesQty_ <= 0);
+      this->WorkingChildRequests_.clear();
+   }
+}
+void OmsParentOrder::OnOrderUpdated(const OmsRequestRunnerInCore& runner) {
+   // 備援主機, 尚未接手母單, this->EraseChild(); 暫時先不要移除.
+   // - 等母單完結後, 再清除 this->WorkingChildRequests_;
+   //   - 所以需要設定 OmsOrderFlag::IsNeedsOnOrderUpdated;
+   //   - 覆寫 void OnOrderUpdated(const OmsRequestRunnerInCore& runner) override;
+   //   - 若 this->Tail()->LeavesQty <= 0 則清除全部 this->WorkingChildRequests_;
+   if (runner.OrderRawT<OmsParentOrderRaw>().LeavesQty_ <= 0) {
+      assert(runner.OrderRawT<OmsParentOrderRaw>().ChildLeavesQty_ <= 0);
+      this->WorkingChildRequests_.clear();
+   }
+   base::OnOrderUpdated(runner);
+}
+bool OmsParentOrder::EraseChild(const OmsRequestIni* childReq) {
+   assert(childReq->IsAbandoned() || !childReq->LastUpdated()->Order().IsWorkingOrder());
+   assert(childReq->RxKind() == f9fmkt_RxKind_RequestNew);
+   if (this->IsParentEnabled() || !this->Initiator()->IsReportIn()) {
+      auto ifind = std::find(this->WorkingChildRequests_.begin(), this->WorkingChildRequests_.end(), childReq);
+      if (ifind == this->WorkingChildRequests_.end())
+         return false;
+      this->WorkingChildRequests_.erase(ifind);
+      return true;
+   }
+   return false;
+}
+OmsParentOrderRaw* OmsParentOrder::RecalcAllChild() {
+   auto* tail = static_cast<const OmsParentOrderRaw*>(this->Tail());
+   assert(tail && tail->LeavesQty_ > 0 && this->WorkingChildRequests_.size() > 0);
+   OmsParentOrderRawDat recalc;
+   recalc.ClearRawDat();
+   recalc.RequireQty_ = tail->RequireQty_;
+
+   auto icur = this->WorkingChildRequests_.begin();
+   while (icur != this->WorkingChildRequests_.end()) {
+      if (auto* child = (*icur)->LastUpdated()) {
+         child = child->Order().Tail();
+         this->RecalcParent(recalc, *child);
+         if (child->IsWorking()) {
+            ++icur;
+            continue;
+         }
+      }
+      else {
+         // (*icur)->LastUpdated()==nullptr: abandon
+      }
+      icur = this->WorkingChildRequests_.erase(icur);
+   }
+   recalc.RequireQty_ = tail->RequireQty_;
+   recalc.LeavesQty_ = (recalc.RequireQty_ - recalc.CumQty_);
+   assert(recalc.LeavesQty_ >= recalc.ChildLeavesQty_);
+   assert(fon9::signed_cast(recalc.LeavesQty_) >= 0);
+   if (fon9::signed_cast(recalc.LeavesQty_) < 0)
+      recalc.LeavesQty_ = 0;
+   if (recalc.LeavesQty_ < recalc.ChildLeavesQty_)
+      recalc.LeavesQty_ = recalc.ChildLeavesQty_;
+
+   if (recalc.ChildLeavesQty_ == tail->ChildLeavesQty_
+       && recalc.LeavesQty_   == tail->LeavesQty_
+       && recalc.CumQty_      == tail->CumQty_
+       && recalc.CumAmt_      == tail->CumAmt_
+       && recalc.Leg1CumQty_  == tail->Leg1CumQty_
+       && recalc.Leg2CumQty_  == tail->Leg2CumQty_
+       && recalc.Leg1CumAmt_  == tail->Leg1CumAmt_
+       && recalc.Leg2CumAmt_  == tail->Leg2CumAmt_) {
+      return nullptr;
+   }
+   if (auto* newParent = static_cast<OmsParentOrderRaw*>(this->BeginUpdate(*this->Initiator()))) {
+      recalc.BeforeQty_ = tail->LeavesQty_;
+      recalc.AfterQty_ = recalc.LeavesQty_;
+      recalc.SrcUTime_ = fon9::UtcNow();
+      OmsParentOrderRawDat* afdat = newParent;
+      *afdat = recalc;
+      if (newParent->LeavesQty_ > 0) {
+         // 還有剩餘量 => 母單結束, 等候子單成交.
+         // newParent->RequestSt_ = 還有剩餘量 Request 最後狀態不用變;
+         if (newParent->CumQty_ == 0) {
+            // 還有剩餘量, 目前無成交.
+            newParent->UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeAccepted;
+         }
+         else {
+            newParent->UpdateOrderSt_ = f9fmkt_OrderSt_PartFilled;
+         }
+      }
+      else {
+         // 重算後,沒有剩餘量 => Request視為[交易所取消].
+         newParent->RequestSt_ = f9fmkt_TradingRequestSt_ExchangeCanceled;
+         if (newParent->CumQty_ == 0) {
+            // 已無剩餘量, 無成交 => 全都取消.
+            newParent->UpdateOrderSt_ = f9fmkt_OrderSt_ExchangeCanceled;
+         }
+         else {
+            // 已無剩餘量, 有成交 => 已全部成交.
+            newParent->UpdateOrderSt_ = f9fmkt_OrderSt_FullFilled;
+         }
+      }
+      return newParent;
+   }
+   return nullptr;
+}
+bool OmsParentOrder::RerunParent(OmsResource& resource) {
+   // 母單已啟用 => 重複執行, 沒有額外需要做的事情.
+   if (this->IsParentEnabled())
+      return false;
+   assert(dynamic_cast<const OmsParentOrderRaw*>(this->Tail()) != nullptr);
+   if (static_cast<const OmsParentOrderRaw*>(this->Tail())->LeavesQty_ <= 0)
+      return false;
+   auto* newParent = this->RecalcAllChild();
+   if(newParent) {                      // 重算後, 有異動.
+      if (newParent->LeavesQty_ <= 0) { // 但異動後無剩餘量.
+         // 無剩餘量, 不用重啟 Parent,
+         // 但因為有異動(newParent), 所以需要更新(OmsRequestRunnerInCore);
+         OmsRequestRunnerInCore runner{resource, *newParent, 0u};
+         return false;
+      }
+   }
+   // 不用考慮 tail->IsFrozeScLeaves_; 因為: 即使已經收盤, 但後續的子單仍需要更新母單, 所以這裡仍需啟用母單.
+   this->SetParentRunning();
+   bool retval = this->OnRerunParent(resource, newParent);
+   // 若 RecalcAllChild() 有異動: newParent != nullptr;
+   // 則不論 this->OnRerunParent() 一定要透過 newParent 寫入母單啟用結果.
+   assert(newParent == nullptr || newParent->RxSNO() > 0);
+   return retval;
+}
+bool OmsParentOrder::ParentRerunStep(OmsResource& resource, OmsParentOrderRaw* newParent, OmsRequestRunStep& rerunStep) {
+   auto& iniReq = *this->Initiator();
+   auto  lastReqSt = iniReq.LastUpdated()->RequestSt_;;
+   if (newParent == nullptr) {
+      newParent = static_cast<OmsParentOrderRaw*>(this->BeginUpdate(iniReq));
+      assert(newParent != nullptr);
+      if (newParent == nullptr)
+         return false;
+   }
+   OmsRequestRunnerInCore parentRunner{resource, *newParent};
+   this->AssignRerunMessage(newParent->Message_);
+   newParent->RequestSt_ = lastReqSt;
+   rerunStep.RunRequest(std::move(parentRunner));
+   return true;
+}
+void OmsParentOrder::AssignRerunMessage(fon9::CharVector& message) {
+   message.clear();
+   fon9::RevPrintAppendTo(message, "Parent rerun@", fon9::LocalHostId_);
 }
 //--------------------------------------------------------------------------//
 OmsParentOrder::OnEachWorkingChild::CheckResult OmsParentOrder::OnEachWorkingChild::CheckNeedsChildChange(const OmsRequestIni& childReqIni) {
@@ -177,6 +328,7 @@ void OmsParentOrderRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsParentOrderRaw, Leg1CumAmt));
    flds.Add(fon9_MakeField2(OmsParentOrderRaw, Leg2CumQty));
    flds.Add(fon9_MakeField2(OmsParentOrderRaw, Leg2CumAmt));
+   flds.Add(fon9_MakeField2(OmsParentOrderRaw, SrcUTime));
 }
 void OmsParentOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    base::ContinuePrevUpdate(prev);

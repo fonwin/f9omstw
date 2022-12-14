@@ -55,7 +55,7 @@ protected:
 
    /// 將 tsvr->ReqQueue_ 移出: ReqQueueMoveTo(reqs);
    /// 然後到 OmsCore 執行:拒絕排隊中的下單要求(f9fmkt_TradingRequestSt_QueuingCanceled/OmsErrCode_NoReadyLine).
-   static void ClearReqQueue(Locker&& tsvr, fon9::StrView cause, OmsCoreSP core);
+   void ClearReqQueue(Locker&& tsvr, fon9::StrView cause, OmsCoreSP core);
 
    f9fmkt::SendRequestResult NoReadyLineReject(f9fmkt::TradingRequest& req, fon9::StrView cause);
 
@@ -182,7 +182,10 @@ public:
       }
    }
 
-   void CoreTask_SendReqQueue(OmsResource& resource);
+   f9fmkt::SendRequestResult OnAskFor_SendRequest_InCore(f9fmkt::TradingRequest& req, OmsResource& resource);
+   void InCore_SendReqQueue(OmsResource& resource);
+   void OnOfferSendable(OmsResource& resource, f9fmkt::TradingLineManager::FnHelpOffer&& fnOffer);
+   void OnHelperBroken(OmsResource& resource);
 };
 
 /// TradingLineMgrBaseT 必定衍生自 fon9::fmkt::TradingLineManager;
@@ -242,9 +245,11 @@ public:
       this->SetState(TradingLineMgrState::Ready, tsvr);
       base::OnNewTradingLineReady(src, std::move(tsvr));
    }
-   f9fmkt::SendRequestResult OnAskFor_SendRequest(f9fmkt::TradingRequest& req, const Locker& tsvrSelf, const Locker& tsvrAsker) override {
-      // - 如果是 remote ask, 且若 req 尚未開始異動: req.LastUpdated() == nullptr, 此時 this->MakeRunner() 會失敗!
-      //   ==> 所以必須等收到 req 的 [OrderRaw異動] 通知 [請幫忙轉送], 才能開始執行轉送請求!
+   void OnHelperReady(Locker&& tsvr) override {
+      this->SetState(TradingLineMgrState::Ready, tsvr);
+      base::OnHelperReady(std::move(tsvr));
+   }
+   f9fmkt::SendRequestResult OnAskFor_SendRequest_FromLocal(f9fmkt::TradingRequest& req, const Locker& tsvrSelf, const Locker& tsvrAsker) override {
       assert(dynamic_cast<OmsTradingLineMgrT*>(&tsvrAsker->GetOwner()) != nullptr);
       auto* askerFrom = static_cast<OmsTradingLineMgrT*>(&tsvrAsker->GetOwner());
       assert(askerFrom->CurrRunner_ != nullptr || askerFrom->CurrOmsResource_ != nullptr);

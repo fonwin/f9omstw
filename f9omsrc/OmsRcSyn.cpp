@@ -545,7 +545,7 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
       assert(rptreq->RxKind() == f9fmkt_RxKind_RequestNew);
       // 若有設定 f9OmsRc_RptFilter_IncludeRcSynNew 則:
       // 新單回報, 可能來自 [非:原接單主機], 此時 rptreq 必須是整個系統唯一, 所以:
-      // - (*snoMap)[apiRpt->ReportSNO_] 與 (OrigHost.SnoMap)[origSNO] 必須是同一個 rptreq;
+      // (*snoMap)[apiRpt->ReportSNO_] 與 (OrigHost.SnoMap)[origSNO] 必須是同一個 rptreq;
       OmsRcSyn_SessionFactory* ud = static_cast<OmsRcSyn_SessionFactory*>(synSes->UserData_);
       if (ud->RptFilter_ & f9OmsRc_RptFilter_IncludeRcSynNew) {
          fon9::HostId   origHostId;
@@ -570,34 +570,38 @@ static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsR
             ud->AppendMapSNO(synSes->HostId_, apiRpt->ReportSNO_, *srcReqSP);
          }
       }
-      return; // 接下來需要等到 ordraw 回報, 才執行回報處理.
+      return; // 接下來需要等到 ordraw 回報, 才有足夠的資料(req + ordraw), 執行回報處理.
    }
    const OmsRequestBase* ref = (*snoMap)[apiRpt->ReferenceSNO_].get();
    if (ref == nullptr) {
-      // 新單從外部來, 後續的刪改要求, 則 apiRpt->ReferenceSNO_ 可能沒有對應的新單回報;
+      // 有 apiRpt->ReferenceSNO_, 但沒對應到遠端的 ref;
+      // => 遠端沒送來 ref 的回報: 可能因為 ref [對遠端而言] 是從外部來的新單.
+      // => apiRpt 為此類 ref 後續的刪改要求.
+      // => 接下來需等到此筆 apiRpt 的 ordraw 回報, 再執行回報處理.
       (*snoMap)[apiRpt->ReportSNO_] = OnOmsRcSyn_MakeRpt(rptdef, apiRpt);
-      return; // 接下來需要等到 ordraw 回報, 才執行回報處理.
+      return;
    }
    if (!ref->IsInCore()) {
+      // ref 尚未執行 OmsCore.MoveToCore();
       if (apiRpt->Layout_->LayoutKind_ != f9OmsRc_LayoutKind_ReportOrder) {
-         // => apiRpt 為改單, ref 可能為尚未觸發的條件單 or Queuing 的新單.
-         // => 此時 apiRpt 因為沒有送出到交易所, 所以 apiRpt 後續的修改(ordraw), 應直接填入此次的 ref;
+         // => apiRpt 為改單, ref 可能為 [尚未觸發的條件單] or [Queuing 的新單].
+         // => 此時 apiRpt 因為沒有送出到交易所, 所以 apiRpt 後續的異動(ordraw), 應直接填入此次的 ref;
          (*snoMap)[apiRpt->ReportSNO_] = ref;
          return;
       }
+      // apiRpt 為 f9OmsRc_LayoutKind_ReportOrder, 則 ref 必定為 OmsRequestBase;
+      // 此時 apiRpt 必定為 ref(OmsRequestBase) 的後續異動回報(ordraw).
       rptreq.reset(const_cast<OmsRequestBase*>(ref));
       OnOmsRcSyn_AssignReq(rptdef, apiRpt, *rptreq);
       if (ref->RxKind() == f9fmkt_RxKind_RequestNew) {
          // 新單回報: 必須等到 [有委託書號] 才處理.
          if (OmsIsOrdNoEmpty(ref->OrdNo_)) {
-            // 如果是 [沒編委託書號] 的 [失敗新單] , 則拋棄.
-            if (ref->ErrCode() != OmsErrCode_NoError)
+            if (ref->ReportSt() >= f9fmkt_TradingRequestSt_Done) {
+               // 拋棄: [沒編委託書號] 的 [新單結束(例:失敗新單)].
                (*snoMap)[apiRpt->ReferenceSNO_].reset();
+            }
             return;
          }
-         // 雖然這裡有額外處理 Queuing, WaitingCond 之類的 ReportSt,
-         // 但對方可能尚未編委託書號, 等到編委託書號時, 可能已經不是此狀態。
-         // 因此不一定會執行到這裡的 rptreq->SetReportSt(f9fmkt_TradingRequestSt_*AtOther);
          // 如果有需要同步 Queuing, WaitingCond 則對方需要先填入委託書號。
          if (rptreq->ReportSt() == f9fmkt_TradingRequestSt_Queuing)
             rptreq->SetReportSt(f9fmkt_TradingRequestSt_QueuingAtOther);

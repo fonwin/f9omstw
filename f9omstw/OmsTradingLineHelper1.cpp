@@ -17,7 +17,7 @@ void OmsLocalHelpOfferEvHandler1::InCore_NotifyToAsker(OmsResource& resource) {
       if (fon9_UNLIKELY(asker == nullptr || asker == &this->Offer_))
          continue;
       if (auto* omsAsker = dynamic_cast<OmsTradingLineMgrBase*>(asker)) {
-         omsAsker->CoreTask_SendReqQueue(resource);
+         omsAsker->InCore_SendReqQueue(resource);
       }
       else {
          asker->SendReqQueue(asker->Lock());

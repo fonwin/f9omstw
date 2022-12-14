@@ -112,9 +112,11 @@ void OmsTradingLineMgrBase::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, Om
       OmsCoreSP         OmsCore_;
       fon9::CharVector  Cause_;
       Reqs              Reqs_;
-      RejInCore(OmsCoreSP omsCore, fon9::StrView cause)
+      RejInCore(OmsCoreSP omsCore, fon9::StrView cause, OmsTradingLineMgrBase* lmgr)
          : OmsCore_{std::move(omsCore)}
          , Cause_{cause} {
+         this->Cause_.append("|Lg=");
+         this->Cause_.append(GetCommonName(lmgr));
       }
    };
    struct RejInCoreSP : public fon9::intrusive_ptr<RejInCore> {
@@ -131,21 +133,38 @@ void OmsTradingLineMgrBase::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, Om
          }
       }
    };
-   RejInCoreSP rejInCore{new RejInCore(std::move(core), cause)};
+   RejInCoreSP rejInCore{new RejInCore(std::move(core), cause, this)};
    tsvr.unlock();
 
    rejInCore->Reqs_ = std::move(reqs);
    rejInCore->OmsCore_->RunCoreTask(rejInCore);
 }
+void OmsTradingLineMgrBase::OnHelperBroken(OmsResource& resource) {
+   auto tsvr = this->LockLineMgr();
+   if (tsvr->IsLinesEmpty()) {
+      this->SetState(TradingLineMgrState::UnsendableReject, tsvr);
+      this->ClearReqQueue(std::move(tsvr), "Helper broken.", &resource.Core_);
+   }
+}
+void OmsTradingLineMgrBase::OnOfferSendable(OmsResource& resource, f9fmkt::TradingLineManager::FnHelpOffer&& fnOffer) {
+   Locker tsvr = this->LockLineMgr();
+   if (tsvr->IsReqQueueEmpty())
+      return;
+   if (this->OmsCore_.get() == &resource.Core_) {
+      this->CurrOmsResource_ = &resource;
+      tsvr->SendReqQueueByOffer(&tsvr, std::move(fnOffer));
+      this->CurrOmsResource_ = nullptr;
+   }
+}
 void OmsTradingLineMgrBase::ToCore_SendReqQueue(Locker&& tsvr) {
    if (tsvr->IsReqQueueEmpty())
       return;
    if (OmsCoreSP core = this->OmsCore_) {
-      tsvr.unlock(); // 如果 RunCoreTask 立即執行, 則在 CoreTask_SendReqQueue() 裡面的 LockLineMgr() 會死結, 所以這裡必須先解鎖.
-      core->RunCoreTask(std::bind(&OmsTradingLineMgrBase::CoreTask_SendReqQueue, ThisSP{this}, std::placeholders::_1));
+      tsvr.unlock(); // 如果 RunCoreTask 立即執行, 則在 InCore_SendReqQueue() 裡面的 LockLineMgr() 會死結, 所以這裡必須先解鎖.
+      core->RunCoreTask(std::bind(&OmsTradingLineMgrBase::InCore_SendReqQueue, ThisSP{this}, std::placeholders::_1));
    }
 }
-void OmsTradingLineMgrBase::CoreTask_SendReqQueue(OmsResource& resource) {
+void OmsTradingLineMgrBase::InCore_SendReqQueue(OmsResource& resource) {
    Locker tsvr = this->LockLineMgr();
    if (this->OmsCore_.get() == &resource.Core_) {
       this->CurrOmsResource_ = &resource;
@@ -166,6 +185,19 @@ void OmsTradingLineMgrBase::RunRequest(OmsRequestRunnerInCore&& runner, const Lo
       runner.Update(f9fmkt_TradingRequestSt_Queuing, ToStrView(this->StrQueuingIn_));
    }
    this->CurrRunner_ = nullptr;
+}
+f9fmkt::SendRequestResult OmsTradingLineMgrBase::OnAskFor_SendRequest_InCore(f9fmkt::TradingRequest& req, OmsResource& resource) {
+   // 若 req 尚未開始異動: 則 req.LastUpdated() == nullptr, 此時 this->MakeRunner() 會失敗!
+   // ==> 所以必須等收到 req 的 [OrderRaw異動] 之後, 才能開始執行轉送請求!
+   assert(static_cast<OmsRequestBase*>(&req)->LastUpdated() != nullptr);
+   assert(this->CurrRunner_ == nullptr && this->CurrOmsResource_ == nullptr);
+   auto tsvr = this->LockLineMgr();
+   if (this->OmsCore_.get() != &resource.Core_)
+      return f9fmkt::SendRequestResult::NoReadyLine;
+   this->CurrOmsResource_ = &resource;
+   f9fmkt::SendRequestResult retval = this->ThisLineMgr_.SendRequest_ByLines_NoQueue(req, tsvr);
+   this->CurrOmsResource_ = nullptr;
+   return retval;
 }
 
 } // namespaces

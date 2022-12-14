@@ -9,8 +9,10 @@
 extern "C" {
 #endif
 
-/// 下單失敗的原因: 錯誤代碼.
-/// 0:沒有錯誤, 1..9999: OMS內部錯誤.
+/// 嚴格來說, 此為 [訊息代碼], 應該採用 OmsMsgCode 或 OmsStCode, 但為了相容性, 只好將錯就錯了!
+/// 0:沒有額外須提供的訊息, 1..9999: OMS內部訊息.
+/// 非 0 不一定代表錯誤或失敗(例: 期交所 40248:Session已達設定之流量值80%);
+/// 委託錯誤或失敗, 應先從 OrdSt 或 ReqSt 來判斷, 然後再透過 OmsErrCode 來判斷原因.
 fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_MaxV = 0xffff,
    OmsErrCode_NoError = 0,

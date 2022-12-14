@@ -12,7 +12,8 @@ namespace f9omstw {
 ///   如果內容為 fon9_kCSTR_OmsForceInternal 則表示此筆為[強制內部單]回報.
 /// - 成交回報則使用 OmsReportFilled.ReqUID_ = "I:原有規則";
 ///   因成交回報的 ReqUID 會在 OmsReportFilled::RunReportInCore_MakeReqUID() 重編,
-///   所以不會造成同步接收端的誤判;
+///   所以即使收到遠端回報 "I:xxx" 的成交回報, 因為沒有設定 ForceInternal, 
+///   所以重編成交的 ReqUID 時, 會移除 "I:";
 #define fon9_kCSTR_OmsForceInternal "I:FromEx"
 
 struct OmsRequestFrom {

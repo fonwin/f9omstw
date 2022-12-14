@@ -96,6 +96,7 @@ using OmsEventFactorySP = fon9::intrusive_ptr<OmsEventFactory>;
 class OmsSymb;
 
 using LgOut = fon9::fmkt::LgOut;
+class OmsTradingLineMgrBase;
 
 //--------------------------------------------------------------------------//
 

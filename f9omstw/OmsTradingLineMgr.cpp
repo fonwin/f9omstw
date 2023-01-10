@@ -4,12 +4,19 @@
 
 namespace f9omstw {
 
-#define kCSTR_QueuingIn    "Queuing in "
-#define GetCommonName(p)    fon9::StrView{p->StrQueuingIn_.begin() + sizeof(kCSTR_QueuingIn) - 1, \
-                                          p->StrQueuingIn_.end()}
+static fon9::CharVector Make_StrQueuingIn(fon9::StrView name) {
+   if (name.size() > 3) { // 移除尾端的 "_io";
+      const char* pend = name.end() - 3;
+      if (memcmp(pend, "_io", 3) == 0)
+         name.SetEnd(pend);
+   }
+   fon9::CharVector retval{fon9::StrView{fon9_kCSTR_QueuingIn}};
+   retval.append(name);
+   return retval;
+}
 
 OmsTradingLineMgrBase::OmsTradingLineMgrBase(fon9::StrView name, f9fmkt::TradingLineManager& thisLineMgr)
-   : StrQueuingIn_{fon9::RevPrintTo<fon9::CharVector>(kCSTR_QueuingIn, name)}
+   : StrQueuingIn_{Make_StrQueuingIn(name)}
    , ThisLineMgr_(thisLineMgr) {
 }
 OmsTradingLineMgrBase::~OmsTradingLineMgrBase() {
@@ -22,7 +29,7 @@ f9fmkt::SendRequestResult OmsTradingLineMgrBase::NoReadyLineReject(f9fmkt::Tradi
    // maxsz = 4 + GetCommonName(this).size() // 簡化為 this->StrQueuingIn_.size()
    //       + cause.size(); 
    fon9::RevBufferFixedMem rbuf(msgbuf.alloc(maxsz), maxsz);
-   fon9::RevPrint(rbuf, cause, "|Lg=", GetCommonName(this));
+   fon9::RevPrint(rbuf, cause, "|Lg=", this->GetName());
    this->CurrRunner_->Reject(f9fmkt_TradingRequestSt_LineRejected, OmsErrCode_NoReadyLine, ToStrView(rbuf));
    return f9fmkt::SendRequestResult::NoReadyLine;
 }
@@ -67,7 +74,7 @@ bool OmsTradingLineMgrBase::CheckUnsendableBroken() {
 void OmsTradingLineMgrBase::SetOrdTeamGroupId(OmsResource& coreResource, const Locker&) {
    if (this->OmsCore_.get() != &coreResource.Core_)
       return;
-   fon9::StrView name = GetCommonName(this);
+   fon9::StrView name = this->GetName();
    if (name.empty() || this->OrdTeamConfig_.empty())
       this->OrdTeamGroupId_ = 0;
    else {
@@ -116,7 +123,7 @@ void OmsTradingLineMgrBase::ClearReqQueue(Locker&& tsvr, fon9::StrView cause, Om
          : OmsCore_{std::move(omsCore)}
          , Cause_{cause} {
          this->Cause_.append("|Lg=");
-         this->Cause_.append(GetCommonName(lmgr));
+         this->Cause_.append(lmgr->GetName());
       }
    };
    struct RejInCoreSP : public fon9::intrusive_ptr<RejInCore> {
@@ -187,16 +194,35 @@ void OmsTradingLineMgrBase::RunRequest(OmsRequestRunnerInCore&& runner, const Lo
    this->CurrRunner_ = nullptr;
 }
 f9fmkt::SendRequestResult OmsTradingLineMgrBase::OnAskFor_SendRequest_InCore(f9fmkt::TradingRequest& req, OmsResource& resource) {
-   // 若 req 尚未開始異動: 則 req.LastUpdated() == nullptr, 此時 this->MakeRunner() 會失敗!
-   // ==> 所以必須等收到 req 的 [OrderRaw異動] 之後, 才能開始執行轉送請求!
-   assert(static_cast<OmsRequestBase*>(&req)->LastUpdated() != nullptr);
    assert(this->CurrRunner_ == nullptr && this->CurrOmsResource_ == nullptr);
+   assert(static_cast<OmsRequestBase*>(&req)->LastUpdated() != nullptr);
    auto tsvr = this->LockLineMgr();
    if (this->OmsCore_.get() != &resource.Core_)
       return f9fmkt::SendRequestResult::NoReadyLine;
    this->CurrOmsResource_ = &resource;
    f9fmkt::SendRequestResult retval = this->ThisLineMgr_.SendRequest_ByLines_NoQueue(req, tsvr);
    this->CurrOmsResource_ = nullptr;
+   return retval;
+}
+f9fmkt::SendRequestResult OmsTradingLineMgrBase::OnAskFor_SendRequest_FromLocal(f9fmkt::TradingRequest& req, const Locker& tsvrSelf, OmsTradingLineMgrBase& askerFrom) {
+   assert(askerFrom.CurrRunner_ != nullptr || askerFrom.CurrOmsResource_ != nullptr);
+   this->CurrRunner_ = askerFrom.CurrRunner_;           // 來源: RunStep;
+   this->CurrOmsResource_ = askerFrom.CurrOmsResource_; // 來源: SendReqQueue;
+   const auto retval = this->ThisLineMgr_.SendRequest_ByLines_NoQueue(req, tsvrSelf);
+   this->CurrRunner_ = nullptr;
+   this->CurrOmsResource_ = nullptr;
+   return retval;
+}
+f9fmkt::SendRequestResult OmsTradingLineMgrBase::OnAskFor_SendRequest_ByRunner(OmsInternalRunnerInCore& runner) {
+   assert(this->CurrRunner_ == nullptr && this->CurrOmsResource_ == nullptr);
+   auto tsvr = this->LockLineMgr();
+   if (this->OmsCore_.get() != &runner.Resource_.Core_)
+      return f9fmkt::SendRequestResult::NoReadyLine;
+   this->CurrRunner_ = &runner;
+   f9fmkt::SendRequestResult retval = this->ThisLineMgr_.SendRequest_ByLines_NoQueue(
+      *const_cast<OmsRequestBase*>(&runner.OrderRaw().Request()),
+      tsvr);
+   this->CurrRunner_ = nullptr;
    return retval;
 }
 

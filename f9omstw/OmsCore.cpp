@@ -89,7 +89,7 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
             assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
             this->Owner_->FnSetRequestLgOut_(*this, *static_cast<OmsRequestTrade*>(runner.Request_.get()), ordraw->Order());
          }
-         OmsRequestRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
+         OmsInternalRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
          if (OmsIsOrdNoEmpty(ordraw->OrdNo_) && *(ordraw->Request().OrdNo_.end() - 1) != '\0') {
             assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
             // 新單委託還沒填委託書號, 但下單要求有填委託書號.
@@ -136,7 +136,7 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
          OmsOrderRaw* aford = ordraw->Order().BeginUpdate(ordraw->Request());
          if (aford == nullptr)
             continue;
-         OmsRequestRunnerInCore runner{res, *aford};
+         OmsInternalRunnerInCore runner{res, *aford};
          runner.BackendLocker_ = &lk;
          aford->ErrCode_ = OmsErrCode_FailSending;
          runner.Update(f9fmkt_TradingRequestSt_LineRejected);

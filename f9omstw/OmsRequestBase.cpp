@@ -255,12 +255,22 @@ void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView messag
    (void)message;
    if (ref) {
       *static_cast<OmsOrdKey*>(this) = *ref;
-      if (OmsIsReqUIDEmpty(*this))
-         *static_cast<OmsRequestId*>(this) = *ref;
+      if (OmsIsOrdNoEmpty(this->OrdNo_) && ref->LastUpdated()) {
+         // ref 有可能尚未編制 OrdNo, 後續的回報才編入,
+         // 所以, 若有需要, 需從 ref 的最後異動取得 OrdNo.
+         this->OrdNo_ = ref->LastUpdated()->OrdNo_;
+      }
       this->Market_ = ref->Market();
       this->SessionId_ = ref->SessionId();
       if (this->RxKind_ == f9fmkt_RxKind_Unknown)
          this->RxKind_ = ref->RxKind();
+      if (this->RxKind() == ref->RxKind() && ref->RxSNO() > 0) {
+         // this = 針對 ref 的回報.
+         OmsForceAssignReportReqUID(*this, ref->RxSNO());
+      }
+      else if (OmsIsReqUIDEmpty(*this)) {
+         *static_cast<OmsRequestId*>(this) = *ref;
+      }
    }
 }
 void OmsRequestBase::SetOrigHostId(fon9::HostId origHostId) {

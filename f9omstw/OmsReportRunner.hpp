@@ -38,6 +38,12 @@ public:
       , Report_{std::move(src.Request_)}
       , ExLog_{std::move(src.ExLog_)} {
    }
+   template <class... ExLogArgs>
+   OmsReportChecker(OmsResource& res, OmsRequestSP&& req, ExLogArgs&&... exLogArgs)
+      : Resource_(res)
+      , Report_{std::move(req)}
+      , ExLog_{std::forward<ExLogArgs>(exLogArgs)...} {
+   }
 
    /// 如果傳回 nullptr, 則必定已經呼叫過 this->ReportAbandon();
    OmsOrdNoMap* GetOrdNoMap();
@@ -140,13 +146,7 @@ public:
       OmsAssignReportMessage(&this->OrderRaw(), &rpt);
       this->UpdateReportImpl(rpt);
    }
-   void UpdateSt(f9fmkt_OrderSt ordst, f9fmkt_TradingRequestSt reqst) {
-      this->OrderRaw().UpdateOrderSt_ = ordst;
-      this->Update(reqst);
-   }
-   void UpdateFilled(f9fmkt_OrderSt ordst, const OmsReportFilled& rptFilled) {
-      this->UpdateSt(ordst, rptFilled.ReportSt());
-   }
+   void UpdateFilled(f9fmkt_OrderSt ordst, const OmsReportFilled& rptFilled);
 };
 fon9_WARN_POP;
 

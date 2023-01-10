@@ -44,7 +44,7 @@ void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterv
    this->Thread_ = std::thread(&OmsBackend::ThrRun, this, std::move(thrName));
 }
 void OmsBackend::ThrRun(std::string thrName) {
-   fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName);
+   fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName, "|flushInterval=", this->FlushInterval_);
    {
       QuItems  quItems;
       quItems.reserve(kReserveQuItems);
@@ -224,6 +224,12 @@ void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool i
    }
    items->Append(runner.OrderRaw(), std::move(runner.ExLogForUpd_));
    if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
+      items->IsNotified_ = true;
+      this->Items_.NotifyOne(items);
+   }
+}
+void OmsBackend::Flush(Locker& items) {
+   if (!items->IsNotified_) {
       items->IsNotified_ = true;
       this->Items_.NotifyOne(items);
    }

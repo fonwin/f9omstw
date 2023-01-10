@@ -168,7 +168,7 @@ public:
             if (!ioargs->SetIoServiceCfg(holder, value))
                return false;
          }
-         else if (fon9::iequals(tag, "IoOpt") || fon9::iequals(tag, "IoOptN")){
+         else if (fon9::iequals(tag, "IoOpt") || fon9::iequals(tag, "IoOptN")) {
             ioargs = &ioargsOptNormal;
             goto __SET_IO_ARGS;
          }
@@ -196,6 +196,9 @@ public:
             cmId = fon9::StrTo(value, cmId);
          else if (fon9::iequals(tag, "ChgTDay"))
             changeDayHHMMSS = fon9::StrTo(value, changeDayHHMMSS);
+         else if (fon9::iequals(tag, "TryLastLine")) {
+            fon9::fmkt::gTradingLineSelect_TryLastLine_YN = StrTo(value, fon9::fmkt::gTradingLineSelect_TryLastLine_YN);
+         }
          else {
             holder.SetPluginsSt(fon9::LogLevel::Error, fon9_kCSTR_UtwOmsCoreName ".Create|err=Unknown tag: ", tag);
             return false;
@@ -263,9 +266,10 @@ public:
          logpath, fon9::Named{"TWF"}, coreMgr,
          *twfRpt1Factory, *twfRpt8Factory, *twfRpt9Factory, *twfFil1Factory, *twfFil2Factory));
       // ------------------
+      fon9::seed::NamedSeed* seedLineMgr;
       if (lgCfgFileName.IsNullOrEmpty()) {
          MaTreeSP twfG1Mgr{new MaTree{"TwfLineMgr"}};
-         coreMgr.Add(new NamedSapling(twfG1Mgr, "TwfLineMgr"));
+         coreMgr.Add(seedLineMgr = new NamedSapling(twfG1Mgr, "TwfLineMgr"));
          coreMgrSeed->TwfLineG1_.reset(new TwfTradingLineG1{});
          // ---
          #define CREATE_TwfTradingLineMgr(type) \
@@ -285,7 +289,10 @@ public:
          iocfgs.SessionFactoryPark_ = ioargsFutNormal.SessionFactoryPark_;
          iocfgs.DeviceFactoryPark_ = ioargsFutNormal.DeviceFactoryPark_;
          coreMgrSeed->TwfLgMgr_ = TwfTradingLgMgr::Plant(coreMgr, holder, iocfgs, coreMgrSeed->TwfExgMapMgr_);
+         seedLineMgr = coreMgrSeed->TwfLgMgr_.get();
       }
+      if (fon9::fmkt::gTradingLineSelect_TryLastLine_YN == fon9::EnabledYN::Yes)
+         seedLineMgr->SetDescription("TryLastLine=Y");
       // ------------------
       std::vector<TabSP>  ordFactories{twfOrd1Factory, twfOrd7Factory, twfOrd9Factory};
       std::vector<TabSP>  reqFactories{

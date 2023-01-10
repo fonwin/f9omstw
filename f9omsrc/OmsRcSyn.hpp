@@ -9,6 +9,7 @@
 #include "f9omstw/OmsIoSessionFactory.hpp"
 #include "f9omsrc/OmsRc.h"
 #include "fon9/rc/RcClientSession.hpp"
+#include "fon9/rc/RcFuncConn.hpp"
 
 namespace f9omstw {
 
@@ -16,7 +17,10 @@ struct RemoteReqMap : public fon9::intrusive_ref_counter<RemoteReqMap> {
    fon9_NON_COPY_NON_MOVE(RemoteReqMap);
    RemoteReqMap() = default;
 
-   char  Panding___[4];
+   char  Panding___[2];
+   /// 遠端是否為 TradingLine Asker 請求端?
+   bool  IsRemoteAsker_{false};
+   bool  IsReportRecovering_{true};
 
    using OmsRequestSP = fon9::intrusive_ptr<const OmsRequestBase>;
    using MapImpl = std::deque<OmsRequestSP>;
@@ -27,29 +31,74 @@ struct RemoteReqMap : public fon9::intrusive_ref_counter<RemoteReqMap> {
 };
 using RemoteReqMapSP = fon9::intrusive_ptr<RemoteReqMap>;
 
+using OmsRcSynRptFields = std::vector<const fon9::seed::Field*>;
+struct OmsRcSynRptDefine {
+   OmsRequestFactory*   RptFactory_{};
+   OmsRcSynRptFields    Fields_;
+};
+
 class OmsRcSynClientSession : public fon9::rc::RcClientSession {
    fon9_NON_COPY_NON_MOVE(OmsRcSynClientSession);
    using base = fon9::rc::RcClientSession;
+   fon9::HostId   HostId_;
+   char           Padding____[4];
+
+   using RptMap = std::vector<OmsRcSynRptDefine>;
+   RptMap         RptMap_;
+
+   static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg);
+   static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* apiRpt);
+   bool RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::OmsRequestSP& riSrcReqSP, OmsRxSNO srcRptSNO);
+
+protected:
+   RemoteReqMapSP RemoteMap_;
+   OmsCoreSP      OmsCore_;
+
+   /// 回報回補結束.
+   /// - 若在 OnOmsRcSyn_LinkBroken() 之前, 仍在回補狀態, 則會先觸發 OnOmsRcSyn_ReportRecoverEnd(),
+   ///   然後再觸發 OnOmsRcSyn_LinkBroken();
+   /// - 預設 this->RemoteMap_->IsReportRecovering_ = false;
+   virtual void OnOmsRcSyn_ReportRecoverEnd();
+   /// 當 synSes 收到 f9OmsRc_ClientConfig, 且解析成功, 處理完畢後通知.
+   /// 此時的 this->RemoteMap_ 及 this->OmsCore_ 都已準備好.
+   /// 預設 do nothing.
+   virtual void OnOmsRcSyn_ConfigReady();
+   /// 當 LinkBroken 時通知.
+   /// - 此時 this->RemoteMap_ 及 this->OmsCore_ 必定有效, 才會觸發通知.
+   ///   但是在呼叫 OnOmsRcSyn_LinkBroken() 之前, 會先 this->RemoteMap_->Session_ = nullptr;
+   ///   若在 OnOmsRcSyn_LinkBroken() 之前, 仍在回補狀態, 則會先觸發 OnOmsRcSyn_ReportRecoverEnd(),
+   /// - 然後再觸發 OnOmsRcSyn_LinkBroken();
+   /// - 預設 do nothing.
+   virtual void OnOmsRcSyn_LinkBroken();
+   /// 回報內容處理完畢, 預設: 透過 OmsRequestRunner 執行回報.
+   /// 只有底下情況來到此處:
+   /// - rptReq->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep 的 新刪改查.
+   /// - (rptReq->RxKind() == f9fmkt_RxKind_RequestNew) 且 (rptReq->OrdNo_ 非空白).
+   virtual void OnOmsRcSyn_RunReport(OmsRequestSP rptReq, const OmsRequestBase* ref, const fon9::StrView& message);
+   /// 沒有進入 OmsCore 的刪改查回報.
+   /// rptReq->ReportSt() <= f9fmkt_TradingRequestSt_LastRunStep;
+   /// 預設 do nothing.
+   virtual void OnOmsRcSyn_PendingChgRpt(OmsRequestSP rptReq, const OmsRequestBase* ref, const f9OmsRc_ClientReport& apiRpt);
 
 public:
    using base::base;
 
-   RemoteReqMapSP RemoteMapSP_;
-   OmsCoreSP      OmsCore_;
-   fon9::HostId   HostId_;
-   char           Padding____[4];
+   static void InitClientSessionParams(f9OmsRc_ClientSessionParams& omsRcParams) {
+      omsRcParams.FnOnConfig_ = &OmsRcSynClientSession::OnOmsRcSyn_Config;
+      omsRcParams.FnOnReport_ = &OmsRcSynClientSession::OnOmsRcSyn_Report;
+   }
 
-   using RptFields = std::vector<const fon9::seed::Field*>;
-   struct RptDefine {
-      OmsRequestFactory*   RptFactory_{};
-      RptFields            Fields_;
-   };
-   using RptMap = std::vector<RptDefine>;
-   RptMap   RptMap_;
+   fon9::HostId GetHostId() const {
+      return this->HostId_;
+   }
+   RemoteReqMapSP RemoteMap() const {
+      return this->RemoteMap_;
+   }
 
    bool OnDevice_BeforeOpen(fon9::io::Device& dev, std::string& cfgstr) override;
    void OnDevice_StateChanged(fon9::io::Device& dev, const fon9::io::StateChangedArgs& e) override;
 };
+using OmsRcSynClientSessionSP = fon9::intrusive_ptr<OmsRcSynClientSession>;
 //--------------------------------------------------------------------------//
 enum RcSynFactoryKind : uint8_t {
    /// 一般回報要求: TwsRpt, TwfRpt...
@@ -78,6 +127,8 @@ struct RcSynRequestFactory {
    }
 };
 //--------------------------------------------------------------------------//
+class OmsRcClientAgent; // "f9omsrc/OmsRcClient.hpp"
+
 class OmsRcSyn_SessionFactory : public OmsIoSessionFactory, public fon9::rc::RcFunctionMgr {
    fon9_NON_COPY_NON_MOVE(OmsRcSyn_SessionFactory);
    using base = OmsIoSessionFactory;
@@ -115,11 +166,16 @@ public:
    bool                    IsOmsCoreRecovering_{};
    char                    Padding_____[6];
 
-   OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr, f9OmsRc_RptFilter rptFilter);
+   OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr, f9OmsRc_RptFilter rptFilter,
+                           OmsRcClientAgent* omsRcCliAgent, fon9::rc::RcFuncConnClient* connCliAgent);
 
+   virtual OmsRcSynClientSessionSP CreateOmsRcSynClientSession(f9rc_ClientSessionParams& f9rcCliParams);
    fon9::io::SessionSP CreateSession(fon9::IoManager& mgr, const fon9::IoConfigItem& iocfg, std::string& errReason) override;
    fon9::io::SessionServerSP CreateSessionServer(fon9::IoManager&, const fon9::IoConfigItem&, std::string& errReason) override;
 
+   HostMap::Locker LockHostMap() {
+      return this->HostMap_.Lock();
+   }
    RemoteReqMapSP FetchRemoteMap(fon9::HostId hostid);
    RemoteReqMapSP FindRemoteMap(fon9::HostId hostid);
    const RcSynRequestFactory* GetRptReportFactory(fon9::StrView layoutName) const;

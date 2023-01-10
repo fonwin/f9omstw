@@ -18,6 +18,9 @@ enum class OmsUserRightFlag : uint8_t {
    /// 期權: PosEff 是否允許 FcmForceClear;
    /// 證券信用: ...;
    AllowForceClr = 0x02,
+
+   /// 是否允許協助轉送下單要求?
+   AllowTradingLineHelp = 0x10,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsUserRightFlag);
 

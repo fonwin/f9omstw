@@ -180,8 +180,15 @@ public:
 
    void ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer);
 
+   /// 強制處理回報訊息 (喚醒回報處理 thread);
+   void Flush() {
+      auto lk = this->Items_.Lock();
+      this->Flush(lk);
+   }
+   void Flush(Locker& items);
+
 private:
-   friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 OnAfterOrderUpdated();
+   friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 this->OnBefore_Order_EndUpdate();
    void OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner);
    void EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend);
 };

@@ -112,6 +112,27 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_OrdTeamDeny = 506,
 
    // -----------------------------------------------------------------------
+   /// 透過遠端主機協助繞送.
+   /// 此時的 ReqSt 必定為 f9fmkt_TradingRequestSt_AskToRemote;
+   /// 訊息內容為: "AskToRemote=RemoteHostId";
+   /// RemoteHostId 為遠端主機代號.
+   OmsErrCode_AskToRemote = 600,
+   /// 繞送接收端, 回報回補時才發現繞進請求.
+   /// 則此筆下單要求視為失敗.
+   /// 回報回補: 主機間斷線後重新連線(或系統重啟).
+   /// 由繞送的接收端負責處理此錯誤.
+   OmsErrCode_FailAskToRemote = 601,
+   /// 繞送請求端, 回報回補時才發現繞送退單(OmsErrCode_RemoteBack_NoReadyLine or Busy).
+   /// 此筆下單要求視為失敗.
+   /// 回報回補: 主機間斷線後重新連線(或系統重啟).
+   /// 由繞送的請求端負責處理此錯誤.
+   OmsErrCode_FailOnRecoverAskResult = 602,
+   /// 繞送接收端退回繞進請求: [繞送接收端] 無可用線路.
+   OmsErrCode_RemoteBack_NoReadyLine = 610,
+   /// 繞送接收端退回繞進請求: [繞送接收端] 忙碌中.
+   OmsErrCode_RemoteBack_Busy = 611,
+      
+   // -----------------------------------------------------------------------
    /// 無可用的下單連線.
    OmsErrCode_NoReadyLine = 900,
    /// 新單超過有效時間, 從新單建立開始, 到送出時, 若超過設定的時間, 則視為失敗.

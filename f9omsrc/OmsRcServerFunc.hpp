@@ -8,9 +8,15 @@
 
 namespace f9omstw {
 
+class OmsRcServerNote;
+using OmsRcServerNoteSP = std::unique_ptr<OmsRcServerNote>;
+
 class OmsRcServerAgent : public fon9::rc::RcFunctionAgent {
    fon9_NON_COPY_NON_MOVE(OmsRcServerAgent);
    using base = fon9::rc::RcFunctionAgent;
+
+   virtual OmsRcServerNoteSP CreateOmsRcServerNote(ApiSession& ses);
+
 public:
    const ApiSesCfgSP ApiSesCfg_;
 
@@ -22,7 +28,6 @@ public:
    // void OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) override;
 };
 
-fon9_WARN_DISABLE_PADDING;
 class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    fon9_NON_COPY_NON_MOVE(OmsRcServerNote);
    friend class OmsRcServerAgent;
@@ -42,6 +47,7 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       }
       void ClearResource() override;
       void StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter);
+      bool PreReport(const OmsRxItem& item);
    private:
       enum class HandlerSt {
          Preparing,
@@ -51,31 +57,38 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       };
       HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
+      char              Padding____[3];
       fon9::SubConn     RptSubr_{};
       OmsRxSNO          WkoRecoverSNO_{};
       void SubscribeReport();
       OmsRxSNO OnRecover(OmsCore&, const OmsRxItem* item);
       void OnReport(OmsCore&, const OmsRxItem& item);
-      void SendReport(const OmsRxItem& item);
+      bool SendReport(const OmsRxItem& item);
       ApiSession* IsNeedReport(const OmsRxItem& item);
    };
    using HandlerSP = fon9::intrusive_ptr<Handler>;
    HandlerSP   Handler_;
 
    struct PolicyConfig : OmsPoRequestConfig {
+      fon9_NON_COPY_NON_MOVE(PolicyConfig);
+      PolicyConfig() = default;
       std::string TablesGridView_;
    };
    PolicyConfig   PolicyConfig_;
 
    fon9::SubConn  SubrTDayChanged_{};
    unsigned       ConfigSentCount_{};
+   char           Padding____[4];
 
    bool CheckApiReady(ApiSession& ses);
    void SendConfig(ApiSession& ses);
    void OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param);
    void OnRecvStartApi(ApiSession& ses);
    void OnRecvTDayConfirm(ApiSession& ses, fon9::rc::RcFunctionParam& param);
-   void StartPolicyRunner(ApiSession& ses, OmsCore* core);
+   void StartPolicyRunner(ApiSession& ses, OmsCoreSP core);
+
+protected:
+   virtual void OnRecvHelpOfferSt(ApiSession& ses, fon9::rc::RcFunctionParam& param);
 
 public:
    const ApiSesCfgSP    ApiSesCfg_;
@@ -84,8 +97,33 @@ public:
    ~OmsRcServerNote();
 
    void OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) override;
+
+   const PolicyConfig& GetPolicyConfig() const {
+      return this->PolicyConfig_;
+   }
+
+   /// - 在 Backend 尚未回報前, 提前回報, 當 Backend 正常流程到達時, 可能會有重複.
+   /// - 若 Backend 的正常流程可能已回報(判斷 PublishedSNO),
+   ///   但無法確認是否有需要送給Client, 則返回 true;
+   /// - 若 item 不需要回報, 則返回 false;
+   bool PreReport(const OmsRxItem& item) {
+      if (auto hdr = this->Handler_)
+         return hdr->PreReport(item);
+      return false;
+   }
+   OmsCoreSP GetOmsCore() const {
+      if (auto hdr = this->Handler_)
+         return hdr->Core_;
+      return nullptr;
+   }
+   bool HasAdminRight() const {
+      if (auto hdr = this->Handler_) {
+         if (auto pol = hdr->RequestPolicy_)
+            return pol->HasAdminRight();
+      }
+      return false;
+   }
 };
-fon9_WARN_POP;
 
 } // namespaces
 #endif//__f9omsrc_OmsRcServerFunc_hpp__

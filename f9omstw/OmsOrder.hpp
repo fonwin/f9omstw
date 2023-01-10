@@ -215,6 +215,12 @@ protected:
 
 //--------------------------------------------------------------------------//
 
+enum class OmsOrderRawFlag : uint8_t {
+   IsRequestFirstUpdate = 0x01,
+   IsForceInternal = 0x02,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(OmsOrderRawFlag);
+
 /// 每次委託異動增加一個 OmsOrderRaw;
 /// - 從檔案重新載入.
 ///   - new OmsOrderRaw(必要參數),
@@ -275,15 +281,18 @@ public:
    /// 剩餘量的改變不可再影響風控統計; 通常在收盤事件, 設定此旗標;
    /// 若之後有成交回報, 或其他刪改回報, 都不可再改變風控剩餘未成交量.
    mutable bool            IsFrozeScLeaves_{false};
-   // -----
-   enum Flag : uint8_t {
-      Flag_IsRequestFirstUpdate = 0x01,
-   };
-   Flag  Flags_{};
+   OmsOrderRawFlag         Flags_{};
 
    /// this->Request() 的第一次 ordraw 異動.
    bool IsRequestFirstUpdate() const {
-      return((this->Flags_ & Flag_IsRequestFirstUpdate) != Flag{});
+      return IsEnumContains(this->Flags_, OmsOrderRawFlag::IsRequestFirstUpdate);
+   }
+   /// 不論 this->Request() 的原始來源, 強制將此次的[異動來源]設為本機.
+   bool IsForceInternal() const {
+      return IsEnumContains(this->Flags_, OmsOrderRawFlag::IsForceInternal);
+   }
+   void SetForceInternal() {
+      this->Flags_ |= OmsOrderRawFlag::IsForceInternal;
    }
    // -----
 

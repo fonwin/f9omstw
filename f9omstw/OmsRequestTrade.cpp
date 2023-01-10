@@ -17,6 +17,19 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTrade, UsrDef));
    flds.Add(fon9_MakeField2(OmsRequestTrade, ClOrdId));
 }
+OmsRequestTrade::~OmsRequestTrade() {
+}
+bool OmsRequestTrade::ValidateInUser(OmsRequestRunner&) {
+   return true;
+}
+bool OmsRequestTrade::PutAskToRemoteMessage(OmsRequestRunnerInCore& runner, fon9::RevBuffer& rbuf) const {
+   (void)runner; (void)rbuf;
+   return true;
+}
+bool OmsRequestTrade::ParseAskerMessage(fon9::StrView message) {
+   (void)message;
+   return true;
+}
 
 //--------------------------------------------------------------------------//
 

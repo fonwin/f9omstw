@@ -26,11 +26,12 @@ $HostId = 33
 * P06: 期貨商代號BrkId - 編號FcmId 對照
   * 請建立連結: `ln -s ./tmpsave/P06.20  ./tmpsave/P06`
   * 或修改設定, 更改載入的檔名:
-    `ss,FileName=./tmpsave/P06.20   /omstw/TwfExgConfig/TwfExgImporter/P06`
+    `ss,FileName=./tmpsave/P06.20   /omstw/TwfExgConfig/TwfExgImporter/0_P06`
 * P07: 連線設定的 dn 設定, 需移除尾端的期貨商代號: P07.10, P07.11, P07.20, P07.21
   * 或建立連結: `ln -s ./tmpsave/P07.10.F906  ./tmpsave/P07.10`
 * P08: 短Id商品基本資料, 取得價格小數位, 商品序號
 * PA8: 長Id商品基本資料, 取得價格小數位, 商品序號
+* P09: 契約基本資料
 
 ### 使用「管理模式」啟動程式
 * `./f9utw --admin`

@@ -89,6 +89,9 @@ public:
       return this->IvMap_.empty() && IsEnumContains(this->IvConfig_.Rights_, OmsIvRight::IsAdmin)
          ? (this->IvConfig_.Rights_ | this->IvDenys_) : OmsIvRight::DenyAll;
    }
+   bool HasAdminRight() const {
+      return IsEnumContains(this->IvConfig_.Rights_, OmsIvRight::IsAdmin);
+   }
 };
 using OmsRequestPolicySP = fon9::intrusive_ptr<const OmsRequestPolicy>;
 

@@ -124,7 +124,7 @@ void OmsOrderRaw::InitializeByStarter(OmsOrder& order, const OmsRequestBase& sta
    this->SessionId_ = starter.SessionId();
    this->Request_ = &starter;
    this->Order_ = &order;
-   this->Flags_ = Flag_IsRequestFirstUpdate;
+   this->Flags_ = OmsOrderRawFlag::IsRequestFirstUpdate;
 }
 void OmsOrderRaw::InitializeByTail(const OmsOrderRaw& tail, const OmsRequestBase& req) {
    assert(tail.Next_ == nullptr && tail.Order_->Tail() == &tail);
@@ -143,7 +143,7 @@ void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    this->ErrCode_ = OmsErrCode_NoError;
    this->IsFrozeScLeaves_ = prev.IsFrozeScLeaves_;
    if (this->Request_->LastUpdated() == nullptr)
-      this->Flags_ = static_cast<Flag>(this->Flags_ | Flag_IsRequestFirstUpdate);
+      this->Flags_ |= OmsOrderRawFlag::IsRequestFirstUpdate;
 }
 void OmsOrderRaw::OnOrderReject() {
 }
@@ -159,6 +159,7 @@ void OmsOrderRaw::MakeFieldsImpl(fon9::seed::Fields& flds) {
    using namespace fon9::seed;
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_OrderSt>>         (Named{"OrdSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, UpdateOrderSt_))});
    flds.Add(FieldSP{new FieldIntHx<underlying_type_t<f9fmkt_TradingRequestSt>>(Named{"ReqSt"}, fon9_OffsetOfRawPointer(OmsOrderRaw, RequestSt_))});
+   flds.Add(FieldSP{new FieldIntHx<underlying_type_t<OmsOrderRawFlag>>        (Named{"Flags"}, fon9_OffsetOfRawPointer(OmsOrderRaw, Flags_))});
    flds.Add(fon9_MakeField2(OmsOrderRaw, ErrCode));
    flds.Add(fon9_MakeField2(OmsOrderRaw, OrdNo));
    flds.Add(fon9_MakeField2(OmsOrderRaw, Message));

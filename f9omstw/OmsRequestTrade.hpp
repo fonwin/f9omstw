@@ -78,6 +78,7 @@ public:
    OmsRequestTrade(f9fmkt_RxKind reqKind = f9fmkt_RxKind_Unknown)
       : base{reqKind} {
    }
+   ~OmsRequestTrade();
 
    /// 收單程序, 可在建立 req 之後, 才設定是哪種下單要求.
    void SetRxKind(f9fmkt_RxKind reqKind) {
@@ -88,9 +89,7 @@ public:
    /// 在建立好 req 之後的 req 驗證程序, 此時還在 user thread, 尚未進入 OmsCore.
    /// 只有「下單要求」會呼叫此處, 「回報」不會呼叫此處.
    /// 預設: 傳回 true;
-   virtual bool ValidateInUser(OmsRequestRunner&) {
-      return true;
-   }
+   virtual bool ValidateInUser(OmsRequestRunner&);
 
    void SetPolicy(OmsRequestPolicySP policy) {
       assert(this->Policy_.get() == nullptr);
@@ -115,6 +114,18 @@ public:
    /// - 如果返回 nullptr, 表示已呼叫 runner.RequestAbandon();
    /// - 返回後 request 不應再有異動.
    virtual OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) = 0;
+
+   /// 請求遠端協助送單時, 將 OrderRaw 無法表達的欄位, 透過 Message 提供給遠端.
+   /// 一般而言, 只有改單才需要, 例:
+   /// - 本地(請求端) TwfChg, 改量填入: "|Qty=..."; 改價填入: "|Pri=...|PriType=...|TimeInForce=...";
+   /// - 遠端(支援端) 將上述內容填入 TwfRpt,
+   ///   配合送單程序 TwfTradingLineTmp::SendRequest() 對於 TwfRpt 的理解, 填入期交所的欄位.
+   /// - 新單, 則直接使用 OrderRaw 的最後內容即可.
+   /// - 預設: do nothing.
+   virtual bool PutAskToRemoteMessage(OmsRequestRunnerInCore& runner, fon9::RevBuffer& rbuf) const;
+   /// 解析 PutAskToRemoteMessage() 打包的訊息, 一般只有在 TwfRpt, TwsRpt... 才需要覆寫此函式.
+   /// TwfChg.PutAskToRemoteMessage() => TwfRpt.ParseAskerMessage();
+   virtual bool ParseAskerMessage(fon9::StrView message);
 };
 
 //--------------------------------------------------------------------------//

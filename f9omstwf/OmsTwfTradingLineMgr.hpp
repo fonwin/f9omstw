@@ -44,9 +44,9 @@ public:
       return this->GetLineMgr(req.SessionId(), req.Market(), nullptr);
    }
    TwfTradingLineMgr* GetLineMgr(const fon9::fmkt::TradingLineManager& ref) const;
-   TwfTradingLineMgr* GetLineMgr(unsigned lmgrIndex) const;
+   TwfTradingLineMgr* GetLineMgr(fon9::fmkt::LmIndex lmIndex) const;
 
-   static unsigned LgLineMgrCount() {
+   static fon9::fmkt::LmIndex LgLineMgrCount() {
       return f9twf::ExgSystemTypeCount();
    }
 };

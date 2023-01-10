@@ -33,15 +33,20 @@ class OmsTradingLineMgrBase {
    void SetOrdTeamGroupId(OmsResource& coreResource, const Locker&);
    OmsCoreSP IsNeedsUpdateOrdTeamConfig(fon9::CharVector ordTeamConfig, const Locker&);
 
-protected:
+   /// CurrRunner_ 可能為 Request 或 Report(因為可能會從 RerunRequest 而來)
    OmsRequestRunnerInCore* CurrRunner_{};
    OmsResource*            CurrOmsResource_{};
    OmsCoreSP               OmsCore_;
 
+protected:
+   void OnBeforeDestroy() {
+      this->OmsCore_.reset();
+   }
    bool SetOmsCore(OmsResource& coreResource, Locker&&);
    void SetState(TradingLineMgrState st, const Locker&) {
       this->State_ = st;
    }
+   f9fmkt::SendRequestResult OnAskFor_SendRequest_FromLocal(f9fmkt::TradingRequest& req, const Locker& tsvrSelf, OmsTradingLineMgrBase& askerFrom);
 
    virtual void AddRef() const = 0;
    virtual void Release() const = 0;
@@ -63,9 +68,15 @@ public:
    const fon9::CharVector        StrQueuingIn_;
    f9fmkt::TradingLineManager&   ThisLineMgr_;
 
-   /// 通常 name = ioargs.Name_; 用來建立排隊訊息: 「"Queuing in " + name」.
+   /// 通常 name = ioargs.Name_; 用來建立排隊訊息: 「fon9_kCSTR_QueuingIn + name」.
    OmsTradingLineMgrBase(fon9::StrView name, f9fmkt::TradingLineManager& thisLineMgr);
    virtual ~OmsTradingLineMgrBase();
+
+   #define fon9_kCSTR_QueuingIn    "Queuing in "
+   fon9::StrView GetName() const {
+      return fon9::StrView(this->StrQueuingIn_.begin() + sizeof(fon9_kCSTR_QueuingIn) - 1,
+                           this->StrQueuingIn_.end());
+   }
 
    TradingLineMgrState State() const {
       return this->State_;
@@ -89,7 +100,12 @@ public:
    OmsRequestRunnerInCore* CurrRunner() const {
       return this->CurrRunner_;
    }
-   OmsRequestRunnerInCore* MakeRunner(fon9::DyObj<OmsRequestRunnerInCore>& tmpRunner,
+   /// 您必須自行注意: 只有在 Running in OmsCore 時才能安全的取得 CurrOmsResource_;
+   /// 通常是在 OmsCore 裡面, 處理 ReqQueue 時會設定此值.
+   OmsResource* CurrOmsResource() const {
+      return this->CurrOmsResource_;
+   }
+   OmsRequestRunnerInCore* MakeRunner(fon9::DyObj<OmsInternalRunnerInCore>& tmpRunner,
                                       const OmsRequestBase& req,
                                       unsigned exLogForUpdArg) {
       if (fon9_LIKELY(this->CurrRunner_)) {
@@ -182,7 +198,10 @@ public:
       }
    }
 
+   /// 通常支援本地 Asker SendReqQueue 的時候.
+   /// assert(req.LastUpdated() != nullptr);
    f9fmkt::SendRequestResult OnAskFor_SendRequest_InCore(f9fmkt::TradingRequest& req, OmsResource& resource);
+   f9fmkt::SendRequestResult OnAskFor_SendRequest_ByRunner(OmsInternalRunnerInCore& runner);
    void InCore_SendReqQueue(OmsResource& resource);
    void OnOfferSendable(OmsResource& resource, f9fmkt::TradingLineManager::FnHelpOffer&& fnOffer);
    void OnHelperBroken(OmsResource& resource);
@@ -206,7 +225,7 @@ protected:
    
    void OnBeforeDestroy() override {
       base::OnBeforeDestroy();
-      this->OmsCore_.reset();
+      baseOmsTradingLineMgr::OnBeforeDestroy();
    }
    f9fmkt::SendRequestResult NoReadyLineReject(f9fmkt::TradingRequest& req, fon9::StrView cause) override {
       return this->baseOmsTradingLineMgr::NoReadyLineReject(req, cause);
@@ -214,7 +233,7 @@ protected:
    void ClearReqQueue(Locker&& tsvr, fon9::StrView cause) override {
       assert(this->use_count() != 0); // 必定要在解構前呼叫 ClearReqQueue();
       this->SetState(TradingLineMgrState::UnsendableReject, tsvr);
-      this->baseOmsTradingLineMgr::ClearReqQueue(std::move(tsvr), cause, this->OmsCore_);
+      this->baseOmsTradingLineMgr::ClearReqQueue(std::move(tsvr), cause, this->OmsCore());
    }
    // 把 tsvr.ReqQueue_ 的傳送需求轉移到 OmsCore 執行.
    void SendReqQueue(Locker&& tsvr) override {
@@ -252,13 +271,7 @@ public:
    f9fmkt::SendRequestResult OnAskFor_SendRequest_FromLocal(f9fmkt::TradingRequest& req, const Locker& tsvrSelf, const Locker& tsvrAsker) override {
       assert(dynamic_cast<OmsTradingLineMgrT*>(&tsvrAsker->GetOwner()) != nullptr);
       auto* askerFrom = static_cast<OmsTradingLineMgrT*>(&tsvrAsker->GetOwner());
-      assert(askerFrom->CurrRunner_ != nullptr || askerFrom->CurrOmsResource_ != nullptr);
-      this->CurrRunner_ = askerFrom->CurrRunner_;           // 來源: RunStep;
-      this->CurrOmsResource_ = askerFrom->CurrOmsResource_; // 來源: SendReqQueue;
-      const auto retval = this->SendRequest_ByLines_NoQueue(req, tsvrSelf);
-      this->CurrRunner_ = nullptr;
-      this->CurrOmsResource_ = nullptr;
-      return retval;
+      return baseOmsTradingLineMgr::OnAskFor_SendRequest_FromLocal(req, tsvrSelf, *askerFrom);
    }
 };
 

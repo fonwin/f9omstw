@@ -9,9 +9,14 @@
 
 namespace f9omstw {
 
+class OmsRcClientNote;
+
 class OmsRcClientAgent : public fon9::rc::RcClientFunctionAgent {
    fon9_NON_COPY_NON_MOVE(OmsRcClientAgent);
    using base = fon9::rc::RcClientFunctionAgent;
+
+   virtual OmsRcClientNote* CreateOmsRcClientNote(fon9::rc::RcClientSession& ses, f9OmsRc_ClientSessionParams& f9OmsRcParams);
+
 public:
    OmsRcClientAgent() : base{f9rc_FunctionCode_OmsApi} {
    }
@@ -66,7 +71,6 @@ public:
 using OmsRcLayoutSP = fon9::intrusive_ptr<OmsRcLayout>;
 using OmsRcReqLayouts = fon9::NamedIxMapNoRemove<OmsRcLayoutSP>;
 
-fon9_WARN_DISABLE_PADDING;
 class OmsRcRptLayout : public OmsRcLayout {
    fon9_NON_COPY_NON_MOVE(OmsRcRptLayout);
    using base = OmsRcLayout;
@@ -86,7 +90,6 @@ public:
       this->ExParam_    = ToStrView(this->ExParamV_).ToCStrView();
    }
 };
-fon9_WARN_POP;
 using OmsRcRptLayoutSP = fon9::intrusive_ptr<OmsRcRptLayout>;
 using OmsRcRptLayouts = std::vector<OmsRcRptLayoutSP>;
 
@@ -110,6 +113,10 @@ class OmsRcClientNote : public fon9::rc::RcFunctionNote {
    void OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param);
    void OnRecvTDayChanged(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param);
    void SendTDayConfirm(fon9::rc::RcSession& ses);
+   /// 預設: this->ForceLogoutOpNotSupported(ses);
+   virtual void OnRecvHelpOfferSt(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param);
+protected:
+   void ForceLogoutOpNotSupported(fon9::rc::RcSession& ses);
 
 public:
    const f9OmsRc_ClientSessionParams   Params_;

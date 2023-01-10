@@ -38,6 +38,7 @@ public:
 
    void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
    void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
+   bool ParseAskerMessage(fon9::StrView message) override;
 
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwsReport{creator, reqKind};

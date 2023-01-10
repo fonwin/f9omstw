@@ -101,8 +101,10 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
 
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 
-   /// 透過 this->OrdKey(BrkId+Market+SessionId+OrdNo)取出此筆要求要操作的委託書(OmsOrder).
-   OmsOrder* SearchOrderByOrdKey(OmsResource& res) const;
+   /// - 若 srcSNO==0, 則使用 this->SearchOrderByOrdKey(); 尋找原始委託.
+   /// - 若 srcSNO!=0, 則用 srcSNO 尋找原始委託, 若有找到, 則:
+   ///   - 若 BrkId_, OrdNo_, Market_, SessionId_ 其中有沒填的, 則填入 src 的內容.
+   ///   - 若 BrkId_, OrdNo_, Market_, SessionId_ 與 src 不同, 則返回 nullptr;
    OmsOrder* SearchOrderByKey(OmsRxSNO srcSNO, OmsResource& res);
 
 protected:
@@ -208,6 +210,11 @@ public:
    bool IsInCore() const {
       return (this->RxItemFlags_ & OmsRequestFlag_InCore) == OmsRequestFlag_InCore;
    }
+
+   /// 透過 this->OrdKey(BrkId+Market+SessionId+OrdNo)取出此筆要求要操作的委託書(OmsOrder).
+   /// - 一般而言應使用 this->LastUpdated()->Order() 取得 OmsOrder.
+   /// - 只有在 this->LastUpdated() == nullptr 時, 才應該呼叫此處.
+   OmsOrder* SearchOrderByOrdKey(OmsResource& res) const;
 
    /// 最後一次委託異動完畢後的內容.
    /// 若 OmsRequestRunnerInCore 正在處理, 則此處傳回的是「上一次異動」的內容,

@@ -152,6 +152,9 @@ public:
    OmsRxSNO PublishedSNO() const {
       return this->Backend_.PublishedSNO();
    }
+   void BackendFlush() {
+      this->Backend_.Flush();
+   }
    /// 僅提供參考使用, 例如: unit test 檢查是否符合預期.
    OmsRxSNO LastSNO() const {
       return this->Backend_.LastSNO();

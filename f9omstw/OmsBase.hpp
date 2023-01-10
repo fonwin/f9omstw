@@ -80,6 +80,7 @@ class OmsRequestRunner;
 class OmsRequestRunnerInCore;
 class OmsReportChecker;
 class OmsReportRunnerInCore;
+class OmsInternalRunnerInCore;
 
 class OmsOrderRaw;
 class OmsOrder;

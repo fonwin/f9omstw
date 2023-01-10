@@ -298,6 +298,15 @@ void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
    // - 成交也是透過這裡回報.
    // - 子單刪改造成的異動, 仍會先由 OmsParentRequestIni::OnChildRequestUpdated() 處理.
    //   若子單已無剩餘量, 則會從 WorkingChild 移除.
+   OmsRxSNO refSNO;
+   if (OmsParseForceReportReqUID(*this, refSNO)) {
+      assert(this->ReportRef_ != nullptr);
+      if (this->ReportRef_ == nullptr || refSNO != this->ReportRef_->RxSNO()) {
+         checker.ReportAbandon("ParentReport: Bad ReportRef.");
+         return;
+      }
+      this->ReqUID_ = this->ReportRef_->ReqUID_;
+   }
    fon9_WARN_DISABLE_SWITCH;
    switch (this->RxKind()) {
    case f9fmkt_RxKind_Filled:

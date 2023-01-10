@@ -17,9 +17,11 @@ OmsRcServerAgent::OmsRcServerAgent(ApiSesCfgSP cfg)
 OmsRcServerAgent::~OmsRcServerAgent() {
    const_cast<ApiSesCfg*>(this->ApiSesCfg_.get())->Unsubscribe();
 }
+OmsRcServerNoteSP OmsRcServerAgent::CreateOmsRcServerNote(ApiSession& ses) {
+   return OmsRcServerNoteSP{new OmsRcServerNote(this->ApiSesCfg_, ses)};
+}
 void OmsRcServerAgent::OnSessionApReady(ApiSession& ses) {
-   ses.ResetNote(this->FunctionCode_,
-                 fon9::rc::RcFunctionNoteSP{new OmsRcServerNote(this->ApiSesCfg_, ses)});
+   ses.ResetNote(this->FunctionCode_, this->CreateOmsRcServerNote(ses));
 }
 void OmsRcServerAgent::OnSessionLinkBroken(ApiSession& ses) {
    // 清除 note 之前, 要先確定 note 已無人參考.
@@ -75,10 +77,10 @@ void OmsRcServerNote::SendConfig(ApiSession& ses) {
    fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
    ses.Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
 }
-void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCore* core) {
+void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCoreSP core) {
    if (this->Handler_)
       this->Handler_->ClearResource();
-   this->Handler_.reset(new Handler(ses.GetDevice(), this->PolicyConfig_, core, this->ApiSesCfg_,
+   this->Handler_.reset(new Handler(ses.GetDevice(), this->PolicyConfig_, std::move(core), this->ApiSesCfg_,
                                     ToStrView(ses.GetUserId())));
    if (!OmsPoRequestHandler_Start(this->Handler_)) {
       // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
@@ -105,7 +107,7 @@ void OmsRcServerNote::OnRecvStartApi(ApiSession& ses) {
       fon9::RevPutBitv(rbuf, fon9_BitvV_Number0); // ReqTableId=0
       static_cast<ApiSession*>(pdev->Session_.get())->Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
    });
-   this->StartPolicyRunner(ses, this->ApiSesCfg_->CoreMgr_->CurrentCore().get());
+   this->StartPolicyRunner(ses, this->ApiSesCfg_->CoreMgr_->CurrentCore());
 }
 void OmsRcServerNote::OnRecvTDayConfirm(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
    fon9::TimeStamp tday;
@@ -116,7 +118,7 @@ void OmsRcServerNote::OnRecvTDayConfirm(ApiSession& ses, fon9::rc::RcFunctionPar
       // => 可能性不高, 所以不用考慮效率問題.
       // => 如果真的發生了, 必定還會再 TDayConfirm 一次.
       // => 所以最終 client 還是會得到正確的 config;
-      this->StartPolicyRunner(ses, core.get());
+      this->StartPolicyRunner(ses, std::move(core));
    }
 }
 bool OmsRcServerNote::CheckApiReady(ApiSession& ses) {
@@ -124,6 +126,10 @@ bool OmsRcServerNote::CheckApiReady(ApiSession& ses) {
       return true;
    ses.ForceLogout("OmsRcServer:Api not ready.");
    return false;
+}
+void OmsRcServerNote::OnRecvHelpOfferSt(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
+   (void)param;
+   ses.ForceLogout("Server.OnRecvHelpOfferSt not supported.");
 }
 void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
    f9OmsRc_OpKind opkind{};
@@ -139,17 +145,20 @@ void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& pa
       this->OnRecvTDayConfirm(ses, param);
       break;
    case f9OmsRc_OpKind_ReportSubscribe:
-      if (!this->CheckApiReady(ses))
-         return;
-      fon9::TimeStamp   tday;
-      OmsRxSNO          from{};
-      f9OmsRc_RptFilter filter{};
-      fon9::BitvTo(param.RecvBuffer_, tday);
-      fon9::BitvTo(param.RecvBuffer_, from);
-      fon9::BitvTo(param.RecvBuffer_, filter);
-      if (this->Handler_->Core_->TDay() == tday)
-         this->Handler_->StartRecover(from, filter);
-      return;
+      if (this->CheckApiReady(ses)) {
+         fon9::TimeStamp   tday;
+         OmsRxSNO          from{};
+         f9OmsRc_RptFilter filter{};
+         fon9::BitvTo(param.RecvBuffer_, tday);
+         fon9::BitvTo(param.RecvBuffer_, from);
+         fon9::BitvTo(param.RecvBuffer_, filter);
+         if (this->Handler_->Core_->TDay() == tday)
+            this->Handler_->StartRecover(from, filter);
+      }
+      break;
+   case f9OmsRc_OpKind_HelpOfferSt:
+      this->OnRecvHelpOfferSt(ses, param);
+      break;
    }
 }
 void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
@@ -348,12 +357,58 @@ void OmsRcServerNote::Handler::OnReport(OmsCore&, const OmsRxItem& item) {
    if (this->State_ < HandlerSt::Disposing)
       this->SendReport(item);
 }
-void OmsRcServerNote::Handler::SendReport(const OmsRxItem& item) {
+bool OmsRcServerNote::Handler::SendReport(const OmsRxItem& item) {
    if (auto* ses = this->IsNeedReport(item)) {
       fon9::RevBufferList rbuf{128};
-      if (this->ApiSesCfg_->MakeReportMessage(rbuf, item))
+      if (this->ApiSesCfg_->MakeReportMessage(rbuf, item)) {
          ses->Send(f9rc_FunctionCode_OmsApi, std::move(rbuf));
+         return true;
+      }
    }
+   return false;
+}
+bool OmsRcServerNote::Handler::PreReport(const OmsRxItem& item) {
+   if (this->State_ >= HandlerSt::Disposing)
+      return false;
+   auto core = this->Core_;
+   if (!core)
+      return false;
+   if (item.RxSNO() <= core->PublishedSNO()) {
+      // 最終發行序號已超過 item, 雖不確定 item 是否有回報,
+      // 但 item [應該.視為] 已經送出.
+      return true;
+   }
+   // item 尚未透過正常流程回報.
+   if (item.CastToOrder())
+      return this->SendReport(item);
+   if (auto* req = static_cast<const OmsRequestBase*>(item.CastToRequest())) {
+      // req可能為子單, [母單]也需要回報.
+      const OmsOrderRaw* ordrawLast;
+      const OmsRxSNO     publishedSNO = core->PublishedSNO();
+      if (auto* parent = req->GetParentRequest()) {
+         if (publishedSNO < parent->RxSNO())
+            goto __BACKEND_FLUSH_AND_RETURN;
+         if ((ordrawLast = parent->LastUpdated()) != nullptr)
+            if (publishedSNO < ordrawLast->RxSNO())
+               goto __BACKEND_FLUSH_AND_RETURN;
+      }
+      // req可能為刪改查, [原始新單]也需要回報.
+      if ((ordrawLast = req->LastUpdated()) != nullptr) {
+         if (auto* ini = ordrawLast->Order().Initiator())
+            if (req != ini) {
+               if (publishedSNO < ini->RxSNO())
+                  goto __BACKEND_FLUSH_AND_RETURN;
+               if ((ordrawLast = ini->LastUpdated()) != nullptr)
+                  if (publishedSNO < ordrawLast->RxSNO())
+                     goto __BACKEND_FLUSH_AND_RETURN;
+            }
+      }
+      return this->SendReport(item);
+   }
+   // 必須把與 item 有關聯的 request 也送出, 所以必須使用 BackendFlush();
+__BACKEND_FLUSH_AND_RETURN:;
+   core->BackendFlush();
+   return true;
 }
 //--------------------------------------------------------------------------//
 /// sesUserId 與 reqUserId 的關係:
@@ -412,7 +467,8 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    auto* ini = order.Initiator();
    if (fon9_UNLIKELY(this->RptFilter_ & f9OmsRc_RptFilter_NoExternal)) {
       auto& req = ordraw->Request();
-      while (req.IsReportIn()) {
+      // 底下使用 while() 是為了裡面能直接 break; 不會有迴圈行為.
+      while (req.IsReportIn() && !ordraw->IsForceInternal()) {
          // 回報程序收到的(TwsRpt, TwfRpt, TwsFil, TwfFil...), 才需要判斷是否為 External.
          const OmsRequestTrade* reqTrade;
          // 這裡如果 ordraw 是 internal, 但 req 不是, 即使將 ordraw 送給了 Client(OmsRcSyn),

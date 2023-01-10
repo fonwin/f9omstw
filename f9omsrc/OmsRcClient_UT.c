@@ -724,6 +724,10 @@ int main(int argc, char* argv[]) {
          f9omstw_FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
          omsRcParams.ErrCodeTx_ = f9omstw_LoadOmsErrMsgTx1(*pargv);
          break;
+      case 'r':
+         if (strcmp(*pargv, "NoCheckSum") == 0)
+            f9rcCliParams.RcFlags_ |= f9rc_RcFlag_NoChecksum;
+         break;
       case '?':   goto __USAGE;
       default:    goto __UNKNOWN_ARGUMENT;
       }
@@ -746,6 +750,10 @@ __USAGE:
              "   e.g. -a dn=localhost:6601\n"
              "-u UserId\n"
              "-p Password\n"
+             "-c\n"
+             "   Change password.\n"
+             "-r NoCheckSum\n"
+             "   Set RcProtocol NoCheckSum flag.\n"
              "-t OmsErrCode.All.cfg:zh\n",
              kCSTR_LogFileFmt, kCSTR_LogFlags);
       return 3;

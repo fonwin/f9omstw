@@ -40,17 +40,27 @@ OmsOrdNoMap* OmsReportChecker::GetOrdNoMap() {
 const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
    OmsRequestBase& rpt = *this->Report_;
    OmsRxSNO        sno;
-   if (fon9_UNLIKELY(memcmp(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqUID, sizeof(f9omstw_kCSTR_ForceReportReqUID)) == 0)) {
-      memcpy(&sno, rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqUID), sizeof(sno));
-      return this->Resource_.GetRequest(sno);
+   if (OmsParseForceReportReqUID(rpt, sno)) {
+      if (auto* retval = this->Resource_.GetRequest(sno)) {
+         rpt.ReqUID_ = retval->ReqUID_;
+         return retval;
+      }
+      return nullptr;
    }
-   sno = this->Resource_.ParseRequestId(rpt);
+   fon9::HostId rptHostId;
+   sno = OmsReqUID_Builder::ParseReqUID(rpt, rptHostId);
+   if (rptHostId != fon9::LocalHostId_) // 不是本機的 rpt.ReqUID_, 不可使用 sno 取的 origReq;
+      return nullptr;
    const OmsRequestBase* origReq = this->Resource_.GetRequest(sno);
    if (fon9_UNLIKELY(origReq == nullptr)) // 無法用 ReqUID 的 RxSNO 取得 request.
       return nullptr;
+   // -----
    // ReqUID 除了 RxSNO, 還包含其他資訊(例:HostId), 所以仍需檢查 ReqUID 是否一致.
-   if (fon9_UNLIKELY(origReq->ReqUID_ != rpt.ReqUID_))
-      return nullptr;
+   // => 若 origReq 為繞進要求, rpt 為交易所回報, 則 (origReq->ReqUID_ != rpt.ReqUID_);
+   // if (fon9_UNLIKELY(origReq->ReqUID_ != rpt.ReqUID_)) {
+   //    return nullptr;
+   // }
+   // -----
    // 即使用 ReqUID 取得了 origReq.
    // 但為了以防萬一, 還是需要檢查基本的 key 是否一致.
    // 如果 key 不一致, 則系統 ReqUID 有問題!
@@ -193,6 +203,22 @@ void OmsReportRunnerInCore::UpdateReportImpl(OmsRequestBase& rpt) {
    if (ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_ReportStale)
       ordraw.Message_.append("(stale)");
    this->Update(ordraw.RequestSt_);
+   if (rpt.HasForceInternalFlag()) {
+      // 例: rpt is OmsTwfReport3, 此時必定為 rpt.HasForceInternalFlag(),
+      // 但: dynamic_cast<OmsRequestTrade*>(&rpt) == nullptr;
+      // 因: OmsTwfReport3 繼承自 OmsRequestBase; 不是 OmsRequestTrade;
+      ordraw.SetForceInternal();
+   }
+   else {
+      assert(dynamic_cast<OmsRequestTrade*>(&rpt) != nullptr);
+      if (static_cast<OmsRequestTrade*>(&rpt)->IsForceInternalRpt())
+         ordraw.SetForceInternal();
+   }
+}
+void OmsReportRunnerInCore::UpdateFilled(f9fmkt_OrderSt ordst, const OmsReportFilled& rptFilled) {
+   this->UpdateSt(ordst, rptFilled.ReportSt());
+   if (rptFilled.IsForceInternalRpt())
+      this->OrderRaw().SetForceInternal();
 }
 //--------------------------------------------------------------------------//
 static bool CheckSrc(fon9::StrView cfg, const OmsRequestTrade* req) {

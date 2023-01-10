@@ -97,7 +97,9 @@ inline auto OmsAssignLastPrisFromReport(OrderRawT* ordraw, const ReportT* rpt)
 /// - 如果有 rpt.TimeInForce_ 及 ordraw.LastTimeInForce_; 則也會更新.
 template <class OrderRawT, class ReportT>
 void OmsAssignTimeAndPrisFromReport(OrderRawT& ordraw, const ReportT& rpt) {
-   if (!rpt.ExgTime_.IsNull()) {
+   // ordraw.LastExgTime_.IsNull(): ordraw 尚未收到交易所回報, 則須從 rpt 填入 ordraw.LastPri*
+   // 這樣 [新單 Sending 的回報] 才能正確反映委託最後狀態.
+   if (ordraw.LastExgTime_.IsNull() || !rpt.ExgTime_.IsNull()) {
       ordraw.LastExgTime_ = rpt.ExgTime_;
       OmsAssignLastPrisFromReport(&ordraw, &rpt);
    }

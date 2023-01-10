@@ -31,6 +31,7 @@ public:
 class OmsIoSessionFactoryConfigParser : public fon9::SessionFactoryConfigParser {
    fon9_NON_COPY_NON_MOVE(OmsIoSessionFactoryConfigParser);
    using base = SessionFactoryConfigParser;
+protected:
    fon9::StrView  OmsCoreName_;
 
 public:

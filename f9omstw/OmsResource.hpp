@@ -130,9 +130,15 @@ inline void OmsOrder::RunnerEndUpdate(const OmsRequestRunnerInCore& runner) {
          this->OnOrderUpdated(runner);
    }
 }
+inline void OmsRequestRunnerInCore::ForceFinish() {
+   if (fon9_LIKELY(this->OrderRaw_)) {
+      this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
+      this->OrderRaw_->Order().RunnerEndUpdate(*this);
+      this->OrderRaw_ = nullptr;
+   }
+}
 inline OmsRequestRunnerInCore::~OmsRequestRunnerInCore() {
-   this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
-   this->OrderRaw_.Order().RunnerEndUpdate(*this);
+   this->ForceFinish();
 }
 
 inline OmsIvBaseSP GetIvr(OmsResource& res, const OmsRequestIni& inireq) {

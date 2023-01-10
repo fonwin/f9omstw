@@ -43,8 +43,8 @@ TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(const fon9::fmkt::TradingLine
    assert(dynamic_cast<const TwfTradingLineMgr*>(&ref) != nullptr);
    return this->GetLineMgr(f9twf::ExgSystemTypeToIndex(static_cast<const TwfTradingLineMgr*>(&ref)->ExgSystemType_));
 }
-TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(unsigned lmgrIndex) const {
-   return lmgrIndex < fon9::numofele(this->TradingLineMgr_) ? this->TradingLineMgr_[lmgrIndex].get() : nullptr;
+TwfTradingLineMgr* TwfTradingLineGroup::GetLineMgr(fon9::fmkt::LmIndex lmIndex) const {
+   return lmIndex < fon9::numofele(this->TradingLineMgr_) ? this->TradingLineMgr_[lmIndex].get() : nullptr;
 }
 
 TwfTradingLineMgrSP CreateTwfTradingLineMgr(fon9::seed::MaTree&  owner,

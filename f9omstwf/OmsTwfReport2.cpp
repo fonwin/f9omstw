@@ -92,5 +92,53 @@ void OmsTwfReport2::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunne
 void OmsTwfRequestChg1::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
    OmsTwf1_ProcessPendingReport(prevRunner, *this, nullptr);
 }
+//--------------------------------------------------------------------------//
+bool OmsTwfRequestChg1::PutAskToRemoteMessage(OmsRequestRunnerInCore& runner, fon9::RevBuffer& rbuf) const {
+   if (this->RxKind() == f9fmkt_RxKind_RequestChgQty) {
+      // Qty = 改量: 送給期交所的數量(欲刪減量).
+      if (auto* lastOrd = static_cast<const OmsTwfOrderRaw1*>(runner.OrderRaw().Order().Tail())) {
+         auto qty = runner.GetRequestChgQty(this->Qty_, true/*isWantToKill*/, lastOrd->LeavesQty_, lastOrd->CumQty_);
+         if (qty >= 0) {
+            fon9::RevPrint(rbuf, "|Qty=", fon9::unsigned_cast(qty));
+            return true;
+         }
+      }
+      return false;
+   }
+   if (this->RxKind() == f9fmkt_RxKind_RequestChgPri) {
+      fon9::RevPrint(rbuf, "|TIF=", this->TimeInForce_);
+      switch (this->PriType_) {
+      case f9fmkt_PriType_Unknown:
+      case f9fmkt_PriType_Limit:
+         fon9::RevPrint(rbuf, "|Pri=", this->Pri_);
+         break;
+      case f9fmkt_PriType_Market:
+      case f9fmkt_PriType_Mwp:
+         break;
+      }
+      fon9::RevPrint(rbuf, "|PriType=", this->PriType_);
+   }
+   return true;
+}
+bool OmsTwfReport2::ParseAskerMessage(fon9::StrView message) {
+   // 解析後的欄位, 須配合 TwfTradingLineTmp::SendRequest(); 對 TwfRpt 欄位的理解.
+   fon9::StrView tag, value;
+   while (fon9::StrFetchTagValue(message, tag, value)) {
+      if (tag == "Qty") {
+         this->Qty_ = fon9::StrTo(value, this->Qty_);
+      }
+      else if (tag == "Pri") {
+         this->Pri_ = fon9::StrTo(value, this->Pri_);
+      }
+      else if (tag == "PriType") {
+         this->PriType_ = value.empty() ? f9fmkt_PriType_Unknown : static_cast<f9fmkt_PriType>(*value.begin());
+      }
+      else if (tag == "TIF") {
+         this->TimeInForce_ = value.empty() ? f9fmkt_TimeInForce_ROD : static_cast<f9fmkt_TimeInForce>(*value.begin());
+      }
+   }
+   return true;
+}
+
 
 } // namespaces

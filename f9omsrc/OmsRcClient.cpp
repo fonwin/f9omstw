@@ -10,12 +10,16 @@ namespace f9omstw {
 
 OmsRcClientAgent::~OmsRcClientAgent() {
 }
+OmsRcClientNote* OmsRcClientAgent::CreateOmsRcClientNote(fon9::rc::RcClientSession& ses, f9OmsRc_ClientSessionParams& f9OmsRcParams) {
+   (void)ses;
+   return new OmsRcClientNote{f9OmsRcParams};
+}
 void OmsRcClientAgent::OnSessionCtor(fon9::rc::RcClientSession& ses, const f9rc_ClientSessionParams* params) {
    if (f9rc_FunctionNoteParams* p = params->FunctionNoteParams_[f9rc_FunctionCode_OmsApi]) {
       f9OmsRc_ClientSessionParams& f9OmsRcParams = fon9::ContainerOf(*p, &f9OmsRc_ClientSessionParams::BaseParams_);
       assert(f9OmsRcParams.BaseParams_.FunctionCode_ == f9rc_FunctionCode_OmsApi
              && f9OmsRcParams.BaseParams_.ParamSize_ == sizeof(f9OmsRcParams));
-      ses.ResetNote(f9rc_FunctionCode_OmsApi, fon9::rc::RcFunctionNoteSP{new OmsRcClientNote{f9OmsRcParams}});
+      ses.ResetNote(f9rc_FunctionCode_OmsApi, fon9::rc::RcFunctionNoteSP{this->CreateOmsRcClientNote(ses, f9OmsRcParams)});
    }
 }
 void OmsRcClientAgent::OnSessionLinkBroken(fon9::rc::RcSession& ses) {
@@ -129,7 +133,8 @@ void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFu
    case f9OmsRc_OpKind_TDayChanged:
       this->OnRecvTDayChanged(ses, param);
       break;
-   case f9OmsRc_OpKind_ReportSubscribe: // 回補結束.
+   case f9OmsRc_OpKind_ReportSubscribe:
+   {  // 回補結束.
       fon9::TimeStamp      tday;
       f9OmsRc_ClientReport rpt;
       fon9::ZeroStruct(rpt);
@@ -145,6 +150,17 @@ void OmsRcClientNote::OnRecvOmsOpResult(fon9::rc::RcSession& ses, fon9::rc::RcFu
          this->Params_.FnOnReport_(static_cast<fon9::rc::RcClientSession*>(&ses), &rpt);
       return;
    }
+   case f9OmsRc_OpKind_HelpOfferSt:
+      this->OnRecvHelpOfferSt(ses, param);
+      break;
+   }
+}
+void OmsRcClientNote::OnRecvHelpOfferSt(fon9::rc::RcSession& ses, fon9::rc::RcFunctionParam& param) {
+   (void)param;
+   this->ForceLogoutOpNotSupported(ses);
+}
+void OmsRcClientNote::ForceLogoutOpNotSupported(fon9::rc::RcSession& ses) {
+   ses.ForceLogout("OmsRcOpKind not supported");
 }
 //--------------------------------------------------------------------------//
 void OmsRcLayout::Initialize() {

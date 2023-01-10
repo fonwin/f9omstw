@@ -73,7 +73,7 @@ void OmsTwfFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, Om
    assert(order.LastOrderSt() < f9fmkt_OrderSt_NewDone && order.Initiator() != nullptr);
    if (fon9_UNLIKELY(this->PosEff_ == OmsTwfPosEff::Quote && this->Side_ == f9fmkt_Side_Buy))
       return;
-   OmsReportRunnerInCore inCoreRunner{resource, *order.BeginUpdate(*order.Initiator())};
+   OmsInternalRunnerInCore inCoreRunner{resource, *order.BeginUpdate(*order.Initiator())};
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
       auto& ordraw1 = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
       // 新單補單後的處理,不會走到這兒,會在 RunReportInCore_FilledUpdateCum() 更新 LastPri_;

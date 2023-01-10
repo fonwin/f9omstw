@@ -66,7 +66,8 @@ public:
    /// 然後返回 base::ValidateInUser();
    bool ValidateInUser(OmsRequestRunner& reqRunner) override;
 
-   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const;
+   void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
+   bool PutAskToRemoteMessage(OmsRequestRunnerInCore& runner, fon9::RevBuffer& rbuf) const override;
 
    OpQueuingRequestResult OpQueuingRequest(fon9::fmkt::TradingLineManager& from,
                                            TradingRequest& queuingRequest) override;

@@ -52,6 +52,11 @@ fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
    /// C -> S: 回補要求.
    /// C <- S: 回補結束通知.
    f9OmsRc_OpKind_ReportSubscribe = 2,
+
+   /// C -> S: OmsApi 連線成功後, 若 Client 的 OmsRcClientConfig.RightFlags_ 包含 OmsUserRightFlag::AllowTradingLineHelp;
+   ///         則送出訊息(包含 LocalHostId) 告知對方(Server端), Client 可支援繞進服務.
+   /// C <- S: 當 Server 收到 Client 的告知後, Server 回覆: 需要對方(Client端)需要請求繞送的 Asker LgList;
+   f9OmsRc_OpKind_HelpOfferSt = 3,
 };
 
 fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {

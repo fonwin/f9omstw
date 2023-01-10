@@ -83,9 +83,9 @@ protected:
       assert(dynamic_cast<LgItem*>(&lg) != nullptr);
       return static_cast<LgItem*>(&lg)->GetLineMgr(ref);
    }
-   fon9::fmkt::TradingLineManager* GetLineMgr(LgItemBase& lg, unsigned lmgrIndex) const override {
+   fon9::fmkt::TradingLineManager* GetLineMgr(LgItemBase& lg, fon9::fmkt::LmIndex lmIndex) const override {
       assert(dynamic_cast<LgItem*>(&lg) != nullptr);
-      return static_cast<LgItem*>(&lg)->GetLineMgr(lmgrIndex);
+      return static_cast<LgItem*>(&lg)->GetLineMgr(lmIndex);
    }
 
    LgItemSP MakeLgItem(fon9::StrView tag, fon9::StrView cfgln) {
@@ -148,7 +148,7 @@ public:
          runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_Bad_LgOut, nullptr);
       return nullptr;
    }
-   unsigned LgLineMgrCount() const override {
+   fon9::fmkt::LmIndex LgLineMgrCount() const override {
       return LineGroup::LgLineMgrCount();
    }
 };

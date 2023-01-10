@@ -53,7 +53,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
 
    fon9::TimeStamp   now = fon9::UtcNow();
    if (fon9_UNLIKELY(IsOverVaTimeMS(req, now))) {
-      fon9::DyObj<OmsRequestRunnerInCore> tmpRunner;
+      fon9::DyObj<OmsInternalRunnerInCore> tmpRunner;
       OmsRequestRunnerInCore* runner = static_cast<TwfTradingLineMgr*>(&this->LineMgr_)
          ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&req), 0u);
       runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OverVaTimeMS, nullptr);
@@ -64,7 +64,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
    if (fc.GetOrigValue() > 0)
       return f9fmkt::ToFlowControlResult(fc);
 
-   fon9::DyObj<OmsRequestRunnerInCore> tmpRunner;
+   fon9::DyObj<OmsInternalRunnerInCore> tmpRunner;
    TwfTradingLineMgr&      lineMgr = *static_cast<TwfTradingLineMgr*>(&this->LineMgr_);
    const OmsRequestTrade*  curReq  = static_cast<OmsRequestTrade*>(&req);
    OmsRequestRunnerInCore* runner  = lineMgr.MakeRunner(tmpRunner, *curReq, 256u);

@@ -50,11 +50,17 @@ public:
 #define f9omstw_kCSTR_ForceReportReqUID  "SNO.bin"
 /// 設定 rpt 的回報原始「下單要求」序號.
 /// 適用於「立即等候回報」的情況, 例如: 台灣證券TMP下單協定.
-inline void OmsForceAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
+static inline void OmsForceAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
    memcpy(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqUID, sizeof(f9omstw_kCSTR_ForceReportReqUID));
    memcpy(rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqUID), &sno, sizeof(sno));
    static_assert(rpt.ReqUID_.size() >= sizeof(f9omstw_kCSTR_ForceReportReqUID) + sizeof(sno),
                  "OmsRequestId::ReqUID_ too small.");
+}
+static inline bool OmsParseForceReportReqUID(const OmsRequestId& rpt, OmsRxSNO& sno) {
+   if (fon9_LIKELY(memcmp(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqUID, sizeof(f9omstw_kCSTR_ForceReportReqUID)) != 0))
+      return false;
+   memcpy(&sno, rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqUID), sizeof(sno));
+   return true;
 }
 
 //--------------------------------------------------------------------------//
@@ -64,14 +70,14 @@ inline void OmsForceAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
 ///   - this->OrderRaw_.Order_->Tail() == &this->OrderRaw_;
 ///   - this->OrderRaw_.Request_->LastUpdated() 尚未設定成 &this->OrderRaw_;
 ///     所以 this->OrderRaw_.Request_->LastUpdated() 有可能仍是 nullptr;
-/// - 解構時: ~OmsRequestRunnerInCore()
+/// - ~OmsRequestRunnerInCore() 或 ForceFinish():
 ///   - this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
 ///     - 將 req, this->OrderRaw_ 加入 backend;
 ///     - 設定 this->OrderRaw_.Request_->SetLastUpdated(&this->OrderRaw_);
 ///   - this->OrderRaw_.Order().EndUpdate(*this);
 class OmsRequestRunnerInCore {
    fon9_NON_COPY_NON_MOVE(OmsRequestRunnerInCore);
-   OmsOrderRaw&         OrderRaw_;
+   OmsOrderRaw*         OrderRaw_;
 public:
    OmsResource&         Resource_;
    /// 例如: 儲存送給交易所的封包.
@@ -82,7 +88,7 @@ public:
 
    /// 收到下單要求: 準備進行下單流程.
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, fon9::RevBufferList&& exLogForReq, fon9::BufferNodeSize updExLogSize)
-      : OrderRaw_(ordRaw)
+      : OrderRaw_(&ordRaw)
       , Resource_(resource)
       , ExLogForUpd_{updExLogSize}
       , ExLogForReq_(std::move(exLogForReq)) {
@@ -91,13 +97,13 @@ public:
    /// 收到交易所回報時: 找回下單要求, 建立委託更新物件.
    template <class ExLogForUpdArg>
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, ExLogForUpdArg&& exLogForUpdArg)
-      : OrderRaw_(ordRaw)
+      : OrderRaw_(&ordRaw)
       , Resource_(resource)
       , ExLogForUpd_{std::forward<ExLogForUpdArg>(exLogForUpdArg)}
       , ExLogForReq_{0} {
    }
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw)
-      : OrderRaw_(ordRaw)
+      : OrderRaw_(&ordRaw)
       , Resource_(resource)
       , ExLogForUpd_{0}
       , ExLogForReq_{0} {
@@ -105,14 +111,14 @@ public:
    /// 接續前一次執行完畢後, 的繼續執行.
    /// prevRunner 可能是同一個 order, 也可能是 child 或 parent;
    OmsRequestRunnerInCore(const OmsRequestRunnerInCore& prevRunner, OmsOrderRaw& ordRaw)
-      : OrderRaw_(ordRaw)
+      : OrderRaw_(&ordRaw)
       , Resource_(prevRunner.Resource_)
       , ExLogForUpd_{0}
       , ExLogForReq_{0}
       , BackendLocker_{prevRunner.BackendLocker_} {
    }
    OmsRequestRunnerInCore(OmsResource& resource, OmsOrderRaw& ordRaw, const OmsRequestRunnerInCore* prevRunner)
-      : OrderRaw_(ordRaw)
+      : OrderRaw_(&ordRaw)
       , Resource_(resource)
       , ExLogForUpd_{0}
       , ExLogForReq_{0}
@@ -121,21 +127,32 @@ public:
 
    ~OmsRequestRunnerInCore();
 
+   /// 強制流程結束, 並強制結束 this->OrderRaw_ 的更新.
+   /// - 在 ForceFinish() 之後, this->OrderRaw_ 會變成 nullptr;
+   ///   所以在此之後 this 就只能解構, 不可再使用 this 的任何 members, 否則 crash!
+   /// - 使用 ForceFinish() 的時機:
+   ///   - 讓 this->OrderRaw_->RxSNO() 有效.
+   ///   - 讓 req.LastUpdated() 設定為 this->OrderRaw_;
+   ///   - 且不再需要 this;
+   void ForceFinish();
+
    OmsOrderRaw& OrderRaw() {
-      return this->OrderRaw_;
+      assert(this->OrderRaw_ != nullptr);
+      return *this->OrderRaw_;
    }
    const OmsOrderRaw& OrderRaw() const {
-      return this->OrderRaw_;
+      assert(this->OrderRaw_ != nullptr);
+      return *this->OrderRaw_;
    }
    template <class RawT>
    RawT& OrderRawT() {
-      assert(dynamic_cast<RawT*>(&this->OrderRaw_) != nullptr);
-      return *static_cast<RawT*>(&this->OrderRaw_);
+      assert(dynamic_cast<RawT*>(this->OrderRaw_) != nullptr);
+      return *static_cast<RawT*>(this->OrderRaw_);
    }
    template <class RawT>
    const RawT& OrderRawT() const {
-      assert(dynamic_cast<const RawT*>(&this->OrderRaw_) != nullptr);
-      return *static_cast<const RawT*>(&this->OrderRaw_);
+      assert(dynamic_cast<const RawT*>(this->OrderRaw_) != nullptr);
+      return *static_cast<const RawT*>(this->OrderRaw_);
    }
 
    /// - 更新 this->OrderRaw_.RequestSt_ = reqst;
@@ -144,12 +161,16 @@ public:
    ///   - 若為新單拒絕, 則會呼叫 this->OrderRaw_.OnOrderReject();
    void Update(f9fmkt_TradingRequestSt reqst);
    void Update(f9fmkt_TradingRequestSt reqst, fon9::StrView cause) {
-      this->OrderRaw_.Message_.assign(cause);
+      this->OrderRaw_->Message_.assign(cause);
       this->Update(reqst);
    }
    void Reject(f9fmkt_TradingRequestSt reqst, OmsErrCode ec, fon9::StrView cause) {
-      this->OrderRaw_.ErrCode_ = ec;
+      this->OrderRaw_->ErrCode_ = ec;
       this->Update(reqst, cause);
+   }
+   void UpdateSt(f9fmkt_OrderSt ordst, f9fmkt_TradingRequestSt reqst) {
+      this->OrderRaw_->UpdateOrderSt_ = ordst;
+      this->Update(reqst);
    }
 
    /// 使用 this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
@@ -171,11 +192,11 @@ public:
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
    bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId) {
-      if (!OmsIsOrdNoEmpty(this->OrderRaw_.OrdNo_)) // 已編號.
+      if (!OmsIsOrdNoEmpty(this->OrderRaw_->OrdNo_)) // 已編號.
          return true;
-      assert(this->OrderRaw_.Request().RxKind() == f9fmkt_RxKind_RequestNew);
-      assert(this->OrderRaw_.Order().Initiator() == &this->OrderRaw_.Request());
-      auto iniReq = this->OrderRaw_.Order().Initiator();
+      assert(this->OrderRaw_->Request().RxKind() == f9fmkt_RxKind_RequestNew);
+      assert(this->OrderRaw_->Order().Initiator() == &this->OrderRaw_->Request());
+      auto iniReq = this->OrderRaw_->Order().Initiator();
       if (!OmsIsOrdNoEmpty(iniReq->OrdNo_) || iniReq->Policy()->OrdTeamGroupId() != 0)
          return this->AllocOrdNo(iniReq->OrdNo_);
       return this->AllocOrdNo(tgId);
@@ -211,6 +232,22 @@ public:
       return 0;
    }
 };
+
+class OmsInternalRunnerInCore_Ctor {
+   OmsInternalRunnerInCore_Ctor();
+   friend class OmsInternalRunnerInCore;
+};
+/// - 使用 OmsInternalRunnerInCore 必定為內部更新, 所以建構時 OrderRaw().SetForceInternal();
+class OmsInternalRunnerInCore : public OmsRequestRunnerInCore, public OmsInternalRunnerInCore_Ctor {
+   fon9_NON_COPY_NON_MOVE(OmsInternalRunnerInCore);
+   using base = OmsRequestRunnerInCore;
+public:
+   using base::base;
+
+};
+inline OmsInternalRunnerInCore_Ctor::OmsInternalRunnerInCore_Ctor() {
+   static_cast<OmsInternalRunnerInCore*>(this)->OrderRaw().SetForceInternal();
+}
 //--------------------------------------------------------------------------//
 class OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(OmsRequestRunStep);

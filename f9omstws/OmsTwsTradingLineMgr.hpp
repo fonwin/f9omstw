@@ -60,14 +60,14 @@ public:
    }
    TwsTradingLineMgr* GetLineMgr(const fon9::fmkt::TradingLineManager& ref) const;
 
-   TwsTradingLineMgr* GetLineMgr(unsigned lmgrIndex) const {
-      switch (lmgrIndex) {
+   TwsTradingLineMgr* GetLineMgr(fon9::fmkt::LmIndex lmIndex) const {
+      switch (lmIndex) {
       case 0: return this->TseTradingLineMgr_.get();
       case 1: return this->OtcTradingLineMgr_.get();
       }
       return nullptr;
    }
-   static unsigned LgLineMgrCount() {
+   static fon9::fmkt::LmIndex LgLineMgrCount() {
       return 2;
    }
 };

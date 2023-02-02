@@ -34,7 +34,7 @@ public:
    OmsTwfSymbol      Symbol_;
    IvacNo            IvacNo_{0};
    OmsReportPriStyle PriStyle_;
-   OmsTwfPosEff      PosEff_;
+   OmsTwfPosEff      PosEff_{};
    /// 期交所刪除數量(最終未成交的數量).
    /// - IOC、FOK 未成交的期交所刪單.
    /// - 超過「動態價格穩定區間」的取消(status_code=47).

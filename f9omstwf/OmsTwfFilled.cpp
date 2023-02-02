@@ -178,8 +178,10 @@ void OmsTwfFilled::OnSynReport(const OmsRequestBase* ref, fon9::StrView message)
       ___COPY_FROM_INI:;
          this->Symbol_ = ini->Symbol_;
          this->IvacNo_ = ini->IvacNo_;
-         // this->Side_;
          // this->PosEff_;
+         if (this->PosEff_ == OmsTwfPosEff{} && ini->RequestType_ == RequestType::Quote)
+            this->PosEff_ = OmsTwfPosEff::Quote;
+         // this->Side_;
          // this->QtyCanceled_;
          return;
       }

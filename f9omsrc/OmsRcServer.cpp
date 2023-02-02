@@ -65,6 +65,18 @@ static void FnRptApiField_IniField(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& 
    else
       fon9::RevPrint(rbuf, "C0");
 }
+static void FnRptApiField_RefField(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& cfg, const ApiRptFieldArg* arg) {
+   if (fon9_LIKELY(arg)) {
+      if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(arg->Item_.CastToOrder())) {
+         if (const OmsRequestBase* req = dynamic_cast<const OmsRequestBase*>(&ordraw->Request())) {
+            if (const fon9::seed::Field* fld = req->Creator().Fields_.Get(ToStrView(cfg.ExtParam_)))
+               fld->CellRevPrint(fon9::seed::SimpleRawRd{*req}, nullptr, rbuf);
+         }
+      }
+   }
+   else
+      fon9::RevPrint(rbuf, "C0");
+}
 static void FnRptApiField_IniSNO(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& cfg, const ApiRptFieldArg* arg) {
    (void)cfg;
    if (fon9_LIKELY(arg)) {
@@ -85,6 +97,7 @@ static void FnRptApiField_IniSNO(fon9::RevBuffer& rbuf, const ApiRptFieldCfg& cf
 }
 static FnRptApiField_Register regFnRptApiField_Abandon{
    "IniField",       &FnRptApiField_IniField,
+   "RefField",       &FnRptApiField_RefField,
    "AbandonErrCode", &FnRptApiField_AbandonErrCode,
    "AbandonReason",  &FnRptApiField_AbandonReason,
    "IniSNO",         &FnRptApiField_IniSNO

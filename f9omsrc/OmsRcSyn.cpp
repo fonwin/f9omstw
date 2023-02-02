@@ -344,6 +344,16 @@ void OmsRcSynClientSession::OnDevice_StateChanged(Device& dev, const StateChange
 void OmsRcSynClientSession::OnOmsRcSyn_ReportRecoverEnd() {
    this->RemoteMap_->IsReportRecovering_ = false;
 }
+//--------------------------------------------------------------------------//
+static const f9OmsRc_LayoutField* FindLayoutField(const f9OmsRc_Layout& layout, StrView fldName) {
+   auto*       pLayoutFld = layout.FieldArray_;
+   auto* const endLayoutFld = pLayoutFld + layout.FieldCount_;
+   for (; pLayoutFld != endLayoutFld; ++pLayoutFld) {
+      if (fldName == pLayoutFld->Named_.Name_)
+         return pLayoutFld;
+   }
+   return nullptr;
+}
 void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    OmsRcSyn_SessionFactory* ud = static_cast<OmsRcSyn_SessionFactory*>(ses->UserData_);
    OmsRcSynClientSession*   synSes = static_cast<OmsRcSynClientSession*>(ses);
@@ -389,32 +399,41 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Config(f9rc_ClientSession* s
    synSes->RptMap_.resize(rptLayouts.size());
    auto iRptMap = synSes->RptMap_.begin();
    for(auto& iLayout : rptLayouts) {
-      const StrView strLayoutName{iLayout->LayoutName_};
-      auto*  synfac = ud->GetRptReportFactory(strLayoutName);
+      const StrView         strLayoutName{iLayout->LayoutName_};
+      auto*                 synfac = ud->GetRptReportFactory(strLayoutName);
+      const f9OmsRc_Layout* ordSrcLayout = nullptr;
       if (synfac == nullptr) {
-         if ((synfac = ud->GetRptReportFactory(iLayout->ExParam_)) == nullptr) {
+         const StrView strOrdSrcName{iLayout->ExParam_};
+         if ((synfac = ud->GetRptReportFactory(strOrdSrcName)) == nullptr) {
             ++iRptMap;
             continue;
          }
-         if(iLayout->LayoutKind_ == f9OmsRc_LayoutKind_ReportOrder
-            && synfac->Kind_ == RcSynFactoryKind::Filled) {
-            // [LayoutName = 母單Ord; ExParam = 成交Req;] 的回報;
-            //    => 使用[母單Rpt] 的 Request 處理;
-            // 例: BergOrd + TwfFil  => BergRpt
-            std::string rptName = strLayoutName.ToString();
-            const auto  ipos = rptName.find("Ord");
-            if (ipos != rptName.npos) {
-               rptName.replace(ipos, 3, "Rpt");
-               if (auto* synParentRpt = ud->GetRptReportFactory(&rptName)) {
-                  if (synParentRpt->Kind_ == RcSynFactoryKind::Parent)
-                     synfac = synParentRpt;
+         if (iLayout->LayoutKind_ == f9OmsRc_LayoutKind_ReportOrder) {
+            for (auto& xLayout : rptLayouts) {
+               if (strOrdSrcName == xLayout->LayoutName_) {
+                  ordSrcLayout = xLayout.get();
+                  break;
+               }
+            }
+            if (synfac->Kind_ == RcSynFactoryKind::Filled) {
+               // [LayoutName = 母單Ord; ExParam = 成交Req;] 的回報;
+               //    => 使用[母單Rpt] 的 Request 處理;
+               // 例: BergOrd + TwfFil  => BergRpt
+               std::string rptName = strLayoutName.ToString();
+               const auto  ipos = rptName.find("Ord");
+               if (ipos != rptName.npos) {
+                  rptName.replace(ipos, 3, "Rpt");
+                  if (auto* synParentRpt = ud->GetRptReportFactory(&rptName)) {
+                     if (synParentRpt->Kind_ == RcSynFactoryKind::Parent)
+                        synfac = synParentRpt;
+                  }
                }
             }
          }
       }
-      OmsRequestFactory*  facRpt = synfac->Factory_;
-      auto* pLayoutFld = iLayout->FieldArray_;
-      std::vector<bool> isFldAssigned; // 是否已有名稱完全相符的欄位?
+      OmsRequestFactory* facRpt = synfac->Factory_;
+      auto*              pLayoutFld = iLayout->FieldArray_;
+      std::vector<bool>  isFldAssigned; // 是否已有名稱完全相符的欄位?
       iRptMap->Fields_.resize(iLayout->FieldCount_);
       isFldAssigned.resize(facRpt->Fields_.size());
       enum {
@@ -437,8 +456,13 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Config(f9rc_ClientSession* s
          }
          else {
             // TODO: 額外欄位對照, 使用設定檔處理?
-            if (memcmp(fldName.begin(), "Ini", 3) == 0)
+            if (memcmp(fldName.begin(), "Ini", 3) == 0) {
                fldName.SetBegin(fldName.begin() + 3);
+               if (FindLayoutField(*iLayout, fldName))
+                  goto __NEXT_LAYOUT_FLD;
+               if (ordSrcLayout && FindLayoutField(*ordSrcLayout, fldName))
+                  goto __NEXT_LAYOUT_FLD;
+            }
             else if (memcmp(fldName.begin(), "Match", 5) == 0) {
                if (fldName == "MatchPri1")
                   fldName = "Pri";

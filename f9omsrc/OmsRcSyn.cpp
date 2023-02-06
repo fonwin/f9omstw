@@ -194,7 +194,8 @@ void OmsRcSyn_SessionFactory::ReloadLogMapSNO(OmsCore& omsCore, OmsBackend::Lock
          }
          else {
             auto origMap = this->FetchRemoteMap(origHostId)->MapSNO_.Lock();
-            assert(origSNO < origMap->size());
+            // assert(origSNO < origMap->size()); 有可能該筆 ReqUID 回報被放棄(例: Bad BrkId),
+            // 造成 ReloadLastSNO() 時, 沒有該筆回報, 所以 assert(origSNO < origMap->size()) 不一定成立;
             if (origSNO < origMap->size())
                origReq = (*origMap)[origSNO];
          }
@@ -542,6 +543,8 @@ bool OmsRcSynClientSession::RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::Om
    // (*snoMap)[apiRpt->ReportSNO_] 與 (OrigHost.MapSNO_)[origSNO] 必須是同一個 rptReq;
    fon9::HostId   origHostId;
    const OmsRxSNO origSNO = OmsReqUID_Builder::ParseReqUID(rptReq, origHostId);
+   if (fon9_UNLIKELY(origSNO == 0 || origHostId == 0))
+      return false;
    rptReq.SetOrigHostId(origHostId);
    if (fon9_LIKELY(origHostId == this->HostId_))
       return false;

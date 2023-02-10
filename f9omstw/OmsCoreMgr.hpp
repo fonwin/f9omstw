@@ -50,19 +50,24 @@ fon9_WARN_DISABLE_PADDING;
 class OmsCoreMgr : public fon9::seed::MaTree {
    fon9_NON_COPY_NON_MOVE(OmsCoreMgr);
    using base = fon9::seed::MaTree;
-   class CurrentCoreSapling : public fon9::seed::NamedSeed {
-      fon9_NON_COPY_NON_MOVE(CurrentCoreSapling);
+   class CurrentCoreSeed : public fon9::seed::NamedSeed {
+      fon9_NON_COPY_NON_MOVE(CurrentCoreSeed);
       using base = fon9::seed::NamedSeed;
    public:
+      OmsCoreMgr&        Owner_;
       fon9::seed::TreeSP Sapling_;
-      using base::base;
+      CurrentCoreSeed(OmsCoreMgr& owner);
       fon9::seed::TreeSP GetSapling() override;
+      void OnSeedCommand(fon9::seed::SeedOpResult& res, fon9::StrView cmdln,
+                         fon9::seed::FnCommandResultHandler resHandler,
+                         fon9::seed::MaTreeBase::Locker&& ulk,
+                         fon9::seed::SeedVisitor* visitor) override;
    };
-   OmsCoreSP            CurrentCore_;
-   CurrentCoreSapling&  CurrentCoreSapling_;
-   bool                 IsTDayChanging_{false};
-   ErrCodeActSeed*      ErrCodeActSeed_;
-   TwfExgMapMgr*        TwfExgMapMgr_{};
+   OmsCoreSP         CurrentCore_;
+   CurrentCoreSeed&  CurrentCoreSeed_;
+   bool              IsTDayChanging_{false};
+   ErrCodeActSeed*   ErrCodeActSeed_;
+   TwfExgMapMgr*     TwfExgMapMgr_{};
 
 protected:
    OmsOrderFactoryParkSP   OrderFactoryPark_;

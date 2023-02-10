@@ -53,6 +53,77 @@ void OmsCore::OnEventSessionSt(const OmsEventSessionSt& evSesSt, const OmsBacken
                                               evSesSt.FlowGroup())]
       = evSesSt.SessionSt();
 }
+static void AppendSessionKeyEq(std::string& result, f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup) {
+   result.push_back(static_cast<char>(mkt));
+   result.push_back('.');
+   result.push_back(static_cast<char>(sesId));
+   if (flowGroup) {
+      result.push_back('.');
+      fon9::NumOutBuf nbuf;
+      result.append(fon9::UIntToStrRev(nbuf.end(), flowGroup), nbuf.end());
+   }
+   result.push_back('=');
+}
+void OmsCore::OnSeedCommand(fon9::seed::SeedOpResult& res, fon9::StrView cmdln,
+                            fon9::seed::FnCommandResultHandler resHandler,
+                            fon9::seed::MaTreeBase::Locker&& ulk,
+                            fon9::seed::SeedVisitor* visitor) {
+   (void)ulk; (void)visitor;
+   fon9::StrView cmd = StrFetchTrim(cmdln, &fon9::isspace);
+   StrTrim(&cmdln);
+   res.OpResult_ = fon9::seed::OpResult::no_error;
+   if (cmd == "?") {
+      resHandler(res,
+                 "st" fon9_kCSTR_CELLSPL "Query SessionSt" fon9_kCSTR_CELLSPL "[Market.Session[.FlowGroup]]");
+      return;
+   }
+   if (cmd == "st") { // st [Market.Session[.FlowGroup]] 如果不填參數, 則提供全部列表(使用 \n 分隔).
+      fon9::NumOutBuf         nbuf;
+      std::string             result;
+      auto                    stmap = this->MapSessionSt_.Lock();
+      f9fmkt_TradingMarket    mkt;
+      f9fmkt_TradingSessionId sesId;
+      uint8_t                 flowGroup;
+      if (fon9::StrTrim(&cmdln).empty()) {
+         result.reserve((stmap->size() + 1) * sizeof("m.s.fff=xx\n"));
+         for (auto ist : *stmap) {
+            FromSessionKey(ist.first, mkt, sesId, flowGroup);
+            AppendSessionKeyEq(result, mkt, sesId, flowGroup);
+            result.append(fon9::HexToStrRev(nbuf.end(), ist.second), nbuf.end());
+            result.push_back('\n');
+         }
+         if (result.empty())
+            result = "No SessionSt";
+      }
+      else {
+         mkt = static_cast<f9fmkt_TradingMarket>(cmdln.Get1st());
+         sesId = f9fmkt_TradingSessionId_Unknown;
+         flowGroup = 0;
+         for (const char* pbeg = cmdln.begin() + 1; pbeg != cmdln.end(); ++pbeg) {
+            if (fon9::isalnum(*pbeg)) {
+               if (sesId == f9fmkt_TradingSessionId_Unknown)
+                  sesId = static_cast<f9fmkt_TradingSessionId>(*pbeg);
+               else {
+                  flowGroup = fon9::StrTo(fon9::StrView{pbeg, cmdln.end()}, flowGroup);
+                  break;
+               }
+            }
+         }
+         result.reserve(16);
+         AppendSessionKeyEq(result, mkt, sesId, flowGroup);
+         auto ifind = stmap->find(ToSessionKey(mkt, sesId, flowGroup));
+         if (ifind == stmap->end())
+            result.append("Not found");
+         else {
+            result.append(fon9::HexToStrRev(nbuf.end(), ifind->second), nbuf.end());
+         }
+      }
+      resHandler(res, &result);
+      return;
+   }
+   res.OpResult_ = fon9::seed::OpResult::not_supported_cmd;
+   resHandler(res, cmd);
+}
 //--------------------------------------------------------------------------//
 void OmsCore::EventToCoreImpl(OmsEventSP&& omsEvent) {
    this->RunCoreTask([omsEvent](OmsResource& res) {

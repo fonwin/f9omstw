@@ -18,24 +18,42 @@ void OmsSetRequestLgOut_UseIvac(OmsResource& res, OmsRequestTrade& req, OmsOrder
    }
 }
 //--------------------------------------------------------------------------//
-fon9::seed::TreeSP  OmsCoreMgr::CurrentCoreSapling::GetSapling() {
+OmsCoreMgr::CurrentCoreSeed::CurrentCoreSeed(OmsCoreMgr& owner)
+   : base{"CurrentCore"}
+   , Owner_(owner) {
+}
+fon9::seed::TreeSP OmsCoreMgr::CurrentCoreSeed::GetSapling() {
    return this->Sapling_;
 }
+void OmsCoreMgr::CurrentCoreSeed::OnSeedCommand(fon9::seed::SeedOpResult& res, fon9::StrView cmdln,
+                                                fon9::seed::FnCommandResultHandler resHandler,
+                                                fon9::seed::MaTreeBase::Locker&& ulk,
+                                                fon9::seed::SeedVisitor* visitor) {
+   if (auto core = this->Owner_.CurrentCore())
+      core->OnSeedCommand(res, cmdln, std::move(resHandler), std::move(ulk), visitor);
+   else {
+      res.OpResult_ = fon9::seed::OpResult::not_supported_cmd;
+      resHandler(res, "NoCore");
+   }
+}
 //--------------------------------------------------------------------------//
+fon9_MSC_WARN_DISABLE(4355); // 'this': used in base member initializer list
 OmsCoreMgr::OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut)
    : base{"coremgr"/*tabName*/}
-   , CurrentCoreSapling_{*new CurrentCoreSapling{"CurrentCore"}}
+   , CurrentCoreSeed_{*new CurrentCoreSeed{*this}}
    , FnSetRequestLgOut_{fnSetRequestLgOut} {
    this->Add(this->ErrCodeActSeed_ = new ErrCodeActSeed("ErrCodeAct"));
-   this->Add(&this->CurrentCoreSapling_);
+   this->Add(&this->CurrentCoreSeed_);
 }
+fon9_MSC_WARN_POP;
+
 OmsCoreSP OmsCoreMgr::RemoveCurrentCore() {
    if (OmsCoreSP cur = std::move(this->CurrentCore_)) {
       Locker locker{this->Container_};
       if (this->CurrentCore_.get() != nullptr)
          return nullptr;
-      this->CurrentCoreSapling_.Sapling_.reset();
-      this->CurrentCoreSapling_.SetTitle(cur->Name_ + ": Removed");
+      this->CurrentCoreSeed_.Sapling_.reset();
+      this->CurrentCoreSeed_.SetTitle(cur->Name_ + ": Removed");
       auto ifind = locker->find(&cur->Name_);
       if (ifind != locker->end())
          locker->erase(ifind);
@@ -90,9 +108,9 @@ void OmsCoreMgr::OnMaTree_AfterAdd(Locker& treeLocker, fon9::seed::NamedSeed& se
       // 即使這裡一輩子也用不到, 但也不能不考慮.
       old = std::move(cur);
    }
-   this->CurrentCoreSapling_.Sapling_ = this->CurrentCore_->GetSapling();
-   this->CurrentCoreSapling_.SetTitle(this->CurrentCore_->Name_);
-   this->CurrentCoreSapling_.SetDescription(this->CurrentCore_->GetDescription());
+   this->CurrentCoreSeed_.Sapling_ = this->CurrentCore_->GetSapling();
+   this->CurrentCoreSeed_.SetTitle(this->CurrentCore_->Name_);
+   this->CurrentCoreSeed_.SetDescription(this->CurrentCore_->GetDescription());
    this->IsTDayChanging_ = false;
 }
 void OmsCoreMgr::UpdateSc(OmsRequestRunnerInCore& runner) {

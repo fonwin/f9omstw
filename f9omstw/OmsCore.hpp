@@ -47,6 +47,11 @@ class OmsCore : protected OmsResource {
    static SessionKey ToSessionKey(f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup) {
       return (((static_cast<SessionKey>(mkt) << 8) + sesId) << 8) + flowGroup;
    }
+   static void FromSessionKey(SessionKey key, f9fmkt_TradingMarket& mkt, f9fmkt_TradingSessionId& sesId, uint8_t& flowGroup) {
+      flowGroup = static_cast<uint8_t>(key & 0xff);
+      sesId = static_cast<f9fmkt_TradingSessionId>((key >> 8) & 0xff);
+      mkt = static_cast<f9fmkt_TradingMarket>((key >> 16) & 0xff);
+   }
    /// 設定 this->MapSessionSt_[];
    void OnEventSessionSt(const OmsEventSessionSt& evSesSt, const OmsBackend::Locker* isReload);
 
@@ -181,6 +186,13 @@ public:
    /// 並使用 f9omstw_kCSTR_OmsEventSessionStFactory_Name 發行 SessionSt;
    void PublishSessionSt(f9fmkt_TradingSessionSt sesSt,
                          f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup = 0);
+
+   /// 提供使用 seed 指令:
+   /// - st [Market.SessionId[.FlowGroup]]  查詢 SessionSt;
+   void OnSeedCommand(fon9::seed::SeedOpResult& res, fon9::StrView cmdln,
+                      fon9::seed::FnCommandResultHandler resHandler,
+                      fon9::seed::MaTreeBase::Locker&& ulk,
+                      fon9::seed::SeedVisitor* visitor) override;
 };
 fon9_WARN_POP;
 

@@ -11,6 +11,8 @@ namespace f9omstw {
 class OmsTwfReport8 : public OmsTwfRequestIni7 {
    fon9_NON_COPY_NON_MOVE(OmsTwfReport8);
    using base = OmsTwfRequestIni7;
+
+protected:
    void RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) override;
    void RunReportInCore_MakeReqUID() override;
    void RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder& order) override;

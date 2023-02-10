@@ -85,7 +85,7 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
    /// 當 this 是回報物件, 則此處記錄回報的狀態.
    /// 如果 this 是下單物件, 則不必理會此處.
    f9fmkt_TradingRequestSt ReportSt_{};
-   OmsErrCode              ErrCode_{OmsErrCode_NoError};
+   OmsErrCode              ErrCode_{};
 
    friend class OmsBackend; // 取得修改 SetLastUpdated() 的權限.
    void SetLastUpdated(OmsOrderRaw& lastupd) const;

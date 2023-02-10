@@ -32,27 +32,57 @@ void AssignTwsReportBase(OmsTwsReport& rpt, const fon9::fix::FixRecvEvArgs& rxar
    AssignTwsReportMessage(rpt, rxargs.Msg_);
 }
 void AssignTwsReportMessage(OmsTwsReport& rpt, const fon9::fix::FixParser& fixmsg) {
-   auto fixfld = fixmsg.GetField(f9fix_kTAG_Text);
+   auto        fixfld = fixmsg.GetField(f9fix_kTAG_Text);
+   OmsErrCode  ec;
    if (fixfld == nullptr || fixfld->Value_.empty())
-      return;
-   rpt.Message_.assign(fixfld->Value_);
-   unsigned char  ch0 = static_cast<unsigned char>(fixfld->Value_.Get1st());
-   OmsErrCode     ec;
-   if(fon9_LIKELY(fon9::isdigit(ch0)))
-      ec = static_cast<OmsErrCode>(fon9::StrTo(fixfld->Value_, 0u));
+      goto __ASSIGN_EC_OK;
    else {
-      switch (ch0) {
-      case 'C': // 盤中零股錯誤碼=Cxxx: ec = xxx + 500
-         ec = static_cast<OmsErrCode>(500 + fon9::StrTo(fon9::StrView{fixfld->Value_.begin() + 1, fixfld->Value_.end()}, 0u));
-         break;
+      rpt.Message_.assign(fixfld->Value_);
+      const unsigned char  ch0 = static_cast<unsigned char>(fixfld->Value_.Get1st());
+      if (fon9_LIKELY(fon9::isdigit(ch0)))
+         ec = static_cast<OmsErrCode>(fon9::StrTo(fixfld->Value_, 0u));
+      else {
+         switch (ch0) {
+         case 'C': // 盤中零股錯誤碼=Cxxx: ec = xxx + 500
+            ec = static_cast<OmsErrCode>(500 + fon9::StrTo(fon9::StrView{fixfld->Value_.begin() + 1, fixfld->Value_.end()}, 0u));
+            break;
+         default:
+            ec = OmsErrCode_Null;
+            break;
+         }
+      }
+   }
+   if (ec == OmsErrCode_Null) {
+   __ASSIGN_EC_OK:
+      switch (rpt.RxKind()) {
       default:
-         ec = OmsErrCode_NoError;
+      case f9fmkt_RxKind_Unknown:
+      case f9fmkt_RxKind_Order:
+      case f9fmkt_RxKind_Event:
+      case f9fmkt_RxKind_Filled:
+      case f9fmkt_RxKind_RequestQuery:
+      case f9fmkt_RxKind_RequestChgCond:
+         return;
+      case f9fmkt_RxKind_RequestNew:
+         if (rpt.ReportSt() == f9fmkt_TradingRequestSt_ExchangeCanceling)
+            return;
+         ec = OmsErrCode_NewOrderOK;
+         break;
+      case f9fmkt_RxKind_RequestDelete:
+         ec = OmsErrCode_DelOrderOK;
+         break;
+      case f9fmkt_RxKind_RequestChgQty:
+         ec = OmsErrCode_ChgQtyOK;
+         break;
+      case f9fmkt_RxKind_RequestChgPri:
+         ec = OmsErrCode_ChgPriOK;
          break;
       }
    }
-   if (ec != OmsErrCode_NoError)
+   else {
       ec = static_cast<OmsErrCode>(ec + (f9fmkt_TradingMarket_TwOTC == rpt.Market()
                                          ? OmsErrCode_FromTwOTC : OmsErrCode_FromTwSEC));
+   }
    rpt.SetErrCode(ec);
 }
 

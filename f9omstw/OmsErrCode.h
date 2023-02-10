@@ -10,34 +10,29 @@ extern "C" {
 #endif
 
 /// 嚴格來說, 此為 [訊息代碼], 應該採用 OmsMsgCode 或 OmsStCode, 但為了相容性, 只好將錯就錯了!
-/// 0:沒有額外須提供的訊息, 1..9999: OMS內部訊息.
-/// 非 0 不一定代表錯誤或失敗(例: 期交所 40248:Session已達設定之流量值80%);
-/// 委託錯誤或失敗, 應先從 OrdSt 或 ReqSt 來判斷, 然後再透過 OmsErrCode 來判斷原因.
+/// - 0:沒有額外須提供的訊息, 1..9999: OMS內部訊息.
+/// - 非 0 不一定代表錯誤或失敗(例: 期交所 40248:Session已達設定之流量值80%);
+///   委託錯誤或失敗, 應先從 OrdSt 或 ReqSt 來判斷, 然後再透過 OmsErrCode 來判斷原因.
+/// - OmsErrCode_*OK 不一定會提供, 由回報處理程序決定.
 fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_MaxV = 0xffff,
-   OmsErrCode_NoError = 0,
 
-   /// 刪改查要求, 但找不到對應的委託書.
-   /// 通常是提供的 IniSNO 或 OrdKey(BrkId or Market or SessionId or OrdNo) 不正確.
-   OmsErrCode_OrderNotFound = 1,
-   /// 委託書號已存在, 但遺漏新單回報.
-   OmsErrCode_OrderInitiatorNotFound = 2,
-   /// 有問題的 Report(例如:TwsRpt): 可能是重複回報, 回報內容不正確...
-   /// 此類回報如果 RxSNO==0, 則無法回補.
-   OmsErrCode_Bad_Report = 3,
+   /// 因為 OmsErrCode 不一定代表失敗, 為了避免誤用, 所以取消 OmsErrCode_NoError, 改成 OmsErrCode_Null;
+   OmsErrCode_Null = 0,
 
-   /// 沒有商品資料,無法下單.
-   OmsErrCode_SymbNotFound = 4,
-   /// P08的價格小數位數有誤.
-   OmsErrCode_SymbDecimalLocator = 5,
-
-   /// OmsCore::RunInCore();
-   /// Request_->Creator_->RunStep_ 沒定義.
-   OmsErrCode_RequestStepNotFound = 10,
-   /// 無法將 req 轉成適當的 OmsRequest(例如: OmsTwsRequestChg);
-   OmsErrCode_UnknownRequestType = 11,
-   /// 改單要求不支援此種委託.
-   OmsErrCode_RequestNotSupportThisOrder = 12,
+   OmsErrCode_NewOrderOK = 6,
+   OmsErrCode_DelOrderOK = 7,
+   OmsErrCode_ChgQtyOK   = 8,
+   OmsErrCode_ChgPriOK   = 9,
+   /// 詢價OK.
+   OmsErrCode_QuoteROK = 13,
+   /// 報價OK.
+   OmsErrCode_QuoteOK = 14,
+   OmsErrCode_IocDelOK = 15,
+   OmsErrCode_FokDelOK = 16,
+   /// ec <= OmsErrCode_LastInternalOK 表示OK的訊息代碼.
+   /// 但 ec > OmsErrCode_LastInternalOK 不一定代表失敗, 例: 40249:Session已達設定之流量值90%;
+   OmsErrCode_LastInternalOK = 99,
 
    /// OmsRequestIni::BeforeReq_CheckOrdKey();
    /// 下單要求的 BrkId 找不到對應的券商資料.
@@ -133,6 +128,29 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_RemoteBack_Busy = 611,
       
    // -----------------------------------------------------------------------
+   /// 刪改查要求, 但找不到對應的委託書.
+   /// 通常是提供的 IniSNO 或 OrdKey(BrkId or Market or SessionId or OrdNo) 不正確.
+   OmsErrCode_OrderNotFound = 701,
+   /// 委託書號已存在, 但遺漏新單回報.
+   OmsErrCode_OrderInitiatorNotFound = 702,
+   /// 有問題的 Report(例如:TwsRpt): 可能是重複回報, 回報內容不正確...
+   /// 此類回報如果 RxSNO==0, 則無法回補.
+   OmsErrCode_Bad_Report = 703,
+
+   /// 沒有商品資料,無法下單.
+   OmsErrCode_SymbNotFound = 704,
+   /// P08的價格小數位數有誤.
+   OmsErrCode_SymbDecimalLocator = 705,
+
+   /// OmsCore::RunInCore();
+   /// Request_->Creator_->RunStep_ 沒定義.
+   OmsErrCode_RequestStepNotFound = 710,
+   /// 無法將 req 轉成適當的 OmsRequest(例如: OmsTwsRequestChg);
+   OmsErrCode_UnknownRequestType = 711,
+   /// 改單要求不支援此種委託.
+   OmsErrCode_RequestNotSupportThisOrder = 712,
+
+   // -----------------------------------------------------------------------
    /// 無可用的下單連線.
    OmsErrCode_NoReadyLine = 900,
    /// 新單超過有效時間, 從新單建立開始, 到送出時, 若超過設定的時間, 則視為失敗.
@@ -146,7 +164,7 @@ fon9_ENUM(OmsErrCode, uint16_t) {
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.
-   OmsErrCode_FromExgSessionReject = 9000,
+   OmsErrCode_FromFixSessionReject = 9000,
 
    // -----------------------------------------------------------------------
    /// 來自風控管制的錯誤碼.
@@ -157,10 +175,14 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_FromTwSEC = 20000,
    OmsErrCode_FromTwOTC = 30000,
    OmsErrCode_FromTwFEX = 40000,
-   /// 期交所因價穩措施刪單.
+   /// 40047: 期交所因價穩措施刪單.
    OmsErrCode_Twf_DynPriBandRej = OmsErrCode_FromTwFEX + 47,
-   /// 期交所價穩措施刪單後, 告知實際的限制價格.
+   /// 40048: 期交所價穩措施刪單後, 告知實際的限制價格.
    OmsErrCode_Twf_DynPriBandRpt = OmsErrCode_FromTwFEX + 48,
+
+   // -----------------------------------------------------------------------
+   /// 透過券商系統下單, 券商回覆的錯誤訊息.
+   OmsErrCode_FromBroker = 50000,
 };
 
 #ifdef __cplusplus

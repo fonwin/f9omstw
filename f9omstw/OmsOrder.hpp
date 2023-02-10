@@ -270,7 +270,7 @@ public:
    /// 此筆異動期望的 OrderSt, 但不一定會改變 Order::LastOrderSt();
    f9fmkt_OrderSt          UpdateOrderSt_;
    f9fmkt_TradingRequestSt RequestSt_;
-   OmsErrCode              ErrCode_{OmsErrCode_NoError};
+   OmsErrCode              ErrCode_{};
 
    // -----
    // 在 64bits 系統上, OrdNo_(5 bytes) 之後會有 3 bytes padding.
@@ -321,7 +321,7 @@ public:
    /// - 一般而言 prev 來自 order->Tail();
    /// - 從 prev 複製必要的內容, 例: this->OrdNo_ = prev.OrdNo_;
    /// - this->UpdateOrderSt_ = this->Order_->LastOrderSt();
-   /// - 設定(清除)部分欄位, 例如: this->ErrCode_ = OmsErrCode_NoError;
+   /// - 設定(清除)部分欄位, 例如: this->ErrCode_ = OmsErrCode_Null;
    /// - 不設定 this->UpdateTime_ = fon9::UtcNow(); 等到結束異動 ~OmsRequestRunnerInCore() 時設定.
    virtual void ContinuePrevUpdate(const OmsOrderRaw& prev);
 

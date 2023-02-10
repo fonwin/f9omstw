@@ -17,7 +17,7 @@ void VerifyAllocError(f9omstw::OmsOrderRaw& ordraw, bool allocResult, OmsErrCode
    if (ordraw.ErrCode_ == errc
        && ordraw.RequestSt_ == f9fmkt_TradingRequestSt_OrdNoRejected
        && ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewOrdNoRejected) {
-      ordraw.ErrCode_ = OmsErrCode_NoError;
+      ordraw.ErrCode_ = OmsErrCode_Null;
       ordraw.RequestSt_ = f9fmkt_TradingRequestSt_Initialing;
       ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewStarting;
       std::cout << "\r[OK   ]" << std::endl;

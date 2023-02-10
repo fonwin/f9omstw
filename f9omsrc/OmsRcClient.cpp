@@ -106,7 +106,7 @@ void OmsRcClientNote::OnRecvFunctionCall(fon9::rc::RcSession& ses, fon9::rc::RcF
    char  txmsg[1024 * 4];
    if (this->Params_.ErrCodeTx_ && rpt.Layout_->IdxErrCode_ >= 0 && rpt.Layout_->IdxMessage_ >= 0) {
       OmsErrCode ec = static_cast<OmsErrCode>(fon9::StrTo(rpt.FieldArray_[rpt.Layout_->IdxErrCode_], 0u));
-      if (ec != OmsErrCode_NoError) {
+      if (ec != OmsErrCode_Null) {
          fon9_CStrView& msg = tab->RptValues_[static_cast<unsigned>(rpt.Layout_->IdxMessage_)];
          const char*    pRptMsg = msg.Begin_;
          msg = f9omstw_MakeErrMsg(this->Params_.ErrCodeTx_, txmsg, sizeof(txmsg), ec, rpt.FieldArray_[rpt.Layout_->IdxMessage_]);

@@ -22,14 +22,14 @@ OmsErrCode CheckLmtPri(fon9::fmkt::Pri curpri, fon9::fmkt::Pri upLmt, fon9::fmkt
          return OmsErrCode_Sc_OverPriDnLmt;
       }
    }
-   return OmsErrCode_NoError;
+   return OmsErrCode_Null;
 }
 
 OmsErrCode GetExecPri(OmsSymb& mdSymb, const f9fmkt_ExecPriSel execPriSel, const int8_t priTicksAway, fon9::fmkt::Pri& out) {
    switch (execPriSel) {
    default:
    case f9fmkt_ExecPriSel_Unknown:
-      return OmsErrCode_NoError;
+      return OmsErrCode_Null;
    case f9fmkt_ExecPriSel_Bid:
    case f9fmkt_ExecPriSel_Ask:
       if (mdSymb.MdReceiverSt() == fon9::fmkt::MdReceiverSt::DataBroken)
@@ -70,7 +70,7 @@ OmsErrCode GetExecPri(OmsSymb& mdSymb, const f9fmkt_ExecPriSel execPriSel, const
       }
       break;
    }
-   return OmsErrCode_NoError;
+   return OmsErrCode_Null;
 }
 
 bool CheckPriTickSizeAndLmt(OmsRequestRunnerInCore& runner, OmsSymb& mdSymb, fon9::fmkt::Pri reqPri) {
@@ -83,7 +83,7 @@ bool CheckPriTickSizeAndLmt(OmsRequestRunnerInCore& runner, OmsSymb& mdSymb, fon
    if (mdSymb.GetPriLmt(&upLmt, &dnLmt)) {
       fon9::RevBufferFixedSize<256> rbuf;
       OmsErrCode errCode = CheckLmtPri(reqPri, upLmt, dnLmt, rbuf);
-      if (errCode != OmsErrCode_NoError) {
+      if (errCode != OmsErrCode_Null) {
          runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, errCode, ToStrView(rbuf));
          return false;
       }

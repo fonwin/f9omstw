@@ -175,10 +175,42 @@ void SetupReport2Front(OmsRequestRunner& runner, TwfRptLineTmp& line, const TmpF
 }
 
 static void MoveToCoreRun(TwfRptLineTmp& line, OmsRequestRunner&& runner) {
-   if (line.IsTradingLine_) {
+   if (fon9_LIKELY(line.IsTradingLine_)) {
       runner.Request_->SetForceInternal();
-      if (OmsRequestTrade* req = dynamic_cast<OmsRequestTrade*>(runner.Request_.get()))
+      if (OmsRequestTrade* req = dynamic_cast<OmsRequestTrade*>(runner.Request_.get())) {
          req->SesName_.AssignFrom(fon9_kCSTR_OmsForceInternal);
+         if (fon9_LIKELY(req->ErrCode() == OmsErrCode_Null
+                      && req->ReportSt() == f9fmkt_TradingRequestSt_ExchangeAccepted)) {
+            if (fon9_LIKELY(&req->Creator() != &line.Worker_.Rpt9Factory_)) { // req 不是 (Rpt9:報價) 回報.
+               switch (req->RxKind()) {
+               default:
+               case f9fmkt_RxKind_Unknown:
+               case f9fmkt_RxKind_Order:
+               case f9fmkt_RxKind_Event:
+               case f9fmkt_RxKind_Filled:
+               case f9fmkt_RxKind_RequestQuery:
+               case f9fmkt_RxKind_RequestChgCond:
+                  break;
+               case f9fmkt_RxKind_RequestNew:
+                  req->SetErrCode(OmsErrCode_NewOrderOK);
+                  break;
+               case f9fmkt_RxKind_RequestDelete:
+                  req->SetErrCode(OmsErrCode_DelOrderOK);
+                  break;
+               case f9fmkt_RxKind_RequestChgQty:
+                  req->SetErrCode(OmsErrCode_ChgQtyOK);
+                  break;
+               case f9fmkt_RxKind_RequestChgPri:
+                  req->SetErrCode(OmsErrCode_ChgPriOK);
+                  break;
+               }
+            }
+            else {
+               if (req->RxKind() == f9fmkt_RxKind_RequestNew)
+                  req->SetErrCode(OmsErrCode_QuoteOK);
+            }
+         }
+      }
    }
    static_cast<TwfTradingLineMgr*>(&line.LineMgr_)->OmsCore()->MoveToCore(std::move(runner));
 }
@@ -251,6 +283,9 @@ static void SetupReport8(TwfRptLineTmp& line, const f9twf::TmpR8Front& pkr8) {
       //   由使用者自行根據 OmsErrCode 判斷結果.
       // rpt.SetReportSt(f9fmkt_TradingRequestSt_ExchangeRejected);
       rpt.SetErrCode(static_cast<OmsErrCode>(pkr8.StatusCode_ + OmsErrCode_FromTwFEX));
+   }
+   else {
+      rpt.SetErrCode(OmsErrCode_QuoteROK);
    }
    SetupReport0Symbol(rpt, pkr8.IvacFcmId_, &pkr8.SymbolType_, rpt.Symbol_,
                       line.LineMgr_.ExgMapMgr_->Lock(), line.SystemType());

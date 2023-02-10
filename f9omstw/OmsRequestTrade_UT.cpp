@@ -15,7 +15,7 @@ unsigned gRxHistoryCount = 0;
 void CheckExpectedAbandon(f9omstw::OmsRequestBase* req, OmsErrCode abandonErrCode) {
    if (const std::string* abres = req->AbandonReason())
       std::cout << "|msg=" << *abres;
-   if (abandonErrCode == OmsErrCode_NoError) {
+   if (abandonErrCode == OmsErrCode_Null) {
       if (req->ErrCode() == abandonErrCode && !req->IsAbandoned()) {
       __TEST_OK:
          std::cout << "\r[OK   ]" << std::endl;
@@ -34,7 +34,7 @@ void CheckExpectedAbandon(f9omstw::OmsRequestBase* req, OmsErrCode abandonErrCod
 
 void TestRun(f9omstw::OmsCore& core, f9omstw::OmsRequestPolicySP pol,
               OmsErrCode abandonErrCode, f9omstw::OmsRequestRunner&& runner) {
-   if (abandonErrCode != OmsErrCode_NoError)
+   if (abandonErrCode != OmsErrCode_Null)
       std::cout << "|expected.ErrCode=" << abandonErrCode;
    auto req = runner.Request_;
    bool isReport = req->IsReportIn();
@@ -107,7 +107,7 @@ void TestMarketSessionId(f9omstw::OmsResource& coreResource, f9fmkt_TradingMarke
    else if (runner.Request_->SessionId() != sesid)
       std::cout << "|err=Invalid SessionId|request.SessionId=" << static_cast<char>(runner.Request_->SessionId());
    else {
-      CheckExpectedAbandon(runner.Request_.get(), OmsErrCode_NoError);
+      CheckExpectedAbandon(runner.Request_.get(), OmsErrCode_Null);
       return;
    }
    std::cout << "\r[ERROR]" << std::endl;
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
                        "TwsNew|BrkId=8610|IvacNo=10|Symbol=1101|Qty=1000|Pri=35");
    //---------------------------------------------
    std::cout << "[TEST ] admin.RequestNew";
-   TestCase(testCore, poAdmin, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_Null,
             "TwsNew|Market=T|SessionId=N|OrdNo=A|BrkId=8610|IvacNo=10|SubacNo=sa01"
             "|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0|SesName=UT|Src=A|UsrDef=UD123|ClOrdId=C12");
    std::cout << "[TEST ] admin.RequestNew(Bad BrkId)";
@@ -177,10 +177,10 @@ int main(int argc, char* argv[]) {
             "TwsNew|Market=T|SessionId=N|OrdNo=A|BrkId=861a|IvacNo=10|SubacNo=sa01");
 
    std::cout << "[TEST ] admin.RequestIni(Delete A0000)";
-   TestCase(testCore, poAdmin, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_Null,
             "TwsNew|Kind=D|Market=T|SessionId=N|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
    std::cout << "[TEST ] admin.RequestIni(ChgQty A0000)";
-   TestCase(testCore, poAdmin, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_Null,
             "TwsNew|Kind=C|Market=T|SessionId=N|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0");
 
    std::cout << "[TEST ] admin.RequestIni(ChgQty, No OrdNo)";
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
    TestCase(testCore, poAdmin, OmsErrCode_FieldNotMatch,
             "TwsNew|Market=T|SessionId=N|Kind=C|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|OType=5");
    std::cout << "[TEST ] admin.RequestIni(ChgQty, No OType)";
-   TestCase(testCore, poAdmin, OmsErrCode_NoError,
+   TestCase(testCore, poAdmin, OmsErrCode_Null,
             "TwsNew|Market=T|SessionId=N|Kind=C|OrdNo=A0000|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317");
    //---------------------------------------------
    auto ordnoMap = coreResource.Brks_->GetBrkRec("8610")
@@ -226,11 +226,11 @@ int main(int argc, char* argv[]) {
    std::cout << "[TEST ] admin.Report " << strOrdNo;
    std::string reqstr = "TwsRpt|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0"
       "|ReportSt=10|OrdNo=" + strOrdNo;
-   TestReport(testCore, poAdmin, OmsErrCode_NoError, &reqstr, f9fmkt_RxKind_RequestNew);
+   TestReport(testCore, poAdmin, OmsErrCode_Null, &reqstr, f9fmkt_RxKind_RequestNew);
    std::cout << "[TEST ] user.RequestIni:Query " << strOrdNo;
    reqstr = "TwsNew|Kind=Q|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01|Side=B|Symbol=2317|Qty=8000|Pri=84.3|OType=0"
       "|OrdNo=" + strOrdNo;
-   TestCase(testCore, poUser, OmsErrCode_NoError, &reqstr);
+   TestCase(testCore, poUser, OmsErrCode_Null, &reqstr);
 
    std::cout << "[TEST ] user.Report Z0001";
    TestReport(testCore, poUser, OmsErrCode_DenyAddReport,
@@ -247,9 +247,9 @@ int main(int argc, char* argv[]) {
    TestCase(testCore, poUser, OmsErrCode_IvNoPermission, &reqstr);
    //---------------------------------------------
    std::cout << "[TEST ] Delete(IniSNO + No OrdKey)                  ";
-   TestCase(testCore, poUser, OmsErrCode_NoError, "TwsChg|IniSNO=1");
+   TestCase(testCore, poUser, OmsErrCode_Null,          "TwsChg|IniSNO=1");
    std::cout << "[TEST ] Delete(IniSNO + OrdKey)                     ";
-   TestCase(testCore, poUser, OmsErrCode_NoError,       "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=A0000");
+   TestCase(testCore, poUser, OmsErrCode_Null,          "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=A0000");
    std::cout << "[TEST ] OrderNotFound(Bad IniSNO)                   ";
    TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=999999999999999");
    std::cout << "[TEST ] OrderNotFound(No IniSNO + Bad OrdKey)       ";
@@ -264,7 +264,7 @@ int main(int argc, char* argv[]) {
    TestCase(testCore, poUser, OmsErrCode_OrderNotFound, "TwsChg|Market=T|SessionId=N|BrkId=8610|IniSNO=1|OrdNo=B0000");
    //---------------------------------------------
    std::cout << "[TEST ] user.RequestNew";
-   TestCase(testCore, poUser, OmsErrCode_NoError, "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01");
+   TestCase(testCore, poUser, OmsErrCode_Null,           "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10|SubacNo=sa01");
    std::cout << "[TEST ] user.RequestNew(IvNoPermission)";
    TestCase(testCore, poUser, OmsErrCode_IvNoPermission, "TwsNew|Market=T|SessionId=N|BrkId=8610|IvacNo=10");
    std::cout << "[TEST ] user.RequestNew+OrdNo";

@@ -81,9 +81,14 @@ void OmsTwfFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, Om
          ordraw1.LastPri_ = this->PriOrd_;
       if (ordraw1.LastPriTime_.IsNull())
          ordraw1.LastPriTime_ = this->Time_;
+      if (ordraw1.ErrCode_ == OmsErrCode_Null)
+         ordraw1.ErrCode_ = OmsErrCode_NewOrderOK;
    }
    else { // 報價.
       assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw()) != nullptr);
+      auto& ordraw9 = inCoreRunner.OrderRaw();
+      if (ordraw9.ErrCode_ == OmsErrCode_Null)
+         ordraw9.ErrCode_ = OmsErrCode_QuoteOK;
    }
    inCoreRunner.OrderRawT<OmsTwfOrderRaw0>().LastExgTime_ = this->Time_;
    inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeAccepted, f9fmkt_TradingRequestSt_ExchangeAccepted);
@@ -140,10 +145,40 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
       assert(this->QtyCanceled_ == ordraw.LeavesQty_);
       ordraw.LastExgTime_ = this->Time_;
       ordraw.LeavesQty_ = ordraw.AfterQty_ = 0;
-      if(this->ErrCode() == OmsErrCode_Twf_DynPriBandRej)
+      if(fon9_UNLIKELY(this->ErrCode() == OmsErrCode_Twf_DynPriBandRej))
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_Canceling, f9fmkt_TradingRequestSt_ExchangeCanceling);
-      else
+      else {
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeCanceled, f9fmkt_TradingRequestSt_ExchangeCanceled);
+         if (fon9_UNLIKELY(this->ErrCode() == OmsErrCode_Twf_DynPriBandRpt)) {
+            OmsTwfPri     lmtPri = this->PriOrd_;
+            fon9::StrView strLeg;
+            if (const auto* reqFilled2 = dynamic_cast<const OmsTwfFilled2*>(this)) {
+               if (!reqFilled2->PriLeg2_.IsNullOrZero()) {
+                  lmtPri = reqFilled2->PriLeg2_;
+                  strLeg = "2";
+               }
+               else {
+                  lmtPri = reqFilled2->Pri_;
+                  strLeg = "1";
+               }
+            }
+            ordraw.Message_ = fon9::RevPrintTo<fon9::CharVector>("Leg=", strLeg, "|LmtPri=", lmtPri);
+         }
+         else if (fon9_LIKELY(this->ErrCode() == OmsErrCode_Null)) {
+            switch (ordraw.LastTimeInForce_) {
+            default:
+            case f9fmkt_TimeInForce_ROD:
+            case f9fmkt_TimeInForce_QuoteAutoCancel:
+               break;
+            case f9fmkt_TimeInForce_IOC:
+               ordraw.ErrCode_ = OmsErrCode_IocDelOK;
+               break;
+            case f9fmkt_TimeInForce_FOK:
+               ordraw.ErrCode_ = OmsErrCode_FokDelOK;
+               break;
+            }
+         }
+      }
    }
    else { // 期交所自動取消報價.
       OmsTwfOrderRaw9&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw9>();

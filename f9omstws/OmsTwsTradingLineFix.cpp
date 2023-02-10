@@ -48,7 +48,7 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
    if ((fixfld = orig.Msg_.GetField(f9fix_kTAG_MsgType)) != nullptr
        && fixfld->Value_.Get1st() == *f9fix_kMSGTYPE_SessionReject) {
       // 09xxx = FIX SessionReject.
-      rpt.SetErrCode(static_cast<OmsErrCode>((rpt.ErrCode() % 1000) + OmsErrCode_FromExgSessionReject));
+      rpt.SetErrCode(static_cast<OmsErrCode>((rpt.ErrCode() % 1000) + OmsErrCode_FromFixSessionReject));
    }
    this->CoreMgr_.CurrentCore()->MoveToCore(std::move(runner));
 }

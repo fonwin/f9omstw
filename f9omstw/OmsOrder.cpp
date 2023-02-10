@@ -140,7 +140,7 @@ void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    assert(this->Order_ == prev.Order_);
    this->UpdateOrderSt_ = this->Order_->LastOrderSt();
    this->OrdNo_ = prev.OrdNo_;
-   this->ErrCode_ = OmsErrCode_NoError;
+   this->ErrCode_ = OmsErrCode_Null;
    this->IsFrozeScLeaves_ = prev.IsFrozeScLeaves_;
    if (this->Request_->LastUpdated() == nullptr)
       this->Flags_ |= OmsOrderRawFlag::IsRequestFirstUpdate;

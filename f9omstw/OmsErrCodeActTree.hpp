@@ -44,7 +44,7 @@ public:
    void ReloadErrCodeAct(fon9::StrView cfgfn, fon9::seed::MaTree::Locker&& lk);
 
    OmsErrCodeActSP GetErrCodeAct(OmsErrCode ec) const {
-      if (fon9_LIKELY(ec == OmsErrCode_NoError))
+      if (fon9_LIKELY(ec <= OmsErrCode_LastInternalOK))
          return nullptr;
       auto locker{static_cast<TreeBase*>(this->Sapling_.get())->Lock()};
       if (auto* p = this->ErrCodeActs_.Get(ec))

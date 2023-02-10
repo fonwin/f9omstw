@@ -14,7 +14,7 @@ struct OmsTwsScBase {
    OmsTwsTradingSessionIdx TradingSessionIdx_;
    char                    Padding____[5];
 
-   /// \retval OmsErrCode_NoError
+   /// \retval OmsErrCode_Null
    /// \retval OmsErrCode_OrderInitiatorNotFound
    /// \retval OmsErrCode_Bad_Side
    /// \retval OmsErrCode_Bad_SessionId
@@ -66,7 +66,7 @@ struct OmsTwsScBase {
          return OmsErrCode_Bad_SessionId;
       }
       fon9_WARN_POP;
-      return OmsErrCode_NoError;
+      return OmsErrCode_Null;
    }
 };
 

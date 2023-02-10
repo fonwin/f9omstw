@@ -75,7 +75,7 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
          fon9::StrTrim(&ecstr);
       }
    __PARSE_MSG:;
-      if (ec == OmsErrCode_NoError || ecstr.empty())
+      if (ec == OmsErrCode_Null || ecstr.empty())
          continue;
       // 解析 ecstr 是否需要格式化輸出:
       // - 無格式 {:FieldName:} 建立訊息時, 直接複製 OMS 提供的字串.

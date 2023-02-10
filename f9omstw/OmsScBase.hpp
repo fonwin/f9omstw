@@ -331,7 +331,7 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
 //--------------------------------------------------------------------------//
 static inline OmsErrCode CheckPriTickSize(fon9::fmkt::Pri curpri, OmsOrder& order) {
    return fon9::fmkt::CheckPriTickSize(order.ScResource().Symb_->LvPriSteps(), curpri)
-      ? OmsErrCode_NoError : OmsErrCode_Sc_BadPriTickSize;
+      ? OmsErrCode_Null : OmsErrCode_Sc_BadPriTickSize;
 }
 
 extern OmsErrCode CheckLmtPri(fon9::fmkt::Pri curpri, fon9::fmkt::Pri upLmt, fon9::fmkt::Pri dnLmt, fon9::RevBuffer& rbuf);
@@ -343,7 +343,7 @@ extern OmsErrCode GetExecPri(OmsSymb& mdSymb, f9fmkt_ExecPriSel execPriSel, int8
 static inline bool CheckExecPri(OmsRequestRunnerInCore& runner,
                                 OmsSymb& mdSymb, f9fmkt_ExecPriSel execPriSel, int8_t priTicksAway, fon9::fmkt::Pri& out) {
    OmsErrCode errCode = GetExecPri(mdSymb, execPriSel, priTicksAway, out);
-   if (fon9_LIKELY(errCode == OmsErrCode_NoError))
+   if (fon9_LIKELY(errCode == OmsErrCode_Null))
       return true;
    runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, errCode, nullptr);
    return false;

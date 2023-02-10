@@ -61,6 +61,11 @@ static OmsSymbSP FetchOmsSymb(f9twf::ExgMiChannel& channel, const f9twf::ExgMdPr
    auto symb = core->GetSymbs()->FetchOmsSymb(fon9::StrView_eos_or_all(prodId.Chars_, ' '));
    if (!symb)
       return nullptr;
+   if (fon9_UNLIKELY(symb->TradingSessionId_ == f9fmkt_TradingSessionId_AfterHour
+                     && misys.TradingSessionId_ != f9fmkt_TradingSessionId_AfterHour)) {
+      // symb 已進入夜盤, 則排除日盤的行情異動.
+      return nullptr;
+   }
    symb->TradingSessionId_ = misys.TradingSessionId_;
    symb->SetMdReceiverStPtr(channel.GetMdReceiverStPtr());
    return symb;

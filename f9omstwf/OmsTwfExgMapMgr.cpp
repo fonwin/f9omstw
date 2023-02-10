@@ -77,11 +77,7 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
          symbP08->SetContract(*symb, ctree.get());
          fon9::StrView newLongId = ToStrView(p08.LongId_);
          fon9::StrView oldLongId = ToStrView(symbP08->LongId_);
-         const bool    isLongIdChanged = (newLongId != oldLongId);
-         if (p08.UpdatedTime_ <= symbP08->P08UpdatedTime_ && !isLongIdChanged)
-            continue;
-         symbP08->P08UpdatedTime_ = p08.UpdatedTime_;
-         if (isLongIdChanged) {
+         if (newLongId != oldLongId) {
             // symbs 的 key 使用 ToStrView{symb->LongId_};
             // 而 StrView 只是 const char* 的指標, 並沒有複製字串內容,
             // 所以更改 LongId_ 的步驟:
@@ -97,6 +93,9 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
             if (!newLongId.empty() && newLongId != shortId)
                symbs->emplace(ToStrView(symbP08->LongId_), symb);
          }
+         if (p08.UpdatedTime_ <= symbP08->P08UpdatedTime_)  // 如果已載入[夜盤 P08],
+            continue;                                       // 則必須排除[日盤的重新載入].
+         symbP08->P08UpdatedTime_ = p08.UpdatedTime_;
          symb->FlowGroup_ = fon9::Pic9StrTo<fon9::fmkt::SymbFlowGroup_t>(p08.Fields_.flow_group_);
          symb->TradingMarket_ = f9twf::ExgSystemTypeToMarket(sysType);
          const auto curSessionId = f9twf::ExgSystemTypeToSessionId(sysType);

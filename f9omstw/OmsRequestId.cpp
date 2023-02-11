@@ -23,11 +23,10 @@ void OmsReqUID_Builder::MakeReqUID(OmsRequestId& reqid, OmsRxSNO sno) {
       memcpy(reqid.ReqUID_.data(), fon9::UIntToStrRev(this->RevStart(), sno), sizeof(reqid.ReqUID_));
    }
 }
-OmsRxSNO OmsReqUID_Builder::ParseRequestId(const OmsRequestId& reqId) {
-   return fon9::StrTo(fon9::StrView{reqId.ReqUID_.begin(), reqId.ReqUID_.end()}, OmsRxSNO{});
+OmsRxSNO OmsReqUID_Builder::ParseRequestId(fon9::StrView reqId) {
+   return fon9::StrTo(reqId, OmsRxSNO{});
 }
-OmsRxSNO OmsReqUID_Builder::ParseReqUID(const OmsRequestId& reqId, fon9::HostId& hostid) {
-   fon9::StrView idstr{reqId.ReqUID_.begin(), reqId.ReqUID_.end()};
+OmsRxSNO OmsReqUID_Builder::ParseReqUID(fon9::StrView idstr, fon9::HostId& hostid) {
    OmsRxSNO retval = fon9::StrTo(&idstr, OmsRxSNO{});
    if (fon9_LIKELY(idstr.Get1st() == kReqUID_SPLIT_CHAR)) {
       idstr.SetBegin(idstr.begin() + 1);

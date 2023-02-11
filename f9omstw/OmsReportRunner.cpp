@@ -32,10 +32,26 @@ OmsOrdNoMap* OmsReportChecker::GetOrdNoMap() {
       this->ReportAbandon("Bad BrkId");
       return nullptr;
    }
-   OmsOrdNoMap* ordnoMap = brk->GetOrdNoMap(*this->Report_);
-   if (ordnoMap == nullptr)
-      this->ReportAbandon("Bad Market or SessionId");
-   return ordnoMap;
+   OmsMarketRec& mkt = brk->GetMarket(this->Report_->Market());
+   OmsOrdNoMap*  ordnoMap = mkt.GetSession(this->Report_->SessionId()).GetOrdNoMap();
+   if (fon9_LIKELY(ordnoMap != nullptr))
+      return ordnoMap;
+   if (this->Report_->SessionId() == f9fmkt_TradingSessionId_RptAutoSessionId
+       && !OmsIsOrdNoEmpty(this->Report_->OrdNo_)) {
+      // 有些回報沒有提供 SessionId, 在此自動填入 SessionId.
+      // 系統必須設定全部的 Session 共用委託書號表:
+      // 可參閱: OmsBrkTree::InitializeTwsOrdNoMap(); OmsBrkTree::InitializeTwfOrdNoMap();
+      if ((ordnoMap = mkt.GetSession(f9fmkt_TradingSessionId_Normal).GetOrdNoMap()) != nullptr) {
+         if (auto* order = ordnoMap->GetOrder(this->Report_->OrdNo_)) {
+            if (auto* ordraw = order->Head()) {
+               this->Report_->SetSessionId(ordraw->SessionId());
+               return ordnoMap;
+            }
+         }
+      }
+   }
+   this->ReportAbandon("Bad Market or SessionId");
+   return nullptr;
 }
 const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
    OmsRequestBase& rpt = *this->Report_;

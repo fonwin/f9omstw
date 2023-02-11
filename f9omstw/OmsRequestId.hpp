@@ -43,9 +43,15 @@ public:
    void MakeReqUID(OmsRequestId& req, OmsRxSNO sno);
 
    /// 從 reqId 解析出 OmsRxSNO;
-   static OmsRxSNO ParseRequestId(const OmsRequestId& reqId);
+   static OmsRxSNO ParseRequestId(const OmsRequestId& reqId) {
+      return ParseRequestId(fon9::StrView{reqId.ReqUID_.begin(), reqId.ReqUID_.end()});
+   }
+   static OmsRxSNO ParseRequestId(fon9::StrView reqId);
    /// 從 reqId 解析出 OmsRxSNO 及 HostId;
-   static OmsRxSNO ParseReqUID(const OmsRequestId& reqId, fon9::HostId& hostid);
+   static OmsRxSNO ParseReqUID(const OmsRequestId& reqId, fon9::HostId& hostid) {
+      return ParseReqUID(fon9::StrView{reqId.ReqUID_.begin(), reqId.ReqUID_.end()}, hostid);
+   }
+   static OmsRxSNO ParseReqUID(fon9::StrView reqId, fon9::HostId& hostid);
 };
 
 } // namespaces

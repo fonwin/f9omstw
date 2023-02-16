@@ -41,6 +41,19 @@ void OmsTwsFilled::RunReportInCore(OmsReportChecker&& checker) {
    // -----
    base::RunReportInCore(std::move(checker));
 }
+void OmsTwsFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, OmsOrder& order) {
+   if (this->ErrCode() != OmsErrCode_FilledBeforeNewDone)
+      return;
+   assert(order.LastOrderSt() < f9fmkt_OrderSt_NewDone && order.Initiator() != nullptr);
+   OmsInternalRunnerInCore inCoreRunner{resource, *order.BeginUpdate(*order.Initiator())};
+   auto& ordraw = inCoreRunner.OrderRawT<OmsTwsOrderRaw>();
+   if (ordraw.LastPriTime_.IsNull())
+      ordraw.LastPriTime_ = this->Time_;
+   if (ordraw.ErrCode_ == OmsErrCode_Null)
+      ordraw.ErrCode_ = OmsErrCode_FilledBeforeNewDone;
+   ordraw.LastExgTime_ = this->Time_;
+   inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeAccepted, f9fmkt_TradingRequestSt_ExchangeAccepted);
+}
 OmsOrderRaw* OmsTwsFilled::RunReportInCore_FilledMakeOrder(OmsReportChecker& checker) {
    OmsOrderRaw* ordraw = base::RunReportInCore_FilledMakeOrder(checker);
    if (ordraw)

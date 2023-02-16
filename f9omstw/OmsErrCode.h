@@ -30,6 +30,15 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_QuoteOK = 14,
    OmsErrCode_IocDelOK = 15,
    OmsErrCode_FokDelOK = 16,
+   /// 成交回報, 如果尚未收到新單結果, 強制執行 RunReportInCore_FilledBeforeNewDone();
+   /// 台灣期交所: 不理會此設定, 因為期交所不會改變[新單要求量],
+   ///            所以一定會處理 RunReportInCore_FilledBeforeNewDone(),
+   ///            且異動時的 ErrCode 依然填入 OmsErrCode_NewOrderOK or OmsErrCode_QuoteOK;
+   /// 台灣證交所: 預設成交回報不會使用此代碼(若先收到成交,則先保留,等到收到新單回報,再處理保留的成交),
+   ///            - 因為證交所: 實際[新單下單成功量]可能會小於[新單要求量];
+   ///            - 只有確定券商回報當有[成交回報]時, 不會送出[新單回報], 才會在 OmsTwsFilled 填入此代碼.
+   ///              此時異動時的 ErrCode 填入 OmsErrCode_FilledBeforeNewDone;
+   OmsErrCode_FilledBeforeNewDone = 96,
    /// ec <= OmsErrCode_LastInternalOK 表示OK的訊息代碼.
    /// 但 ec > OmsErrCode_LastInternalOK 不一定代表失敗, 例: 40249:Session已達設定之流量值90%;
    OmsErrCode_LastInternalOK = 99,

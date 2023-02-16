@@ -141,6 +141,8 @@ void OmsReportFilled::RunReportInCore_FilledOrder(OmsReportChecker&& checker, Om
       this->RunReportInCore_FilledBeforeNewDone(checker.Resource_, order);
    // 更新 order.
    OmsReportRunnerInCore inCoreRunner{std::move(checker), *order.BeginUpdate(*this)};
+   if (inCoreRunner.OrderRaw().ErrCode_ == OmsErrCode_FilledBeforeNewDone)
+      inCoreRunner.OrderRaw().ErrCode_ = OmsErrCode_Null;
    inCoreRunner.Resource_.Backend_.FetchSNO(*this);
    if (iniReq)
       this->IniSNO_ = iniReq->RxSNO();

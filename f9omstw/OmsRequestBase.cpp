@@ -254,11 +254,16 @@ void OmsRequestBase::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunn
 void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
    (void)message;
    if (ref) {
-      *static_cast<OmsOrdKey*>(this) = *ref;
-      if (OmsIsOrdNoEmpty(this->OrdNo_) && ref->LastUpdated()) {
-         // ref 有可能尚未編制 OrdNo, 後續的回報才編入,
-         // 所以, 若有需要, 需從 ref 的最後異動取得 OrdNo.
-         this->OrdNo_ = ref->LastUpdated()->OrdNo_;
+      if (OmsIsOrdNoEmpty(this->OrdNo_)) {
+         *static_cast<OmsOrdKey*>(this) = *ref;
+         if (ref->LastUpdated()) {
+            // ref 有可能尚未編制 OrdNo, 在後續的回報才編入 OrdNo,
+            // 所以, 若有需要, 需從 ref 的最後異動取得 OrdNo.
+            this->OrdNo_ = ref->LastUpdated()->OrdNo_;
+         }
+      }
+      else { // this 已有 OrdNo, 從 ref 複製複製而來的 OrdKey 就需要排除 OrdNo;
+         this->AssignOrdKeyExcludeOrdNo(*ref);
       }
       this->Market_ = ref->Market();
       this->SessionId_ = ref->SessionId();
@@ -329,9 +334,22 @@ bool OmsRequestBase::RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker
    if (fon9_LIKELY(checker.CheckerSt_ == OmsReportCheckerSt::NotReceived))
       return true;
    // 不確定是否有收過此回報: 檢查是否重複回報.
-   if (fon9_UNLIKELY(this->ReportSt() <= origReq.LastUpdated()->RequestSt_)) {
+   auto* lastUpdated = origReq.LastUpdated();
+   if (fon9_UNLIKELY(this->ReportSt() <= lastUpdated->RequestSt_)) {
       checker.ReportAbandon("Report: Duplicate or Obsolete report.");
       return false;
+   }
+   // Order 在此筆回報之前尚未編制 OrdNo, 此次回報提供了 Order 的 [委託書號].
+   // 這種情況會在 OmsReportRunnerInCore::UpdateReportImpl() 將 OrdNo 填入 ordraw;
+   if (OmsIsOrdNoEmpty(lastUpdated->Order().Tail()->OrdNo_)) {
+      if (!OmsIsOrdNoEmpty(checker.Report_->OrdNo_)) {
+         if (OmsOrdNoMap* ordnoMap = checker.GetOrdNoMap()) {
+            if (ordnoMap->EmplaceOrder(checker.Report_->OrdNo_, &lastUpdated->Order()))
+               return true;
+         }
+         checker.ReportAbandon("Report: Bad rpt OrdNo.");
+         return false;
+      }
    }
    // origReq 已存在的回報, 不用考慮 BeforeQty, AfterQty 重複? 有沒有底下的可能?
    // => f9oms.A => TwsRpt.1:Sending         => f9oms.Local (TwsRpt.1:Sending)

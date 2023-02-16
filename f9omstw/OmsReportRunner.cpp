@@ -41,8 +41,16 @@ OmsOrdNoMap* OmsReportChecker::GetOrdNoMap() {
       // 有些回報沒有提供 SessionId, 在此自動填入 SessionId.
       // 系統必須設定全部的 Session 共用委託書號表:
       // 可參閱: OmsBrkTree::InitializeTwsOrdNoMap(); OmsBrkTree::InitializeTwfOrdNoMap();
+      // ===> TODO: 這些回報的額外處理, 應該考慮使用額外機制:
+      //            由使用者在進入 OmsCore 後, 執行回報前, 執行一些額外處置.
       if ((ordnoMap = mkt.GetSession(f9fmkt_TradingSessionId_Normal).GetOrdNoMap()) != nullptr) {
          if (auto* order = ordnoMap->GetOrder(this->Report_->OrdNo_)) {
+            if (this->Report_->RxKind() == f9fmkt_RxKind_Filled) {
+               if (auto* ini = order->Initiator()) {
+                  this->Report_->OnSynReport(ini, nullptr);
+                  return ordnoMap;
+               }
+            }
             if (auto* ordraw = order->Head()) {
                this->Report_->SetSessionId(ordraw->SessionId());
                return ordnoMap;
@@ -210,6 +218,11 @@ void OmsReportRunnerInCore::CalcRequestRunTimes() {
 }
 void OmsReportRunnerInCore::UpdateReportImpl(OmsRequestBase& rpt) {
    auto& ordraw = this->OrderRaw();
+   if (OmsIsOrdNoEmpty(ordraw.OrdNo_)) {
+      // 在 OmsRequestBase::RunReportInCore_FromOrig_Precheck() 有處理: 委託書號對應.
+      // 所以這裡直接填入 [來自回報] 的 [委託書號].
+      ordraw.OrdNo_ = rpt.OrdNo_;
+   }
    if (&ordraw.Request() != &rpt) {
       if (IsEnumContains(rpt.RequestFlags(), OmsRequestFlag_ReportNeedsLog)) {
          OmsLogSplit(this->ExLogForUpd_);

@@ -57,6 +57,9 @@ struct OmsOrdKey {
    OmsOrdKey() {
       memset(this, 0, sizeof(*this));
    }
+   void AssignOrdKeyExcludeOrdNo(const OmsOrdKey& rhs) {
+      this->BrkId_ = rhs.BrkId_;
+   }
 };
 
 /// 「新、刪、改、查、成交」的共同基底.

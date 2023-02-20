@@ -150,16 +150,23 @@ void OmsTwfFilled::ProcessQtyCanceled(OmsReportRunnerInCore&& inCoreRunner) cons
       else {
          inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeCanceled, f9fmkt_TradingRequestSt_ExchangeCanceled);
          if (fon9_UNLIKELY(this->ErrCode() == OmsErrCode_Twf_DynPriBandRpt)) {
-            OmsTwfPri     lmtPri = this->PriOrd_;
+            OmsTwfPri     lmtPri;
             fon9::StrView strLeg;
-            if (const auto* reqFilled2 = dynamic_cast<const OmsTwfFilled2*>(this)) {
-               if (!reqFilled2->PriLeg2_.IsNullOrZero()) {
-                  lmtPri = reqFilled2->PriLeg2_;
+            if (ordraw.Market() == f9fmkt_TradingMarket_TwFUT // 期貨價差: 40048 直接使用 PriOrd 告知上下限 [期貨價差] 的上下限, 沒有區分 Leg。
+             || static_cast<const OmsTwfRequestIni0*>(ordraw.Order().Initiator())->UnsafeCombOp() == f9twf::TmpCombOp::Single) {
+               lmtPri = this->PriOrd_;
+            }
+            else {
+               // 複式單若 Leg2 為 0, 則可能會用 OmsTwfFilled 來回報,
+               // 所以需要額外判斷: 若新單要求為複式單, this 是否為複式單的 Leg1?
+               const auto* reqFilled2 = dynamic_cast<const OmsTwfFilled2*>(this);
+               if (reqFilled2 && !reqFilled2->PriLeg2_.IsNullOrZero()) {
                   strLeg = "2";
+                  lmtPri = reqFilled2->PriLeg2_;
                }
                else {
-                  lmtPri = reqFilled2->Pri_;
                   strLeg = "1";
+                  lmtPri = this->Pri_;
                }
             }
             ordraw.Message_ = fon9::RevPrintTo<fon9::CharVector>("Leg=", strLeg, "|LmtPri=", lmtPri);

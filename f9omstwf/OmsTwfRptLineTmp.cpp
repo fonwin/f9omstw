@@ -181,34 +181,7 @@ static void MoveToCoreRun(TwfRptLineTmp& line, OmsRequestRunner&& runner) {
          req->SesName_.AssignFrom(fon9_kCSTR_OmsForceInternal);
          if (fon9_LIKELY(req->ErrCode() == OmsErrCode_Null
                       && req->ReportSt() == f9fmkt_TradingRequestSt_ExchangeAccepted)) {
-            if (fon9_LIKELY(&req->Creator() != &line.Worker_.Rpt9Factory_)) { // req 不是 (Rpt9:報價) 回報.
-               switch (req->RxKind()) {
-               default:
-               case f9fmkt_RxKind_Unknown:
-               case f9fmkt_RxKind_Order:
-               case f9fmkt_RxKind_Event:
-               case f9fmkt_RxKind_Filled:
-               case f9fmkt_RxKind_RequestQuery:
-               case f9fmkt_RxKind_RequestChgCond:
-                  break;
-               case f9fmkt_RxKind_RequestNew:
-                  req->SetErrCode(OmsErrCode_NewOrderOK);
-                  break;
-               case f9fmkt_RxKind_RequestDelete:
-                  req->SetErrCode(OmsErrCode_DelOrderOK);
-                  break;
-               case f9fmkt_RxKind_RequestChgQty:
-                  req->SetErrCode(OmsErrCode_ChgQtyOK);
-                  break;
-               case f9fmkt_RxKind_RequestChgPri:
-                  req->SetErrCode(OmsErrCode_ChgPriOK);
-                  break;
-               }
-            }
-            else {
-               if (req->RxKind() == f9fmkt_RxKind_RequestNew)
-                  req->SetErrCode(OmsErrCode_QuoteOK);
-            }
+            req->ResetOkErrCode();
          }
       }
    }

@@ -54,5 +54,10 @@ void OmsTwfReport8::RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) {
    ordraw.LastExgTime_ = this->ExgTime_;
    runner.UpdateReport(*this);
 }
+OmsErrCode OmsTwfReport8::GetOkErrCode() const {
+   if (this->RxKind() == f9fmkt_RxKind_RequestNew)
+      return OmsErrCode_QuoteROK;
+   return base::GetOkErrCode();
+}
 
 } // namespaces

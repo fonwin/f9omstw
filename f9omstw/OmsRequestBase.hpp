@@ -231,6 +231,15 @@ public:
    void SetErrCode(OmsErrCode ec) {
       this->ErrCode_ = ec;
    }
+   /// 不論現在的 ErrCode 內容, 強制設定 this->ErrCode_ = this->GetOkErrCode();
+   void ResetOkErrCode() {
+      this->ErrCode_ = this->GetOkErrCode();
+   }
+   /// 取得若交易所下單成功, 應使用的訊息代碼,
+   /// 例: 新單成功(6=NewOrderOK), 改量成功(8=ChgQtyOK)...
+   /// 預設: 根據 RxKind() 決定 ErrCode_ 的值; 若為不認識的 RxKind(), 則返回 this->ErrCode_;
+   virtual OmsErrCode GetOkErrCode() const;
+
    /// 如果 this->IsAbandoned() 則傳回失敗時提供的訊息.
    /// - 可能為 nullptr, 表示只提供 ErrCode(), 沒提供額外訊息.
    const std::string* AbandonReason() const {

@@ -328,7 +328,7 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
          if (runTimes < act->RerunTimes_ + 1u) {
             if (act->IsAtNewDone_ && !IsNewSending(*rptReq, rpt))
                continue;
-            return act;
+            goto __RETURN_ACT;
          }
          if (!act->IsAtNewDone_)
             continue;
@@ -344,6 +344,14 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
             // 以上條件都成立, 但需等 NewDone 才 Rerun, 則應將此次異動放到 ReportPending.
             ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
             runner.IsReportPending_ = true;
+         }
+      }
+   __RETURN_ACT:;
+      if (rpt) { // 有需要 ACT 額外處理的 rpt, 則強制將 rpt 寫入 log, 以利追蹤系統行為.
+         const_cast<OmsRequestBase*>(rpt)->SetReportNeedsLog();
+         if (act->IsResetOkErrCode_) {
+            ordraw.ErrCode_ = rpt->GetOkErrCode();
+            fon9::RevPrint(runner.ExLogForUpd_, "ResetOkErrCode:Before=", rpt->ErrCode(), "|After=", ordraw.ErrCode_, '\n');
          }
       }
       return act;

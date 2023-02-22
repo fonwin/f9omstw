@@ -448,5 +448,21 @@ void OmsRequestBase::RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) {
    else // 委託不存在(建立新委託後)的刪改查回報.
       this->RunReportInCore_DCQ(std::move(runner));
 }
+//--------------------------------------------------------------------------//
+OmsErrCode OmsRequestBase::GetOkErrCode() const {
+   switch (this->RxKind()) {
+   default:
+   case f9fmkt_RxKind_Unknown:
+   case f9fmkt_RxKind_Order:
+   case f9fmkt_RxKind_Event:
+   case f9fmkt_RxKind_Filled:
+   case f9fmkt_RxKind_RequestQuery:
+   case f9fmkt_RxKind_RequestChgCond:  return this->ErrCode_;
+   case f9fmkt_RxKind_RequestNew:      return OmsErrCode_NewOrderOK;
+   case f9fmkt_RxKind_RequestDelete:   return OmsErrCode_DelOrderOK;
+   case f9fmkt_RxKind_RequestChgQty:   return OmsErrCode_ChgQtyOK;
+   case f9fmkt_RxKind_RequestChgPri:   return OmsErrCode_ChgPriOK;
+   }
+}
 
 } // namespaces

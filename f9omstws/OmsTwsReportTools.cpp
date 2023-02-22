@@ -54,30 +54,9 @@ void AssignTwsReportMessage(OmsTwsReport& rpt, const fon9::fix::FixParser& fixms
    }
    if (ec == OmsErrCode_Null) {
    __ASSIGN_EC_OK:
-      switch (rpt.RxKind()) {
-      default:
-      case f9fmkt_RxKind_Unknown:
-      case f9fmkt_RxKind_Order:
-      case f9fmkt_RxKind_Event:
-      case f9fmkt_RxKind_Filled:
-      case f9fmkt_RxKind_RequestQuery:
-      case f9fmkt_RxKind_RequestChgCond:
+      if (rpt.ReportSt() == f9fmkt_TradingRequestSt_ExchangeCanceling && rpt.RxKind() == f9fmkt_RxKind_RequestNew)
          return;
-      case f9fmkt_RxKind_RequestNew:
-         if (rpt.ReportSt() == f9fmkt_TradingRequestSt_ExchangeCanceling)
-            return;
-         ec = OmsErrCode_NewOrderOK;
-         break;
-      case f9fmkt_RxKind_RequestDelete:
-         ec = OmsErrCode_DelOrderOK;
-         break;
-      case f9fmkt_RxKind_RequestChgQty:
-         ec = OmsErrCode_ChgQtyOK;
-         break;
-      case f9fmkt_RxKind_RequestChgPri:
-         ec = OmsErrCode_ChgPriOK;
-         break;
-      }
+      ec = rpt.GetOkErrCode();
    }
    else {
       ec = static_cast<OmsErrCode>(ec + (f9fmkt_TradingMarket_TwOTC == rpt.Market()

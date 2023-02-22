@@ -193,6 +193,11 @@ void OmsTwfReport9::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
    this->Message_.assign(message);
    this->PriStyle_ = OmsReportPriStyle::HasDecimal;
 }
+OmsErrCode OmsTwfReport9::GetOkErrCode() const {
+   if (this->RxKind() == f9fmkt_RxKind_RequestNew)
+      return OmsErrCode_QuoteOK;
+   return base::GetOkErrCode();
+}
 //--------------------------------------------------------------------------//
 static void OmsTwf9_ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const OmsRequestBase& rpt, const OmsTwfReport9* chkFields) {
    assert(dynamic_cast<const OmsTwfOrderRaw9*>(rpt.LastUpdated()) != nullptr);

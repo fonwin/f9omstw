@@ -28,6 +28,8 @@ public:
    // 詢價只有成功或失敗, 不可能有 Pending.
    // void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) override;
 
+   OmsErrCode GetOkErrCode() const override;
+
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwfReport8{creator, reqKind};
       retval->InitializeForReportIn();

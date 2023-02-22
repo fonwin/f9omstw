@@ -73,7 +73,8 @@ void OmsTwfFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, Om
    assert(order.LastOrderSt() < f9fmkt_OrderSt_NewDone && order.Initiator() != nullptr);
    if (fon9_UNLIKELY(this->PosEff_ == OmsTwfPosEff::Quote && this->Side_ == f9fmkt_Side_Buy))
       return;
-   OmsInternalRunnerInCore inCoreRunner{resource, *order.BeginUpdate(*order.Initiator())};
+   const auto&             inireq = *order.Initiator();
+   OmsInternalRunnerInCore inCoreRunner{resource, *order.BeginUpdate(inireq)};
    if (fon9_LIKELY(this->PosEff_ != OmsTwfPosEff::Quote)) {
       auto& ordraw1 = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
       // 新單補單後的處理,不會走到這兒,會在 RunReportInCore_FilledUpdateCum() 更新 LastPri_;
@@ -81,16 +82,10 @@ void OmsTwfFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, Om
          ordraw1.LastPri_ = this->PriOrd_;
       if (ordraw1.LastPriTime_.IsNull())
          ordraw1.LastPriTime_ = this->Time_;
-      if (ordraw1.ErrCode_ == OmsErrCode_Null)
-         ordraw1.ErrCode_ = OmsErrCode_NewOrderOK;
    }
-   else { // 報價.
-      assert(dynamic_cast<OmsTwfOrderRaw9*>(&inCoreRunner.OrderRaw()) != nullptr);
-      auto& ordraw9 = inCoreRunner.OrderRaw();
-      if (ordraw9.ErrCode_ == OmsErrCode_Null)
-         ordraw9.ErrCode_ = OmsErrCode_QuoteOK;
-   }
-   inCoreRunner.OrderRawT<OmsTwfOrderRaw0>().LastExgTime_ = this->Time_;
+   auto& ordraw0 = inCoreRunner.OrderRawT<OmsTwfOrderRaw0>();
+   ordraw0.LastExgTime_ = this->Time_;
+   ordraw0.ErrCode_ = inireq.GetOkErrCode();
    inCoreRunner.UpdateSt(f9fmkt_OrderSt_ExchangeAccepted, f9fmkt_TradingRequestSt_ExchangeAccepted);
 }
 bool OmsTwfFilled::RunReportInCore_FilledIsNeedsReportPending(const OmsOrderRaw& lastOrdUpd) const {

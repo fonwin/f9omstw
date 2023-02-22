@@ -5,17 +5,18 @@
 
 namespace f9omstw {
 
-#define kCSTR_During       "During"
-#define kCSTR_NewSrc       "NewSrc"
-#define kCSTR_Src          "Src"
-#define kCSTR_OType        "OType"
-#define kCSTR_UseNewLine   "UseNewLine"
-#define kCSTR_AtNewDone    "AtNewDone"
-#define kCSTR_NewSending   "NewSending"
-#define kCSTR_St           "St"
-#define kCSTR_Rerun        "Rerun"
-#define kCSTR_ErrCode      "ErrCode"
-#define kCSTR_Memo         "Memo"
+#define kCSTR_During          "During"
+#define kCSTR_NewSrc          "NewSrc"
+#define kCSTR_Src             "Src"
+#define kCSTR_OType           "OType"
+#define kCSTR_UseNewLine      "UseNewLine"
+#define kCSTR_AtNewDone       "AtNewDone"
+#define kCSTR_NewSending      "NewSending"
+#define kCSTR_St              "St"
+#define kCSTR_Rerun           "Rerun"
+#define kCSTR_ErrCode         "ErrCode"
+#define kCSTR_ResetOkErrCode  "ResetOkErrCode"
+#define kCSTR_Memo            "Memo"
 
 static void AssignSrc(fon9::CharVector& dst, fon9::StrView src) {
    dst.clear();
@@ -95,6 +96,11 @@ const char* OmsErrCodeAct::ParseFrom(fon9::StrView cfgstr, std::string* msg) {
       }
       else if (tag == kCSTR_ErrCode) {
          this->ReErrCode_ = static_cast<OmsErrCode>(fon9::StrTo(value, fon9::cast_to_underlying(this->ReErrCode_)));
+         this->IsResetOkErrCode_ = false;
+      }
+      else if (tag == kCSTR_ResetOkErrCode) {
+         this->ReErrCode_ = OmsErrCode_MaxV;
+         this->IsResetOkErrCode_ = (fon9::toupper(value.Get1st()) == 'Y');
       }
       else if (tag == kCSTR_Memo) {
          this->Memo_ = value.ToString();
@@ -165,6 +171,10 @@ void RevPrint(fon9::RevBuffer& rbuf, const OmsErrCodeAct& act) {
    if (act.ReErrCode_ != OmsErrCode_MaxV) {
       splaux(rbuf);
       fon9::RevPrint(rbuf, kCSTR_ErrCode "=", act.ReErrCode_);
+   }
+   if (act.IsResetOkErrCode_) {
+      splaux(rbuf);
+      fon9::RevPrint(rbuf, kCSTR_ResetOkErrCode "=Y");
    }
 }
 bool OmsErrCodeAct::CheckTime(fon9::DayTime now) const {

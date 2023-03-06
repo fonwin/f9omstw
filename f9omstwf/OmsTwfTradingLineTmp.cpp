@@ -19,6 +19,9 @@ TwfTradingLineTmp::TwfTradingLineTmp(TwfLineTmpWorker&            worker,
       "Sending.", f9twf::TmpGetValueU(lineArgs.SessionFcmId_),
       '.', f9twf::TmpGetValueU(lineArgs.SessionId_))} {
 }
+void TwfTradingLineTmp::GetApReadyInfo(fon9::RevBufferList& rbuf) {
+   fon9::RevPrint(rbuf, "|Fc=", this->MaxFlowCtrlCnt(), '/', this->LineArgs_.GetFcInterval());
+}
 void TwfTradingLineTmp::OnExgTmp_ApReady() {
    if (auto omsCore = static_cast<TwfTradingLineMgr*>(&this->LineMgr_)->OmsCore()) {
       fon9::intrusive_ptr<TwfTradingLineTmp> pthis{this};
@@ -31,8 +34,7 @@ void TwfTradingLineTmp::OnExgTmp_ApReady() {
          return false;
       });
    }
-   this->Fc_.Resize(this->MaxFlowCtrlCnt(), this->LineArgs_.FcInterval_.IsNullOrZero()
-                    ? fon9::TimeInterval_Second(1) : this->LineArgs_.FcInterval_);
+   this->Fc_.Resize(this->MaxFlowCtrlCnt(), this->LineArgs_.GetFcInterval());
    this->LineMgr_.OnTradingLineReady(*this);
 }
 void TwfTradingLineTmp::OnExgTmp_ApBroken() {

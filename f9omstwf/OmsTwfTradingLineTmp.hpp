@@ -17,6 +17,7 @@ class TwfTradingLineTmp : public TwfRptLineTmp, public f9fmkt::TradingLine {
    fon9::FlowCounter Fc_;
 
 protected:
+   void GetApReadyInfo(fon9::RevBufferList& rbuf) override;
    void OnExgTmp_ApReady() override;
    void OnExgTmp_ApBroken() override;
 

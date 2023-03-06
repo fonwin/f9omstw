@@ -544,6 +544,7 @@ void ApiSesCfg::SubscribeRpt(OmsCore& core) {
    core.ReportSubject().Subscribe(&this->SubrRpt_, std::bind(&ApiSesCfg::OnReport, this, _1, _2));
 }
 bool ApiSesCfg::MakeReportMessage(fon9::RevBufferList& rbuf, const OmsRxItem& item) const {
+   assert(this->CurrentCore_ && this->CurrentCore_->IsBackendThread());
    if (this->ReportMessageFor_ == &item) {
       fon9::RevPrint(rbuf, this->ReportMessage_);
       return true;

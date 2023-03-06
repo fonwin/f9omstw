@@ -73,9 +73,19 @@ public:
    void OnMessage(OmsCoreTask& task) {
       task(this->Owner_);
    }
-
+   template <class Locker>
+   void OnBeforeMessage(OmsCoreTask& task, Locker& queue) {
+      (void)task;
+      // 為了確保執行 task 之前, 所有的 req 及 rpt 都已處理完畢,
+      // 避免某些依賴 [req 及 rpt] 完成, 才能執行的 task。
+      this->ProcessPendingReqs(queue);
+   }
    template <class Locker>
    void OnAfterWakeup(Locker& queue) {
+      this->ProcessPendingReqs(queue);
+   }
+   template <class Locker>
+   void ProcessPendingReqs(Locker& queue) {
       for (;;) {
          if (this->Owner_.PendingReqs_.empty())
             return;

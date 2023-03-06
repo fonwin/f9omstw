@@ -180,6 +180,12 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
    }
 }
 //--------------------------------------------------------------------------//
+void OmsCore::RunTaskFromCoreToBackend(OmsBackendTaskSP task) {
+   this->RunCoreTask([task](OmsResource& resource) {
+      resource.Backend_.RunTask(std::move(task));
+   });
+}
+//--------------------------------------------------------------------------//
 void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSender) {
    fon9::CountDownLatch waiter{1};
    if (this->RunCoreTask([&waiter, logInfo, &isOrigSender](OmsResource& res) {

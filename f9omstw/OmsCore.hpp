@@ -123,8 +123,20 @@ public:
    /// \retval false  task 沒有機會被執行;
    virtual bool RunCoreTask(OmsCoreTask&& task) = 0;
 
+   /// 立即將 task 丟給 Backend 執行.
+   void MoveTaskToBackend(OmsBackendTaskSP task) {
+      this->Backend_.RunTask(std::move(task));
+   }
+   /// 透過 RunCoreTask 將 task 丟到 Backend,
+   /// 也就是說, 會先將 task 排到 OmsCore,
+   /// 等 task 的執行時間到了, 再丟給 Backend;
+   void RunTaskFromCoreToBackend(OmsBackendTaskSP task);
+
    bool IsThisThread() const;
    bool IsCurrentCore() const;
+   bool IsBackendThread() const {
+      return this->Backend_.IsThisThread();
+   }
 
    OmsCoreSt CoreSt() const {
       return this->CoreSt_;

@@ -5,6 +5,7 @@
 #include "f9omstw/OmsOrder.hpp"
 #include "fon9/buffer/DcQueueList.hpp"
 #include "fon9/ThreadTools.hpp"
+#include "fon9/ThreadId.hpp"
 #include "fon9/Log.hpp"
 
 namespace f9omstw {
@@ -38,12 +39,16 @@ void OmsBackend::OnBeforeDestroy() {
    this->LastSNO_ = 0;
    this->RecorderFd_.Close();
 }
+bool OmsBackend::IsThisThread() const {
+   return(this->ThreadId_ == fon9::GetThisThreadId().ThreadId_);
+}
 void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval) {
    this->FlushInterval_ = flushInterval;
    this->Items_.OnBeforeThreadStart(1);
    this->Thread_ = std::thread(&OmsBackend::ThrRun, this, std::move(thrName));
 }
 void OmsBackend::ThrRun(std::string thrName) {
+   this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
    fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName, "|flushInterval=", this->FlushInterval_);
    {
       QuItems  quItems;
@@ -86,6 +91,15 @@ void OmsBackend::ThrRun(std::string thrName) {
                this->ReportSubject_.Publish(core, *qi.Item_);
             }
             else { // 不加入 History(無法回補), 但需要發行訊息的回報.
+               if (fon9_UNLIKELY(qi.Item_->RxKind() == f9fmkt_RxKind_Unknown)) {
+                  if (auto* task = const_cast<OmsBackendTask*>(dynamic_cast<const OmsBackendTask*>(qi.Item_))) {
+                     task->DoBackendTask(*this);
+                     qi.Item_ = nullptr; // 讓 OmsBackend::SaveQuItems() 僅記錄 log;
+                     qi.ExLog_ = std::move(task->LogBuf_);
+                     intrusive_ptr_release(task);
+                     continue;
+                  }
+               }
                if ((qi.Item_->RxItemFlags() & OmsRequestFlag_ForcePublish) == OmsRequestFlag_ForcePublish)
                   this->ReportSubject_.Publish(core, *qi.Item_);
                // intrusive_ptr_release(qi.Item_); 應在 SaveQuItems() 時處理.
@@ -101,6 +115,7 @@ void OmsBackend::ThrRun(std::string thrName) {
       items->Recovers_.clear(); // 清理 Recover (RecoverHandler.Consumer_) 的資源.
    }
    fon9_LOG_ThrRun("OmsBackend.ThrRun.End|name=", thrName);
+   this->ThreadId_ = 0;
 }
 OmsBackend::RecoverResult OmsBackend::CheckRecoverHandler(Items::Locker& items, size_t& recoverIndex) {
    const unsigned kMaxRecoverCount = 100; // 每次每個 RecoverHandler 最多回補 100 筆.

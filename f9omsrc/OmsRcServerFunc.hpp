@@ -47,7 +47,7 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       }
       void ClearResource() override;
       void StartRecover(OmsRxSNO from, f9OmsRc_RptFilter filter);
-      bool PreReport(const OmsRxItem& item);
+      // bool PreReport(const OmsRxItem& item);
    private:
       enum class HandlerSt {
          Preparing,
@@ -102,15 +102,18 @@ public:
       return this->PolicyConfig_;
    }
 
-   /// - 在 Backend 尚未回報前, 提前回報, 當 Backend 正常流程到達時, 可能會有重複.
-   /// - 若 Backend 的正常流程可能已回報(判斷 PublishedSNO),
-   ///   但無法確認是否有需要送給Client, 則返回 true;
-   /// - 若 item 不需要回報, 則返回 false;
-   bool PreReport(const OmsRxItem& item) {
-      if (auto hdr = this->Handler_)
-         return hdr->PreReport(item);
-      return false;
-   }
+   // 應使用 Backend::Flush() 強制回報, 因為 PreReport() 裡面的 SendReport() 會呼叫 this->ApiSesCfg_->MakeReportMessage();
+   // 而 this->ApiSesCfg_->MakeReportMessage() 只能在 Backend thread 裡面呼叫, 不是 thread safe;
+   // - 在 Backend 尚未回報前, 提前回報, 當 Backend 正常流程到達時, 可能會有重複.
+   // - 若 Backend 的正常流程可能已回報(判斷 PublishedSNO),
+   //   但無法確認是否有需要送給Client, 則返回 true;
+   // - 若 item 不需要回報, 則返回 false;
+   // bool PreReport(const OmsRxItem& item) {
+   //    if (auto hdr = this->Handler_)
+   //       return hdr->PreReport(item);
+   //    return false;
+   // }
+
    OmsCoreSP GetOmsCore() const {
       if (auto hdr = this->Handler_)
          return hdr->Core_;

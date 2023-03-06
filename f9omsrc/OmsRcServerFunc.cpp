@@ -367,49 +367,49 @@ bool OmsRcServerNote::Handler::SendReport(const OmsRxItem& item) {
    }
    return false;
 }
-bool OmsRcServerNote::Handler::PreReport(const OmsRxItem& item) {
-   if (this->State_ >= HandlerSt::Disposing)
-      return false;
-   auto core = this->Core_;
-   if (!core)
-      return false;
-   if (item.RxSNO() <= core->PublishedSNO()) {
-      // 最終發行序號已超過 item, 雖不確定 item 是否有回報,
-      // 但 item [應該.視為] 已經送出.
-      return true;
-   }
-   // item 尚未透過正常流程回報.
-   if (item.CastToOrder())
-      return this->SendReport(item);
-   if (auto* req = static_cast<const OmsRequestBase*>(item.CastToRequest())) {
-      // req可能為子單, [母單]也需要回報.
-      const OmsOrderRaw* ordrawLast;
-      const OmsRxSNO     publishedSNO = core->PublishedSNO();
-      if (auto* parent = req->GetParentRequest()) {
-         if (publishedSNO < parent->RxSNO())
-            goto __BACKEND_FLUSH_AND_RETURN;
-         if ((ordrawLast = parent->LastUpdated()) != nullptr)
-            if (publishedSNO < ordrawLast->RxSNO())
-               goto __BACKEND_FLUSH_AND_RETURN;
-      }
-      // req可能為刪改查, [原始新單]也需要回報.
-      if ((ordrawLast = req->LastUpdated()) != nullptr) {
-         if (auto* ini = ordrawLast->Order().Initiator())
-            if (req != ini) {
-               if (publishedSNO < ini->RxSNO())
-                  goto __BACKEND_FLUSH_AND_RETURN;
-               if ((ordrawLast = ini->LastUpdated()) != nullptr)
-                  if (publishedSNO < ordrawLast->RxSNO())
-                     goto __BACKEND_FLUSH_AND_RETURN;
-            }
-      }
-      return this->SendReport(item);
-   }
-   // 必須把與 item 有關聯的 request 也送出, 所以必須使用 BackendFlush();
-__BACKEND_FLUSH_AND_RETURN:;
-   core->BackendFlush();
-   return true;
-}
+// bool OmsRcServerNote::Handler::PreReport(const OmsRxItem& item) {
+//    if (this->State_ >= HandlerSt::Disposing)
+//       return false;
+//    auto core = this->Core_;
+//    if (!core)
+//       return false;
+//    if (item.RxSNO() <= core->PublishedSNO()) {
+//       // 最終發行序號已超過 item, 雖不確定 item 是否有回報,
+//       // 但 item [應該.視為] 已經送出.
+//       return true;
+//    }
+//    // item 尚未透過正常流程回報.
+//    if (item.CastToOrder())
+//       return this->SendReport(item);
+//    if (auto* req = static_cast<const OmsRequestBase*>(item.CastToRequest())) {
+//       // req可能為子單, [母單]也需要回報.
+//       const OmsOrderRaw* ordrawLast;
+//       const OmsRxSNO     publishedSNO = core->PublishedSNO();
+//       if (auto* parent = req->GetParentRequest()) {
+//          if (publishedSNO < parent->RxSNO())
+//             goto __BACKEND_FLUSH_AND_RETURN;
+//          if ((ordrawLast = parent->LastUpdated()) != nullptr)
+//             if (publishedSNO < ordrawLast->RxSNO())
+//                goto __BACKEND_FLUSH_AND_RETURN;
+//       }
+//       // req可能為刪改查, [原始新單]也需要回報.
+//       if ((ordrawLast = req->LastUpdated()) != nullptr) {
+//          if (auto* ini = ordrawLast->Order().Initiator())
+//             if (req != ini) {
+//                if (publishedSNO < ini->RxSNO())
+//                   goto __BACKEND_FLUSH_AND_RETURN;
+//                if ((ordrawLast = ini->LastUpdated()) != nullptr)
+//                   if (publishedSNO < ordrawLast->RxSNO())
+//                      goto __BACKEND_FLUSH_AND_RETURN;
+//             }
+//       }
+//       return this->SendReport(item);
+//    }
+//    // 必須把與 item 有關聯的 request 也送出, 所以必須使用 BackendFlush();
+// __BACKEND_FLUSH_AND_RETURN:;
+//    core->BackendFlush();
+//    return true;
+// }
 //--------------------------------------------------------------------------//
 /// sesUserId 與 reqUserId 的關係:
 /// (1) 必須完全相同.

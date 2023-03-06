@@ -22,6 +22,19 @@ using ReportSubject = fon9::Subject<RxConsumer>;
 /// - 返回 <= item->RxSNO() 表示暫時停止, 等下一個回補週期.
 using RxRecover = std::function<OmsRxSNO(OmsCore&, const OmsRxItem* item)>;
 
+class OmsBackendTask : public OmsRxItem {
+   fon9_NON_COPY_NON_MOVE(OmsBackendTask);
+   using base = OmsRxItem;
+public:
+   /// 在 DoBackendTask() 之後, 若這裡有非空, 則會寫入 Backend log;
+   fon9::RevBufferList  LogBuf_{128};
+
+   OmsBackendTask() : base(f9fmkt_RxKind_Unknown) {
+   }
+   virtual void DoBackendTask(OmsBackend& sender) = 0;
+};
+using OmsBackendTaskSP = fon9::intrusive_ptr<OmsBackendTask>;
+
 /// - OmsCore 發生的「各類要求、委託異動、事件...」依序記錄(保留)在此.
 /// - Append 之後的 OmsRxItem 就不應再有變動, 因為可能已寫入記錄檔.
 ///   如果還有異動, 將造成記憶體中的資料與檔案記錄的不同.
@@ -78,6 +91,7 @@ class OmsBackend {
    fon9_WARN_POP;
    using Items = fon9::ThreadController<ItemsImpl, fon9::WaitPolicy_CV>;
    std::thread          Thread_;
+   uintptr_t            ThreadId_{};
    Items                Items_;
    OmsRxSNO             LastSNO_{0};
    OmsRxSNO             PublishedSNO_{0};
@@ -125,6 +139,10 @@ public:
                          fon9::FileMode fmode = fon9::FileMode::CreatePath | fon9::FileMode::Append
                                               | fon9::FileMode::Read | fon9::FileMode::DenyWrite);
    void StartThread(std::string thrName, fon9::TimeInterval flushInterval);
+   uintptr_t ThreadId() const {
+      return this->ThreadId_;
+   }
+   bool IsThisThread() const;
    /// 通知並等候 thread 結束.
    void WaitThreadEnd();
    /// 通知並等候 thread 結束, 然後儲存剩餘的資料.
@@ -186,6 +204,15 @@ public:
       this->Flush(lk);
    }
    void Flush(Locker& items);
+
+   /// 在 backend thread 執行 task,
+   /// 放在 OmsRxItem 隊列之中, 依序執行.
+   void RunTask(OmsBackendTaskSP task) {
+      assert(task.get() != nullptr);
+      assert(task->RxKind() == f9fmkt_RxKind_Unknown);
+      assert(task->RxSNO() == 0);
+      Items::Locker{this->Items_}->QuItems_.emplace_back(task.detach(), fon9::RevBufferList{0});
+   }
 
 private:
    friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 this->OnBefore_Order_EndUpdate();

@@ -344,6 +344,11 @@ void OmsRcSynClientSession::OnDevice_StateChanged(Device& dev, const StateChange
 }
 void OmsRcSynClientSession::OnOmsRcSyn_ReportRecoverEnd() {
    this->RemoteMap_->IsReportRecovering_ = false;
+   if (this->OmsCore_ && this->RemoteMap_) {
+      RevBufferList rbuf{128};
+      RevPrint(rbuf, LocalNow(), "|OmsRcSyn.ReportRecoverEnd|HostId=", this->HostId_, "|LastSeqNo=", this->RemoteMap_->LastSNO_, '\n');
+      this->OmsCore_->LogAppend(std::move(rbuf));
+   }
 }
 //--------------------------------------------------------------------------//
 static const f9OmsRc_LayoutField* FindLayoutField(const f9OmsRc_Layout& layout, StrView fldName) {
@@ -366,7 +371,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Config(f9rc_ClientSession* s
 
    OmsCoreSP                omsCore = ud->OmsCoreMgr_->CurrentCore();
    const auto               tdayLocal = (omsCore ? GetYYYYMMDD(omsCore->TDay()) : 0u);
-   RevBufferFixedSize<128>  rbuf;
+   RevBufferFixedSize<256>  rbuf;
    RevPrint(rbuf, "Remote.HostId=", synSes->HostId_ = cfg->CoreTDay_.HostId_);
    if (fon9_UNLIKELY(tdayLocal != cfg->CoreTDay_.YYYYMMDD_)) {
       // iocfg.DeviceArgs_ 需增加 "ClosedReopen=10" 來處理重新開啟;
@@ -498,7 +503,16 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Config(f9rc_ClientSession* s
       iRptMap->RptFactory_ = facRpt;
       ++iRptMap;
    }
-
+   if (omsCore) {
+      RevBufferList rmsg{128};
+      RevPrint(rmsg, LocalNow(),
+               "|OmsRcSyn.ReportRecover|HostId=", synSes->HostId_,
+               "|SeqNo=", remote->LastSNO_ + 1,
+               "|Fc=", cfg->FcReqCount_, '/', cfg->FcReqMS_,
+               "|Rights=", fon9::ToHex(cfg->RightFlags_),
+               '\n');
+      omsCore->LogAppend(std::move(rmsg));
+   }
    synSes->OmsCore_ = std::move(omsCore);
    synSes->RemoteMap_->IsReportRecovering_ = true;
    f9OmsRc_SubscribeReport(ses, cfg, remote->LastSNO_ + 1, ud->RptFilter_);
@@ -575,9 +589,9 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       return;
    }
    assert(synSes->RemoteMap_.get() != nullptr);
-   auto snoMap = synSes->RemoteMap_->MapSNO_.Lock();
+   const auto snoMap = synSes->RemoteMap_->MapSNO_.Lock(); // 不會主動 snoMap.unlock(); 所以使用 const;
    synSes->RemoteMap_->LastSNO_ = apiRpt->ReportSNO_;
-   if (apiRpt->Layout_ == NULL) { // 回補結束.
+   if (fon9_UNLIKELY(apiRpt->Layout_ == NULL)) { // 回補結束.
       synSes->OnOmsRcSyn_ReportRecoverEnd();
       return;
    }
@@ -605,11 +619,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       return;
    // -----
    RemoteReqMap::OmsRequestSP* pSrcReqSP;
-   if (fon9_UNLIKELY(snoMap->size() <= apiRpt->ReportSNO_)) {
-      snoMap->resize(apiRpt->ReportSNO_ + 1024 * 1024);
-      pSrcReqSP = &((*snoMap)[apiRpt->ReportSNO_]);
-   }
-   else {
+   if (fon9_LIKELY(apiRpt->ReportSNO_ < snoMap->size())) {
       pSrcReqSP = &((*snoMap)[apiRpt->ReportSNO_]);
       if (pSrcReqSP->get() != nullptr) {
          // 不處理重複回報.
@@ -617,6 +627,10 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
          // 所以: 不可建立新的 Rpt, 也沒必要重建.
          return;
       }
+   }
+   else {
+      snoMap->resize(apiRpt->ReportSNO_ + 1024 * 1024);
+      pSrcReqSP = &((*snoMap)[apiRpt->ReportSNO_]);
    }
    OmsRequestSP rptReq;
    if (apiRpt->ReferenceSNO_ == 0) {

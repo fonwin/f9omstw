@@ -85,6 +85,7 @@ SessionSP OmsRcSyn_SessionFactory::CreateSession(IoManager& mgr, const IoConfigI
    f9rc_ClientSessionParams f9rcCliParams;
    ZeroStruct(&f9rcCliParams);
    f9rcCliParams.UserData_ = this;
+   f9rcCliParams.Password_ = "";
    // f9rcCliParams.RcFlags_ = f9rc_RcFlag_NoChecksum;
    // f9rcCliParams.LogFlags_ = ;
 
@@ -107,6 +108,10 @@ SessionSP OmsRcSyn_SessionFactory::CreateSession(IoManager& mgr, const IoConfigI
          errReason = tag.ToString("Unknown tag: ");
          return nullptr;
       }
+   }
+   if (f9rcCliParams.UserId_ == nullptr) {
+      errReason = "Not found 'User' tag.";
+      return nullptr;
    }
    f9OmsRc_ClientSessionParams   omsRcParams;
    f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);

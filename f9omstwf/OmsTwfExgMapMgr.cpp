@@ -61,11 +61,13 @@ void TwfExgMapMgr::OnP08Updated(const f9twf::P08Recs& src, f9twf::ExgSystemType 
                      "|PA8.ftime=", p08recs.UpdatedTimeL_, fon9::kFmtYMD_HH_MM_SS_us_L,
                      "|items=", p08recs.size(),
                      '\n');
+      auto ctree = pthis->ContractTree_;
+      if (!ctree)
+         fon9::RevPrint(rbuf, "|err=No ContractTree");
       coreResource.LogAppend(std::move(rbuf));
 
       OmsSymbTree&         symbsTree = *coreResource.Symbs_;
       OmsSymbTree::Locker  symbs{symbsTree.SymbMap_};
-      auto                 ctree = pthis->ContractTree_;
       for (auto& p08 : p08recs) {
          if (p08.ShortId_.empty())
             continue;
@@ -147,6 +149,12 @@ void TwfExgMapMgr::OnP09Updated(const f9twf::P09Recs& src, f9twf::ExgSystemType 
       if (p09recs.empty())
          return;
       auto ctree = pthis->ContractTree_;
+      fon9::RevBufferList rbuf{128};
+      fon9::RevPrint(rbuf, fon9::LocalNow(), "|Sys=", sysType, "|P09.items=", p09recs.size(), '\n');
+      if (!ctree)
+         fon9::RevPrint(rbuf, "|err=No ContractTree");
+      coreResource.LogAppend(std::move(rbuf));
+
       if (!ctree)
          return;
       const auto mkt = f9twf::ExgSystemTypeToMarket(sysType);

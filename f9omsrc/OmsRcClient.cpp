@@ -324,11 +324,13 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
    cfg.CoreTDay_.UpdatedCount_ = static_cast<uint32_t>(cfg.TDay_.GetIntPart()
                     - fon9::YYYYMMDDHHMMSS_ToTimeStamp(cfg.CoreTDay_.YYYYMMDD_, 0).GetIntPart());
 
-   std::vector<OmsRcLayoutSP> oldReqLayouts;
-   OmsRcRptLayouts            oldRptLayouts;
+   std::vector<OmsRcLayoutSP>          oldReqLayouts;
+   OmsRcRptLayouts                     oldRptLayouts;
+   std::vector<const f9OmsRc_Layout*>  oldRequestLayoutVector;
    if (!cfg.LayoutsStr_.empty() &&  this->Config_.LayoutsStr_ != cfg.LayoutsStr_) {
       this->Config_.LayoutsStr_ = std::move(cfg.LayoutsStr_);
       // 在 FnOnConfig_() 通知後才銷毀舊的 layout.
+      // 所以先將上次的 layout 保留在 old* 變數裡面, 等函式結束時自動銷毀.
       this->RptLayouts_.swap(oldRptLayouts);
       this->ReqLayouts_.GetAll(oldReqLayouts);
       this->ReqLayouts_.clear();
@@ -341,6 +343,7 @@ void OmsRcClientNote::OnRecvConfig(fon9::rc::RcSession& ses, fon9::rc::RcFunctio
             ParseRptLayout(cfgstr, this->RptLayouts_);
          }
       }
+      this->RequestLayoutVector_.swap(oldRequestLayoutVector);
       this->ReqLayouts_.GetAll(this->RequestLayoutVector_);
    }
    if ((cfg.RequestLayoutCount_ = static_cast<f9OmsRc_TableIndex>(this->RequestLayoutVector_.size())) != 0)

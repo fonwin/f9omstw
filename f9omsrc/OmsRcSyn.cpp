@@ -289,7 +289,12 @@ void OmsRcSyn_SessionFactory::OnSeedCommand(SeedOpResult& res, StrView cmdln, Fn
    std::string strResult;
    if (cmdln == "?") {
       // 每個 HostId 建立一個 MenuItem;
-      auto hosts = HostMap_.Lock();
+      auto hosts = this->HostMap_.Lock();
+      if (hosts->empty()) {
+         res.OpResult_ = OpResult::not_found_key;
+         resHandler(res, "No remote host found.");
+         return;
+      }
       char chSpl = 0;
       for (auto i : *hosts) {
          if (chSpl)

@@ -250,6 +250,10 @@ public:
       if (!sesfp) { // 無法取得系統共用的 SessionFactoryPark.
          holder.SetPluginsSt(fon9::LogLevel::Error,
                              fon9_kCSTR_UtwOmsCoreName ".Create|err=SessionFactoryPark not found: " kCSTR_SesFpName);
+      __PLUGIN_ERR_AND_REMOVE_CoreMgrSeed:
+         coreMgr.OnParentSeedClear();
+         coreMgr.Remove(&cfgMgr->Name_);
+         holder.Root_->Remove(&coreMgrSeed->Name_);
          return false;
       }
       sesfp->Add(new OmsRptFromB50_SessionFactory("FromB50", &coreMgr, *twfFil1Factory, twfExgMap));
@@ -289,7 +293,8 @@ public:
          iocfgs.SessionFactoryPark_ = ioargsFutNormal.SessionFactoryPark_;
          iocfgs.DeviceFactoryPark_ = ioargsFutNormal.DeviceFactoryPark_;
          coreMgrSeed->TwfLgMgr_ = TwfTradingLgMgr::Plant(coreMgr, holder, iocfgs, coreMgrSeed->TwfExgMapMgr_);
-         seedLineMgr = coreMgrSeed->TwfLgMgr_.get();
+         if ((seedLineMgr = coreMgrSeed->TwfLgMgr_.get()) == nullptr)
+            goto __PLUGIN_ERR_AND_REMOVE_CoreMgrSeed;
       }
       if (fon9::fmkt::gTradingLineSelect_TryLastLine_YN == fon9::EnabledYN::Yes)
          seedLineMgr->SetDescription("TryLastLine=Y");

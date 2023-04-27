@@ -332,6 +332,11 @@ void OmsRcSyn_SessionFactory::OnSeedCommand(SeedOpResult& res, StrView cmdln, Fn
 void OmsRcSynClientSession::OnOmsRcSyn_ConfigReady() {
 }
 void OmsRcSynClientSession::OnOmsRcSyn_LinkBroken() {
+   if (this->OmsCore_ && this->HostId_) {
+      RevBufferList rbuf{128};
+      RevPrint(rbuf, LocalNow(), "|OmsRcSyn.LinkBroken|HostId=", this->HostId_, '\n');
+      this->OmsCore_->LogAppend(std::move(rbuf));
+   }
 }
 bool OmsRcSynClientSession::OnDevice_BeforeOpen(Device& dev, std::string& cfgstr) {
    (void)cfgstr;

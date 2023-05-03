@@ -31,7 +31,7 @@ struct f9omstw_ErrCodeTx {
 };
 
 static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9::StrView lang) {
-   f9omstw_ErrCodeTx* retval = new f9omstw_ErrCodeTx;
+   std::unique_ptr<f9omstw_ErrCodeTx> retval{new f9omstw_ErrCodeTx};
    fon9::ConfigLoader cfgldr{std::string{}};
    try {
       cfgldr.CheckLoad(cfgstr);
@@ -178,7 +178,7 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
          tx.Tab_->Raw_.reset(MakeDyMemRaw<DyRaw>(*tx.Tab_));
       }
    }
-   return retval;
+   return retval.release();
 }
 //--------------------------------------------------------------------------//
 const f9omstw_ErrCodeTx* f9omstw_LoadOmsErrMsgTx(const char* cfgfn, const char* language) {

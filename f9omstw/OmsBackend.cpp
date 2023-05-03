@@ -219,7 +219,15 @@ void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
    ordraw.SetRxSNO(++this->LastSNO_);
    ordraw.Request().SetLastUpdated(ordraw);
    ordraw.UpdateTime_ = fon9::UtcNow();
-   runner.Resource_.Core_.Owner_->UpdateSc(runner);
+   if (fon9_LIKELY(runner.Resource_.Core_.CoreSt() != OmsCoreSt::Loading)) {
+      runner.Resource_.Core_.Owner_->UpdateSc(runner);
+   }
+   else {
+      // 系統重新載入中:
+      // - 來自 OmsRequestBase::OnAfterBackendReload() 的異動: [Queuing, WaitingCond] 的處置.
+      // - or OmsParentRequestIni::OnAfterBackendReload() 母單: 系統重啟後的異動.
+      // - 在 OmsBackend::OpenReload() 最終還是會呼叫 RecalcSc(); 所以這裡不可呼叫 UpdateSc();
+   }
    assert(runner.Resource_.Brks_.get() != nullptr);
    FetchScResourceIvr(runner.Resource_, ordraw.Order());
    if (fon9_LIKELY(runner.BackendLocker_ == nullptr)) {

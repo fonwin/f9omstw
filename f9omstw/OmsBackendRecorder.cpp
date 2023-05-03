@@ -335,14 +335,16 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       this->LastSNO_ = this->PublishedSNO_ = loader.LastSNO_;
       if (items->RxHistory_.size() <= loader.LastSNO_) // 可能資料檔有不認識的 factory name 造成的.
          items->RxHistory_.resize(loader.LastSNO_ + 1);// 因 RxHistory_ 使用陣列, 所以需要強制調整儲存空間, 才能直接用序號對應.
-      // 依序從第1筆開始, 通知 core 重算風控 RecalcSc.
-      // 因為重算過程可能與「下單要求、委託異動、事件」的發生順序有關, 所以需要「從頭、依序」檢查.
-      for (OmsRxSNO sno = 1; sno <= loader.LastSNO_; ++sno) {
-         auto* const icur = items->RxHistory_[sno];
+      // - 依序從第1筆開始, 通知 core 重算風控 RecalcSc.
+      //   因為重算過程可能與「下單要求、委託異動、事件」的發生順序有關, 所以需要「從頭、依序」檢查.
+      // - 因為在 req->OnAfterBackendReload() 處置 [Queuing, WaitingCond] 時,
+      //   可能會有新增異動, 因此最終的 RecalcSc() 會在 loader.LastSNO_ 之後,
+      //   所以此迴圈須使用 this->LastSNO_;
+      for (OmsRxSNO sno = 1; sno <= this->LastSNO_; ++sno) {
+         const auto* const icur = items->RxHistory_[sno];
          if (icur == nullptr)
             continue;
-         const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(icur->CastToOrder());
-         if (ordraw) {
+         if (const OmsOrderRaw* ordraw = static_cast<const OmsOrderRaw*>(icur->CastToOrder())) {
             OmsOrder* order = &ordraw->Order();
             if (ordraw == order->Tail()) {
                // 遇到 Order 的最後一筆 OrderRaw 時, 重算風控資料.
@@ -366,16 +368,23 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
                else {
                   fon9_LOG_ERROR("OmsBackend.NotFilled|SNO=", sno);
                }
-               continue;
             }
          }
-         const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest());
-         if (req == nullptr) {
-            if (const OmsEvent* ev = static_cast<const OmsEvent*>(icur->CastToEvent()))
-               resource.Core_.Owner_->ReloadEvent(resource, *ev, items);
-            continue;
+         else if (const OmsRequestBase* req = static_cast<const OmsRequestBase*>(icur->CastToRequest())) {
+            // 這裡有可能觸發異動: [Queuing、WaitingCond] => QueuingCanceled; 造成不會呼叫 RecalcSc();
+            // 但若有上述異動, 則會呼叫 UpdateSc();
+            // 所以在衍生者覆寫 UpdateSc(runner) 時, 必須考慮: 
+            // if (fon9_UNLIKELY(runner.Resource_.Core_.CoreSt() == OmsCoreSt::Loading)) {
+            //    // 來自 OmsRequestBase::OnAfterBackendReload() 載入中的異動: [Queuing, WaitingCond] 的處置.
+            //    assert(runner.OrderRaw().RequestSt_ == f9fmkt_TradingRequestSt_QueuingCanceled);
+            //    this->RecalcSc(...);
+            //    return;
+            // }
+            req->OnAfterBackendReload(resource, &items);
          }
-         req->OnAfterBackendReload(resource, &items);
+         else if (const OmsEvent* ev = static_cast<const OmsEvent*>(icur->CastToEvent())) {
+            resource.Core_.Owner_->ReloadEvent(resource, *ev, items);
+         }
       }
    }
    fon9::RevBufferList rbuf{128};

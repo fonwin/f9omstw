@@ -412,11 +412,14 @@ void OmsRequestBase::RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder&
    const OmsOrderRaw* ordu = order.Head();
    do {
       const OmsRequestBase& requ = ordu->Request();
-      if ((requ.RxKind() == this->RxKind() || this->RxKind() == f9fmkt_RxKind_Unknown)
-          && this->RunReportInCore_IsBfAfMatch(*ordu)) {
+      if ((requ.RxKind() == this->RxKind()
+           || this->RxKind() == f9fmkt_RxKind_Unknown
+           || (requ.RxKind() == f9fmkt_RxKind_RequestChgQty && this->RxKind() == f9fmkt_RxKind_RequestDelete)
+           ) // ↑ 因為改量要求(requ)如果會讓剩餘量為0; 則下單時可能會用「刪單訊息」, 所以 this 可能為 f9fmkt_RxKind_RequestDelete;
+       && this->RunReportInCore_IsBfAfMatch(*ordu)) {
          if (requ.RxKind() == f9fmkt_RxKind_RequestDelete
-             || requ.RxKind() == f9fmkt_RxKind_RequestChgQty
-             || this->RunReportInCore_IsExgTimeMatch(*ordu)) {
+          || requ.RxKind() == f9fmkt_RxKind_RequestChgQty
+          || this->RunReportInCore_IsExgTimeMatch(*ordu)) {
             this->RunReportInCore_FromOrig(std::move(checker), requ);
             return;
          }

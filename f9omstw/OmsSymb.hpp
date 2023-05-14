@@ -27,6 +27,13 @@ public:
    /// 在 TwfExgMapMgr::OnP08Updated() 觸發.
    /// 預設 do nothing.
    virtual void OnTwfSessionChanged(OmsResource& coreResource);
+   /// - 重設 [複式商品] 的 SessionId.
+   ///   - 因為 [複式商品] 的 SessionId, 更新的地方: 行情收到[複式商品]的資料時.
+   ///   - 若尚未收到行情, 則[複式商品]的 SessionId 不會更新.
+   /// - 因此, 當有可能是複式商品時, 若要取得 [複式商品的 SessionId], 則要先重設;
+   ///   - 使用 leg1 的 SessionId;
+   /// - 預設: do nothing.
+   virtual void ResetTwfCombSessionId(OmsResource& coreResource);
    /// 收盤事件, 預設 do nothing.
    /// 觸發時機: OmsTwfMiSystem.I140:306
    virtual void OnTradingSessionClosed(OmsResource& coreResource);

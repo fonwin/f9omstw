@@ -8,6 +8,8 @@ OmsSymb::~OmsSymb() {
 }
 void OmsSymb::OnTwfSessionChanged(OmsResource&) {
 }
+void OmsSymb::ResetTwfCombSessionId(OmsResource&) {
+}
 void OmsSymb::OnTradingSessionClosed(OmsResource&) {
 }
 void OmsSymb::OnMdNoData(OmsResource&) {

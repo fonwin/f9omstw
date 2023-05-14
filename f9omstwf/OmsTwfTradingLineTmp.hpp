@@ -13,6 +13,7 @@ namespace f9fmkt = fon9::fmkt;
 class TwfTradingLineTmp : public TwfRptLineTmp, public f9fmkt::TradingLine {
    fon9_NON_COPY_NON_MOVE(TwfTradingLineTmp);
    using base = TwfRptLineTmp;
+   using baseTradingLine = f9fmkt::TradingLine;
 
    fon9::FlowCounter Fc_;
 

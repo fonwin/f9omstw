@@ -15,11 +15,15 @@ TwfTradingLineTmp::TwfTradingLineTmp(TwfLineTmpWorker&            worker,
                                      const f9twf::ExgLineTmpArgs& lineArgs,
                                      f9twf::ExgLineTmpLog&&       log)
    : base(worker, lineMgr, lineArgs, std::move(log), true)
+   , baseTradingLine{lineArgs.LineFc_}
    , StrSendingBy_{fon9::RevPrintTo<fon9::CharVector>(
       "Sending.", f9twf::TmpGetValueU(lineArgs.SessionFcmId_),
       '.', f9twf::TmpGetValueU(lineArgs.SessionId_))} {
 }
 void TwfTradingLineTmp::GetApReadyInfo(fon9::RevBufferList& rbuf) {
+   if (fon9::fmkt::gTradingLineSelect_TryLastLine_YN == fon9::EnabledYN::Yes) {
+      fon9::RevPrint(rbuf, "|LineFc=", this->LineFlowCount(), '/', this->LineFlowInterval());
+   }
    fon9::RevPrint(rbuf, "|Fc=", this->MaxFlowCtrlCnt(), '/', this->LineArgs_.GetFcInterval());
 }
 void TwfTradingLineTmp::OnExgTmp_ApReady() {

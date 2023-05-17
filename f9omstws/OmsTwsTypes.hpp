@@ -120,7 +120,9 @@ struct TrsRefs {
    void Clear() {
       fon9::ForceZeroNonTrivial(this);
    }
-   void CopyFrom(const TrsRefs& rhs) {
+   template <class OwnerSymbT>
+   void CopyFrom(const TrsRefs& rhs, const OwnerSymbT& owner) {
+      (void)owner;
       *this = rhs;
    }
 };

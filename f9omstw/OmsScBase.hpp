@@ -251,8 +251,10 @@ inline bool Sc_Symbol_QtyOddLot(OmsRequestRunnerInCore& runner, RequestIniT& ini
 /// 或有券源不足:
 /// SeQty=或有券源量|Used=已用量|Self=自有可賣量|Add=此筆新增|Over=不足量
 #define OmsErrCode_Sc_BrkSeQty      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 212)
-
-
+/// 借券賣出(OType=SBL5,SBL6)時, 庫存不足:
+/// Bal=庫存量|Leaves=賣未成交|Filled=賣已成交|Add=此筆新增|Over=超過數量
+#define OmsErrCode_Sc_BalQtySBL     static_cast<OmsErrCode>(OmsErrCode_FromRisk + 213)
+//--------------------------------------------------------------------------//
 template <class QtyT>
 inline bool Sc_BalQty(OmsRequestRunnerInCore& runner, OmsErrCode ec, QtyT bal, QtyT leaves, QtyT filled, QtyT add) {
    const auto rhs = leaves + filled + add;

@@ -18,6 +18,7 @@ enum OmsOTypeIdx : unsigned char /* uint8_t */ {
    OmsOTypeIdx_Gn = 0,
    OmsOTypeIdx_Cr = 1,
    OmsOTypeIdx_Db = 2,
+   OmsOTypeIdx_SBL = 3,
 };
 
 } // namespaces

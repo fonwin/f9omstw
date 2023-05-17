@@ -29,18 +29,26 @@ static inline TwsMarketMask GetTwsMarketMask(f9fmkt_TradingMarket mkt) {
 //--------------------------------------------------------------------------//
 fon9_WARN_DISABLE_PADDING;
 struct TrsRefSrcOfs {
-   unsigned LnSize_, PriRef_, PriUpLmt_, PriDnLmt_, GnDayTrade_, DenyOfs_,
-      LastMthDate_,  // LAST-MTH-DATE 9(8) 上次成交日.
-      CTGCD_         // 板別, '0'=一般, '3'=TWSE:創新板(OTC:興櫃戰略新板)
+   uint8_t  LnSize_, PriRef_, PriUpLmt_, PriDnLmt_,
+      GnDayTrade_,
+      DenyOfs_,               // T30.SETTYPE. MARK-W(處置). MARK-P(注意). MARK-L(委託限制)
+      LastMthDate_,           // LAST-MTH-DATE 9(8) 上次成交日.
+      CTGCD_,                 // 板別, '0'=一般, '3'=TWSE:創新板(OTC:興櫃戰略新板)
+      AllowDb_BelowPriRef_,   // MARK-M: 豁免平盤下融券賣出.
+      AllowSBL_BelowPriRef_,  // MARK-S: 豁免平盤下借券賣出.
+      MatchInterval_          // MATCH-INTERVAL 撮合循環時間（分）; PIC 9(3);
       ;
 
    // T30: StkNo[6], 6:PriUpLmt[9], 15:PriRef[9], 24:PriDnLmt[9]...
    static constexpr TrsRefSrcOfs GetOfsT30TSE() {
       return TrsRefSrcOfs{100, 15,  6, 24,
          86, // GnDayTrade
-         41, // DenyOfs=&T30.SETTYPE.MARK-W
+         41, // DenyOfs=&T30.SETTYPE.MARK-W(處置).MARK-P(注意).MARK-L(委託限制)
          33, // LastMthDate_
          87, // GTGCD_
+         49, // MARK-M: 豁免平盤下融券賣出.
+         84, // MARK-S: 豁免平盤下借券賣出.
+         66, // MATCH-INTERVAL 撮合循環時間（分）; PIC 9(3);
       };
    }
    static constexpr TrsRefSrcOfs GetOfsT30OTC() {
@@ -49,6 +57,9 @@ struct TrsRefSrcOfs {
          41, // DenyOfs=&T30.SETTYPE.MARK-W
          33, // LastMthDate_
          88, // GTGCD_
+         49, // MARK-M: 豁免平盤下融券賣出.
+         84, // MARK-S: 豁免平盤下借券賣出.
+         66, // MATCH-INTERVAL 撮合循環時間（分）; PIC 9(3);
       };
    }
    // 盤後零股價格檔.
@@ -59,6 +70,9 @@ struct TrsRefSrcOfs {
          0,  // DenyOfs
          0,  // 不匯入零股最後交易日, 49, // LastMthDate_
          0,  // GTGCD_
+         0,  // MARK-M: 豁免平盤下融券賣出.
+         0,  // MARK-S: 豁免平盤下借券賣出.
+         0,  // MATCH-INTERVAL 撮合循環時間（分）;
       };
    }
    // 盤中零股價格檔.
@@ -69,6 +83,9 @@ struct TrsRefSrcOfs {
          0,  // DenyOfs
          0,  // LastMthDate_
          0,  // GTGCD_
+         0,  // MARK-M: 豁免平盤下融券賣出.
+         0,  // MARK-S: 豁免平盤下借券賣出.
+         0,  // MATCH-INTERVAL 撮合循環時間（分）;
       };
    }
 };
@@ -101,13 +118,20 @@ public:
    static TwsMarketMask Ready_;
 
 protected:
+   using TwsBaseFlag = fon9::fmkt::TwsBaseFlag;
+   using StkAnomalyCode = fon9::fmkt::StkAnomalyCode;
+   using StkCTGCD = fon9::fmkt::StkCTGCD;
    struct ImpItem {
       f9tws::StkNo      StkNo_;
       TrsRefs           Refs_;
       fon9::CharVector  DenyReason_; // "S1"(SETTYPE=1), "S2"(SETTYPE=2), "W1"(MARK-W=1), "W2"(MARK-W=2)...
       uint32_t          PrevMthYYYYMMDD_;
-      // TSEC.GTGCD='0' or ' ', else=TSEC.GTGCD;
-      char              GTGCD_;
+      StkCTGCD          StkCTGCD_;
+      TwsBaseFlag       MatchingMethod_{};
+      TwsBaseFlag       AlteredTradingMethod_{};
+      TwsBaseFlag       AllowDb_BelowPriRef_{};
+      TwsBaseFlag       AllowSBL_BelowPriRef_{};
+      StkAnomalyCode    StkAnomalyCode_{};
    };
    struct Loader : public OmsFileImpLoader {
       fon9_NON_COPY_NON_MOVE(Loader);
@@ -123,7 +147,7 @@ protected:
 
    OmsFileImpLoaderSP MakeLoader(OmsFileImpTree& owner, fon9::RevBuffer& rbufDesp, uint64_t addSize, FileImpMonitorFlag monFlag) override;
 
-   template <class SymbT>
+   template <class SymbT, class TrsRefs>
    static void ImpTrsRefs(OmsResource& res, Loader& loader, f9fmkt_TradingMarket mkt, TrsRefs SymbT::*pRefs, FileImpMonitorFlag monFlag) {
       OmsSymbTree::Locker symbs{res.Symbs_->SymbMap_};
       if (monFlag != FileImpMonitorFlag::AddTail) {
@@ -132,12 +156,21 @@ protected:
             auto* symb = static_cast<SymbT*>(isymb.second.get());
             if (symb->TradingMarket_ == mkt) {
                (symb->*pRefs).Clear();
-               if (loader.Ofs_.DenyOfs_ != 0)
+               if (loader.Ofs_.DenyOfs_ != 0) {
                   symb->DenyReason_.clear();
+                  symb->TwsFlags_ -= TwsBaseFlag::AlteredTradingMethod;
+                  symb->StkAnomalyCode_ = StkAnomalyCode{};
+               }
                if (loader.Ofs_.LastMthDate_ != 0)
                   symb->PrevMthYYYYMMDD_ = 0;
                if (loader.Ofs_.CTGCD_ != 0)
-                  symb->CTGCD_ = '\0';
+                  symb->StkCTGCD_ = fon9::fmkt::StkCTGCD::Normal;
+               if (loader.Ofs_.AllowDb_BelowPriRef_ != 0)
+                  symb->TwsFlags_ -= TwsBaseFlag::AllowDb_BelowPriRef;
+               if (loader.Ofs_.AllowSBL_BelowPriRef_ != 0)
+                  symb->TwsFlags_ -= TwsBaseFlag::AllowSBL_BelowPriRef;
+               if (loader.Ofs_.MatchInterval_ != 0)
+                  symb->TwsFlags_ -= TwsBaseFlag::MatchingMethodMask;
             }
          }
       }
@@ -145,13 +178,22 @@ protected:
          if (auto symb = res.Symbs_->FetchSymb(symbs, ToStrView(item.StkNo_))) {
             auto* usymb = static_cast<SymbT*>(symb.get());
             usymb->TradingMarket_ = mkt;
-            (usymb->*pRefs).CopyFrom(item.Refs_);
-            if (loader.Ofs_.DenyOfs_ != 0)
+            (usymb->*pRefs).CopyFrom(item.Refs_, *usymb);
+            if (loader.Ofs_.DenyOfs_ != 0) {
                usymb->DenyReason_ = std::move(item.DenyReason_);
+               usymb->TwsFlags_ |= item.AlteredTradingMethod_;
+               usymb->StkAnomalyCode_ = item.StkAnomalyCode_;
+            }
             if (loader.Ofs_.LastMthDate_ != 0)
                usymb->PrevMthYYYYMMDD_ = item.PrevMthYYYYMMDD_;
             if (loader.Ofs_.CTGCD_ != 0)
-               usymb->CTGCD_ = item.GTGCD_;
+               usymb->StkCTGCD_ = item.StkCTGCD_;
+            if (loader.Ofs_.AllowDb_BelowPriRef_ != 0)
+               usymb->TwsFlags_ |= item.AllowDb_BelowPriRef_;
+            if (loader.Ofs_.AllowSBL_BelowPriRef_ != 0)
+               usymb->TwsFlags_ |= item.AllowSBL_BelowPriRef_;
+            if (loader.Ofs_.MatchInterval_ != 0)
+               usymb->TwsFlags_ |= item.MatchingMethod_;
          }
       }
       SetReadyFlag(mkt);

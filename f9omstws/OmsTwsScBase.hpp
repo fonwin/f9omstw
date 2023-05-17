@@ -47,9 +47,11 @@ struct OmsTwsScBase {
       case f9tws::TwsOType::DbSelf:
          this->OTypeIdx_ = OmsOTypeIdx_Db;
          break;
-      default:
       case f9tws::TwsOType::SBL5:
       case f9tws::TwsOType::SBL6:
+         this->OTypeIdx_ = OmsOTypeIdx_SBL;
+         break;
+      default:
          return OmsErrCode_Sc_BadOType;
       }
       switch (this->IniReq_->SessionId()) {

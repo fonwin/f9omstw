@@ -38,6 +38,7 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
       if (pDenyReason[0] != '0') { // SETTYPE;
          bufReason[0] = 'S';
          bufReason[1] = pDenyReason[0];
+         item.AlteredTradingMethod_ = TwsBaseFlag::AlteredTradingMethod;
       __SET_DENY_REASON:;
          item.DenyReason_.assign(bufReason, 2);
       }
@@ -46,17 +47,37 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
          bufReason[1] = pDenyReason[1];
          goto __SET_DENY_REASON;
       }
+      switch (pDenyReason[1]) { // MARK-W;
+      case '1':   item.StkAnomalyCode_ |= StkAnomalyCode::Disposition;           break;
+      case '2':   item.StkAnomalyCode_ |= StkAnomalyCode::FurtherDisposition;    break;
+      case '3':   item.StkAnomalyCode_ |= StkAnomalyCode::FlexibleDisposition;   break;
+      }
+      if (pDenyReason[2] == '1') // MARK-P
+         item.StkAnomalyCode_ |= StkAnomalyCode::Attention;
+      // pDenyReason[3]: MARK-L值為1時，表示此股票為證券商委託申報受限股票.
+      // 「公布或通知注意交易資訊暨處置作業要點」第六條第四項第二款.
+      // 各證券商每日買進或賣出該有價證券之申報金額，總公司不得超過新臺幣六千萬元，每一分支機構不得超過新臺幣一千萬元，
+      // 必要時得視該有價證券交易狀況、市值或發行公司資本額調整: 各證券商總分公司每日買進或賣出該有價證券之申報金額。
+      // 不在此限: 信用交易了結或違約專戶、認購（售）權證流動量提供者專戶或認購（售）權證避險專戶（不含帳號編碼前三碼為「九二九」帳戶）委託買賣該有價證券者。
    }
    if (this->Ofs_.LastMthDate_ > 0) {
       item.PrevMthYYYYMMDD_ = fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.LastMthDate_, 8}, 0u);
    }
    if (this->Ofs_.CTGCD_ > 0) {
-      switch (item.GTGCD_ = pbuf[this->Ofs_.CTGCD_]) {
+      switch (static_cast<char>(item.StkCTGCD_ = static_cast<StkCTGCD>(pbuf[this->Ofs_.CTGCD_]))) {
       case ' ': case '0':
-         item.GTGCD_ = '\0';
+         item.StkCTGCD_ = StkCTGCD::Normal;
          break;
       }
    }
+   if (this->Ofs_.AllowDb_BelowPriRef_ > 0)
+      item.AllowDb_BelowPriRef_ = (pbuf[this->Ofs_.AllowDb_BelowPriRef_] == '1' ? TwsBaseFlag::AllowDb_BelowPriRef : TwsBaseFlag{});
+   if (this->Ofs_.AllowSBL_BelowPriRef_ > 0)
+      item.AllowSBL_BelowPriRef_ = (pbuf[this->Ofs_.AllowSBL_BelowPriRef_] == '1' ? TwsBaseFlag::AllowSBL_BelowPriRef : TwsBaseFlag{});
+   if (this->Ofs_.MatchInterval_ > 0)
+      item.MatchingMethod_ = (fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.MatchInterval_, 3}, 0u) > 0
+                              ? TwsBaseFlag::AggregateAuction
+                              : TwsBaseFlag::ContinuousMarket);
 
    if (item.Refs_.PriDnLmt_ <= OmsTwsPri{1,2}
     && item.Refs_.PriUpLmt_ >= OmsTwsPri{9995,0}) {

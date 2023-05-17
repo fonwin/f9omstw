@@ -53,15 +53,15 @@ bool TwfTradingLineTmp::IsOrigSender(const f9fmkt::TradingRequest& req) const {
    }
    return false;
 }
-TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequest& req) {
-   assert(dynamic_cast<OmsRequestTrade*>(&req) != nullptr);
+TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequest& srcReq) {
+   assert(dynamic_cast<OmsRequestTrade*>(&srcReq) != nullptr);
    assert(dynamic_cast<TwfTradingLineMgr*>(&this->LineMgr_) != nullptr);
 
    fon9::TimeStamp   now = fon9::UtcNow();
-   if (fon9_UNLIKELY(IsOverVaTimeMS(req, now))) {
+   if (fon9_UNLIKELY(IsOverVaTimeMS(srcReq, now))) {
       fon9::DyObj<OmsInternalRunnerInCore> tmpRunner;
       OmsRequestRunnerInCore* runner = static_cast<TwfTradingLineMgr*>(&this->LineMgr_)
-         ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&req), 0u);
+         ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&srcReq), 0u);
       runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OverVaTimeMS, nullptr);
       return SendResult::RejectRequest;
    }
@@ -72,10 +72,24 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
 
    fon9::DyObj<OmsInternalRunnerInCore> tmpRunner;
    TwfTradingLineMgr&      lineMgr = *static_cast<TwfTradingLineMgr*>(&this->LineMgr_);
-   const OmsRequestTrade*  curReq  = static_cast<OmsRequestTrade*>(&req);
+   const OmsRequestTrade*  curReq  = static_cast<OmsRequestTrade*>(&srcReq);
    OmsRequestRunnerInCore* runner  = lineMgr.MakeRunner(tmpRunner, *curReq, 256u);
    auto&                   ordraw  = runner->OrderRaw();
    OmsOrder&               order   = ordraw.Order();
+
+   while (fon9_UNLIKELY(curReq->RxKind() == f9fmkt_RxKind_RequestRerun)) {
+      if (auto* upd = dynamic_cast<const OmsRequestUpd*>(curReq)) {
+         if ((curReq = dynamic_cast<const OmsRequestTrade*>(runner->Resource_.Backend_.GetItem(upd->IniSNO()))) != nullptr)
+            break;
+      }
+      // 若沒有設計錯誤, 不可能來到此處!
+      // 因為, 來到此處的基本條件:
+      // - 必定使用 OmsRequestUpd 來處理 Rerun;
+      // - 且 upd->IniSNO() 必定有找到需要 Rerun 的下單要求;
+      // - 所以這裡直接使用 OmsErrCode_OrderNotFound; 不再另外定義 OmsErrCode_RequestNotFound;
+      runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OrderNotFound, nullptr);
+      return SendResult::RejectRequest;
+   }
 
    // 一般下單 / 詢價要求 / 報價(Bid/Offer)?
    assert(dynamic_cast<const OmsTwfRequestIni0*>(order.Initiator()) != nullptr);
@@ -127,7 +141,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       break;
    case RequestType::QuoteR:
       isNeedMsgSeqNum = false;
-      if (fon9_LIKELY(lineMgr.AllocOrdNo(*runner))) {
+      if (fon9_LIKELY(lineMgr.AllocOrdNo(*runner, *iniReq0))) {
          f9twf::TmpR7BfSym* pkr7bf;
          if (TmpSymbolTypeIsLong(symType)) {
             f9twf::TmpR37& r37 = buf.Alloc<f9twf::TmpR37>();
@@ -232,7 +246,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
       switch (curReq->RxKind()) {
       case f9fmkt_RxKind_RequestNew:
          pkr1bf->ExecType_ = f9twf::TmpExecType::New;
-         if (fon9_UNLIKELY(!lineMgr.AllocOrdNo(*runner)))
+         if (fon9_UNLIKELY(!lineMgr.AllocOrdNo(*runner, *iniReq0)))
             return SendResult::RejectRequest;
          qty = lastOrd->LeavesQty_;
          break;
@@ -407,7 +421,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
             break;
          }
          pkr1bf->ExecType_ = f9twf::TmpExecType::New;
-         if (fon9_UNLIKELY(!lineMgr.AllocOrdNo(*runner)))
+         if (fon9_UNLIKELY(!lineMgr.AllocOrdNo(*runner, *iniReq9)))
             return SendResult::RejectRequest;
          bidQty   = lastOrd->Bid_.LeavesQty_;
          offerQty = lastOrd->Offer_.LeavesQty_;

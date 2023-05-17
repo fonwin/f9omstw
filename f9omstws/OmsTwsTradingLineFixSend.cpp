@@ -41,15 +41,15 @@ bool TwsTradingLineFix::IsOrigSender(const f9fmkt::TradingRequest& req) const {
    }
    return false;
 }
-TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequest& req) {
-   assert(dynamic_cast<OmsRequestTrade*>(&req) != nullptr);
+TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequest& srcReq) {
+   assert(dynamic_cast<OmsRequestTrade*>(&srcReq) != nullptr);
    assert(dynamic_cast<TwsTradingLineMgr*>(&this->FixManager_) != nullptr);
 
    const auto now = fon9::UtcNow();
-   if (fon9_UNLIKELY(IsOverVaTimeMS(req, now))) {
+   if (fon9_UNLIKELY(IsOverVaTimeMS(srcReq, now))) {
       fon9::DyObj<OmsInternalRunnerInCore> tmpRunner;
       OmsRequestRunnerInCore* runner = static_cast<TwsTradingLineMgr*>(&this->FixManager_)
-         ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&req), 0u);
+         ->MakeRunner(tmpRunner, *static_cast<OmsRequestTrade*>(&srcReq), 0u);
       runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OverVaTimeMS, nullptr);
       return SendResult::RejectRequest;
    }
@@ -59,13 +59,27 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
       return f9fmkt::ToFlowControlResult(fcInterval);
 
    fon9::DyObj<OmsInternalRunnerInCore> tmpRunner;
-   const OmsRequestTrade*  curReq = static_cast<OmsRequestTrade*>(&req);
+   const OmsRequestTrade*  curReq = static_cast<OmsRequestTrade*>(&srcReq);
    OmsRequestRunnerInCore* runner = static_cast<TwsTradingLineMgr*>(&this->FixManager_)
       ->MakeRunner(tmpRunner, *curReq, 256u);
 
+   while (fon9_UNLIKELY(curReq->RxKind() == f9fmkt_RxKind_RequestRerun)) {
+      if (auto* upd = dynamic_cast<const OmsRequestUpd*>(curReq)) {
+         if ((curReq = dynamic_cast<const OmsRequestTrade*>(runner->Resource_.Backend_.GetItem(upd->IniSNO()))) != nullptr)
+            break;
+      }
+      // 若沒有設計錯誤, 不可能來到此處!
+      // 因為, 來到此處的基本條件:
+      // - 必定使用 OmsRequestUpd 來處理 Rerun;
+      // - 且 upd->IniSNO() 必定有找到需要 Rerun 的下單要求;
+      // - 所以這裡直接使用 OmsErrCode_OrderNotFound; 不再另外定義 OmsErrCode_RequestNotFound;
+      runner->Reject(f9fmkt_TradingRequestSt_InternalRejected, OmsErrCode_OrderNotFound, nullptr);
+      return SendResult::RejectRequest;
+   }
+
    f9tws::TwsApCode  twsApCode;
    fon9_WARN_DISABLE_SWITCH;
-   switch (req.SessionId()) {
+   switch (curReq->SessionId()) {
    case f9fmkt_TradingSessionId_Normal:      twsApCode = f9tws::TwsApCode::Regular;    break;
    case f9fmkt_TradingSessionId_FixedPrice:  twsApCode = f9tws::TwsApCode::FixedPrice; break;
    case f9fmkt_TradingSessionId_OddLot:
@@ -114,7 +128,7 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
       return SendResult::RejectRequest;
    }
 
-   pout = (req.SessionId() == f9fmkt_TradingSessionId_OddLot
+   pout = (curReq->SessionId() == f9fmkt_TradingSessionId_OddLot
            ? RevPutStr(pout, f9fix_SPLTAGEQ(TwseExCode) "2")   // 2: 盤後零股、盤中零股.
            : RevPutStr(pout, f9fix_SPLTAGEQ(TwseExCode) "0")); // 0: 一般、盤後定價.
    // |RejStaleOrd=|IvacNoFlag=
@@ -224,13 +238,13 @@ __REQUEST_DELETE:
             return SendResult::RejectRequest;
          }
 
-         if (fon9_LIKELY(req.SessionId() != f9fmkt_TradingSessionId_OddLot))
+         if (fon9_LIKELY(curReq->SessionId() != f9fmkt_TradingSessionId_OddLot))
             fixQty /= f9fmkt::GetSymbTwsShUnit(order.GetSymb(runner->Resource_, iniReq->Symbol_));
          pout = fon9::UIntToStrRev(pout, fixQty);
          pout = RevPutStr(pout, f9fix_SPLTAGEQ(OrderQty));
       }
       if (fon9_LIKELY(rxKind == f9fmkt_RxKind_RequestNew)) {
-         if (fon9_UNLIKELY(!static_cast<TwsTradingLineMgr*>(&this->FixManager_)->AllocOrdNo(*runner)))
+         if (fon9_UNLIKELY(!static_cast<TwsTradingLineMgr*>(&this->FixManager_)->AllocOrdNo(*runner, *iniReq)))
             return SendResult::RejectRequest;
       }
       else {

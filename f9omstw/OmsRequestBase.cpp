@@ -460,6 +460,7 @@ OmsErrCode OmsRequestBase::GetOkErrCode() const {
    case f9fmkt_RxKind_Event:
    case f9fmkt_RxKind_Filled:
    case f9fmkt_RxKind_RequestQuery:
+   case f9fmkt_RxKind_RequestRerun:
    case f9fmkt_RxKind_RequestChgCond:  return this->ErrCode_;
    case f9fmkt_RxKind_RequestNew:      return OmsErrCode_NewOrderOK;
    case f9fmkt_RxKind_RequestDelete:   return OmsErrCode_DelOrderOK;

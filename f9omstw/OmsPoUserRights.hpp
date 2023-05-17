@@ -4,6 +4,7 @@
 #define __f9omstw_OmsPoUserRights_hpp__
 #include "f9omstw/OmsBase.hpp"
 #include "f9omstw/OmsPoIvList.hpp"
+#include "f9omstw/OmsScForceFlag.h"
 #include "fon9/FlowCounter.hpp"
 
 namespace f9omstw {
@@ -46,6 +47,7 @@ public:
    OmsUserRightFlag        Flags_{};
    OmsIvRight              IvDenys_{};
    char                    Padding___[1];
+   f9oms_ScForceFlag       ScForceFlags_{};
 };
 
 } // namespaces

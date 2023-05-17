@@ -120,30 +120,30 @@ int main(int argc, char* argv[]) {
  
    // -----------------------------
    std::cout << "[TEST ] OrdTeamGroupId=0, No groups.";
-   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
+   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
    // 可自訂委託書號, 但櫃號只能用 'adm' 或 'X'.
    reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("admin", "*,adm,X"));
    std::cout << "[TEST ] SetTeamGroup('*,adm,X').    ";
-   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil), "adm00");
+   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq), "adm00");
    std::cout << "[TEST ]  AllocOrdNo() again.        ";
-   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil), "adm01");
+   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq), "adm01");
    std::cout << "[TEST ]  reqOrdNo='X'               ";
-   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, "X"), "X0000");
+   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, "X", *newReq), "X0000");
    std::cout << "[TEST ]  reqOrdNo='X0000': OrdExists";
-   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, "X0000"), OmsErrCode_OrderAlreadyExists);
+   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, "X0000", *newReq), OmsErrCode_OrderAlreadyExists);
    std::cout << "[TEST ]  reqOrdNo='Xzzzz'           ";
-   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, "Xzzzz"), "Xzzzz");
+   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, "Xzzzz", *newReq), "Xzzzz");
    std::cout << "[TEST ]  reqOrdNo='X':      Overflow";
-   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, "X"), OmsErrCode_OrdNoOverflow);
+   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, "X", *newReq), OmsErrCode_OrdNoOverflow);
    // -----------------------------
    reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamA", "a00,b00"));
    std::cout << "[TEST ] SetTeamGroup('a00,b00').    ";
-   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil), "a0000");
+   VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq), "a0000");
    std::cout << "[TEST ]  AllocOrdNo(OrdTeamGroupId).";
    VerifyAllocOK(ordraw, ordNoMap.AllocOrdNo(runner, ordraw.Order().Initiator()->Policy()->OrdTeamGroupId()), "a0001");
    std::cout << "[TEST ]  reqOrdNo='X':     MustEmpty";
-   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, "X"), OmsErrCode_OrdNoMustEmpty);
+   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, "X", *newReq), OmsErrCode_OrdNoMustEmpty);
 
    // 把 a00, b00 用完, 測試是否會 OmsErrCode_OrdTeamUsedUp
    std::cout << "[TEST ]  Alloc: a00*,b00*           ";
@@ -164,12 +164,12 @@ int main(int argc, char* argv[]) {
    // -----------------------------
    reqPolicy->SetOrdTeamGroupCfg(nullptr);
    std::cout << "[TEST ] OrdTeamGroupId=0, 2 groups. ";
-   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
+   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq), OmsErrCode_OrdTeamGroupId);
    std::cout << "[TEST ] OrdTeamGroupId=3, 2 groups. ";
    f9omstw::OmsOrdTeamGroupCfg badcfg;
    badcfg.TeamGroupId_ = 3;
    reqPolicy->SetOrdTeamGroupCfg(&badcfg);
-   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil), OmsErrCode_OrdTeamGroupId);
+   VerifyAllocError(ordraw, ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq), OmsErrCode_OrdTeamGroupId);
    // -----------------------------
    reqPolicy->SetOrdTeamGroupCfg(testCore.GetResource().OrdTeamGroupMgr_.SetTeamGroup("usr.TeamB", "B00,C00,D"));
    #ifdef _DEBUG
@@ -179,7 +179,7 @@ int main(int argc, char* argv[]) {
    #endif
    fon9::StopWatch stopWatch;
    for (unsigned L = 0; L < kTimes; ++L)
-      ordNoMap.AllocOrdNo(runner, ordNoNil);
+      ordNoMap.AllocOrdNo(runner, ordNoNil, *newReq);
    stopWatch.PrintResultNoEOL("AllocOrdNo ", kTimes)
       << "|LastOrdNo=" << std::string{ordraw.OrdNo_.begin(), ordraw.OrdNo_.end()};
 

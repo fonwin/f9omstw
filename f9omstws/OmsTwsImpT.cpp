@@ -76,8 +76,8 @@ void ImpT30::Loader::OnLoadLine(char* pbuf, size_t bufsz, bool isEOF) {
       item.AllowSBL_BelowPriRef_ = (pbuf[this->Ofs_.AllowSBL_BelowPriRef_] == '1' ? TwsBaseFlag::AllowSBL_BelowPriRef : TwsBaseFlag{});
    if (this->Ofs_.MatchInterval_ > 0)
       item.MatchingMethod_ = (fon9::StrTo(fon9::StrView{pbuf + this->Ofs_.MatchInterval_, 3}, 0u) > 0
-                              ? TwsBaseFlag::AggregateAuction
-                              : TwsBaseFlag::ContinuousMarket);
+                              ? TwsBaseFlag::MatchingMethod_AggregateAuction
+                              : TwsBaseFlag::MatchingMethod_ContinuousMarket);
 
    if (item.Refs_.PriDnLmt_ <= OmsTwsPri{1,2}
     && item.Refs_.PriUpLmt_ >= OmsTwsPri{9995,0}) {

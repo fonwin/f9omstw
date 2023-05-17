@@ -176,11 +176,11 @@ public:
    /// 使用 this->OrderRaw_.Order_->Initiator_->Policy()->OrdTeamGroupId(); 的櫃號設定.
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
-   bool AllocOrdNo(OmsOrdNo reqOrdNo);
+   bool AllocOrdNo(OmsOrdNo reqOrdNo, const OmsRequestTrade& iniReq);
    /// 使用 tgId 的櫃號設定, 不考慮 Request policy.
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
-   bool AllocOrdNo(OmsOrdTeamGroupId tgId);
+   bool AllocOrdNo(OmsOrdTeamGroupId tgId, const OmsRequestTrade& iniReq);
 
    /// 在 OmsIsOrdNoEmpty(this->OrderRaw_.OrdNo_) 時, 分配委託書號.
    /// - 如果 !OmsIsOrdNoEmpty(this->OrderRaw_.Order_->Initiator_->OrdNo_)
@@ -191,15 +191,14 @@ public:
    ///
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
-   bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId) {
+   bool AllocOrdNo_IniOrTgid(OmsOrdTeamGroupId tgId, const OmsRequestTrade& iniReq) {
       if (!OmsIsOrdNoEmpty(this->OrderRaw_->OrdNo_)) // 已編號.
          return true;
-      assert(this->OrderRaw_->Request().RxKind() == f9fmkt_RxKind_RequestNew);
-      assert(this->OrderRaw_->Order().Initiator() == &this->OrderRaw_->Request());
-      auto iniReq = this->OrderRaw_->Order().Initiator();
-      if (!OmsIsOrdNoEmpty(iniReq->OrdNo_) || iniReq->Policy()->OrdTeamGroupId() != 0)
-         return this->AllocOrdNo(iniReq->OrdNo_);
-      return this->AllocOrdNo(tgId);
+      assert(iniReq.RxKind() == f9fmkt_RxKind_RequestNew);
+      assert(&iniReq == this->OrderRaw_->Order().Initiator());
+      if (!OmsIsOrdNoEmpty(iniReq.OrdNo_) || iniReq.Policy()->OrdTeamGroupId() != 0)
+         return this->AllocOrdNo(iniReq.OrdNo_, iniReq);
+      return this->AllocOrdNo(tgId, iniReq);
    }
 
    /// - retval=0 刪單.

@@ -13,16 +13,16 @@ bool OmsRequestRunner::CheckReportRights(const OmsRequestPolicy& pol) {
    return false;
 }
 //--------------------------------------------------------------------------//
-bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdNo reqOrdNo) {
+bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdNo reqOrdNo, const OmsRequestTrade& iniReq) {
    if (OmsBrk* brk = this->OrderRaw_->Order().GetBrk(this->Resource_)) {
-      if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(this->OrderRaw_->Request()))
-         return ordNoMap->AllocOrdNo(*this, reqOrdNo);
+      if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(iniReq))
+         return ordNoMap->AllocOrdNo(*this, reqOrdNo, iniReq);
    }
    return OmsOrdNoMap::Reject(*this, OmsErrCode_OrdNoMapNotFound);
 }
-bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdTeamGroupId tgId) {
+bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdTeamGroupId tgId, const OmsRequestTrade& iniReq) {
    if (OmsBrk* brk = this->OrderRaw_->Order().GetBrk(this->Resource_)) {
-      if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(this->OrderRaw_->Request()))
+      if (OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(iniReq))
          return ordNoMap->AllocOrdNo(*this, tgId);
    }
    return OmsOrdNoMap::Reject(*this, OmsErrCode_OrdNoMapNotFound);

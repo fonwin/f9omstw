@@ -127,8 +127,8 @@ public:
 
    /// \retval true  已填妥 OrdNo.
    /// \retval false 已填妥了拒絕狀態.
-   bool AllocOrdNo(OmsRequestRunnerInCore& runner) {
-      return runner.AllocOrdNo_IniOrTgid(this->OrdTeamGroupId_);
+   bool AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsRequestTrade& iniReq) {
+      return runner.AllocOrdNo_IniOrTgid(this->OrdTeamGroupId_, iniReq);
    }
 
    template <class OrderRawT, class RequestIniT, class RequestUptT>
@@ -146,6 +146,7 @@ public:
       case f9fmkt_RxKind_Order:
       case f9fmkt_RxKind_Event:
       case f9fmkt_RxKind_RequestChgCond:
+      case f9fmkt_RxKind_RequestRerun:
          return f9fmkt::TradingRequest::Op_NotSupported;
 
       case f9fmkt_RxKind_RequestDelete:

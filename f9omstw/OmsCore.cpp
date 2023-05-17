@@ -156,17 +156,18 @@ void OmsCore::RunInCore(OmsRequestRunner&& runner) {
    this->FetchRequestId(*runner.Request_);
    if (auto* step = runner.Request_->Creator().RunStep_.get()) {
       if (OmsOrderRaw* ordraw = runner.BeforeReqInCore(*this)) {
+         assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
          if (this->Owner_->FnSetRequestLgOut_) {
-            assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
             this->Owner_->FnSetRequestLgOut_(*this, *static_cast<OmsRequestTrade*>(runner.Request_.get()), ordraw->Order());
          }
          OmsInternalRunnerInCore inCoreRunner{*this, *ordraw, std::move(runner.ExLog_), 256};
-         if (OmsIsOrdNoEmpty(ordraw->OrdNo_) && *(ordraw->Request().OrdNo_.end() - 1) != '\0') {
+         if (fon9_UNLIKELY(OmsIsOrdNoEmpty(ordraw->OrdNo_) && *(ordraw->Request().OrdNo_.end() - 1) != '\0')) {
+            // 刪改查: 會在 BeforeReqInCore() 檢查 OrdKey 是否正確, 不會來到此處.
             assert(runner.Request_->RxKind() == f9fmkt_RxKind_RequestNew);
             // 新單委託還沒填委託書號, 但下單要求有填委託書號.
             // => 執行下單步驟前, 應先設定委託書號對照.
             // => AllocOrdNo() 會檢查櫃號權限.
-            if (!inCoreRunner.AllocOrdNo(ordraw->Request().OrdNo_))
+            if (!inCoreRunner.AllocOrdNo(ordraw->Request().OrdNo_, *static_cast<const OmsRequestTrade*>(&ordraw->Request())))
                return;
          }
          step->RunRequest(std::move(inCoreRunner));

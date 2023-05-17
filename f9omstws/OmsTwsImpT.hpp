@@ -193,7 +193,7 @@ protected:
             if (loader.Ofs_.AllowSBL_BelowPriRef_ != 0)
                usymb->TwsFlags_ |= item.AllowSBL_BelowPriRef_;
             if (loader.Ofs_.MatchInterval_ != 0)
-               usymb->TwsFlags_ |= item.MatchingMethod_;
+               SetMatchingMethod(&usymb->TwsFlags_, item.MatchingMethod_);
          }
       }
       SetReadyFlag(mkt);

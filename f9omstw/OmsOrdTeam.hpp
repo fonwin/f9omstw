@@ -44,6 +44,9 @@ public:
    /// 純數字: int f9omstw_IncStrDec(char* pbeg, char* pend);
    FnIncOrdNo  FnIncOrdNo_;
 };
+
+/// 這裡的操作都 [不是] thread safe;
+/// 使用時應有額外機制保護, 例如: 放在 OmsResource 由 OmsCore 來保護;
 class OmsOrdTeamGroupMgr {
    using TeamGroupCfgs = std::vector<OmsOrdTeamGroupCfg>;
    using TeamNameMap = fon9::SortedVector<fon9::CharVector, OmsOrdTeamGroupId>;
@@ -53,10 +56,12 @@ public:
    const OmsOrdTeamGroupCfg* GetTeamGroupCfg(OmsOrdTeamGroupId tgId) const {
       return --tgId >= this->TeamGroupCfgs_.size() ? nullptr : &this->TeamGroupCfgs_[tgId];
    }
-   /// 若 cfgstr 第一碼為 '*', 則表示有 IsAllowAnyOrdNo_ 權限.
-   /// 若 name.empty() 則傳回 nullptr;
-   /// 傳回值須立即使用, 下次呼叫 SetTeamGroup() 時, 可能會失效!
-   /// 下次要用時, 應使用 retval->TeamGroupId_ 再次取得;
+   /// - 若 name.empty() 則傳回 nullptr;
+   /// - cfgstr, 首碼依序可為:
+   ///   - '%': 表示使用數字序號(f9omstw_IncStrDec), 若無'%', 則預設為文數字序號(f9omstw_IncStrAlpha);
+   ///   - '*': 則表示有 IsAllowAnyOrdNo_ 權限(可自訂委託書號);
+   /// - 傳回值須立即使用, 下次呼叫 SetTeamGroup() 時, 可能會失效!
+   ///   下次要用時, 應使用 retval->TeamGroupId_ 再次取得;
    const OmsOrdTeamGroupCfg* SetTeamGroup(fon9::StrView name, fon9::StrView cfgstr);
 };
 

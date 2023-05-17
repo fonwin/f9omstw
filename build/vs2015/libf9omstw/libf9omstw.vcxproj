@@ -124,6 +124,7 @@
     <ClInclude Include="..\..\..\f9omstw\OmsRequestRunner.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsResource.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsScBase.hpp" />
+    <ClInclude Include="..\..\..\f9omstw\OmsScForceFlag.h" />
     <ClInclude Include="..\..\..\f9omstw\OmsSubac.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSymb.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsSymbTree.hpp" />

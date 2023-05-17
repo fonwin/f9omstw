@@ -544,8 +544,11 @@ void ApiSesCfg::SubscribeRpt(OmsCore& core) {
    core.ReportSubject().Subscribe(&this->SubrRpt_, std::bind(&ApiSesCfg::OnReport, this, _1, _2));
 }
 bool ApiSesCfg::MakeReportMessage(fon9::RevBufferList& rbuf, const OmsRxItem& item) const {
-   assert(this->CurrentCore_ && this->CurrentCore_->IsBackendThread());
    if (this->ReportMessageFor_ == &item) {
+      // 有可能在 OmsRcServerNote::OnRecvFunctionCall() 收單時就發現有誤,
+      // 而來此建立回報訊息(此時 item 不會進入 OmsCore).
+      // 因此, 只有在 (this->ReportMessageFor_ == &item) 時, 才能斷定底下的 assert() 成立;
+      assert(this->CurrentCore_ && this->CurrentCore_->IsBackendThread());
       fon9::RevPrint(rbuf, this->ReportMessage_);
       return true;
    }

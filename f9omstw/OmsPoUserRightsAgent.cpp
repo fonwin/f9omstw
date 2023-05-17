@@ -22,7 +22,8 @@ static void SerializeVer(Archive& ar, fon9::ArchiveWorker<Archive, OmsPoUserRigh
       vFcQueryMS,    // 佔位用, 以後若有新增數字欄位可拿來用.
       rec.LgOut_,
       rec.Flags_,
-      rec.IvDenys_
+      rec.IvDenys_,
+      rec.ScForceFlags_
       );
 }
 
@@ -65,6 +66,7 @@ static fon9::seed::Fields MakeOmsUserRightsFields() {
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, LgOut));
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, Flags));
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, IvDenys));
+   fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, ScForceFlags));
    return fields;
 }
 

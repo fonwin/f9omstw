@@ -67,9 +67,9 @@ bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, OmsOrdTeamGroupId t
    }
    return this->Reject(runner, OmsErrCode_OrdTeamUsedUp);
 }
-bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo reqOrdNo) {
+bool OmsOrdNoMap::AllocOrdNo(OmsRequestRunnerInCore& runner, const OmsOrdNo reqOrdNo, const OmsRequestTrade& iniReq) {
    OmsOrdTeamGroupId tgId;
-   if (const auto* reqPolicy = runner.OrderRaw().Order().Initiator()->Policy()) {
+   if (const auto* reqPolicy = iniReq.Policy()) {
       if ((tgId = reqPolicy->OrdTeamGroupId()) != 0)
          goto __READY_GroupId;
    }

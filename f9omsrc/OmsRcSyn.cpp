@@ -723,6 +723,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       case f9fmkt_RxKind_RequestChgQty:
       case f9fmkt_RxKind_RequestChgPri:
       case f9fmkt_RxKind_RequestQuery:
+      case f9fmkt_RxKind_RequestRerun:
          // 從 ref 複製必要欄位(IvacNo、Symbol...);
          rptReq->OnSynReport(ref, nullptr);
          synSes->RemapReqUID(*rptReq, *pSrcReqSP, apiRpt->ReportSNO_);

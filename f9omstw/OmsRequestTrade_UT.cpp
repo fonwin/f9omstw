@@ -78,7 +78,7 @@ struct TwsNewChecker : public f9omstw::OmsRequestRunStep {
    void RunRequest(f9omstw::OmsRequestRunnerInCore&& runner) override {
       ++gRxHistoryCount;
       // 最遲在下單要求送出(交易所)前, 必須編製委託書號.
-      if (!runner.AllocOrdNo_IniOrTgid(this->TgId_))
+      if (!runner.AllocOrdNo_IniOrTgid(this->TgId_, *static_cast<const f9omstw::OmsRequestTrade*>(&runner.OrderRaw().Request())))
          return;
    }
 };

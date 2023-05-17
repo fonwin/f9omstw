@@ -251,6 +251,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsTradingLineReqRunStep.hpp">
       <Filter>Header Files\_TradingLine</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsScForceFlag.h">
+      <Filter>Header Files\_policy</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">

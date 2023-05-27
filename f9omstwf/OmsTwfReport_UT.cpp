@@ -669,7 +669,7 @@ kChkOrder(PartFilled,PartFilled,       9, 7, 7,kTIME0) kOrdPri(R,200,kTIME0) kOr
 #define kSYMID    kSYMID_H kSYMID_1
 }
 //--------------------------------------------------------------------------//
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
       //_CrtSetBreakAlloc(176);

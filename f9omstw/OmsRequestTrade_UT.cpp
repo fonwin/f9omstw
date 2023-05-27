@@ -114,7 +114,7 @@ void TestMarketSessionId(f9omstw::OmsResource& coreResource, f9fmkt_TradingMarke
    abort();
 }
 //--------------------------------------------------------------------------//
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
    (void)argc; (void)argv;
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);

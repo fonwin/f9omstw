@@ -211,10 +211,10 @@ void RunTestCore(FnBeforeAddReq fnBeforeAddReq,
    }
 }
 //--------------------------------------------------------------------------//
-int      gArgc;
-char**   gArgv;
-bool     gIsTestReload = false;
-void InitReportUT(int argc, char* argv[]) {
+int            gArgc;
+const char**   gArgv;
+bool           gIsTestReload = false;
+void InitReportUT(int argc, const char* argv[]) {
    gArgc = argc;
    gArgv = argv;
 

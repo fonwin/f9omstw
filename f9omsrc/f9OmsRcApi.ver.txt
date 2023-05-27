@@ -2,6 +2,9 @@ F9OMSRCAPI_1.0 {
    global:
       fon9_Initialize;
       fon9_Finalize;
+      fon9_PresetDefaultThreadPoolValues;
+      fon9_PresetDefaultThreadPoolCmdArg;
+      fon9_PresetDefaultThreadPoolStrArg;
 
       fon9_getpass;
       fon9_StrTrimHead;

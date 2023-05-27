@@ -728,6 +728,9 @@ int main(int argc, char* argv[]) {
          if (strcmp(*pargv, "NoCheckSum") == 0)
             f9rcCliParams.RcFlags_ |= f9rc_RcFlag_NoChecksum;
          break;
+      case 'D': // DefaultThreadPool
+         fon9_PresetDefaultThreadPoolStrArg(*pargv);
+         break;
       case '?':   goto __USAGE;
       default:    goto __UNKNOWN_ARGUMENT;
       }

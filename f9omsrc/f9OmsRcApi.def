@@ -3,6 +3,9 @@ EXPORTS
       fon9_Initialize;
       fon9_Finalize;
       ; fon9_wassert;
+      fon9_PresetDefaultThreadPoolValues;
+      fon9_PresetDefaultThreadPoolCmdArg;
+      fon9_PresetDefaultThreadPoolStrArg;
 
       fon9_getpass;
       fon9_StrTrimHead;

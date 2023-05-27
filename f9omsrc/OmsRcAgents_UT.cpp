@@ -60,7 +60,7 @@ void OnClientReport(f9rc_ClientSession*, const f9OmsRc_ClientReport* rpt) {
    }
 }
 //--------------------------------------------------------------------------//
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
    #if defined(_MSC_VER) && defined(_DEBUG)
       _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
       //_CrtSetBreakAlloc(176);

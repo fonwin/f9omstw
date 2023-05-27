@@ -307,16 +307,16 @@ struct TestCore : public f9omstw::OmsCore {
    bool     IsWaitQuit_{false};
    char     padding___[3];
 
-   static fon9::intrusive_ptr<TestCore> MakeCoreMgr(int argc, char* argv[]) {
+   static fon9::intrusive_ptr<TestCore> MakeCoreMgr(int argc, const char* argv[]) {
       fon9::intrusive_ptr<TestCore> core{new TestCore{argc, argv}};
       core->Owner_->Add(&core->GetResource());
       return core;
    }
 
-   TestCore(int argc, char* argv[], std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
+   TestCore(int argc, const char* argv[], std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
       : TestCore(argc, argv, 0, name, owner) {
    }
-   TestCore(int argc, char* argv[], uint32_t forceTDay, std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
+   TestCore(int argc, const char* argv[], uint32_t forceTDay, std::string name = "ut", f9omstw::OmsCoreMgrSP owner = nullptr)
       : base(fon9::LocalNow(), forceTDay, owner ? owner : new f9omstw::OmsCoreMgr{nullptr}, "seed/path", name) {
       this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 
@@ -374,7 +374,7 @@ struct TestCore : public f9omstw::OmsCore {
          std::cout << this->Name_ << ".LastSNO = " << lastSNO << std::endl;
    }
 
-   void OpenReload(int argc, char* argv[], std::string fnDefault) {
+   void OpenReload(int argc, const char* argv[], std::string fnDefault) {
       const auto  outfn = fon9::GetCmdArg(argc, argv, "o", "out");
       if (!outfn.empty())
          fnDefault = outfn.ToString();

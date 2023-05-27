@@ -112,6 +112,9 @@ namespace OmsRcClientCS
 
                   case 'R': f9rcIosv = val; continue;
                   case 'N': ioParams.DevName_ = val; continue;
+                  case 'D': // DefaultThreadPool
+                     fon9.Api.PresetDefaultThreadPoolStrArg(val);
+                     continue;
                }
             }
             Console.WriteLine($"Unknown argument: {str}");

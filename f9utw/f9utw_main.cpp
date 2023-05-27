@@ -78,6 +78,6 @@ int fon9sys_BeforeStart(fon9::Framework& fon9sys) {
    return 0;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, const char* argv[]) {
    return fon9::Fon9CoRun(argc, argv, &fon9sys_BeforeStart);
 }

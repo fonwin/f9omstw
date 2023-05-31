@@ -19,6 +19,7 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    mutable OmsIvRight         IvDenys_{};
    mutable OmsUserRightFlag   UserRightFlags_{};
    char                       padding___[3];
+   mutable f9oms_ScForceFlag  ScForceFlags_{};
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -66,6 +67,12 @@ public:
    }
    void SetUserRightFlags(OmsUserRightFlag uRightFlags) const {
       this->UserRightFlags_ = uRightFlags;
+   }
+   f9oms_ScForceFlag ScForceFlags() const {
+      return this->ScForceFlags_;
+   }
+   void SetScForceFlags(f9oms_ScForceFlag scForceFlags) const {
+      this->ScForceFlags_ = scForceFlags;
    }
 
    /// - 如果 ivr 是 Subac:

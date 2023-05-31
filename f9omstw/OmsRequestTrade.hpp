@@ -95,6 +95,9 @@ public:
       assert(this->Policy_.get() == nullptr);
       this->Policy_ = std::move(policy);
    }
+   void ForceResetPolicy(OmsRequestPolicySP policy) {
+      this->Policy_ = std::move(policy);
+   }
    const OmsRequestPolicy* Policy() const {
       return this->Policy_.get();
    }

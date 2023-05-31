@@ -114,6 +114,12 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_OrdNoMapNotFound = 505,
    /// OmsOrdNoMap::AllocOrdNo(); 自編委託書號(或自選櫃號), 但使用者無此櫃號權限.
    OmsErrCode_OrdTeamDeny = 506,
+   /// OmsTwsRequestForce::BeforeReqInCore();
+   /// 強迫操作, 使用者必須有對應的 ScForceFlag_ 權限.
+   OmsErrCode_DenyScForce_NoPermission = 507,
+   /// OmsTwsRequestForce::BeforeReqInCore();
+   /// 強迫操作, 其委託狀態需要處於 因「風控檢查」拒絕 的狀態.
+   OmsErrCode_DenyScForce_Bad_OrdSt = 508,
 
    // -----------------------------------------------------------------------
    /// 透過遠端主機協助繞送.

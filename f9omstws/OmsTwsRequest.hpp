@@ -73,5 +73,24 @@ public:
                                            TradingRequest& queuingRequest) override;
 };
 
+/// 二段強迫下單要求
+class OmsTwsRequestForce : public f9omstw::OmsRequestUpd {
+   fon9_NON_COPY_NON_MOVE(OmsTwsRequestForce);
+   using base = f9omstw::OmsRequestUpd;
+   f9omstw::OmsOrderRaw* BeforeReqInCore(f9omstw::OmsRequestRunner& runner, f9omstw::OmsResource& res) override;
+public:
+   f9oms_ScForceFlag ScForceFlag_{};
+
+   using base::base;
+   OmsTwsRequestForce() = default;
+
+   static void MakeFields(fon9::seed::Fields& flds);
+
+   /// 將 iniReq 的 Policy 強制取代為強迫要求建立者的 Policy.
+   /// 衍生者可透過此決定該委託的權限.
+   /// 須注意重啟後的 iniReq 為 nullptr.
+   virtual void BeforeReq_ResetIniPolicy(const OmsRequestTrade* iniReq, const OmsRequestPolicy* reqPol);
+};
+
 } // namespaces
 #endif//__f9omstws_OmsTwsRequest_hpp__

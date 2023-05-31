@@ -66,5 +66,34 @@ OmsTwsRequestChg::OpQueuingRequestResult OmsTwsRequestChg::OpQueuingRequest(fon9
       return lmgr->OpQueuingRequest<OmsTwsOrderRaw, OmsTwsRequestIni>(*this, queuingRequest);
    return Op_NotSupported;
 }
+//--------------------------------------------------------------------------//
+OmsOrderRaw* OmsTwsRequestForce::BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) {
+   if (auto* order = this->BeforeReqInCore_GetOrder(runner, res)) {
+      auto pol = static_cast<OmsRequestTrade*>(runner.Request_.get())->Policy();
+      // 檢核是否有對應強迫權限
+      if (fon9_UNLIKELY(!IsEnumContains(pol->ScForceFlags(), this->ScForceFlag_))) {
+         runner.RequestAbandon(&res, OmsErrCode_DenyScForce_NoPermission, fon9::RevPrintTo<std::string>("UserScForceFlag=", pol->ScForceFlags()));
+         return nullptr;
+      }
+      // 只有下單要求狀態在 f9fmkt_OrderSt_NewCheckingRejected 可以強迫
+      if (fon9_UNLIKELY(order->LastOrderSt() != f9fmkt_OrderSt_NewCheckingRejected)) {
+         runner.RequestAbandon(&res, OmsErrCode_DenyScForce_Bad_OrdSt);
+         return nullptr;
+      }
+      // 重設 iniRequest 的 Policy, 後續建立委託書號時, 才能依照強迫者權限建立
+      auto* iniReq = static_cast<const OmsRequestTrade*>(order->Initiator());
+      this->BeforeReq_ResetIniPolicy(iniReq, pol);
 
+      return order->BeginUpdate(*this);
+   }
+   return nullptr;
+}
+void OmsTwsRequestForce::BeforeReq_ResetIniPolicy(const OmsRequestTrade* iniReq, const OmsRequestPolicy* reqPol) {
+   assert(reqPol != nullptr && iniReq != nullptr);
+   const_cast<OmsRequestTrade*>(iniReq)->ForceResetPolicy(std::move(reqPol));
+}
+void OmsTwsRequestForce::MakeFields(fon9::seed::Fields& flds) {
+   base::MakeFields<OmsTwsRequestForce>(flds);
+   flds.Add(fon9_MakeField2(OmsTwsRequestForce, ScForceFlag));
+}
 } // namespaces

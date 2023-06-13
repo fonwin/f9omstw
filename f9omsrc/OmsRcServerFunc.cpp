@@ -80,8 +80,7 @@ void OmsRcServerNote::SendConfig(ApiSession& ses) {
 void OmsRcServerNote::StartPolicyRunner(ApiSession& ses, OmsCoreSP core) {
    if (this->Handler_)
       this->Handler_->ClearResource();
-   this->Handler_.reset(new Handler(ses.GetDevice(), this->PolicyConfig_, std::move(core), this->ApiSesCfg_,
-                                    ToStrView(ses.GetUserId())));
+   this->Handler_.reset(new Handler(ses, this->PolicyConfig_, std::move(core), this->ApiSesCfg_));
    if (!OmsPoRequestHandler_Start(this->Handler_)) {
       // 目前沒有 CurrentCore, 仍要回覆 config, 只是 TDay 為 null, 然後等 TDayChanged 事件.
       this->SendConfig(ses);

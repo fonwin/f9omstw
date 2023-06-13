@@ -77,11 +77,11 @@ public:
    struct PolicyConfig : public OmsIvList, public fon9::auth::PolicyItemMonitor {
    };
    bool GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res);
-   static void RegetPolicy(fon9::StrView userId, PolicyConfig& res);
-   static bool CheckRegetPolicy(fon9::StrView userId, PolicyConfig& res) {
+   static void RegetPolicy(PolicyConfig& res, fon9::StrView userId, fon9::StrView authzId);
+   static bool CheckRegetPolicy(PolicyConfig& res, fon9::StrView userId, fon9::StrView authzId) {
       if (fon9_LIKELY(!res.IsPolicyChanged()))
           return false;
-      RegetPolicy(userId, res);
+      RegetPolicy(res, userId, authzId);
       return true;
    }
 

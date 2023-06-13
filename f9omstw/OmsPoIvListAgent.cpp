@@ -197,23 +197,23 @@ void OmsPoIvListAgent::PoAclAdjust(const fon9::auth::AuthResult& authr, fon9::au
    res.Acl_ = std::move(acl);
 }
 
-static void IvList_ReplaceUserId(OmsIvList& dst, fon9::StrView userId) {
+static void IvList_ReplaceUserId(OmsIvList& dst, fon9::StrView userId, fon9::StrView authzId) {
+   static const fon9::StrView kOldStrA[] = {"UserId}", "Authz}"};
+   const fon9::StrView        newStrA[] = {userId,     authzId.empty() ? userId : authzId};
    const OmsIvList   src = std::move(dst);
-   static const char kUserId[] = "{UserId}";
    for (auto& v : src) {
-      auto key{fon9::CharVectorReplace(ToStrView(v.first), kUserId, userId)};
-      dst.kfetch(ToStrView(key)).second = v.second;
+      dst.kfetch(ToStrView(fon9::CharVectorReplaceA(ToStrView(v.first), '{', kOldStrA, newStrA, fon9::numofele(kOldStrA)))).second = v.second;
    }
 }
 bool OmsPoIvListAgent::GetPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {
    if (!static_cast<PolicyIvListTree*>(this->Sapling_.get())->GetPolicy(authr.GetPolicyId(&this->Name_), res))
       return false;
-   IvList_ReplaceUserId(res, authr.GetUserId());
+   IvList_ReplaceUserId(res, ToStrView(authr.AuthcId_), authr.GetUserIdForAuthz());
    return true;
 }
-void OmsPoIvListAgent::RegetPolicy(fon9::StrView userId, PolicyConfig& res) {
+void OmsPoIvListAgent::RegetPolicy(PolicyConfig& res, fon9::StrView userId, fon9::StrView authzId) {
    PolicyIvListTree::RegetPolicy(res);
-   IvList_ReplaceUserId(res, userId);
+   IvList_ReplaceUserId(res, userId, authzId);
 }
 void OmsPoIvListAgent::MakeGridView(fon9::RevBuffer& rbuf, const OmsIvList& ivList) {
    auto* gvLayout = this->Sapling_->LayoutSP_->GetTab(0)->SaplingLayout_.get();

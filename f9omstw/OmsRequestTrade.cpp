@@ -141,7 +141,11 @@ OmsIvRight OmsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& re
             static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = ivrConfig.LgOut_;
          return ivrRights;
       }
-      scRes.Ivr_.reset();
+      if (runner.Request_.get() == this)
+         scRes.Ivr_.reset();
+      else {
+         // 有可能是來檢查改單權限的, 此時不可 Ivr_.reset();
+      }
    }
    runner.RequestAbandon(&res, OmsErrCode_IvNoPermission);
    return OmsIvRight::DenyAll;

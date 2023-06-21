@@ -31,7 +31,7 @@ void OmsPoRequestHandler::RebuildRequestPolicy(OmsResource& res) {
 bool OmsPoRequestHandler::CheckReloadIvList() {
    if (fon9_LIKELY(!this->PolicyConfig_.IvList_.IsPolicyChanged()))
       return false;
-   return OmsPoIvListAgent::CheckRegetPolicy(ToStrView(this->UserId_), this->PolicyConfig_.IvList_);
+   return OmsPoIvListAgent::CheckRegetPolicy(this->PolicyConfig_.IvList_, ToStrView(this->UserId_), ToStrView(this->AuthzId_));
 }
 void OmsPoRequestHandler::SubrIvListChanged() {
    assert(this->PoIvListSubr_ == nullptr);

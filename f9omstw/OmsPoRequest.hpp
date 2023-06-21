@@ -31,11 +31,14 @@ public:
    OmsRequestPolicySP      RequestPolicy_;
    const OmsCoreSP         Core_;
    const fon9::CharVector  UserId_;
+   const fon9::CharVector  AuthzId_; // 不會為空,至少會與UserId_相同;
 
-   OmsPoRequestHandler(const OmsRequestPolicyCfg& cfg, OmsCoreSP core, const fon9::StrView& userId)
+   OmsPoRequestHandler(const OmsRequestPolicyCfg& cfg, OmsCoreSP core, const fon9::StrView& userId, const fon9::StrView& authzId)
       : PolicyConfig_(cfg)
       , Core_{std::move(core)}
-      , UserId_{userId} {
+      , UserId_{userId}
+      , AuthzId_{authzId} {
+      assert(!authzId.empty() || authzId == userId);
    }
    virtual ~OmsPoRequestHandler();
 

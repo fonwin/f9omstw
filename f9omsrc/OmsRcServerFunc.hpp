@@ -39,10 +39,9 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    public:
       const fon9::io::DeviceSP   Device_;
       const ApiSesCfgSP          ApiSesCfg_;
-      Handler(fon9::io::DeviceSP dev, const OmsRequestPolicyCfg& cfg, OmsCoreSP core, ApiSesCfgSP apicfg,
-              const fon9::StrView& userId)
-         : base(cfg, std::move(core), userId)
-         , Device_{std::move(dev)}
+      Handler(ApiSession& ses, const OmsRequestPolicyCfg& cfg, OmsCoreSP core, ApiSesCfgSP apicfg)
+         : base(cfg, std::move(core), ToStrView(ses.GetUserId()), ses.GetUserIdForAuthz())
+         , Device_{std::move(ses.GetDevice())}
          , ApiSesCfg_{std::move(apicfg)} {
       }
       void ClearResource() override;

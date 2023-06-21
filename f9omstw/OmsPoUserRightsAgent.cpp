@@ -200,7 +200,7 @@ OmsPoUserDenysAgent::OmsPoUserDenysAgent(fon9::seed::MaTree* authMgrAgents, std:
    (void)authMgrAgents;
 }
 bool OmsPoUserDenysAgent::FetchPolicy(const fon9::auth::AuthResult& authr, PolicyConfig& res) {
-   return static_cast<OmsPoUserDenysTree*>(this->Sapling_.get())->FetchPolicy(authr.GetUserId(), res);
+   return static_cast<OmsPoUserDenysTree*>(this->Sapling_.get())->FetchPolicy(ToStrView(authr.AuthcId_), res);
 }
 void OmsPoUserDenysAgent::RegetPolicy(PolicyConfig& res) {
    OmsPoUserDenysTree::RegetPolicy(res);

@@ -25,13 +25,13 @@ void OmsCore::SetThisThreadId() {
    assert(this->ThreadId_ == fon9::ThreadId::IdType{});
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 }
-OmsCore::StartResult OmsCore::Start(std::string logFileName, fon9::TimeInterval flushInterval) {
+OmsCore::StartResult OmsCore::Start(std::string logFileName, fon9::TimeInterval backendFlushInterval, int backendCpuId) {
    auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
    if (res.IsError()) {
       this->SetCoreSt(OmsCoreSt::BadCore);
       return res;
    }
-   this->Backend_.StartThread(this->Name_ + "_Backend", flushInterval);
+   this->Backend_.StartThread(this->Name_ + "_Backend", backendFlushInterval, backendCpuId);
    this->Plant();
    return res;
 }

@@ -27,9 +27,9 @@ protected:
    virtual void OnBeforeDestroy() = 0;
    virtual void StartThrRun() = 0;
 
-   StartResult Start(std::string logFileName, fon9::TimeInterval flushInterval) override {
+   StartResult Start(std::string logFileName, fon9::TimeInterval backendFlushInterval, int backendCpuId) override {
       this->PendingReqs_.reserve(1024 * 10);
-      return base::Start(std::move(logFileName), flushInterval);
+      return base::Start(std::move(logFileName), backendFlushInterval, backendCpuId);
    }
 
    void OnParentTreeClear(fon9::seed::Tree& tree) override {
@@ -50,7 +50,7 @@ public:
    /// - 設定 Title(logFileName), Description(載入失敗訊息);
    /// - 啟動 thread: this->StartThrRun();
    /// - retval: this 加入 OmsCoreMgr tree 機制.
-   bool StartToCoreMgr(std::string logFileName, int cpuId, fon9::TimeInterval flushInterval);
+   bool StartToCoreMgr(std::string logFileName, int coreCpuId, fon9::TimeInterval backendFlushInterval, int backendCpuId);
 };
 using OmsCoreByThreadBaseSP = fon9::intrusive_ptr<OmsCoreByThreadBase>;
 fon9_WARN_POP;

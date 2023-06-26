@@ -5,7 +5,7 @@
 #include "f9omstw/OmsRequestBase.hpp"
 #include "fon9/buffer/RevBufferList.hpp"
 #include "fon9/ThreadController.hpp"
-#include "fon9/File.hpp"
+#include "fon9/FileAppender.hpp"
 #include "fon9/Subr.hpp"
 #include <deque>
 #include <vector>
@@ -95,9 +95,19 @@ class OmsBackend {
    Items                Items_;
    OmsRxSNO             LastSNO_{0};
    OmsRxSNO             PublishedSNO_{0};
-   fon9::File           RecorderFd_;
    fon9::TimeInterval   FlushInterval_;
+   int                  CpuAffinity_{-1};
+   char                 Padding____[4];
    std::string          LogPath_;
+
+   class RecoderFd : public fon9::AsyncFileAppender {
+      fon9_NON_COPY_NON_MOVE(RecoderFd);
+      using base = fon9::AsyncFileAppender;
+   public:
+      RecoderFd() = default;
+      using base::GetStorage;
+   };
+   const fon9::intrusive_ptr<RecoderFd>   RecorderFd_{new RecoderFd};
 
    enum class RecoverResult {
       Empty,
@@ -138,7 +148,7 @@ public:
    OpenResult OpenReload(std::string logFileName, OmsResource& resource,
                          fon9::FileMode fmode = fon9::FileMode::CreatePath | fon9::FileMode::Append
                                               | fon9::FileMode::Read | fon9::FileMode::DenyWrite);
-   void StartThread(std::string thrName, fon9::TimeInterval flushInterval);
+   void StartThread(std::string thrName, fon9::TimeInterval flushInterval, int cpuAffinity);
    uintptr_t ThreadId() const {
       return this->ThreadId_;
    }

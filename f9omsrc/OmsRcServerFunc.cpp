@@ -505,11 +505,13 @@ ApiSession* OmsRcServerNote::Handler::IsNeedReport(const OmsRxItem& item) {
    // -----
    if (ini && CheckReqUserId(sesUserId, ToStrView(ini->UserId_)))
       return ses;
-   // 如果有重啟過, Ivr_ 會在 Backend 載入時建立, 所以這裡可以放心使用 order.ScResource().Ivr_;
-   auto rights = this->RequestPolicy_->GetIvRights(order.ScResource().Ivr_.get(), nullptr);
-   if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
-       || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
-      return ses;
+   if (!(this->RptFilter_ & f9OmsRc_RptFilter_UncheckIvList)) {
+      // 如果有重啟過, Ivr_ 會在 Backend 載入時建立, 所以這裡可以放心使用 order.ScResource().Ivr_;
+      auto rights = this->RequestPolicy_->GetIvRights(order.ScResource().Ivr_.get(), nullptr);
+      if (IsEnumContains(rights, OmsIvRight::AllowSubscribeReport)
+          || (rights & OmsIvRight::DenyTradingAll) != OmsIvRight::DenyTradingAll)
+         return ses;
+   }
    return nullptr;
 }
 //--------------------------------------------------------------------------//

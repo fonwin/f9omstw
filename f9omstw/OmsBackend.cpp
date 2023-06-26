@@ -7,6 +7,7 @@
 #include "fon9/ThreadTools.hpp"
 #include "fon9/ThreadId.hpp"
 #include "fon9/Log.hpp"
+#include "fon9/Tools.hpp"
 
 namespace f9omstw {
 
@@ -20,7 +21,7 @@ void OmsBackend::OnBeforeDestroy() {
    this->WaitThreadEnd();
 
    Locker items{this->Items_};
-   if (this->LastSNO_ == 0 && !this->RecorderFd_.IsOpened())
+   if (this->LastSNO_ == 0 && !this->RecorderFd_->IsOpened())
       return;
 
    this->SaveQuItems(items->QuItems_);
@@ -28,8 +29,7 @@ void OmsBackend::OnBeforeDestroy() {
 
    fon9::RevBufferList rbuf{128};
    fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::LocalNow(), " =====\n");
-   fon9::DcQueueList dcq{rbuf.MoveOut()};
-   this->RecorderFd_.Append(dcq);
+   this->RecorderFd_->Append(rbuf.MoveOut());
 
    // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {
@@ -37,19 +37,22 @@ void OmsBackend::OnBeforeDestroy() {
          intrusive_ptr_release(item);
    }
    this->LastSNO_ = 0;
-   this->RecorderFd_.Close();
+   this->RecorderFd_->Close();
 }
 bool OmsBackend::IsThisThread() const {
    return(this->ThreadId_ == fon9::GetThisThreadId().ThreadId_);
 }
-void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval) {
+void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval, int cpuAffinity) {
    this->FlushInterval_ = flushInterval;
+   this->CpuAffinity_ = cpuAffinity;
    this->Items_.OnBeforeThreadStart(1);
    this->Thread_ = std::thread(&OmsBackend::ThrRun, this, std::move(thrName));
 }
 void OmsBackend::ThrRun(std::string thrName) {
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
-   fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName, "|flushInterval=", this->FlushInterval_);
+   fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName,
+                   "|flushInterval=", this->FlushInterval_,
+                   "|Cpu=", this->CpuAffinity_, ':', fon9::SetCpuAffinity(this->CpuAffinity_));
    {
       QuItems  quItems;
       quItems.reserve(kReserveQuItems);

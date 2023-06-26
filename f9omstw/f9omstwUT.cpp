@@ -263,7 +263,7 @@ bool OmsCoreUT::AddCore(bool isRemoveLog) {
    logfn.RebuildFileNameExcludeTimeZone(tday);
    if (isRemoveLog)
       ::remove(logfn.GetFileName().c_str());
-   core->StartToCoreMgr(logfn.GetFileName(), -1/*CpuId*/, fon9::TimeInterval_Millisecond(1));
+   core->StartToCoreMgr(logfn.GetFileName(), -1/*CpuId*/, fon9::TimeInterval_Millisecond(1), -1);
    this->WaitCoreDone(core.get());
    if (core->CoreSt() != OmsCoreSt::CurrentCoreReady)
       return false;

@@ -37,7 +37,7 @@ void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
 }
 //--------------------------------------------------------------------------//
 void OmsBackend::SaveQuItems(QuItems& quItems) {
-   fon9::DcQueueList dcq;
+   fon9::BufferList dcq;
    for (QuItem& qi : quItems) {
       auto exsz = fon9::CalcDataSize(qi.ExLog_.cfront());
       if (fon9_UNLIKELY(qi.Item_ && qi.Item_->RxSNO() == 0)) {
@@ -62,7 +62,7 @@ void OmsBackend::SaveQuItems(QuItems& quItems) {
       dcq.push_back(qi.ExLog_.MoveOut());
    }
    if (!dcq.empty())
-      this->RecorderFd_.Append(dcq);
+      this->RecorderFd_->Append(std::move(dcq));
 }
 
 //--------------------------------------------------------------------------//
@@ -301,18 +301,19 @@ struct OmsBackend::Loader {
 };
 
 OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResource& resource, fon9::FileMode fmode) {
-   assert(!this->RecorderFd_.IsOpened());
-   if (this->RecorderFd_.IsOpened())
+   assert(!this->RecorderFd_->IsOpened());
+   if (this->RecorderFd_->IsOpened())
       return OpenResult{0};
    this->LogPath_ = fon9::FilePath::ExtractPathName(&logFileName);
-   auto res = this->RecorderFd_.Open(logFileName, fmode);
+   auto res = this->RecorderFd_->OpenImmediately(logFileName, fmode);
    if (res.IsError()) {
    __OPEN_ERROR:
-      this->RecorderFd_.Close();
+      this->RecorderFd_->Close();
       fon9_LOG_FATAL("OmsBackend.OpenReload|file=", logFileName, '|', res);
       return res;
    }
-   res = this->RecorderFd_.GetFileSize();
+   auto& recfd = this->RecorderFd_->GetStorage();
+   res = recfd.GetFileSize();
    if (res.IsError())
       goto __OPEN_ERROR;
 
@@ -325,7 +326,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
       // 例: 建立 child order 時, OmsOrder::InitializeByStarter() 需要取得 ParentOrder;
       // 所以這裡先 unlock;
       items.unlock();
-      res = loader.ReloadAll(this->RecorderFd_, fsize);
+      res = loader.ReloadAll(recfd, fsize);
       if (res.IsError()) {
          this->LastSNO_ = this->PublishedSNO_ = 0;
          goto __OPEN_ERROR;
@@ -395,7 +396,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
    if (fsize > 0)
       fon9::RevPrint(rbuf, '\n');
    fon9::DcQueueList dcq{rbuf.MoveOut()};
-   this->RecorderFd_.Append(dcq);
+   recfd.Append(dcq);
    return res;
 }
 

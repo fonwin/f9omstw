@@ -68,6 +68,10 @@ fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
    /// 僅回補 WorkingOrder, 即時回報不考慮此旗標.
    f9OmsRc_RptFilter_RecoverWorkingOrder = 0x02,
 
+   /// 回報時不檢查 IvList, 所以僅會針對 UserId 符合規則者回報。
+   /// 若無此旗標, 則: 若 UserId 不符, 會繼續檢查 [下單帳號] 是否存在於 IvList 的回報設定, 若是, 則也會回報。
+   f9OmsRc_RptFilter_UncheckIvList = 0x04,
+
    /// 在 NoExternal 的情況下, 是否要回報[其他主機]的新單Request(例: TwsRpt、TwfRpt)?
    /// - OmsRcSyn 模組可設定此旗標.
    /// - 雙主機備援: 若某主機死亡後, 當日不啟用死亡主機, 則可不用設定此旗標.

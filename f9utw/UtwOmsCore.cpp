@@ -120,9 +120,9 @@ public:
       fon9::StrView        tag, value, omsName{"omstw"}, brkId, lgCfgFileName;
       unsigned             brkCount = 0;
       fon9::HowWait        howWait{};
-      int                  cpuId = -1;
+      int                  coreCpuId = -1, backendCpuId = -1;
       f9twf::FcmId         cmId{};
-      fon9::TimeInterval   flushInterval{fon9::TimeInterval_Millisecond(1)};
+      fon9::TimeInterval   backendFlushInterval{fon9::TimeInterval_Millisecond(1)};
       int                  changeDayHHMMSS = -1; // 換日時間, 現貨 00:00 換日, 期權 6:00 換日;
       while (fon9::SbrFetchTagValue(args, tag, value)) {
          fon9::IoManagerArgs* ioargs;
@@ -161,9 +161,11 @@ public:
          else if (fon9::iequals(tag, "Wait"))
             howWait = fon9::StrToHowWait(value);
          else if (fon9::iequals(tag, "Cpu"))
-            cpuId = fon9::StrTo(value, cpuId);
+            coreCpuId = fon9::StrTo(value, coreCpuId);
+         else if (fon9::iequals(tag, "BackendCpu"))
+            backendCpuId = fon9::StrTo(value, backendCpuId);
          else if (fon9::iequals(tag, "FlushInterval"))
-            flushInterval = fon9::StrTo(value, flushInterval);
+            backendFlushInterval = fon9::StrTo(value, backendFlushInterval);
          else if (fon9::iequals(tag, "Lg"))
             lgCfgFileName = value;
          else if (fon9::iequals(tag, "CmId"))
@@ -187,11 +189,12 @@ public:
       if (!holder.Root_->Add(coreMgrSeed))
          return false;
       coreMgrSeed->BrkIdStart_.assign(brkId);
-      coreMgrSeed->BrkCount_      = (brkCount <= 0 ? 1u : brkCount);
-      coreMgrSeed->CmId_          = cmId;
-      coreMgrSeed->CpuId_         = cpuId;
-      coreMgrSeed->FlushInterval_ = flushInterval;
-      coreMgrSeed->HowWait_       = howWait;
+      coreMgrSeed->BrkCount_             = (brkCount <= 0 ? 1u : brkCount);
+      coreMgrSeed->CmId_                 = cmId;
+      coreMgrSeed->HowWait_              = howWait;
+      coreMgrSeed->CoreCpuId_            = coreCpuId;
+      coreMgrSeed->BackendFlushInterval_ = backendFlushInterval;
+      coreMgrSeed->BackendCpuId_         = backendCpuId;
       // ------------------------------------------------------------------
       const std::string     logpath = SysEnv_GetLogFileFmtPath(*coreMgrSeed->Root_);
       const std::string     cfgpath = SysEnv_GetConfigPath(*coreMgrSeed->Root_).ToString();

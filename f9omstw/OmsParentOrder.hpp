@@ -192,6 +192,7 @@ public:
 
    void OnOrderReject() override;
    bool IsWorking() const override;
+   OmsFilledFlag HasFilled() const override;
 };
 
 template <class OrderRawDat>

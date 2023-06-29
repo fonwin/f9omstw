@@ -9,5 +9,8 @@ OmsTwfOrderRaw7::~OmsTwfOrderRaw7() {
 bool OmsTwfOrderRaw7::IsWorking() const {
    return false;
 }
+OmsFilledFlag OmsTwfOrderRaw7::HasFilled() const {
+   return OmsFilledFlag::None;
+}
 
 } // namespaces

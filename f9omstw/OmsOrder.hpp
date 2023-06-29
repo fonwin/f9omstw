@@ -46,6 +46,19 @@ enum class OmsOrderFlag : uint8_t {
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsOrderFlag);
 
+enum class OmsFilledFlag : uint8_t {
+   /// 沒有成交; 若成交回報只是表示 [IOC、FOK、價穩...] 取消, 但沒有成交量, 則依然返回 0;
+   None = 0x00,
+   /// 一般單: 有成交;
+   HasFilled = 0x01,
+   /// 雙邊單: Bid 有成交;
+   HasBidFilled = 0x11,
+   /// 雙邊單: Offer 有成交;
+   HasOfferFilled = 0x21,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(OmsFilledFlag);
+
+
 /// - OmsOrder 沒有擁有者, 死亡時機:
 ///   - 當 OmsRequestBase 死亡時
 ///   - 若 OmsRequestBase.LastUpdate()==OmsOrder.Tail()
@@ -103,6 +116,8 @@ public:
    const OmsOrderRaw*   TailPrev()    const  { return this->TailPrev_; }
    f9fmkt_OrderSt       LastOrderSt() const  { return this->LastOrderSt_; }
    bool              IsWorkingOrder() const;
+   /// \ref OmsOrderRaw::HasFilled();
+   OmsFilledFlag HasFilled() const;
 
    const OmsScResource& ScResource() const   { return this->ScResource_; }
    OmsScResource&       ScResource()         { return this->ScResource_; }
@@ -337,6 +352,8 @@ public:
    /// 通常為: LeavesQty_ > 0;
    /// 但也有例外: 詢價, 報價. 
    virtual bool IsWorking() const = 0;
+   /// 是否有任何的成交?
+   virtual OmsFilledFlag HasFilled() const = 0;
    /// 若 ErrCodeAct 設定為 Rerun, 且確實將要進行 step->RerunRequest(); 則在此通知;
    /// 此時若為新單 Rerun, 則應重新設定 LeavesQty = AfterQty = BeforeQty;
    /// 返回 true(預設) 表示允許執行 step->RerunRequest();
@@ -393,6 +410,12 @@ inline bool OmsOrder::IsWorkingOrder() const {
       return !tail->IsFrozeScLeaves_ && tail->IsWorking();
    return false;
 }
+inline OmsFilledFlag OmsOrder::HasFilled() const {
+   if (const auto* tail = this->Tail_)
+      return tail->HasFilled();
+   return OmsFilledFlag::None;
+}
+
 // -----
 inline void OmsRequestBase::SetLastUpdated(OmsOrderRaw& lastupd) const {
    // 若 lastupd 來自 Parent, 但 this 為 child 的成交, 則不可改變 this->LastUpdated_;

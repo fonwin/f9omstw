@@ -19,6 +19,7 @@ public:
    OmsTwfOrderRaw7() = default;
    ~OmsTwfOrderRaw7();
    bool IsWorking() const override;
+   OmsFilledFlag HasFilled() const override;
 };
 
 } // namespaces

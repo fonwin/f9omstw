@@ -129,8 +129,13 @@ struct OmsBackend::Loader {
          order = &lastupd->Order();
          if (reqFrom->RxKind() == f9fmkt_RxKind_Filled) {
             // 子單成交 => 更新母單.
-            if (auto* parentOrder = order->GetParentOrder())
-               order = parentOrder;
+            if (auto* parentOrder = order->GetParentOrder()) {
+               // 但是, 有可能是: 子單成交的二次更新, 例: 40047先部分成交,後續的[價穩取消];
+               // 所以需判斷是否為: 子單成交的後續更新
+               if (&order->Creator() != flds.Factory_) {
+                  order = parentOrder;
+               }
+            }
          }
       }
       else { // ln = reqFrom 的首次異動 => order 的首次異動? 或後續異動?

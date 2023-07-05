@@ -64,7 +64,14 @@ void OmsBackend::ThrRun(std::string thrName) {
          if (items->QuItems_.empty() && !items->IsNotified_) {
             switch (this->CheckRecoverHandler(items, recoverIndex)) {
             case RecoverResult::Empty:
-               this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
+               if (this->FlushInterval_.IsZero()) {
+                  // 在某些應用上, 客戶會需要 [盡快收到回報], 此時可將 FlushInterval 設為 0;
+                  // 但可能會造成 OmsCore 有較大的延遲(因為要跟 OmsCore 搶鎖);
+                  // 所以, 若無此類特殊需求, <<不建議>> 將 FlushInterval 設為 0;
+               }
+               else {
+                  this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
+               }
                break;
             case RecoverResult::Erase:
                items->Recovers_.erase(items->Recovers_.begin() + fon9::signed_cast(recoverIndex));

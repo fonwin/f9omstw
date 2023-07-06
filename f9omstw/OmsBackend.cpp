@@ -68,10 +68,19 @@ void OmsBackend::ThrRun(std::string thrName) {
                   // 在某些應用上, 客戶會需要 [盡快收到回報], 此時可將 FlushInterval 設為 0;
                   // 但可能會造成 OmsCore 有較大的延遲(因為要跟 OmsCore 搶鎖);
                   // 所以, 若無此類特殊需求, <<不建議>> 將 FlushInterval 設為 0;
+                  items.unlock();
+                  auto* const pitems = items.get();
+                  while (!pitems->IsNotified_) {
+                     std::atomic_thread_fence(std::memory_order::memory_order_relaxed);
+                     // 這裡的 GetState(items); 沒 lock() 沒有關係;
+                     // 因為: 即使可能會延遲一點點時間, 但最終總是會取得正確結果!
+                     if (this->Items_.GetState(items) != fon9::ThreadState::ExecutingOrWaiting)
+                        break;
+                  }
+                  items.lock();
+                  continue;
                }
-               else {
-                  this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
-               }
+               this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
                break;
             case RecoverResult::Erase:
                items->Recovers_.erase(items->Recovers_.begin() + fon9::signed_cast(recoverIndex));
@@ -256,7 +265,10 @@ void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool i
       items->Append(runner.OrderRaw().Request(), std::move(runner.ExLogForReq_));
    }
    items->Append(runner.OrderRaw(), std::move(runner.ExLogForUpd_));
-   if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
+   if (this->FlushInterval_.IsZero()) {
+      items->IsNotified_ = true;
+   }
+   else if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
       items->IsNotified_ = true;
       this->Items_.NotifyOne(items);
    }

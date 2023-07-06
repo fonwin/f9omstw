@@ -125,7 +125,8 @@ protected:
       this->WaitForEndNow();
       // 完成剩餘的工作, 避免 memory leak.
       this->ThreadId_ = 0;
-      OmsThreadTaskHandler handler{*this};
+      OmsCoreByThreadBase* pthis = this; // 避免使用 OmsThreadTaskHandler<BaseMQ> 建構(會多呼叫 InitializeFromMQ());
+      OmsThreadTaskHandler handler{*pthis};
       this->WaitForEndNow(handler);
    }
    void StartThrRun() override {

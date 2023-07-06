@@ -11,7 +11,7 @@ namespace f9omstw {
 /// - 包含 CondPri 的修改;
 /// - 其他 Cond 欄位不允許修改, 若要調整, 應刪除後重下;
 struct OmsCxLastPriceChangeable {
-   fon9::fmkt::Pri   CondPri_{};
+   fon9::fmkt::Pri   CondPri_{fon9::fmkt::Pri::Null()};
 
    template <class Derivid>
    static void CxMakeFields(fon9::seed::Fields& flds, const Derivid* = nullptr) {
@@ -30,7 +30,7 @@ using OmsCxLastPriceOrdRaw = OmsCxLastPriceChangeable;
 struct OmsCxLastPriceIniDat {
    fon9::CharAry<2>  CondOp_{nullptr};
    char              Padding___[6];
-   fon9::fmkt::Pri   CondPri_;
+   fon9::fmkt::Pri   CondPri_{fon9::fmkt::Pri::Null()};
 
    template <class Derivid>
    static void CxMakeFields(fon9::seed::Fields& flds, const Derivid* = nullptr) {

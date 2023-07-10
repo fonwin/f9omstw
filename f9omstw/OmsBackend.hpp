@@ -118,6 +118,7 @@ class OmsBackend {
 
    void ThrRun(std::string thrName);
    void SaveQuItems(QuItems& quItems);
+   void CheckNotify(Items::Locker& items);
    struct Loader;
 
 public:

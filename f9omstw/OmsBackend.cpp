@@ -192,7 +192,7 @@ void OmsBackend::ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer) {
    bool           needNotify = items->Recovers_.empty();
    items->Recovers_.emplace_back(fromSNO, std::move(consumer));
    if (needNotify)
-      this->Items_.NotifyAll(items);
+      this->CheckNotify(items);
 }
 
 //--------------------------------------------------------------------------//
@@ -210,16 +210,30 @@ void OmsBackend::ItemsImpl::Append(const OmsRxItem& item, fon9::RevBufferList&& 
    this->AppendHistory(item);
    this->QuItems_.emplace_back(&item, std::move(rbuf));
 }
+
+void OmsBackend::CheckNotify(Locker& items) {
+   if (this->FlushInterval_.IsZero()) {
+      items->IsNotified_ = true;
+   }
+   else if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
+      items->IsNotified_ = true;
+      this->Items_.NotifyOne(items);
+   }
+}
 void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
    assert(item.RxSNO() == 0 || item.RxSNO() == this->LastSNO_);
    if (item.RxSNO() == 0)
       item.SetRxSNO(++this->LastSNO_);
-   Items::Locker{this->Items_}->Append(item, std::move(rbuf));
+   Items::Locker items{this->Items_};
+   items->Append(item, std::move(rbuf));
+   this->CheckNotify(items);
 }
 void OmsBackend::LogAppend(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
    assert(item.RxSNO() == 0);
    intrusive_ptr_add_ref(&item);
-   Items::Locker{this->Items_}->QuItems_.emplace_back(&item, std::move(rbuf));
+   Items::Locker items{this->Items_};
+   items->QuItems_.emplace_back(&item, std::move(rbuf));
+   this->CheckNotify(items);
 }
 void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
@@ -265,13 +279,7 @@ void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool i
       items->Append(runner.OrderRaw().Request(), std::move(runner.ExLogForReq_));
    }
    items->Append(runner.OrderRaw(), std::move(runner.ExLogForUpd_));
-   if (this->FlushInterval_.IsZero()) {
-      items->IsNotified_ = true;
-   }
-   else if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
-      items->IsNotified_ = true;
-      this->Items_.NotifyOne(items);
-   }
+   this->CheckNotify(items);
 }
 void OmsBackend::Flush(Locker& items) {
    if (!items->IsNotified_) {

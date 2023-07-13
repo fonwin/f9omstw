@@ -84,6 +84,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Symb_NoMarketPri = 206,
    /// 不支援改價. (定價交易無改價功能, 或系統不支援改價);
    OmsErrCode_Symb_NoChgPri = 207,
+   /// 已觸發, 無法更改條件內容;
+   OmsErrCode_Triggered_Cannot_ChgCond = 208,
 
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 300,

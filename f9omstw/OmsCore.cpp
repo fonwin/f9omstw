@@ -192,10 +192,10 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
    if (this->RunCoreTask([&waiter, logInfo, &isOrigSender](OmsResource& res) {
       fon9::RevBufferList rbuf{128};
       fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".SearchSendingRequest\n");
-      auto lk = res.Backend_.Lock();
-      res.Backend_.LogAppend(lk, std::move(rbuf));
+      auto lkForAppend = res.Backend_.LockForAppend();
+      res.Backend_.LogAppend(lkForAppend, std::move(rbuf));
       for (auto sno = res.Backend_.LastSNO(); sno > 0; --sno) {
-         const OmsRxItem* item = res.Backend_.GetItem(sno, lk);
+         const OmsRxItem* item = res.Backend_.GetItem(sno, lkForAppend);
          if (item == nullptr)
             continue;
          auto ordraw = static_cast<const OmsOrderRaw*>(item->CastToOrder());
@@ -215,12 +215,12 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
          if (aford == nullptr)
             continue;
          OmsInternalRunnerInCore runner{res, *aford};
-         runner.BackendLocker_ = &lk;
+         runner.BackendLocker_ = &lkForAppend;
          aford->ErrCode_ = OmsErrCode_FailSending;
          runner.Update(f9fmkt_TradingRequestSt_LineRejected);
       }
       fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".Finished\n");
-      res.Backend_.LogAppend(lk, std::move(rbuf));
+      res.Backend_.LogAppend(lkForAppend, std::move(rbuf));
       waiter.ForceWakeUp();
    })) {
       waiter.Wait();

@@ -126,6 +126,19 @@ public:
    ReportSubject  ReportSubject_;
 
    using Locker = Items::Locker;
+   class LockerForAppend : public Locker {
+      fon9_NON_COPYABLE(LockerForAppend);
+      using base = Locker;
+   public:
+      using base::base;
+      LockerForAppend(LockerForAppend&& rhs) : base{std::move(rhs)} {
+      }
+      LockerForAppend& operator=(LockerForAppend&& rhs) {
+         base::operator=(std::move(rhs));
+         return *this;
+      }
+      ~LockerForAppend();
+   };
 
    enum : size_t {
    #ifdef NDEBUG
@@ -171,6 +184,9 @@ public:
    Locker Lock() {
       return Locker{this->Items_};
    }
+   LockerForAppend LockForAppend() {
+      return LockerForAppend{this->Items_};
+   }
    /// 只會在 OmsCore 保護下執行.
    OmsRxSNO FetchSNO(OmsRxItem& item) {
       return item.SetRxSNO(++this->LastSNO_);
@@ -197,9 +213,9 @@ public:
 
    /// 將自訂內容寫入 log.
    void LogAppend(fon9::RevBufferList&& rbuf) {
-      this->LogAppend(this->Lock(), std::move(rbuf));
+      this->LogAppend(this->LockForAppend(), std::move(rbuf));
    }
-   static void LogAppend(const Locker& items, fon9::RevBufferList&& rbuf) {
+   static void LogAppend(const LockerForAppend& items, fon9::RevBufferList&& rbuf) {
       items->QuItems_.emplace_back(nullptr, std::move(rbuf));
    }
    /// 不是 thread safe, 必須在 OpenReload() 之後才能安全的使用.
@@ -222,13 +238,13 @@ public:
       assert(task.get() != nullptr);
       assert(task->RxKind() == f9fmkt_RxKind_Unknown);
       assert(task->RxSNO() == 0);
-      Items::Locker{this->Items_}->QuItems_.emplace_back(task.detach(), fon9::RevBufferList{0});
+      this->LockForAppend()->QuItems_.emplace_back(task.detach(), fon9::RevBufferList{0});
    }
 
 private:
    friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 this->OnBefore_Order_EndUpdate();
    void OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner);
-   void EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend);
+   void EndAppend(const LockerForAppend& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend);
 };
 
 } // namespaces

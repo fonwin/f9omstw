@@ -233,6 +233,9 @@ protected:
 enum class OmsOrderRawFlag : uint8_t {
    IsRequestFirstUpdate = 0x01,
    IsForceInternal = 0x02,
+   /// 是否有異動風控資料?
+   /// 用來協助快速排除 [沒有列入風控] 計算的 ordraw;
+   IsScUpdated = 0x04,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsOrderRawFlag);
 
@@ -308,6 +311,13 @@ public:
    }
    void SetForceInternal() {
       this->Flags_ |= OmsOrderRawFlag::IsForceInternal;
+   }
+   // -----
+   bool IsScUpdated() const {
+      return IsEnumContains(this->Flags_, OmsOrderRawFlag::IsScUpdated);
+   }
+   void SetScUpdated() {
+      this->Flags_ |= OmsOrderRawFlag::IsScUpdated;
    }
    // -----
 

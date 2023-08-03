@@ -567,7 +567,7 @@ static OmsRequestSP OnOmsRcSyn_MakeRpt(const OmsRcSynRptDefine& rptdef, const f9
    OnOmsRcSyn_AssignReq(rptdef, rpt, *req);
    return req;
 }
-bool OmsRcSynClientSession::RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::OmsRequestSP& riSrcReqSP, OmsRxSNO srcRptSNO) {
+bool OmsRcSynClientSession::RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::Locker& srcMap, RemoteReqMap::OmsRequestSP* pSrcReqSP, OmsRxSNO srcRptSNO) {
    // 任何回報, 都有可能來自 [非:原接單主機], 此時 rptReq 必須是整個系統唯一, 所以:
    // (*snoMap)[apiRpt->ReportSNO_] 與 (OrigHost.MapSNO_)[origSNO] 必須是同一個 rptReq;
    fon9::HostId   origHostId;
@@ -575,25 +575,41 @@ bool OmsRcSynClientSession::RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::Om
    if (fon9_UNLIKELY(origSNO == 0 || origHostId == 0))
       return false;
    rptReq.SetOrigHostId(origHostId);
+   rptReq.SetParentReport((*srcMap)[rptReq.GetParentRequestSNO()].get());
    if (fon9_LIKELY(origHostId == this->HostId_))
       return false;
+   assert(pSrcReqSP == &(*srcMap)[srcRptSNO]);
    OmsRcSyn_SessionFactory* ud = static_cast<OmsRcSyn_SessionFactory*>(this->UserData_);
    if (fon9_UNLIKELY(origHostId == fon9::LocalHostId_)) {
       if (auto* origReq = dynamic_cast<const OmsRequestBase*>(this->OmsCore_->GetRxItem(origSNO)))
-         riSrcReqSP.reset(origReq);
+         pSrcReqSP->reset(origReq);
    }
    else {
-      auto origMap = ud->FetchRemoteMap(origHostId);
-      auto snoMap = origMap->MapSNO_.Lock();
-      if (snoMap->size() <= origSNO)
-         snoMap->resize(origSNO + 1024 * 1024);
-      auto& origReqSP = (*snoMap)[origSNO];
-      if (origReqSP)
-         riSrcReqSP = origReqSP;
-      else
-         origReqSP = riSrcReqSP;
+      // 為了避免 origHost 此時也進入這裡, 要處理 srcHost 的 req, 造成死結!
+      // 所以必須先 srcMap.unlock();
+      RemoteReqMap::OmsRequestSP srcRpt = *pSrcReqSP;
+      srcMap.unlock();
+      // 之後要重新取得 pSrcReqSP;
+      // -----
+      RemoteReqMap::OmsRequestSP origReq;
+      {
+         auto origMap = ud->FetchRemoteMap(origHostId);
+         auto snoMap = origMap->MapSNO_.Lock();
+         if (snoMap->size() <= origSNO)
+            snoMap->resize(origSNO + 1024 * 1024);
+         auto& origReqRef = (*snoMap)[origSNO];
+         if (origReqRef)
+            origReq = origReqRef;
+         else
+            origReqRef = std::move(srcRpt);
+      }
+      // -----
+      srcMap.lock();
+      pSrcReqSP = &(*srcMap)[srcRptSNO];
+      if (origReq)
+         *pSrcReqSP = std::move(origReq);
    }
-   ud->AppendMapSNO(this->HostId_, srcRptSNO, *riSrcReqSP);
+   ud->AppendMapSNO(this->HostId_, srcRptSNO, **pSrcReqSP);
    return true;
 }
 void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* apiRpt) {
@@ -604,7 +620,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       return;
    }
    assert(synSes->RemoteMap_.get() != nullptr);
-   const auto snoMap = synSes->RemoteMap_->MapSNO_.Lock(); // 不會主動 snoMap.unlock(); 所以使用 const;
+   auto snoMap = synSes->RemoteMap_->MapSNO_.Lock();
    synSes->RemoteMap_->LastSNO_ = apiRpt->ReportSNO_;
    if (fon9_UNLIKELY(apiRpt->Layout_ == NULL)) { // 回補結束.
       synSes->OnOmsRcSyn_ReportRecoverEnd();
@@ -652,7 +668,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       // 新單 or 無新單的亂序回報(但是,因訂閱回報時使用 NoExternal 所以不會有此情況).
       *pSrcReqSP = rptReq = OnOmsRcSyn_MakeRpt(rptdef, apiRpt);
       assert(rptReq->RxKind() == f9fmkt_RxKind_RequestNew);
-      synSes->RemapReqUID(*rptReq, *pSrcReqSP, apiRpt->ReportSNO_);
+      synSes->RemapReqUID(*rptReq, snoMap, pSrcReqSP, apiRpt->ReportSNO_);
       return; // 接下來需要等到 ordraw 回報, 才有足夠的資料(req + ordraw), 執行回報處理.
    }
    const OmsRequestBase* ref = (*snoMap)[apiRpt->ReferenceSNO_].get();
@@ -726,7 +742,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       case f9fmkt_RxKind_RequestRerun:
          // 從 ref 複製必要欄位(IvacNo、Symbol...);
          rptReq->OnSynReport(ref, nullptr);
-         synSes->RemapReqUID(*rptReq, *pSrcReqSP, apiRpt->ReportSNO_);
+         synSes->RemapReqUID(*rptReq, snoMap, pSrcReqSP, apiRpt->ReportSNO_);
          /* fall through */
       case f9fmkt_RxKind_RequestNew:
          // 接下來需要等到 f9fmkt_RxKind_Order(ordraw) 回報, 才知道 rptReq 的結果, 到時才可正確處理回報.
@@ -796,10 +812,15 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       message = apiRpt->FieldArray_[apiRpt->Layout_->IdxMessage_];
    rptReq->OnSynReport(ref, message);
    rptReq->SetReportNeedsLog();
-   rptReq->SetParentReport((*snoMap)[rptReq->GetParentRequestSNO()].get());
+   // 必須在收到 Rpt 的時候就設定好 Parent, 否則:
+   // - 若 Rpt 從 HostA 收到(ParentSNO=HostA的編號);
+   // - 但 Ord 從 HostB 收到: 此時的 ParentSNO 為 HostA 的, 若在此取得 Parent, 就會有嚴重的錯置!
+   // => 改成在 RemapReqUID() 時設定.
+   // rptReq->SetParentReport((*snoMap)[rptReq->GetParentRequestSNO()].get());
    // -----
-   assert((rptReq->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep)
-          || (rptReq->RxKind() == f9fmkt_RxKind_RequestNew && !OmsIsOrdNoEmpty(rptReq->OrdNo_)));
+   assert(rptReq->IsParentRequest() // 母單改量,可能是 f9fmkt_TradingRequestSt_Sending;
+         || (rptReq->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep)
+         || (rptReq->RxKind() == f9fmkt_RxKind_RequestNew && !OmsIsOrdNoEmpty(rptReq->OrdNo_)));
    synSes->OnOmsRcSyn_RunReport(std::move(rptReq), ref, message);
 }
 void OmsRcSynClientSession::OnOmsRcSyn_RunReport(OmsRequestSP rptReq, const OmsRequestBase* ref, const StrView& message) {

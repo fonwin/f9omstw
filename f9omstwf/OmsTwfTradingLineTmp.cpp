@@ -277,7 +277,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
          pkr1bf->ExecType_ = f9twf::TmpExecType::Query;
          break;
       case f9fmkt_RxKind_RequestChgPri: // 報價: 沒有改價功能.
-         pkr1bf->ExecType_ = f9twf::TmpExecType::ChgPrim; // 改價 & 不改成交回報線路.
+         pkr1bf->ExecType_ = f9twf::TmpExecType::ChgPriM; // 改價 & 改成交回報線路: 避免改價後成交回報,先從原線路回報,造成研判上的困擾.
          if (auto* chgPriReq = dynamic_cast<const OmsTwfRequestChg1*>(curReq)) {
             tif = chgPriReq->TimeInForce_;
             priType = chgPriReq->PriType_;
@@ -388,7 +388,7 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
          break;
       case f9fmkt_RxKind_RequestChgPri: // 報價單邊改價.
          if (auto* chgPriReq9 = dynamic_cast<const OmsTwfRequestChg9*>(curReq)) {
-            pkr1bf->ExecType_ = f9twf::TmpExecType::ChgPrim; // 改價 & 不改成交回報線路.
+            pkr1bf->ExecType_ = f9twf::TmpExecType::ChgPriM; // 改價 & 改成交回報線路: 避免改價後成交回報,先從原線路回報,造成研判上的困擾.
             bidPri = chgPriReq9->BidPri_;
             offerPri = chgPriReq9->OfferPri_;
          }

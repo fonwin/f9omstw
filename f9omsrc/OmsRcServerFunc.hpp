@@ -79,6 +79,8 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    unsigned       ConfigSentCount_{};
    char           Padding____[4];
 
+   std::vector<OmsRequestSP>  ReqCache_;
+
    bool CheckApiReady(ApiSession& ses);
    void SendConfig(ApiSession& ses);
    void OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param);

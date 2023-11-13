@@ -177,8 +177,9 @@ protected:
    }
 
    /// 傳回不相同的欄位名稱, 例如: "IvacNo", "SubacNo";
+   /// 傳回 nullptr 表示 [必要欄位] 與 ini req 相符.
    /// 不檢查 SalesNo, 因為此欄不同也不影響委託內容.
-   const char* IsIniFieldEqualImpl(const OmsRequestIni& req) const;
+   const char* GetNotEqualIniFieldNameImpl(const OmsRequestIni& req) const;
 
 public:
    OmsRequestIni(OmsRequestFactory& creator, f9fmkt_RxKind reqKind = f9fmkt_RxKind_RequestNew)
@@ -195,7 +196,8 @@ public:
    /// \retval "BrkId"        BrkId 不相同.
    /// \retval "IvacNo"       IvacNo 不相同.
    /// \retval "SubacNo"      SubacNo 不相同.
-   virtual const char* IsIniFieldEqual(const OmsRequestBase& req) const;
+   /// \retval nullptr        表示 [必要欄位] 與 ini req 相符.
+   virtual const char* GetNotEqualIniFieldName(const OmsRequestBase& req) const;
 
    /// - 檢查 BrkId, OrdNo: 必須有填.
    /// - 如果沒填 Market, 則根據 scRes.Symb_ 判斷 Market.

@@ -60,12 +60,12 @@ void OmsRequestIni::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestIni, SalesNo));
    flds.Add(fon9_MakeField2(OmsRequestIni, VaTimeMS));
 }
-const char* OmsRequestIni::IsIniFieldEqual(const OmsRequestBase& req) const {
+const char* OmsRequestIni::GetNotEqualIniFieldName(const OmsRequestBase& req) const {
    if (auto r = dynamic_cast<const OmsRequestIni*>(&req))
-      return this->IsIniFieldEqualImpl(*r);
+      return this->GetNotEqualIniFieldNameImpl(*r);
    return "RequestIni";
 }
-const char* OmsRequestIni::IsIniFieldEqualImpl(const OmsRequestIni& req) const {
+const char* OmsRequestIni::GetNotEqualIniFieldNameImpl(const OmsRequestIni& req) const {
    if (this->BrkId_ != req.BrkId_)
       return "BrkId";
    if (this->IvacNo_ != req.IvacNo_)
@@ -158,7 +158,7 @@ bool OmsRequestIni::BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource
       return true;
    assert(runner.Request_.get() != this);
    // 委託已存在, 則欄位(Ivr,Side,Symbol,...)必須正確.
-   if (const char* pErrField = this->IsIniFieldEqual(*runner.Request_)) {
+   if (const char* pErrField = this->GetNotEqualIniFieldName(*runner.Request_)) {
       runner.RequestAbandon(&res, OmsErrCode_FieldNotMatch, fon9::RevPrintTo<std::string>('\'', pErrField, "' not equal."));
       return false;
    }

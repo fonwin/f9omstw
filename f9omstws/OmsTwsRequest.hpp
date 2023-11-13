@@ -36,7 +36,7 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 
-   const char* IsIniFieldEqual(const OmsRequestBase& req) const override;
+   const char* GetNotEqualIniFieldName(const OmsRequestBase& req) const override;
 
    /// - 若沒填 Market 或 SessionId, 則會設定 scRes.Symb_;
    /// - 如果沒填 SessionId, 則:

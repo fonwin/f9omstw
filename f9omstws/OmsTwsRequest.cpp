@@ -18,14 +18,14 @@ void OmsTwsRequestIni::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwsRequestIni, OType));
    flds.Add(fon9_MakeField2(OmsTwsRequestIni, TimeInForce));
 }
-const char* OmsTwsRequestIni::IsIniFieldEqual(const OmsRequestBase& req) const {
+const char* OmsTwsRequestIni::GetNotEqualIniFieldName(const OmsRequestBase& req) const {
    if (auto r = dynamic_cast<const OmsTwsRequestIni*>(&req)) {
       #define CHECK_IniFieldEqual(fldName)   do { if(this->fldName##_ != r->fldName##_) return #fldName; } while(0)
       CHECK_IniFieldEqual(Side);
       CHECK_IniFieldEqual(Symbol);
       if (r->OType_ != OmsTwsOType{})
          CHECK_IniFieldEqual(OType);
-      return base::IsIniFieldEqualImpl(*r);
+      return base::GetNotEqualIniFieldNameImpl(*r);
    }
    return "RequestTwsIni";
 }

@@ -17,13 +17,13 @@ void OmsTwfRequestIni1::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsTwfRequestIni1, TimeInForce));
    flds.Add(fon9_MakeField2(OmsTwfRequestIni1, IvacNoFlag));
 }
-const char* OmsTwfRequestIni1::IsIniFieldEqual(const OmsRequestBase& req) const {
+const char* OmsTwfRequestIni1::GetNotEqualIniFieldName(const OmsRequestBase& req) const {
    if (auto r = dynamic_cast<const OmsTwfRequestIni1*>(&req)) {
       #define CHECK_IniFieldEqual(fldName)   do { if(this->fldName##_ != r->fldName##_) return #fldName; } while(0)
       CHECK_IniFieldEqual(Side);
       if (r->PosEff_ != OmsTwfPosEff{})
          CHECK_IniFieldEqual(PosEff);
-      return base::IsIniFieldEqualImpl(*r);
+      return base::GetNotEqualIniFieldNameImpl(*r);
    }
    return "RequestTwfIni1";
 }

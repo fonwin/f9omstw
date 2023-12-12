@@ -107,13 +107,19 @@ const OmsOrdTeamGroupCfg* OmsOrdTeamGroupMgr::SetTeamGroup(fon9::StrView name, f
    }
    if (ToStrView(tgCfg->Config_) != cfgstr) {
       tgCfg->Config_.assign(cfgstr);
-
-      if (cfgstr.Get1st() == '%') {
+      // 第1碼決定 [委託序號] 編碼方式.
+      switch (cfgstr.Get1st()) {
+      case '%': // [委託序號] 使用 [數字]: 0..9
          tgCfg->FnIncOrdNo_ = f9omstw_IncStrDec;
          cfgstr.SetBegin(cfgstr.begin() + 1);
-      }
-      else {
+         break;
+      case '^': // [委託序號] 使用 [數字+大寫]: 0..9, A..Z 不使用小寫;
+         tgCfg->FnIncOrdNo_ = f9omstw_IncStrDecUpper;
+         cfgstr.SetBegin(cfgstr.begin() + 1);
+         break;
+      default: // [委託序號] 使用 [文數字]: 0..9, A..Z, a..z
          tgCfg->FnIncOrdNo_ = f9omstw_IncStrAlpha;
+         break;
       }
 
       if ((tgCfg->IsAllowAnyOrdNo_ = (cfgstr.Get1st() == '*')) == true)

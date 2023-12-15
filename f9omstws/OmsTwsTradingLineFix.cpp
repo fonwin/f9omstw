@@ -109,7 +109,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       rptKind = f9fmkt_RxKind_RequestNew;
       rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
       break;
-   case *f9fix_kVAL_ExecType_Rejected:       // "8" 新單失敗.
+   case *f9fix_kVAL_ExecType_Rejected:       // "8" 新單失敗. or 查詢失敗(全部成交?)
       rptKind = f9fmkt_RxKind_RequestNew;
       rptSt = f9fmkt_TradingRequestSt_ExchangeRejected;
       break;

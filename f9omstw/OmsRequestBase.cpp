@@ -111,7 +111,7 @@ void OmsRequestBase::OnAfterBackendReload(OmsResource& res, void* backendLocker)
    if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
                   || ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
       auto& order = ordraw->Order();
-      if (order.LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled) {
+      if (order.IsWorkingOrder()) { // order.LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled
          // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
          // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
          // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
@@ -325,6 +325,13 @@ bool OmsRequestBase::RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker
             // 因為改量要求如果會讓剩餘量為0; 則下單時可能會用「刪單訊息」.
             goto __RX_KIND_OK;
          }
+      }
+      else if (origReq.RxKind() == f9fmkt_RxKind_RequestQuery) {
+         // origReq 為 [查詢], 則不理會回報時的 RxKind,
+         // 因為對方可能會傳回最後的 RxKind,
+         // or [無剩餘量]之類的狀態時, 可能用 [新單失敗] 來回報.
+         this->RxKind_ = f9fmkt_RxKind_RequestQuery;
+         goto __RX_KIND_OK;
       }
       assert(this->RxKind_ == origReq.RxKind()); // _DEBUG 時直接死在這裡. RELEASE build 則僅記錄在 omslog.
       checker.ReportAbandon("Report: RxKind not match orig request.");

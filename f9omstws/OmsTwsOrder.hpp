@@ -61,6 +61,7 @@ struct OmsTwsOrderRawDat {
       this->LastExgTime_.AssignNull();
       this->LastFilledTime_.AssignNull();
       this->LastPriTime_.AssignNull();
+      this->LastPri_.AssignNull();
    }
    /// 先從 prev 複製全部, 然後修改:
    /// - this->BeforeQty_ = this->AfterQty_ = this.LeavesQty_;
@@ -88,6 +89,7 @@ public:
    void OnOrderReject() override;
    bool CheckErrCodeAct(const OmsErrCodeAct& act) const override;
    bool IsWorking() const override;
+   OmsFilledFlag HasFilled() const override;
    bool OnBeforeRerun(const OmsReportRunnerInCore& runner) override;
 };
 

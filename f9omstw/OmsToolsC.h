@@ -16,6 +16,9 @@ extern "C" {
    /// 「文數字字串(0-9,A-Z,a-z)」 + 1;
    int f9omstw_IncStrAlpha(char* pbeg, char* pend);
 
+   /// 「文數字字串(0-9,A-Z)」 + 1;
+   int f9omstw_IncStrDecUpper(char* pbeg, char* pend);
+
 #ifdef __cplusplus
 }
 #endif

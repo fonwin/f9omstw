@@ -383,7 +383,7 @@ struct TestCore : public f9omstw::OmsCore {
             fnDefault.resize(fnDefault.size() - 4);
          fnDefault += fon9::RevPrintTo<std::string>('.', forceTDay, ".log");
       }
-      StartResult res = this->Start(fnDefault, fon9::TimeInterval_Microsecond(1));
+      StartResult res = this->Start(fnDefault, fon9::TimeInterval_Microsecond(1), -1);
       if (res.IsError())
          std::cout << "OmsCore.Reload error:" << fon9::RevPrintTo<std::string>(res) << std::endl;
    }

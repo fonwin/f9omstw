@@ -45,6 +45,7 @@ struct OmsTwfOrderRawDat1 : public OmsTwfOrderQtys {
       fon9::ForceZeroNonTrivial(this);
       this->LastFilledTime_.AssignNull();
       this->LastPriTime_.AssignNull();
+      this->LastPri_.AssignNull();
    }
    /// 先從 prev 複製全部, 然後修改:
    /// - this->BeforeQty_ = this->AfterQty_ = this.LeavesQty_;
@@ -71,6 +72,7 @@ public:
 
    void OnOrderReject() override;
    bool IsWorking() const override;
+   OmsFilledFlag  HasFilled() const override;
    bool OnBeforeRerun(const OmsReportRunnerInCore& runner) override;
 };
 

@@ -115,10 +115,8 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    // TwseIvacnoFlag       v           v        v        v
    // TransactTime         v           v        v
 
-   // "|TransactTime=yyyymmdd-hh:mm:ss.mmm"
-   fixb.PutUtcTime(now);
-   char* pout = RevPutStr(fixb.GetBuffer().AllocPrefix(256), f9fix_SPLTAGEQ(TransactTime));
-
+   auto& fixrbuf = fixb.GetBuffer();
+   char* pout = fixrbuf.AllocPrefix(256);
    switch (iniReq->Side_) {
    case f9fmkt_Side_Buy:   pout = RevPutStr(pout, f9fix_SPLTAGEQ(Side) f9fix_kVAL_Side_Buy);    break;
    case f9fmkt_Side_Sell:  pout = RevPutStr(pout, f9fix_SPLTAGEQ(Side) f9fix_kVAL_Side_Sell);   break;
@@ -138,12 +136,18 @@ TwsTradingLineFix::SendResult TwsTradingLineFix::SendRequest(f9fmkt::TradingRequ
    fon9::StrView       msgType;
    const f9fmkt_RxKind rxKind = curReq->RxKind();
    if (fon9_UNLIKELY(rxKind == f9fmkt_RxKind_RequestQuery)) {
+      // 查詢不可提供 TransactTime 欄位!
       pout = RevPutStr(pout, f9fix_SPLTAGEQ(TwseIvacnoFlag));
       msgType = f9fix_SPLFLDMSGTYPE(OrderStatusRequest);
    }
    else {
       pout = RevPutStr(pout, f9fix_SPLTAGEQ(TwseRejStaleOrd) "N"
                              f9fix_SPLTAGEQ(TwseIvacnoFlag));
+      // "|TransactTime=yyyymmdd-hh:mm:ss.mmm"
+      fixrbuf.SetPrefixUsed(pout);
+      fixb.PutUtcTime(now);
+      pout = RevPutStr(fixrbuf.AllocPrefix(200), f9fix_SPLTAGEQ(TransactTime));
+      // -----
       if (fon9_UNLIKELY(rxKind == f9fmkt_RxKind_RequestDelete)) {
 __REQUEST_DELETE:
          msgType = f9fix_SPLFLDMSGTYPE(OrderCancelRequest);
@@ -274,7 +278,7 @@ __REQUEST_DELETE:
    *--pout = static_cast<char>(twsApCode);
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(TargetSubID));
    // -----------
-   fixb.GetBuffer().SetPrefixUsed(pout);
+   fixrbuf.SetPrefixUsed(pout);
    this->FlowCounter_.ForceUsed(now);
    this->FixSender_->Send(msgType, std::move(fixb), &runner->ExLogForUpd_);
    runner->Update(f9fmkt_TradingRequestSt_Sending, ToStrView(this->StrSendingBy_));

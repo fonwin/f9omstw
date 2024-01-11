@@ -39,6 +39,10 @@ void OmsTwfOrderRaw9::OnOrderReject() {
 bool OmsTwfOrderRaw9::IsWorking() const {
    return this->Bid_.LeavesQty_ > 0 && this->Offer_.LeavesQty_ > 0;
 }
+OmsFilledFlag OmsTwfOrderRaw9::HasFilled() const {
+   return ((this->Bid_.CumQty_   > 0 ? OmsFilledFlag::HasBidFilled   : OmsFilledFlag::None)
+         | (this->Offer_.CumQty_ > 0 ? OmsFilledFlag::HasOfferFilled : OmsFilledFlag::None));
+}
 bool OmsTwfOrderRaw9::OnBeforeRerun(const OmsReportRunnerInCore& runner) {
    (void)runner;
    if (this->Request().RxKind() == f9fmkt_RxKind_RequestNew) {

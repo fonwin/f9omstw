@@ -34,7 +34,7 @@ bool OmsCoreMgrSeed::AddCore(fon9::TimeStamp tday) {
    // oms log 檔名與 TDay 相關, 與 TimeZone 無關, 所以要排除 TimeZone;
    logfn.RebuildFileNameExcludeTimeZone(tday);
    return core->StartToCoreMgr(logfn.GetFileName() + this->Name_ + ".log",
-                               this->CpuId_, this->FlushInterval_);
+                               this->CoreCpuId_, this->BackendFlushInterval_, this->BackendCpuId_);
 }
 
 } // namespaces

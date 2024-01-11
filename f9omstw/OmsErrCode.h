@@ -56,7 +56,9 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// 新單沒有填 SessionId, 且商品資料的相關欄位不正確(例如 symb->FlowGroup_, symb->TradingSessionId_);
    OmsErrCode_Bad_SymbSessionId = 112,
    /// 已收盤, 由風控步驟自行判斷 Symb->TradingSessionSt_ 處理.
-   OmsErrCode_SessionClosed = 113,
+   OmsErrCode_SessionClosedRejected = 113,
+   /// 以收盤, 由交易所(或券商系統)取消剩餘量.
+   OmsErrCode_SessionClosedCanceled = 114,
 
    /// 不認識的 MarketId, 無法決定下單要求要送到何處.
    OmsErrCode_Bad_MarketId = 120,
@@ -82,6 +84,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Symb_NoMarketPri = 206,
    /// 不支援改價. (定價交易無改價功能, 或系統不支援改價);
    OmsErrCode_Symb_NoChgPri = 207,
+   /// 已觸發, 無法更改條件內容;
+   OmsErrCode_Triggered_Cannot_ChgCond = 208,
 
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 300,

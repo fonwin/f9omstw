@@ -30,6 +30,7 @@ public:
    static OmsRequestSP MakeReportIn(OmsRequestFactory& creator, f9fmkt_RxKind reqKind) {
       auto retval = new OmsTwfReport3{creator, reqKind};
       retval->InitializeForReportIn();
+      retval->SetForceInternal();
       return retval;
    }
 

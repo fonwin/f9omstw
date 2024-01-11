@@ -168,6 +168,9 @@ public:
       return *this->Creator_;
    }
 
+   void ResetCrTime(fon9::TimeStamp crTime) {
+      this->CrTime_ = crTime;
+   }
    fon9::TimeStamp CrTime() const {
       return this->CrTime_;
    }

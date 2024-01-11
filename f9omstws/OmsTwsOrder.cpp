@@ -42,6 +42,9 @@ bool OmsTwsOrderRaw::CheckErrCodeAct(const OmsErrCodeAct& act) const {
 bool OmsTwsOrderRaw::IsWorking() const {
    return this->LeavesQty_ > 0;
 }
+OmsFilledFlag OmsTwsOrderRaw::HasFilled() const {
+   return this->CumQty_ > 0 ? OmsFilledFlag::HasFilled : OmsFilledFlag::None;
+}
 bool OmsTwsOrderRaw::OnBeforeRerun(const OmsReportRunnerInCore& runner) {
    (void)runner;
    if (this->Request().RxKind() == f9fmkt_RxKind_RequestNew)

@@ -44,3 +44,24 @@ int f9omstw_IncStrAlpha(char* pbeg, char* pend) {
    }
    return 0;
 }
+int f9omstw_IncStrDecUpper(char* pbeg, char* pend) {
+   while (pbeg < pend) {
+      const char ch = *--pend;
+      if (fon9_LIKELY(ch < '9')) {
+         assert('0' <= ch);
+         ++(*pend);
+         return 1;
+      }
+      if (fon9_UNLIKELY(ch == '9')) {
+         *pend = 'A';
+         return 1;
+      }
+      if (fon9_LIKELY(ch < 'Z')) {
+         assert('A' <= ch);
+         ++(*pend);
+         return 1;
+      }
+      *pend = '0';
+   }
+   return 0;
+}

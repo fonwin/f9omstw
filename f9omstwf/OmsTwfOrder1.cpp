@@ -39,6 +39,9 @@ void OmsTwfOrderRaw1::OnOrderReject() {
 bool OmsTwfOrderRaw1::IsWorking() const {
    return this->LeavesQty_ > 0;
 }
+OmsFilledFlag  OmsTwfOrderRaw1::HasFilled() const {
+   return this->CumQty_ > 0 ? OmsFilledFlag::HasFilled : OmsFilledFlag::None;
+}
 bool OmsTwfOrderRaw1::OnBeforeRerun(const OmsReportRunnerInCore& runner) {
    (void)runner;
    if (this->Request().RxKind() == f9fmkt_RxKind_RequestNew)

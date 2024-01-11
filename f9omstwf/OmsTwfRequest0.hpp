@@ -57,7 +57,7 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 
-   const char* IsIniFieldEqual(const OmsRequestBase& req) const override;
+   const char* GetNotEqualIniFieldName(const OmsRequestBase& req) const override;
 
    /// - 設定 scRes.Symb_; 若為複式單, 則會設定 this->SymbLeg2_;
    /// - 如果沒填 SessionId, 則填入 scRes.Symb_->TradingSessionId_ 判斷: 日盤or夜盤:

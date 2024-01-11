@@ -195,7 +195,7 @@ kChkOrderST(ExchangeCanceled,        7, 0, 0,kTIME1) kOrdPri(R,202,kTIME1) kOrdC
 // 這裡驗證: 方法2.
 ">AllocOrdNo=f-N-8610-A",
 "+"   kTwfFil(1,1,201,kTIME1) "|QtyCanceled=7|PriOrd=203", // 成交1口, 交易所主動刪除剩餘的7口(遺漏1口,且無order.Initiator).
-kChkOrder(ReportPending,PartFilled, 0, 0, 0,"") "|LastTimeInForce=|LastPriTime=|LastPri=0|LastPriType=" kOrdCum(0,0,""),
+kChkOrder(ReportPending,PartFilled, 0, 0, 0,"") "|LastTimeInForce=|LastPriTime=|LastPri=|LastPriType=" kOrdCum(0,0,""),
 // 回報補單: 新單10口; 因(成交1 及 刪除7)仍遺漏2口,所以繼續等.
 "+1." kTwfRpt(ExchangeAccepted,N,  10,10,   kTIME0) kPriLmt(R,200),
 kChkOrderST(ExchangeAccepted,       0,10,10,kTIME0) kOrdPri(R,200,kTIME0),

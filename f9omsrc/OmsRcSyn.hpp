@@ -25,6 +25,7 @@ struct RemoteReqMap : public fon9::intrusive_ref_counter<RemoteReqMap> {
    using OmsRequestSP = fon9::intrusive_ptr<const OmsRequestBase>;
    using MapImpl = std::deque<OmsRequestSP>;
    using Map = fon9::MustLock<MapImpl>;
+   using Locker = Map::Locker;
    Map                  MapSNO_;
    OmsRxSNO             LastSNO_{};
    f9rc_ClientSession*  Session_{};
@@ -48,7 +49,7 @@ class OmsRcSynClientSession : public fon9::rc::RcClientSession {
 
    static void f9OmsRc_CALL OnOmsRcSyn_Config(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg);
    static void f9OmsRc_CALL OnOmsRcSyn_Report(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* apiRpt);
-   bool RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::OmsRequestSP& riSrcReqSP, OmsRxSNO srcRptSNO);
+   bool RemapReqUID(OmsRequestBase& rptReq, RemoteReqMap::Locker& srcMap, RemoteReqMap::OmsRequestSP* pSrcReqSP, OmsRxSNO srcRptSNO);
 
 protected:
    RemoteReqMapSP RemoteMap_;

@@ -5,7 +5,7 @@
 #include "f9omstw/OmsRequestBase.hpp"
 #include "fon9/buffer/RevBufferList.hpp"
 #include "fon9/ThreadController.hpp"
-#include "fon9/File.hpp"
+#include "fon9/FileAppender.hpp"
 #include "fon9/Subr.hpp"
 #include <deque>
 #include <vector>
@@ -95,9 +95,19 @@ class OmsBackend {
    Items                Items_;
    OmsRxSNO             LastSNO_{0};
    OmsRxSNO             PublishedSNO_{0};
-   fon9::File           RecorderFd_;
    fon9::TimeInterval   FlushInterval_;
+   int                  CpuAffinity_{-1};
+   char                 Padding____[4];
    std::string          LogPath_;
+
+   class RecoderFd : public fon9::AsyncFileAppender {
+      fon9_NON_COPY_NON_MOVE(RecoderFd);
+      using base = fon9::AsyncFileAppender;
+   public:
+      RecoderFd() = default;
+      using base::GetStorage;
+   };
+   const fon9::intrusive_ptr<RecoderFd>   RecorderFd_{new RecoderFd};
 
    enum class RecoverResult {
       Empty,
@@ -108,6 +118,7 @@ class OmsBackend {
 
    void ThrRun(std::string thrName);
    void SaveQuItems(QuItems& quItems);
+   void CheckNotify(Items::Locker& items);
    struct Loader;
 
 public:
@@ -115,6 +126,19 @@ public:
    ReportSubject  ReportSubject_;
 
    using Locker = Items::Locker;
+   class LockerForAppend : public Locker {
+      fon9_NON_COPYABLE(LockerForAppend);
+      using base = Locker;
+   public:
+      using base::base;
+      LockerForAppend(LockerForAppend&& rhs) : base{std::move(rhs)} {
+      }
+      LockerForAppend& operator=(LockerForAppend&& rhs) {
+         base::operator=(std::move(rhs));
+         return *this;
+      }
+      ~LockerForAppend();
+   };
 
    enum : size_t {
    #ifdef NDEBUG
@@ -138,7 +162,7 @@ public:
    OpenResult OpenReload(std::string logFileName, OmsResource& resource,
                          fon9::FileMode fmode = fon9::FileMode::CreatePath | fon9::FileMode::Append
                                               | fon9::FileMode::Read | fon9::FileMode::DenyWrite);
-   void StartThread(std::string thrName, fon9::TimeInterval flushInterval);
+   void StartThread(std::string thrName, fon9::TimeInterval flushInterval, int cpuAffinity);
    uintptr_t ThreadId() const {
       return this->ThreadId_;
    }
@@ -159,6 +183,9 @@ public:
    }
    Locker Lock() {
       return Locker{this->Items_};
+   }
+   LockerForAppend LockForAppend() {
+      return LockerForAppend{this->Items_};
    }
    /// 只會在 OmsCore 保護下執行.
    OmsRxSNO FetchSNO(OmsRxItem& item) {
@@ -186,9 +213,9 @@ public:
 
    /// 將自訂內容寫入 log.
    void LogAppend(fon9::RevBufferList&& rbuf) {
-      this->LogAppend(this->Lock(), std::move(rbuf));
+      this->LogAppend(this->LockForAppend(), std::move(rbuf));
    }
-   static void LogAppend(const Locker& items, fon9::RevBufferList&& rbuf) {
+   static void LogAppend(const LockerForAppend& items, fon9::RevBufferList&& rbuf) {
       items->QuItems_.emplace_back(nullptr, std::move(rbuf));
    }
    /// 不是 thread safe, 必須在 OpenReload() 之後才能安全的使用.
@@ -211,13 +238,13 @@ public:
       assert(task.get() != nullptr);
       assert(task->RxKind() == f9fmkt_RxKind_Unknown);
       assert(task->RxSNO() == 0);
-      Items::Locker{this->Items_}->QuItems_.emplace_back(task.detach(), fon9::RevBufferList{0});
+      this->LockForAppend()->QuItems_.emplace_back(task.detach(), fon9::RevBufferList{0});
    }
 
 private:
    friend class OmsRequestRunnerInCore; // ~OmsRequestRunnerInCore() 解構時呼叫 this->OnBefore_Order_EndUpdate();
    void OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner);
-   void EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend);
+   void EndAppend(const LockerForAppend& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend);
 };
 
 } // namespaces

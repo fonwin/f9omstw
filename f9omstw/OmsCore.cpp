@@ -25,13 +25,13 @@ void OmsCore::SetThisThreadId() {
    assert(this->ThreadId_ == fon9::ThreadId::IdType{});
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
 }
-OmsCore::StartResult OmsCore::Start(std::string logFileName, fon9::TimeInterval flushInterval) {
+OmsCore::StartResult OmsCore::Start(std::string logFileName, fon9::TimeInterval backendFlushInterval, int backendCpuId) {
    auto res = this->Backend_.OpenReload(std::move(logFileName), *this);
    if (res.IsError()) {
       this->SetCoreSt(OmsCoreSt::BadCore);
       return res;
    }
-   this->Backend_.StartThread(this->Name_ + "_Backend", flushInterval);
+   this->Backend_.StartThread(this->Name_ + "_Backend", backendFlushInterval, backendCpuId);
    this->Plant();
    return res;
 }
@@ -192,10 +192,10 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
    if (this->RunCoreTask([&waiter, logInfo, &isOrigSender](OmsResource& res) {
       fon9::RevBufferList rbuf{128};
       fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".SearchSendingRequest\n");
-      auto lk = res.Backend_.Lock();
-      res.Backend_.LogAppend(lk, std::move(rbuf));
+      auto lkForAppend = res.Backend_.LockForAppend();
+      res.Backend_.LogAppend(lkForAppend, std::move(rbuf));
       for (auto sno = res.Backend_.LastSNO(); sno > 0; --sno) {
-         const OmsRxItem* item = res.Backend_.GetItem(sno, lk);
+         const OmsRxItem* item = res.Backend_.GetItem(sno, lkForAppend);
          if (item == nullptr)
             continue;
          auto ordraw = static_cast<const OmsOrderRaw*>(item->CastToOrder());
@@ -215,12 +215,12 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
          if (aford == nullptr)
             continue;
          OmsInternalRunnerInCore runner{res, *aford};
-         runner.BackendLocker_ = &lk;
+         runner.BackendLocker_ = &lkForAppend;
          aford->ErrCode_ = OmsErrCode_FailSending;
          runner.Update(f9fmkt_TradingRequestSt_LineRejected);
       }
       fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".Finished\n");
-      res.Backend_.LogAppend(lk, std::move(rbuf));
+      res.Backend_.LogAppend(lkForAppend, std::move(rbuf));
       waiter.ForceWakeUp();
    })) {
       waiter.Wait();

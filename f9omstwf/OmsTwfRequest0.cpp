@@ -12,11 +12,11 @@ void OmsTwfRequestIni0::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(OmsTwfRequestIni0,  TmpSource_.OrderSource_, "OrderSource"));
    flds.Add(fon9_MakeField(OmsTwfRequestIni0,  TmpSource_.InfoSource_,  "InfoSource"));
 }
-const char* OmsTwfRequestIni0::IsIniFieldEqual(const OmsRequestBase& req) const {
+const char* OmsTwfRequestIni0::GetNotEqualIniFieldName(const OmsRequestBase& req) const {
    if (auto r = dynamic_cast<const OmsTwfRequestIni0*>(&req)) {
       #define CHECK_IniFieldEqual(fldName)   do { if(this->fldName##_ != r->fldName##_) return #fldName; } while(0)
       CHECK_IniFieldEqual(Symbol);
-      return base::IsIniFieldEqualImpl(*r);
+      return base::GetNotEqualIniFieldNameImpl(*r);
    }
    return "RequestTwfIni0";
 }

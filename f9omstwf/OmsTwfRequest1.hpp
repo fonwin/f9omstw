@@ -38,7 +38,7 @@ public:
 
    static void MakeFields(fon9::seed::Fields& flds);
 
-   const char* IsIniFieldEqual(const OmsRequestBase& req) const override;
+   const char* GetNotEqualIniFieldName(const OmsRequestBase& req) const override;
 
    bool IsHalfWm() const {
       return(this->PosEff_ == OmsTwfPosEff::DayTrade && this->Market() == f9fmkt_TradingMarket_TwFUT);

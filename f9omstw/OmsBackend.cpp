@@ -7,6 +7,7 @@
 #include "fon9/ThreadTools.hpp"
 #include "fon9/ThreadId.hpp"
 #include "fon9/Log.hpp"
+#include "fon9/Tools.hpp"
 
 namespace f9omstw {
 
@@ -20,7 +21,7 @@ void OmsBackend::OnBeforeDestroy() {
    this->WaitThreadEnd();
 
    Locker items{this->Items_};
-   if (this->LastSNO_ == 0 && !this->RecorderFd_.IsOpened())
+   if (this->LastSNO_ == 0 && !this->RecorderFd_->IsOpened())
       return;
 
    this->SaveQuItems(items->QuItems_);
@@ -28,8 +29,7 @@ void OmsBackend::OnBeforeDestroy() {
 
    fon9::RevBufferList rbuf{128};
    fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::LocalNow(), " =====\n");
-   fon9::DcQueueList dcq{rbuf.MoveOut()};
-   this->RecorderFd_.Append(dcq);
+   this->RecorderFd_->Append(rbuf.MoveOut());
 
    // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {
@@ -37,19 +37,22 @@ void OmsBackend::OnBeforeDestroy() {
          intrusive_ptr_release(item);
    }
    this->LastSNO_ = 0;
-   this->RecorderFd_.Close();
+   this->RecorderFd_->Close();
 }
 bool OmsBackend::IsThisThread() const {
    return(this->ThreadId_ == fon9::GetThisThreadId().ThreadId_);
 }
-void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval) {
+void OmsBackend::StartThread(std::string thrName, fon9::TimeInterval flushInterval, int cpuAffinity) {
    this->FlushInterval_ = flushInterval;
+   this->CpuAffinity_ = cpuAffinity;
    this->Items_.OnBeforeThreadStart(1);
    this->Thread_ = std::thread(&OmsBackend::ThrRun, this, std::move(thrName));
 }
 void OmsBackend::ThrRun(std::string thrName) {
    this->ThreadId_ = fon9::GetThisThreadId().ThreadId_;
-   fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName, "|flushInterval=", this->FlushInterval_);
+   fon9_LOG_ThrRun("OmsBackend.ThrRun|name=", thrName,
+                   "|flushInterval=", this->FlushInterval_,
+                   "|Cpu=", this->CpuAffinity_, ':', fon9::SetCpuAffinity(this->CpuAffinity_));
    {
       QuItems  quItems;
       quItems.reserve(kReserveQuItems);
@@ -61,6 +64,22 @@ void OmsBackend::ThrRun(std::string thrName) {
          if (items->QuItems_.empty() && !items->IsNotified_) {
             switch (this->CheckRecoverHandler(items, recoverIndex)) {
             case RecoverResult::Empty:
+               if (this->FlushInterval_.IsZero()) {
+                  // 在某些應用上, 客戶會需要 [盡快收到回報], 此時可將 FlushInterval 設為 0;
+                  // 但可能會造成 OmsCore 有較大的延遲(因為要跟 OmsCore 搶鎖);
+                  // 所以, 若無此類特殊需求, <<不建議>> 將 FlushInterval 設為 0;
+                  items.unlock();
+                  auto* const pitems = items.get();
+                  while (!pitems->IsNotified_) {
+                     std::atomic_thread_fence(std::memory_order::memory_order_relaxed);
+                     // 這裡的 GetState(items); 沒 lock() 沒有關係;
+                     // 因為: 即使可能會延遲一點點時間, 但最終總是會取得正確結果!
+                     if (this->Items_.GetState(items) != fon9::ThreadState::ExecutingOrWaiting)
+                        break;
+                  }
+                  items.lock();
+                  continue;
+               }
                this->Items_.WaitFor(items, this->FlushInterval_.ToDuration());
                break;
             case RecoverResult::Erase:
@@ -169,15 +188,13 @@ OmsBackend::RecoverResult OmsBackend::CheckRecoverHandler(Items::Locker& items, 
    return RecoverResult::Continue;
 }
 void OmsBackend::ReportRecover(OmsRxSNO fromSNO, RxRecover&& consumer) {
-   Items::Locker  items{this->Items_};
-   bool           needNotify = items->Recovers_.empty();
+   Locker      items{this->Items_};
+   const bool  needNotify = items->Recovers_.empty();
    items->Recovers_.emplace_back(fromSNO, std::move(consumer));
    if (needNotify)
-      this->Items_.NotifyAll(items);
+      this->CheckNotify(items);
 }
-
 //--------------------------------------------------------------------------//
-
 void OmsBackend::ItemsImpl::AppendHistory(const OmsRxItem& item) {
    intrusive_ptr_add_ref(&item);
    const auto snoCurr = item.RxSNO();
@@ -191,16 +208,36 @@ void OmsBackend::ItemsImpl::Append(const OmsRxItem& item, fon9::RevBufferList&& 
    this->AppendHistory(item);
    this->QuItems_.emplace_back(&item, std::move(rbuf));
 }
+//--------------------------------------------------------------------------//
+OmsBackend::LockerForAppend::~LockerForAppend() {
+   if (this->GetOwner() == nullptr) // this 已經 move 給別人了;
+      return;
+   if (fon9_UNLIKELY(!this->owns_lock()))
+      this->lock();
+   auto*       pItemsImpl = this->get();
+   Items*      pItemsMemb = static_cast<Items*>(&Items::StaticCast(*pItemsImpl));
+   OmsBackend& backend = fon9::ContainerOf(*pItemsMemb, &OmsBackend::Items_);
+   backend.CheckNotify(*this);
+}
+void OmsBackend::CheckNotify(Locker& items) {
+   if (this->FlushInterval_.IsZero()) {
+      items->IsNotified_ = true;
+   }
+   else if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
+      items->IsNotified_ = true;
+      this->Items_.NotifyOne(items);
+   }
+}//--------------------------------------------------------------------------//
 void OmsBackend::Append(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
    assert(item.RxSNO() == 0 || item.RxSNO() == this->LastSNO_);
    if (item.RxSNO() == 0)
       item.SetRxSNO(++this->LastSNO_);
-   Items::Locker{this->Items_}->Append(item, std::move(rbuf));
+   this->LockForAppend()->Append(item, std::move(rbuf));
 }
 void OmsBackend::LogAppend(OmsRxItem& item, fon9::RevBufferList&& rbuf) {
    assert(item.RxSNO() == 0);
    intrusive_ptr_add_ref(&item);
-   Items::Locker{this->Items_}->QuItems_.emplace_back(&item, std::move(rbuf));
+   this->LockForAppend()->QuItems_.emplace_back(&item, std::move(rbuf));
 }
 void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
    // 由於此時是在 core thread, 所以只要保護 core 與 backend 之間共用的物件.
@@ -231,14 +268,13 @@ void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
    assert(runner.Resource_.Brks_.get() != nullptr);
    FetchScResourceIvr(runner.Resource_, ordraw.Order());
    if (fon9_LIKELY(runner.BackendLocker_ == nullptr)) {
-      Locker items{this->Items_};
-      this->EndAppend(items, runner, isNeedsReqAppend);
+      this->EndAppend(this->LockForAppend(), runner, isNeedsReqAppend);
    }
    else {
-      this->EndAppend(*reinterpret_cast<Locker*>(runner.BackendLocker_), runner, isNeedsReqAppend);
+      this->EndAppend(*reinterpret_cast<LockerForAppend*>(runner.BackendLocker_), runner, isNeedsReqAppend);
    }
 }
-void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend) {
+void OmsBackend::EndAppend(const LockerForAppend& items, OmsRequestRunnerInCore& runner, bool isNeedsReqAppend) {
    if (isNeedsReqAppend) {
       // req 首次異動, 應先將 req 加入 backend.
       assert(!runner.OrderRaw().Request().IsAbandoned()); // 必定沒有 Abandon.
@@ -246,10 +282,6 @@ void OmsBackend::EndAppend(Locker& items, OmsRequestRunnerInCore& runner, bool i
       items->Append(runner.OrderRaw().Request(), std::move(runner.ExLogForReq_));
    }
    items->Append(runner.OrderRaw(), std::move(runner.ExLogForUpd_));
-   if (!items->IsNotified_ && items->QuItems_.size() > kReserveQuItems / 2) {
-      items->IsNotified_ = true;
-      this->Items_.NotifyOne(items);
-   }
 }
 void OmsBackend::Flush(Locker& items) {
    if (!items->IsNotified_) {

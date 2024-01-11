@@ -26,7 +26,7 @@ void TwsTradingLineFixFactory::OnFixReject(const f9fix::FixRecvEvArgs& rxargs, c
    const auto* fixfld = orig.Msg_.GetField(f9fix_kTAG_ClOrdID);
    if (fixfld == nullptr)
       return;
-   OmsRequestRunner runner{rxargs.MsgStr_};
+   OmsRequestRunner runner{rxargs.OrigMsgStr()};
    fon9::RevPrint(runner.ExLog_, orig.MsgStr_, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
    runner.Request_ = this->RptFactory_.MakeReportIn(f9fmkt_RxKind_Unknown, fon9::UtcNow());
 
@@ -72,7 +72,7 @@ void TwsTradingLineFixFactory::OnFixCancelReject(const f9fix::FixRecvEvArgs& rxa
    // }
 
    auto             core = this->CoreMgr_.CurrentCore();
-   OmsRequestRunner runner{rxargs.MsgStr_};
+   OmsRequestRunner runner{rxargs.OrigMsgStr()};
    runner.Request_ = this->RptFactory_.MakeReportIn(rptKind, fon9::UtcNow());
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
@@ -109,7 +109,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
       rptKind = f9fmkt_RxKind_RequestNew;
       rptSt = f9fmkt_TradingRequestSt_ExchangeAccepted;
       break;
-   case *f9fix_kVAL_ExecType_Rejected:       // "8" 新單失敗.
+   case *f9fix_kVAL_ExecType_Rejected:       // "8" 新單失敗. or 查詢失敗(全部成交?)
       rptKind = f9fmkt_RxKind_RequestNew;
       rptSt = f9fmkt_TradingRequestSt_ExchangeRejected;
       break;
@@ -156,7 +156,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
    }
 
    auto             core = this->CoreMgr_.CurrentCore();
-   OmsRequestRunner runner{rxargs.MsgStr_};
+   OmsRequestRunner runner{rxargs.OrigMsgStr()};
    runner.Request_ = this->RptFactory_.MakeReportIn(rptKind, fon9::UtcNow());
 
    assert(dynamic_cast<OmsTwsReport*>(runner.Request_.get()) != nullptr);
@@ -205,7 +205,7 @@ void TwsTradingLineFixFactory::OnFixExecReport(const f9fix::FixRecvEvArgs& rxarg
 }
 void TwsTradingLineFixFactory::OnFixExecFilled(const f9fix::FixRecvEvArgs& rxargs) {
    auto             core = this->CoreMgr_.CurrentCore();
-   OmsRequestRunner runner{rxargs.MsgStr_};
+   OmsRequestRunner runner{rxargs.OrigMsgStr()};
    runner.Request_ = this->FilFactory_.MakeReportIn(f9fmkt_RxKind_Filled, fon9::UtcNow());
    runner.Request_->SetForceInternal();
 

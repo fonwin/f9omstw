@@ -13,7 +13,7 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
    OmsParentQty  childLeavesQty;
    OmsParentQtyS childAdjQty; // 刪減成功數量 or 成交數量.
    this->GetChildOrderQtys(childOrdraw, childLeavesQty, childAdjQty);
-   if (childAdjQty >= 0) // 不可能增量!
+   if (childAdjQty > 0) // 不可能增量! 但有可能 [二次回報取消,例:OmsErrCode_Twf_DynPriBandRpt], 所以 childAdjQty 可能為 0;
       return;
    const auto* reqFrom = &childOrdraw.Request();
    // 這裡使用 childOrdraw.Request() 來更新母單,
@@ -56,12 +56,21 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
       }
    }
    else {
-      // 手動刪改子單 or 未成交刪單(fa:ExchangeCanceled, OmsErrCode_SessionClosed, OmsErrCode_Twf_DynPriBandRej);
+      // 手動刪改子單 or 未成交刪單(fa:ExchangeCanceled, OmsErrCode_SessionClosedCanceled, OmsErrCode_SessionClosedRejected, OmsErrCode_Twf_DynPriBandRej);
       parentOrdraw.ErrCode_ = childOrdraw.ErrCode_;
-      if (parentOrdraw.ErrCode_ == OmsErrCode_SessionClosed || parentOrdraw.ErrCode_ == OmsErrCode_Twf_DynPriBandRej) {
+      fon9_WARN_DISABLE_SWITCH;
+      switch(parentOrdraw.ErrCode_) {
+      case OmsErrCode_Twf_DynPriBandRej:
+      case OmsErrCode_Twf_DynPriBandRpt:
+         parentOrdraw.Message_ = childOrdraw.Message_;
+         /* fall through */
+      case OmsErrCode_SessionClosedCanceled:
+      case OmsErrCode_SessionClosedRejected:
          parentOrdraw.LeavesQty_ = parentOrdraw.ChildLeavesQty_;
          this->SetParentStopRun();
+         break;
       }
+      fon9_WARN_POP;
       // ===== 子單刪減成功後的 OrderSt =====
       // 刪減後還有剩餘量 => 狀態不變(Sending, PartRejected, PartAccepted, PartFilled...)
       if (parentOrdraw.LeavesQty_ == 0) {
@@ -341,6 +350,9 @@ void OmsParentOrderRaw::OnOrderReject() {
 }
 bool OmsParentOrderRaw::IsWorking() const {
    return this->LeavesQty_ > 0;
+}
+OmsFilledFlag OmsParentOrderRaw::HasFilled() const {
+   return this->CumQty_ > 0 ? OmsFilledFlag::HasFilled : OmsFilledFlag::None;
 }
 
 } // namespaces

@@ -288,7 +288,7 @@ static inline bool IsReportRefMatch(const OmsParentRequestIni& rthis, const OmsR
    return ref.RxSNO() != 0
       && ref.ReqUID_ == rthis.ReqUID_
       && ref.OrdNo_ == rthis.OrdNo_
-      && rthis.IsIniFieldEqual(ref);
+      && rthis.GetNotEqualIniFieldName(ref) == nullptr;
 }
 void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
    // 母單回報(新單、刪改、成交)都會來到這裡:

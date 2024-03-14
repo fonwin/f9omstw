@@ -700,6 +700,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       OnOmsRcSyn_AssignReq(rptdef, apiRpt, *rptReq);
       if (ref->RxKind() == f9fmkt_RxKind_RequestNew) {
          // 新單回報: 必須等到 [有委託書號] 才處理.
+         // 如果有需要同步 Queuing, WaitingCond 則對方需要先填入委託書號。
          if (OmsIsOrdNoEmpty(ref->OrdNo_)) {
             if (ref->ReportSt() >= f9fmkt_TradingRequestSt_Done) {
                // 拋棄: [沒編委託書號] 的 [新單結束(例:失敗新單)].
@@ -707,11 +708,6 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
             }
             return;
          }
-         // 如果有需要同步 Queuing, WaitingCond 則對方需要先填入委託書號。
-         if (rptReq->ReportSt() == f9fmkt_TradingRequestSt_Queuing)
-            rptReq->SetReportSt(f9fmkt_TradingRequestSt_QueuingAtOther);
-         else if (rptReq->ReportSt() == f9fmkt_TradingRequestSt_WaitingCond)
-            rptReq->SetReportSt(f9fmkt_TradingRequestSt_WaitingCondAtOther);
       }
       else {
          // 刪改回報: 等收到最後結果再處理; 不理會 Sending, Queuing.
@@ -807,6 +803,13 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
          break;
       }
    }
+   fon9_WARN_DISABLE_SWITCH;
+   switch (rptReq->ReportSt()) {
+   case f9fmkt_TradingRequestSt_Queuing:     rptReq->SetReportSt(f9fmkt_TradingRequestSt_QueuingAtOther);      break;
+   case f9fmkt_TradingRequestSt_WaitingCond: rptReq->SetReportSt(f9fmkt_TradingRequestSt_WaitingCondAtOther);  break;
+   }
+   fon9_WARN_POP;
+
    StrView message;
    if (apiRpt->Layout_->IdxMessage_ >= 0)
       message = apiRpt->FieldArray_[apiRpt->Layout_->IdxMessage_];

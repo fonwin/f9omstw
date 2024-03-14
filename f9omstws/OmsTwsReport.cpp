@@ -87,14 +87,14 @@ void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRu
    OmsTwsReport_Update(ordraw);
 }
 
-static void OmsTwsReport_AssignFromIni(OmsTwsReport& rpt, const OmsTwsRequestIni& ini) {
-   rpt.Side_ = ini.Side_;
-   rpt.Symbol_ = ini.Symbol_;
-   rpt.IvacNo_ = ini.IvacNo_;
-   rpt.SubacNo_ = ini.SubacNo_;
-   rpt.IvacNoFlag_ = ini.IvacNoFlag_;
-   if (rpt.OType_ == OmsTwsOType{})
-      rpt.OType_ = ini.OType_;
+void OmsTwsReport::AssignFromIniBase(const OmsTwsRequestIni& ini) {
+   this->Side_ = ini.Side_;
+   this->Symbol_ = ini.Symbol_;
+   this->IvacNo_ = ini.IvacNo_;
+   this->SubacNo_ = ini.SubacNo_;
+   this->IvacNoFlag_ = ini.IvacNoFlag_;
+   if (this->OType_ == OmsTwsOType{})
+      this->OType_ = ini.OType_;
 }
 void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    assert(this->RxKind() != f9fmkt_RxKind_Unknown);
@@ -104,7 +104,7 @@ void OmsTwsReport::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
    OmsTwsReport_Update(ordraw);
    if (auto* ini = static_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator())) {
       assert(dynamic_cast<const OmsTwsRequestIni*>(ordraw.Order().Initiator()) != nullptr);
-      OmsTwsReport_AssignFromIni(*this, *ini);
+      this->AssignFromIniBase(*ini);
    }
 }
 //--------------------------------------------------------------------------//

@@ -265,6 +265,13 @@ void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
       // - or OmsParentRequestIni::OnAfterBackendReload() 母單: 系統重啟後的異動.
       // - 在 OmsBackend::OpenReload() 最終還是會呼叫 RecalcSc(); 所以這裡不可呼叫 UpdateSc();
    }
+   // 母單因備援需求, UpdateTime 必須遞增.
+   // 請參閱 OmsParentRequestIni::IsNeedsReport() 的檢查邏輯;
+   if (fon9_UNLIKELY(ordraw.Order().IsParentOrder())) {
+      if (auto* prev = ordraw.Order().TailPrev())
+         if (fon9_UNLIKELY(ordraw.UpdateTime_ <= prev->UpdateTime_))
+            ordraw.UpdateTime_.SetOrigValue(prev->UpdateTime_.GetOrigValue() + 1);
+   }
    assert(runner.Resource_.Brks_.get() != nullptr);
    FetchScResourceIvr(runner.Resource_, ordraw.Order());
    if (fon9_LIKELY(runner.BackendLocker_ == nullptr)) {

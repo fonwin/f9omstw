@@ -123,11 +123,11 @@ protected:
 
 inline void OmsOrder::RunnerEndUpdate(const OmsRequestRunnerInCore& runner) {
    if (fon9_LIKELY(this->OrderEndUpdate(runner.OrderRaw()))) {
+      if (fon9_UNLIKELY(IsEnumContains(this->Flags_, OmsOrderFlag::IsNeedsOnOrderUpdated)))
+         this->OnOrderUpdated(runner);
       if (fon9_UNLIKELY(this->FirstPending_ != nullptr
                         && runner.OrderRaw().RequestSt_ > f9fmkt_TradingRequestSt_LastRunStep))
          this->ProcessPendingReport(runner);
-      if (fon9_UNLIKELY(IsEnumContains(this->Flags_, OmsOrderFlag::IsNeedsOnOrderUpdated)))
-         this->OnOrderUpdated(runner);
    }
 }
 inline void OmsRequestRunnerInCore::ForceFinish() {

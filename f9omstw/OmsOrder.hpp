@@ -212,7 +212,7 @@ public:
       return IsEnumContains(this->Flags_, OmsOrderFlag::IsChildOrder);
    }
 protected:
-   /// 設定 OmsOrderFlag::IsChildParent 旗標.
+   /// 設定 OmsOrderFlag::IsParentOrder 旗標.
    void SetThisIsParentOrder() {
       this->Flags_ |= OmsOrderFlag::IsParentOrder;
    }
@@ -322,7 +322,7 @@ public:
    // -----
 
    /// 異動時的本機時間.
-   /// 在 OmsBackend::OnAfterOrderUpdated() 填入當時的時間.
+   /// 在 OmsBackend::OnBefore_Order_EndUpdate() 填入當時的時間.
    fon9::TimeStamp         UpdateTime_;
    /// 若訊息長度沒有超過 fon9::CharVector::kMaxInternalSize (在x64系統, 大約 23 bytes),
    /// 則可以不用分配記憶體, 一般而言常用的訊息不會超過(例如: "Sending by BBBB-SS", "Queuing"),

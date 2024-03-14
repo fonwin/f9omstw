@@ -215,16 +215,32 @@ bool OmsAssignQtysFromReportBfAf(OmsReportRunnerInCore& inCoreRunner, OrdQtysT& 
       return true;
    }
    // 刪改失敗(NoLeavesQty), 但有「在途成交」或「遺漏改量」(LeavesQty > 0), 應先等補齊後再處理.
-   const auto  isReportRejected = f9fmkt_TradingRequestSt_IsAnyRejected(rpt.ReportSt());
+   auto  isReportRejected = f9fmkt_TradingRequestSt_IsAnyRejected(rpt.ReportSt());
    if (fon9_UNLIKELY(isReportRejected)) {
-      assert(rptBeforeQty == rptAfterQty); // 失敗的刪改, 數量不會變動, 所以必定 rptBeforeQty == rptAfterQty;
-      if (inCoreRunner.OrderRaw().RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {
-         if (ordQtys.LeavesQty_ > 0) {
-            ordQtys.BeforeQty_ = ordQtys.AfterQty_ = 0;
-            inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
-            return true;
+      fon9_WARN_DISABLE_SWITCH;
+      switch (inCoreRunner.OrderRaw().Order().LastOrderSt()) {
+      case f9fmkt_OrderSt_NewQueuing:
+      case f9fmkt_OrderSt_NewQueuingAtOther:
+         if (rpt.ReportSt() == f9fmkt_TradingRequestSt_QueuingCanceled) {
+            // 回報時若收到[新單內部刪單], 應視為[刪單成功]回報.
+            isReportRejected = false;
+            break;
          }
+         /* fall through */
+      default:
+         assert((rpt.RxKind() == f9fmkt_RxKind_RequestChgCond  // 改條件: 可能直接觸發送出, 然後送出失敗,
+                 && rptAfterQty == 0)                          //   此時必定會清除剩餘數量.
+                || rptBeforeQty == rptAfterQty); // 失敗的刪改, 數量不會變動, 所以必定 rptBeforeQty == rptAfterQty;
+         if (inCoreRunner.OrderRaw().RequestSt_ == f9fmkt_TradingRequestSt_ExchangeNoLeavesQty) {
+            if (ordQtys.LeavesQty_ > 0) {
+               ordQtys.BeforeQty_ = ordQtys.AfterQty_ = 0;
+               inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+               return true;
+            }
+         }
+         break;
       }
+      fon9_WARN_POP;
    }
    // 回報的改後數量=0, 但有「在途成交」或「遺漏改量」, 應先等補齊後再處理.
    else if (fon9_UNLIKELY(rptAfterQty == 0 && rptBeforeQty < ordQtys.LeavesQty_)) {
@@ -234,9 +250,21 @@ __REPORT_PENDING:
       inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
       return true;
    }
-   // 尚未收到新單結果: 將改單結果存於 ordQtys, 等收到新單結果時再處理.
-   if (fon9_UNLIKELY(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone))
-      goto __REPORT_PENDING;
+   // 尚未收到新單結果: 使用 Pending 機制, 先將改單結果存於 ordQtys, 等收到新單結果時再處理.
+   if (fon9_UNLIKELY(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone)) {
+      fon9_WARN_DISABLE_SWITCH;
+      switch (inCoreRunner.OrderRaw().Order().LastOrderSt()) {
+      case f9fmkt_OrderSt_NewWaitingCond:
+      case f9fmkt_OrderSt_NewWaitingCondAtOther:
+      case f9fmkt_OrderSt_NewQueuing:
+      case f9fmkt_OrderSt_NewQueuingAtOther:
+            // 以上這些狀態, 雖然新單尚未完成(例:條件等候中、排隊中), 但可允許透過回報刪改.
+         break;
+      default:
+         goto __REPORT_PENDING;
+      }
+      fon9_WARN_POP;
+   }
    // ----- 刪減回報 ------------------------------------------
    if (rpt.RxKind() == f9fmkt_RxKind_RequestChgQty
        || rpt.RxKind() == f9fmkt_RxKind_RequestDelete) {
@@ -259,7 +287,8 @@ __REPORT_PENDING:
       if (OmsCheckReportChgPriStale(&inCoreRunner, &ordQtys, &rpt))
          return true;
    }
-   assert(!"OmsAssignQtysFromReportBfAf: Unknown report kind.");
+   // [條件單:改條件]回報, 由衍生者自行處理.
+   assert(rpt.RxKind() == f9fmkt_RxKind_RequestChgCond && "OmsAssignQtysFromReportBfAf: Unknown report kind.");
    return false;
 }
 

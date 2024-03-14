@@ -22,6 +22,8 @@ protected:
    void RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) override;
    bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) override;
    bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) override;
+   /// 從 ini 複製基本欄位: Side_, Symbol_, IvacNo_, SubacNo_, IvacNoFlag_, OType_(如果this->OType_==OmsTwsOType{})
+   void AssignFromIniBase(const OmsTwsRequestIni& ini);
 
 public:
    /// 如果有跨日交易(夜盤), 則跨日的回報 ExgTime_ 應加上 TimeInterval_Day(1);

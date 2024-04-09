@@ -59,6 +59,31 @@ public:
 
    virtual OmsMdLastPriceEv* GetMdLastPriceEv();
    virtual OmsMdBSEv* GetMdBSEv();
+
+   class MdLocker {
+      fon9_NON_COPY_NON_MOVE(MdLocker);
+      MdLocker() = delete;
+      OmsSymb* Owner_;
+   public:
+      MdLocker(OmsSymb& owner) : Owner_(&owner) {
+         owner.LockMd();
+      }
+      ~MdLocker() {
+         if (this->Owner_)
+            this->Owner_->UnlockMd();
+      }
+      void Unlock() {
+         assert(this->Owner_);
+         this->Owner_->UnlockMd();
+         this->Owner_ = nullptr;
+      }
+      bool owns_lock() const {
+         return this->Owner_ != nullptr;
+      }
+   };
+   /// 預設: do nothing;
+   virtual void LockMd();
+   virtual void UnlockMd();
 };
 using OmsSymbSP = fon9::intrusive_ptr<OmsSymb>;
 

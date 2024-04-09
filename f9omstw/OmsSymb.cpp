@@ -6,6 +6,10 @@ namespace f9omstw {
 
 OmsSymb::~OmsSymb() {
 }
+void OmsSymb::LockMd() {
+}
+void OmsSymb::UnlockMd() {
+}
 void OmsSymb::OnTwfSessionChanged(OmsResource&) {
 }
 void OmsSymb::ResetTwfCombSessionId(OmsResource&) {

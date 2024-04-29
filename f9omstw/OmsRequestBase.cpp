@@ -416,10 +416,18 @@ void OmsRequestBase::RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder&
       return;
    }
    // 檢查 this 是否為重複回報(曾經有過相同的 BeforeQty, AfterQty),
-   const OmsOrderRaw* ordu = order.Head();
+   const OmsOrderRaw*    ordu = order.Head();
+   const OmsRequestBase* origReq = nullptr;
+   const fon9::StrView   thisReqUID = ToStrView(this->ReqUID_);
    do {
       const OmsRequestBase& requ = ordu->Request();
-      if ((requ.RxKind() == this->RxKind()
+      if (thisReqUID == ToStrView(requ.ReqUID_)) {
+         // 線路備援時, Helper端: 協助轉送刪改, 無法從 SearchOrigRequestId() 找到本地的 req, 所以在這裡判斷此情況.
+         origReq = &requ;
+         break;
+      }
+      if (origReq != &requ
+       && (requ.RxKind() == this->RxKind()
            || this->RxKind() == f9fmkt_RxKind_Unknown
            || (requ.RxKind() == f9fmkt_RxKind_RequestChgQty && this->RxKind() == f9fmkt_RxKind_RequestDelete)
            ) // ↑ 因為改量要求(requ)如果會讓剩餘量為0; 則下單時可能會用「刪單訊息」, 所以 this 可能為 f9fmkt_RxKind_RequestDelete;
@@ -427,11 +435,14 @@ void OmsRequestBase::RunReportInCore_Order(OmsReportChecker&& checker, OmsOrder&
          if (requ.RxKind() == f9fmkt_RxKind_RequestDelete
           || requ.RxKind() == f9fmkt_RxKind_RequestChgQty
           || this->RunReportInCore_IsExgTimeMatch(*ordu)) {
-            this->RunReportInCore_FromOrig(std::move(checker), requ);
-            return;
+            origReq = &requ;
          }
       }
    } while ((ordu = ordu->Next()) != nullptr);
+   if (origReq) {
+      this->RunReportInCore_FromOrig(std::move(checker), *origReq);
+      return;
+   }
    // order 裡面沒找到 origReq: this = 刪改查回報.
    if (this->RxKind_ == f9fmkt_RxKind_Unknown)
       checker.ReportAbandon("ReportOrder: Unknown report kind.");

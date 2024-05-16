@@ -263,6 +263,11 @@ __REQUEST_DELETE:
    pout = RevCopyFill(pout, f9tws::StkNo::size(), ToStrView(iniReq->Symbol_));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(Symbol));
    assert(ToStrView(ordraw.OrdNo_).size() == sizeof(OmsOrdNo));
+   if (fon9_UNLIKELY(OmsIsOrdNoEmpty(ordraw.OrdNo_))) {
+      // 若新單為 QueuingCanceled, 可能尚未編 OrdNo, 此時若有使用 RxSNO 的刪單, 則可能來到此處.
+      runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_OrdNo, nullptr);
+      return SendResult::RejectRequest;
+   }
    pout = RevPutStr(pout, ordraw.OrdNo_.begin(), sizeof(OmsOrdNo));
    pout = RevPutStr(pout, f9fix_SPLTAGEQ(OrderID));
    ordraw.OutPvcId_ = this->LineArgs_.SocketId_;

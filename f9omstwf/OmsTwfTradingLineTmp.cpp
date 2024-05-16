@@ -446,6 +446,11 @@ TwfTradingLineTmp::SendResult TwfTradingLineTmp::SendRequest(f9fmkt::TradingRequ
    }
    // ====================================
    if (fon9_LIKELY(pkr1bf)) { // R01/R31/R09/R39
+      if (fon9_UNLIKELY(OmsIsOrdNoEmpty(ordraw.OrdNo_))) {
+         // 若新單為 QueuingCanceled, 可能尚未編 OrdNo, 此時若有使用 RxSNO 的刪單, 則可能來到此處.
+         runner->Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_OrdNo, nullptr);
+         return SendResult::RejectRequest;
+      }
       pkr1bf->OrderNo_ = ordraw.OrdNo_;
       f9twf::TmpPutValue(pkr1bf->OrdId_, static_cast<uint32_t>(curReq->RxSNO()));
       f9twf::TmpPutValue(pkr1bf->CmId_, brk->CmId_);

@@ -44,7 +44,24 @@ void OmsTwfReport2::RunReportInCore_FromOrig(OmsReportChecker&& checker, const O
 }
 //--------------------------------------------------------------------------//
 void OmsTwfReport2::RunReportInCore_MakeReqUID() {
-   this->MakeReportReqUID(this->ExgTime_, this->BeforeQty_);
+   uint32_t uidval;
+   if (fon9_UNLIKELY(this->RxKind() == f9fmkt_RxKind_RequestChgPri)) {
+      auto pri = fon9::unsigned_cast(this->Pri_.GetOrigValue() < 0 ? -this->Pri_.GetOrigValue() : this->Pri_.GetOrigValue());
+      if (fon9_LIKELY(pri != 0)) {
+         for (unsigned L = 0; L < this->Pri_.Scale; ++L) {
+            if (fon9::unsigned_cast(pri) % 10 != 0)
+               break;
+            pri /= 10;
+         }
+         if (fon9_UNLIKELY(this->Pri_.GetOrigValue() < 0))
+            pri = (pri * 10);
+      }
+      uidval = static_cast<uint32_t>(pri);
+   }
+   else {
+      uidval = this->BeforeQty_;
+   }
+   this->MakeReportReqUID(this->ExgTime_, uidval);
 }
 bool OmsTwfReport2::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
    return static_cast<const OmsTwfOrderRaw1*>(&ordu)->BeforeQty_ == this->BeforeQty_

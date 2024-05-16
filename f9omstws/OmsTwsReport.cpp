@@ -68,7 +68,9 @@ void OmsTwsReport::RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner) {
 }
 //--------------------------------------------------------------------------//
 void OmsTwsReport::RunReportInCore_MakeReqUID() {
-   this->MakeReportReqUID(this->ExgTime_, this->BeforeQty_);
+   this->MakeReportReqUID(this->ExgTime_, (this->RxKind() == f9fmkt_RxKind_RequestChgPri
+                                           ? this->Pri_.GetOrigValue()
+                                           : this->BeforeQty_));
 }
 bool OmsTwsReport::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
    return static_cast<const OmsTwsOrderRaw*>(&ordu)->BeforeQty_ == this->BeforeQty_

@@ -503,8 +503,8 @@ kChkOrder(ReportPending,ExchangeNoLeaves,0,0,3,kTIMEE) kOrdPri(R,205,kTIMEC) kOr
 kChkOrder(ReportPending,ExchangeAccepted,2,0,3,kTIMED) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
 // -------------------------------------
 // 減1回報成功(補單).
-"+1." kTwfRpt(ExchangeAccepted,C,        6,5,  kTIME4) kPriLmt(R,203),
-kChkOrder(PartFilled,ExchangeAccepted,   6,5,2,kTIME4) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
+"+1." kTwfRpt(ExchangeAccepted,C,        5,4,  kTIME4) kPriLmt(R,203),
+kChkOrder(PartFilled,ExchangeAccepted,   5,4,2,kTIME4) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
 kChkOrder(UserCanceled,ExchangeAccepted, 2,0,0,kTIMED) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_0,
 kChkOrder(UserCanceled,ExchangeNoLeaves, 0,0,0,kTIMEE) kOrdPri(R,205,kTIMEC) kOrdCum(3,605,kTIME2) kErrCode_NoLeaves,
    };

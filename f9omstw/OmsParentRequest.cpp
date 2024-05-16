@@ -527,7 +527,7 @@ void OmsParentRequestChg::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
    if (childOrdraw.RequestSt_ < f9fmkt_TradingRequestSt_Done)
       return;
    const auto& childReq = childOrdraw.Request();
-   if (f9fmkt_TradingRequestSt_IsFinishedRejected(childOrdraw.RequestSt_)) {
+   if (f9fmkt_TradingRequestSt_IsFinishedRejected(childOrdraw.RequestSt_) && childOrdraw.UpdateOrderSt_ != f9fmkt_OrderSt_NewQueuingCanceled) {
       this->OnChildError(childReq, childRunner.Resource_, &childRunner);
       return;
    }

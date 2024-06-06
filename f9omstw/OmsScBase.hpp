@@ -57,6 +57,10 @@ extern fon9::EnabledYN  gIsScLogAll;
 #define OmsErrCode_Sc_Usr_Deny_ForceClr      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 18)
 /// 帳號禁止代沖銷.
 #define OmsErrCode_Sc_Ivr_Deny_ForceClr      static_cast<OmsErrCode>(OmsErrCode_FromRisk + 19)
+/// 現貨市場違約，禁止新倉交易
+#define OmsErrCode_Sc_StkVio_Deny_Open       static_cast<OmsErrCode>(OmsErrCode_FromRisk + 20)
+/// 期貨市場違約，禁止新倉交易
+#define OmsErrCode_Sc_FutVio_Deny_Open       static_cast<OmsErrCode>(OmsErrCode_FromRisk + 21)
 
 //--------------------------------------------------------------------------//
 /// 找不到商品資料: 市價單無法風控.

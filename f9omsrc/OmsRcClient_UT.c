@@ -51,6 +51,29 @@ void fon9_CAPI_CALL OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_
    (void)st; (void)info;
    UserDefine* ud = ses->UserData_;
    ud->Config_ = NULL;
+   if (st == f9io_State_Listening /* = Listening for Config = Client ApReady */) {
+      // info = "...|ExpDays=N|ExpDate=YYYY/MM/DD"
+      for (;;) {
+         int slen = info.End_ - info.Begin_;
+         if (slen <= 0)
+            break;
+         info.Begin_ = memchr(info.Begin_, '|', slen);
+         if (info.Begin_ == NULL)
+            break;
+         if (memcmp(info.Begin_, "|ExpDays=", 9) == 0) {
+            // 密碼還有幾天到期? = 在幾天內必須改密碼?
+            printf("Password.ExpDays=%lu\n", strtoul(info.Begin_ + 9, NULL, 10));
+         }
+         else if (memcmp(info.Begin_, "|ExpDate=", 9) == 0) {
+            // 密碼到期日.
+            char  strDate[16];
+            memcpy(strDate, info.Begin_ + 9, 10); // "YYYY/MM/DD"
+            strDate[10] = '\0';
+            printf("Password.ExpDate=%s\n", strDate);
+         }
+         ++info.Begin_;
+      }
+   }
 }
 void fon9_CAPI_CALL OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_ClientConfig* cfg) {
    UserDefine* ud = ses->UserData_;

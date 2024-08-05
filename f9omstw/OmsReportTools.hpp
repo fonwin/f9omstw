@@ -186,6 +186,7 @@ inline bool OmsIsReportFieldsMatch(const RequestIniT& ini, const ReportT& rpt) {
 
 /// 判斷 ordPris->LastPriTime_ 是否回過時回報.
 /// 如果過時, 則設定 inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
+/// 傳回 true 表示: 此函式有檢查, 但不論是否有設定 f9fmkt_OrderSt_ReportStale, 皆傳回 true;
 template <class OrdPrisT, class ReportT>
 inline auto OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OrdPrisT* ordPris, ReportT* rpt)
 ->decltype(ordPris->LastPriTime_, bool()) {
@@ -193,6 +194,7 @@ inline auto OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OrdPr
       inCoreRunner->OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
    return true;
 }
+/// 傳回 false 表示: 此函式沒檢查(沒有 LastPri 相關欄位), 永遠不會設定 f9fmkt_OrderSt_ReportStale;
 inline bool OmsCheckReportChgPriStale(...) {
    return false;
 }

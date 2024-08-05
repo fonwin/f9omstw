@@ -263,9 +263,13 @@ static void ParseReqCfgs(const fon9::ConfigLoader& cfgldr, ApiSesCfg& cfgs, fon9
 
 //--------------------------------------------------------------------------//
 
-struct ApiRptCfgs::Parser : public std::vector<fon9::DyObj<ApiRptCfg>> {
+struct ApiRptCfgs::Parser {
    fon9_NON_COPY_NON_MOVE(Parser);
-   using base = std::vector<fon9::DyObj<ApiRptCfg>>;
+   using CfgMap = std::vector<fon9::DyObj<ApiRptCfg>>;
+   using CfgTabId = std::vector<unsigned>;
+   CfgMap         CfgMap_;
+   // CfgRptIdx_[設定檔出現的順序] = ToIndex計算出來的索引值.
+   CfgTabId       CfgRptIdx_;
    OmsCoreMgr&    CoreMgr_;
    FactoryToIndex ToIndex_;
    char           padding____[4];
@@ -273,7 +277,7 @@ struct ApiRptCfgs::Parser : public std::vector<fon9::DyObj<ApiRptCfg>> {
    Parser(OmsCoreMgr& coreMgr)
       : CoreMgr_(coreMgr)
       , ToIndex_{coreMgr} {
-      this->resize(this->ToIndex_.EventTableIdOffset_ + coreMgr.EventFactoryPark().GetTabCount());
+      this->CfgMap_.resize(this->ToIndex_.EventTableIdOffset_ + coreMgr.EventFactoryPark().GetTabCount());
    }
 
    void Parse(const fon9::ConfigLoader& cfgldr, fon9::StrView& cfgstr);
@@ -320,11 +324,13 @@ void ApiRptCfgs::Parser::Parse(const fon9::ConfigLoader& cfgldr, fon9::StrView& 
                                               std::errc::bad_message);
    }
 
-   assert(idx < this->size());
-   auto&      dcfg = (*this)[idx];
+   assert(idx < this->CfgMap_.size());
+   auto&      dcfg = this->CfgMap_[idx];
    ApiRptCfg* pcfg = dcfg.get();
-   if (pcfg == nullptr)
+   if (pcfg == nullptr) {
+      this->CfgRptIdx_.push_back(idx);
       pcfg = dcfg.emplace(*fac, apiNamed.ToNamed(fac));
+   }
    else {
       if (apiNamed.ApiName_ != &pcfg->ApiNamed_.Name_)
          fon9::Raise<fon9::ConfigLoader::Err>("RPT dup defined, but ApiName not match.",
@@ -383,43 +389,42 @@ void ApiRptCfgs::Parser::Parse(const fon9::ConfigLoader& cfgldr, fon9::StrView& 
    }
 }
 void ApiRptCfgs::Parser::MoveTo(fon9::RevBuffer& rbuf, ApiRptCfgs& cfgs) {
-   cfgs.Configs_.reserve(this->size());
-   cfgs.IndexMap_.resize(this->size());
+   cfgs.Configs_.reserve(this->CfgMap_.size());
+   cfgs.IndexMap_.resize(this->CfgMap_.size());
    using ExInfos = std::vector<fon9::StrView>;
    ExInfos  exInfos;
-   exInfos.reserve(this->size());
+   exInfos.reserve(this->CfgRptIdx_.size());
 
    unsigned rptidx = 0;
-   unsigned imap = 0;
-   for (auto& dycfg : *this) {
-      if (ApiRptCfg* cfg = dycfg.get()) {
-         cfgs.Configs_.emplace_back(std::move(*cfg));
-         cfgs.IndexMap_[imap] = ++rptidx;
-         fon9::StrView  exInfo;
-         if (imap < this->ToIndex_.OrderTableIdOffset_) {
-            if ((imap % RequestE_Size) == RequestE_Abandon)
-               exInfo = fon9::StrView{"abandon"};
-            else if (static_cast<OmsRequestFactory*>(cfg->Factory_)->OrderFactory_.get() != nullptr) {
-               if (static_cast<OmsRequestFactory*>(cfg->Factory_)->RunStep_.get() != nullptr)
-                  exInfo = fon9::StrView{"ini"};
-               else
-                  exInfo = fon9::StrView{"rpt"};
-            }
+   for (unsigned imap : this->CfgRptIdx_) {
+      auto&      dycfg = this->CfgMap_[imap];
+      ApiRptCfg* cfg = dycfg.get();
+      cfgs.Configs_.emplace_back(std::move(*cfg));
+      cfgs.IndexMap_[imap] = ++rptidx;
+      fon9::StrView  exInfo;
+      if (imap < this->ToIndex_.OrderTableIdOffset_) {
+         if ((imap % RequestE_Size) == RequestE_Abandon)
+            exInfo = fon9::StrView{"abandon"};
+         else if (static_cast<OmsRequestFactory*>(cfg->Factory_)->OrderFactory_.get() != nullptr) {
+            if (static_cast<OmsRequestFactory*>(cfg->Factory_)->RunStep_.get() != nullptr)
+               exInfo = fon9::StrView{"ini"};
+            else
+               exInfo = fon9::StrView{"rpt"};
          }
-         else if (imap >= this->ToIndex_.EventTableIdOffset_)
-            exInfo = fon9::StrView{"event"};
-         else {
-            unsigned ridx = RequestE_Normal +
-               (((imap - this->ToIndex_.OrderTableIdOffset_) % this->ToIndex_.RequestFactoryCount_)
-                * RequestE_Size);
-            if (auto* preq = (*this)[ridx].get())
-               exInfo = &preq->ApiNamed_.Name_;
-            else // Request 沒設定回報.
-               exInfo = "-";
-         }
-         exInfos.push_back(exInfo);
       }
-      ++imap;
+      else if (imap >= this->ToIndex_.EventTableIdOffset_)
+         exInfo = fon9::StrView{"event"};
+      else {
+         unsigned ridx = RequestE_Normal +
+            (((imap - this->ToIndex_.OrderTableIdOffset_) % this->ToIndex_.RequestFactoryCount_)
+             * RequestE_Size);
+         assert(ridx < this->CfgMap_.size());
+         if (auto* preq = this->CfgMap_[ridx].get())
+            exInfo = &preq->ApiNamed_.Name_;
+         else // Request 沒設定回報.
+            exInfo = "-";
+      }
+      exInfos.push_back(exInfo);
    }
 
    Configs::const_iterator iend = cfgs.Configs_.cend();

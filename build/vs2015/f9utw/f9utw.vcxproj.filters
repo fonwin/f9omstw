@@ -50,6 +50,9 @@
     <ClCompile Include="..\..\..\f9utw\UtwSpCmdTws.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9utw\UtwOmsCoreUsrDef.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9utw\UtwsBrk.hpp">
@@ -77,6 +80,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\f9utw\UtwSpCmdTws.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9utw\UtwOmsCoreUsrDef.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9utw\UtwRequests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

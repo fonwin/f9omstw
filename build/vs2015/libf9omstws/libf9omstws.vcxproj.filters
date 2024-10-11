@@ -50,6 +50,9 @@
     <ClCompile Include="..\..\..\f9omstws\OmsTwsImpT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsMdSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\f9omstws\OmsTwsOrder.hpp">

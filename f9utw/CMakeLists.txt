@@ -9,6 +9,7 @@ set(f9utw_src
  ../../fon9/fon9/framework/Fon9CoRun.cpp
  f9utw_main.cpp
  UtwOmsCore.cpp
+ UtwOmsCoreUsrDef.cpp
  UtwsSymb.cpp
  UtwsIvSymb.cpp
  UtwsIvSc.cpp

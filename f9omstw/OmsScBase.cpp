@@ -52,7 +52,7 @@ OmsErrCode GetExecPri(OmsSymb& mdSymb, const f9fmkt_ExecPriSel execPriSel, const
       if (const auto* lastpri = mdSymb.GetMdLastPriceEv())
          out = lastpri->LastPrice_;
       else {
-         return OmsErrCode_CondSc_MdSymb;
+         return OmsErrCode_CondSc_MdSymbPriNotFound;
       }
    __ADJ_TICKS:;
       assert(mdSymb.LvPriSteps() != nullptr);

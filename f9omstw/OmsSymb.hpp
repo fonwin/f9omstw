@@ -58,7 +58,9 @@ public:
    virtual bool GetPriLmt(fon9::fmkt::Pri* upLmt, fon9::fmkt::Pri* dnLmt) const;
 
    virtual OmsMdLastPriceEv* GetMdLastPriceEv();
+   virtual OmsMdLastPriceEv* GetMdLastPriceEv_OddLot();
    virtual OmsMdBSEv* GetMdBSEv();
+   virtual OmsMdBSEv* GetMdBSEv_OddLot();
 
    class MdLocker {
       fon9_NON_COPY_NON_MOVE(MdLocker);

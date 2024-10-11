@@ -21,7 +21,11 @@ class OmsMdLastPriceEv : public OmsMdLastPrice {
 protected:
    bool IsNeedsOnMdLastPriceEv_{false};
    char Padding_____[7];
+   void SetIsNeedsOnMdLastPriceEv(bool value) {
+      this->IsNeedsOnMdLastPriceEv_ = value;
+   }
 public:
+   fon9::fmkt::Qty   LastQty_{};
    fon9::fmkt::Qty   TotalQty_{};
 
    OmsMdLastPriceEv() = default;
@@ -58,15 +62,31 @@ protected:
    Subject  Subject_;
 };
 //--------------------------------------------------------------------------//
+#define f9omstw_kMdBSCount    5
+fon9_MSC_WARN_DISABLE(4582); // constructor is not implicitly called
 struct OmsMdBS {
-   fon9::fmkt::PriQty   Buy_;
-   fon9::fmkt::PriQty   Sell_;
+   union {
+      fon9::fmkt::PriQty   Buy_;
+      fon9::fmkt::PriQty   Buys_[f9omstw_kMdBSCount];
+   };
+   union {
+      fon9::fmkt::PriQty   Sell_;
+      fon9::fmkt::PriQty   Sells_[f9omstw_kMdBSCount];
+   };
+   OmsMdBS() {
+      fon9::ForceZeroNonTrivial(this);
+   }
 };
+fon9_MSC_WARN_POP;
+
 class OmsMdBSEv : public OmsMdBS {
    fon9_NON_COPY_NON_MOVE(OmsMdBSEv);
 protected:
    bool IsNeedsOnMdBSEv_{false};
    char Padding_____[7];
+   void SetIsNeedsOnMdBSEv(bool value) {
+      this->IsNeedsOnMdBSEv_ = value;
+   }
 public:
    OmsMdBSEv() = default;
    virtual ~OmsMdBSEv();

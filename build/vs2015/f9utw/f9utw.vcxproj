@@ -84,6 +84,7 @@ call ..\..\fon9\make_proj_verinfo.bat</Command>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\fon9\fon9\framework\Fon9CoRun.cpp" />
     <ClCompile Include="..\..\..\f9utw\f9utw_main.cpp" />
+    <ClCompile Include="..\..\..\f9utw\UtwOmsCoreUsrDef.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsBrk.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwOmsCore.cpp" />
     <ClCompile Include="..\..\..\f9utw\UtwsIvac.cpp" />
@@ -96,6 +97,8 @@ call ..\..\fon9\make_proj_verinfo.bat</Command>
     <ClCompile Include="..\..\..\f9utw\UtwsSymb.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\f9utw\UtwOmsCoreUsrDef.hpp" />
+    <ClInclude Include="..\..\..\f9utw\UtwRequests.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsBrk.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsIvac.hpp" />
     <ClInclude Include="..\..\..\f9utw\UtwsIvSc.hpp" />

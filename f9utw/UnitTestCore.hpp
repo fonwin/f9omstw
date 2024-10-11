@@ -190,8 +190,12 @@ struct UomsReqIniRiskCheck : public f9omstw::OmsRequestRunStep {
       if (&ordraw.Request() == inireq) {
          ordraw.LastPri_ = inireq->Pri_;
          ordraw.LastPriType_ = inireq->PriType_;
-         if (inireq->RxKind() == f9fmkt_RxKind_RequestNew)
-            ordraw.AfterQty_ = ordraw.LeavesQty_ = inireq->Qty_;
+         if (inireq->RxKind() == f9fmkt_RxKind_RequestNew) {
+            ordraw.BeforeQty_ = 0;
+            if (ordraw.LeavesQty_ == 0) // 全新的新單要求, 若 LeavesQty_ > 0: 則可能是經過某些處理後(例:條件成立後), 的實際下單數量;
+               ordraw.LeavesQty_ = inireq->Qty_;
+            ordraw.AfterQty_ = ordraw.LeavesQty_;
+         }
       }
       this->ToNextStep(std::move(runner));
    }

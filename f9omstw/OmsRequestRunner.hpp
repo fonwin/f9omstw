@@ -53,7 +53,7 @@ public:
 static inline void OmsForceAssignReportReqUID(OmsRequestId& rpt, OmsRxSNO sno) {
    memcpy(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqUID, sizeof(f9omstw_kCSTR_ForceReportReqUID));
    memcpy(rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqUID), &sno, sizeof(sno));
-   static_assert(rpt.ReqUID_.size() >= sizeof(f9omstw_kCSTR_ForceReportReqUID) + sizeof(sno),
+   static_assert(sizeof(rpt.ReqUID_) >= sizeof(f9omstw_kCSTR_ForceReportReqUID) + sizeof(sno),
                  "OmsRequestId::ReqUID_ too small.");
 }
 static inline bool OmsParseForceReportReqUID(const OmsRequestId& rpt, OmsRxSNO& sno) {
@@ -250,8 +250,8 @@ inline OmsInternalRunnerInCore_Ctor::OmsInternalRunnerInCore_Ctor() {
 //--------------------------------------------------------------------------//
 class OmsRequestRunStep {
    fon9_NON_COPY_NON_MOVE(OmsRequestRunStep);
-   OmsRequestRunStepSP  NextStep_;
 protected:
+   const OmsRequestRunStepSP  NextStep_;
    void ToNextStep(OmsRequestRunnerInCore&& runner) {
       if (this->NextStep_)
          this->NextStep_->RunRequest(std::move(runner));

@@ -68,6 +68,7 @@ set (f9utw_src
  ../f9omstws/OmsTwsRequest.cpp
  ../f9omstws/OmsTwsOrder.cpp
  ../f9utw/UtwOmsCore.cpp
+ ../f9utw/UtwOmsCoreUsrDef.cpp
  ../f9utw/UtwsBrk.cpp
  ../f9utw/UtwsIvac.cpp
  ../f9utw/UtwsSubac.cpp

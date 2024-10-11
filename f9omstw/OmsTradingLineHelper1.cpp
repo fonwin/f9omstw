@@ -28,7 +28,7 @@ void OmsLocalHelpOfferEvHandler1::InCore_NotifyToAsker(OmsResource& resource) {
 }
 void OmsLocalHelpOfferEvHandler1::NotifyToAsker(const TLineLocker* tsvrOffer) {
    (void)tsvrOffer;
-   if (auto core = this->CoreMgr_.CurrentCore())
+   if (auto core = this->CoreMgr_->CurrentCore())
       core->RunCoreTask(std::bind(&OmsLocalHelpOfferEvHandler1::InCore_NotifyToAsker, ThisSP{this}, std::placeholders::_1));
 }
 void OmsLocalHelpOfferEvHandler1::UnsubscribeRpt() {
@@ -58,7 +58,7 @@ f9fmkt::SendRequestResult OmsLocalHelpOfferEvHandler1::OnAskFor_SendRequest(f9fm
    //    - 或 OmsCore 另建其他通知機制: 在 OmsCore 交給 Backend 前, 直接在 OmsCore 裡面通知.
    const auto retval = base::OnAskFor_SendRequest(req, tsvrAsker);
    if (this->WorkingRequest_ && !this->RptSubr_) {
-      if ((this->RptCore_ = this->CoreMgr_.CurrentCore()).get()) {
+      if ((this->RptCore_ = this->CoreMgr_->CurrentCore()).get()) {
          this->RptCore_->ReportSubject().Subscribe(
             &this->RptSubr_,
             std::bind(&OmsLocalHelpOfferEvHandler1::OnOrderReport, ThisSP{this},
@@ -73,7 +73,7 @@ void OmsLocalHelpOfferEvHandler1::ClearWorkingRequests() {
 }
 //--------------------------------------------------------------------------//
 f9fmkt::LocalHelpOfferEvHandlerSP OmsLocalHelperMaker1::MakeHelpOffer(f9fmkt::TradingLgMgrBase& lgMgr, f9fmkt::TradingLineManager& lmgrOffer, const fon9::StrView& name) {
-   return new OmsLocalHelpOfferEvHandler1{this->CoreMgr_, lgMgr, lmgrOffer, name};
+   return new OmsLocalHelpOfferEvHandler1{*this->CoreMgr_, lgMgr, lmgrOffer, name};
 }
 
 } // namespaces

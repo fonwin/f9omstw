@@ -54,7 +54,7 @@ void fon9_CAPI_CALL OnClientLinkEv(f9rc_ClientSession* ses, f9io_State st, fon9_
    if (st == f9io_State_Listening /* = Listening for Config = Client ApReady */) {
       // info = "...|ExpDays=N|ExpDate=YYYY/MM/DD"
       for (;;) {
-         int slen = info.End_ - info.Begin_;
+         size_t slen = (size_t)(info.End_ - info.Begin_);
          if (slen <= 0)
             break;
          info.Begin_ = memchr(info.Begin_, '|', slen);

@@ -129,6 +129,7 @@ OmsIvKind OmsAddIvConfig(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, co
 OmsRequestPolicySP OmsRequestPolicyCfg::MakePolicy(OmsResource& res, fon9::intrusive_ptr<OmsRequestPolicy> pol) const {
    pol->SetIvDenys(this->UserRights_.IvDenys_);
    pol->SetUserRightFlags(this->UserRights_.Flags_);
+   pol->SetScForceFlags(this->UserRights_.ScForceFlags_);
    pol->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
       ToStrView(this->TeamGroupName_), ToStrView(this->UserRights_.AllowOrdTeams_)));
    for (const auto& item : this->IvList_) {

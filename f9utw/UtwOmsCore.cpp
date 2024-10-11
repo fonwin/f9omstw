@@ -3,6 +3,9 @@
 #include "f9utw/UnitTestCore.hpp"
 #include "f9utw/UtwSpCmdTwf.hpp"
 #include "f9utw/UtwSpCmdTws.hpp"
+#include "f9utw/UtwRequests.hpp"
+#include "f9utw/UtwOmsCoreUsrDef.hpp"
+
 #include "f9omstw/OmsCoreMgrSeed.hpp"
 #include "f9omstw/OmsEventSessionSt.hpp"
 #include "f9omstw/OmsTradingLineHelper1.hpp"
@@ -11,7 +14,7 @@
 #include "f9omstws/OmsTwsSenderStepLgMgr.hpp"
 #include "f9omstws/OmsTwsTradingLineFix.hpp"
 #include "f9omstws/OmsTwsTradingLineTmp2019.hpp"
-// 
+
 #include "f9omstwf/OmsTwfSenderStepG1.hpp"
 #include "f9omstwf/OmsTwfSenderStepLgMgr.hpp"
 #include "f9omstwf/OmsTwfLineTmpFactory.hpp"
@@ -26,12 +29,12 @@ namespace f9omstw {
 #define fon9_kCSTR_UtwOmsCoreName   "UtwOmsCore"
 #endif
 
-using UomsTwsOrderFactory = OmsOrderFactoryT<OmsOrder, OmsTwsOrderRaw, kPoolObjCount>;
-using OmsTwsRequestIniFactory = OmsRequestFactoryT<OmsTwsRequestIni, kPoolObjCount>;
+using UomsTwsOrderFactory = OmsOrderFactoryT<OmsOrder, UtwsOrderRaw, kPoolObjCount>;
+using OmsTwsRequestIniFactory = OmsRequestFactoryT<UtwsRequestIni, kPoolObjCount>;
 using OmsTwsRequestChgFactory = OmsRequestFactoryT<OmsTwsRequestChg, kPoolObjCount>;
 //--------------------------------------------------------------------------//
-using UomsTwfOrder1Factory = OmsOrderFactoryT<OmsTwfOrder1, OmsTwfOrderRaw1, kPoolObjCount>;
-using OmsTwfRequestIni1Factory = OmsRequestFactoryT<OmsTwfRequestIni1, kPoolObjCount>;
+using UomsTwfOrder1Factory = OmsOrderFactoryT<OmsTwfOrder1, UtwfOrderRaw1, kPoolObjCount>;
+using OmsTwfRequestIni1Factory = OmsRequestFactoryT<UtwfRequestIni1, kPoolObjCount>;
 using OmsTwfRequestChg1Factory = OmsRequestFactoryT<OmsTwfRequestChg1, kPoolObjCount>;
 
 using UomsTwfOrder7Factory = OmsOrderFactoryT<OmsTwfOrder7, OmsTwfOrderRaw7, 0>;
@@ -49,15 +52,22 @@ class UtwOmsCoreMgrSeed : public OmsCoreMgrSeed {
    char              Padding___[2];
    TwfExgMapMgrSP    TwfExgMapMgr_;
 
+   using TradingLgMgrSP = fon9::intrusive_ptr<fon9::fmkt::TradingLgMgrBase>;
    TwsTradingLineG1SP TwsLineG1_;
+   TradingLgMgrSP     TwsLineLg_;
    TwfTradingLineG1SP TwfLineG1_;
+   TradingLgMgrSP     TwfLineLg_;
 
    UtwOmsCoreMgrSeed(std::string name, fon9::seed::MaTreeSP owner)
       : base(std::move(name), std::move(owner), &OmsSetRequestLgOut_UseIvac) {
    }
 
    void InitCoreTables(OmsResource& res) override {
-      res.Symbs_.reset(new OmsSymbTree(res.Core_, UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag()), &UtwsSymb::SymbMaker));
+      res.UsrDef_.reset(new UtwOmsCoreUsrDef{});
+      const bool isStkMarket = (this->TwsLineLg_ || this->TwsLineG1_);
+      res.Symbs_.reset(new OmsSymbTree(res.Core_,
+                                       UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag(), isStkMarket),
+                                       &UtwsSymb::SymbMaker));
 
       OmsBrkTree::FnGetBrkIndex fnGetBrkIdx;
       if (this->BrkIdStart_.size() == sizeof(f9twf::BrkId)) {
@@ -242,11 +252,16 @@ public:
             twsNewSenderStep.reset(new OmsTwsSenderStepLgMgr{*lgMgr});
             twsChgSenderStep.reset(new OmsTwsSenderStepLgMgr{*lgMgr});
             OmsLocalHelperMaker1{coreMgr}.MakeTradingLgLocalHelper(*lgMgr);
+            coreMgrSeed->TwsLineLg_ = lgMgr;
          }
          coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twsOrdFactory});
          coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
             new OmsTwsRequestIniFactory("TwsNew", twsOrdFactory,
-                                        OmsRequestRunStepSP{new UomsTwsIniRiskCheck(std::move(twsNewSenderStep))}),
+                     OmsRequestRunStepSP{new UtwsCondStepBfSc(
+                     OmsRequestRunStepSP{new UomsTwsIniRiskCheck(
+                     OmsRequestRunStepSP{new UtwsCondStepAfSc(
+                                         std::move(twsNewSenderStep)
+                     )} )} )} ),
             new OmsTwsRequestChgFactory("TwsChg", std::move(twsChgSenderStep)),
             twsRptFactory,
             twsFilFactory
@@ -269,6 +284,7 @@ public:
          twfCfgMgr->GetConfigSapling().Add(coreMgrSeed->TwfExgMapMgr_);
          twfCfgMgr->BindConfigFile(cfgpath + "TwfExgConfig.f9gv", true);
          coreMgrSeed->TwfExgMapMgr_->BindConfigFile(cfgpath + "TwfExgImporter.f9gv", true);
+         coreMgrSeed->TwfExgMapMgr_->StopAndWait_SchTask(); // 先停止Sch計時器,避免還在啟動中,就開始載入資料.
          coreMgr.Add(twfCfgMgr);
          // ------------------
          #define kCSTR_SesFpName    "FpSession"
@@ -327,12 +343,17 @@ public:
             twfNewQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
             twfChgQSenderStep .reset(new OmsTwfSenderStepLgMgr{*lgMgr});
             OmsLocalHelperMaker1{coreMgr}.MakeTradingLgLocalHelper(*lgMgr);
+            coreMgrSeed->TwfLineLg_ = lgMgr;
          }
          // ------------------
          coreMgr.SetOrderFactoryPark(new OmsOrderFactoryPark{twfOrd1Factory, twfOrd7Factory, twfOrd9Factory});
          coreMgr.SetRequestFactoryPark(new f9omstw::OmsRequestFactoryPark(
             new OmsTwfRequestIni1Factory("TwfNew", twfOrd1Factory,
-                                         OmsRequestRunStepSP{new UomsTwfIniRiskCheck(std::move(twfNewSenderStep))}),
+                     OmsRequestRunStepSP{new UtwfCondStepBfSc(
+                     OmsRequestRunStepSP{new UomsTwfIniRiskCheck(
+                     OmsRequestRunStepSP{new UtwfCondStepAfSc(
+                                         std::move(twfNewSenderStep)
+                     )} )} )} ),
             new OmsTwfRequestChg1Factory("TwfChg", std::move(twfChgSenderStep)),
             twfRpt1Factory,
             twfFil1Factory,

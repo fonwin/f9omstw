@@ -21,10 +21,10 @@ protected:
    void OnOrderReport(OmsCore& omsCore, const OmsRxItem& rxItem);
    void InCore_NotifyToAsker(OmsResource& resource);
 public:
-   OmsCoreMgr& CoreMgr_;
+   const OmsCoreMgrSP CoreMgr_;
    OmsLocalHelpOfferEvHandler1(OmsCoreMgr& coreMgr, f9fmkt::TradingLgMgrBase& lgMgr, f9fmkt::TradingLineManager& offer, const fon9::StrView& name)
       : base(lgMgr, offer, name)
-      , CoreMgr_(coreMgr) {
+      , CoreMgr_(&coreMgr) {
    }
    ~OmsLocalHelpOfferEvHandler1();
    f9fmkt::SendRequestResult OnAskFor_SendRequest(f9fmkt::TradingRequest& req, const TLineLocker& tsvrAsker) override;
@@ -32,8 +32,8 @@ public:
 //--------------------------------------------------------------------------//
 struct OmsLocalHelperMaker1 : public f9fmkt::LocalHelperMaker {
    fon9_NON_COPY_NON_MOVE(OmsLocalHelperMaker1);
-   OmsCoreMgr& CoreMgr_;
-   OmsLocalHelperMaker1(OmsCoreMgr& coreMgr) : CoreMgr_(coreMgr) {
+   const OmsCoreMgrSP CoreMgr_;
+   OmsLocalHelperMaker1(OmsCoreMgr& coreMgr) : CoreMgr_(&coreMgr) {
    }
    f9fmkt::LocalHelpOfferEvHandlerSP MakeHelpOffer(f9fmkt::TradingLgMgrBase& lgMgr, f9fmkt::TradingLineManager& lmgrOffer, const fon9::StrView& name) override;
 };

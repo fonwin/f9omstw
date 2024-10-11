@@ -76,6 +76,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstws\OmsTwsFilled.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsImpT.cpp" />
+    <ClCompile Include="..\..\..\f9omstws\OmsTwsMdSystem.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsOrder.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsReport.cpp" />
     <ClCompile Include="..\..\..\f9omstws\OmsTwsReportTools.cpp" />

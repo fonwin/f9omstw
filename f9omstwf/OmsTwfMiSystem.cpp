@@ -1,4 +1,4 @@
-﻿// \file f9omsstgy/OmsTwfMiSystem.cpp
+﻿// \file f9omstwf/OmsTwfMiSystem.cpp
 //
 // Oms Market data from [TwfMi]
 //
@@ -90,16 +90,20 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
       const f9twf::ExgMdMatchData* const  pend = pkI020.MatchData_ + count;
       symb->LockMd();
       if (!twfsymb->IsNeedsOnMdLastPriceEv()) {
-         // 不需要發行事件通知, 則只需要取出 [最後一個] 價格即可。
-         (count ? (pend - 1)->MatchPrice_ : pkI020.FirstMatchPrice_)
-            .AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
-         auto* pcnt = reinterpret_cast<const f9twf::ExgMdMatchCnt*>(pend);
-         twfsymb->TotalQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(pcnt->MatchTotalQty_);
+         // 不需要觸發事件通知, 則只需要取出 [最後一個] 價格即可。
+         if (count) {
+            twfsymb->LastQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>((pend - 1)->MatchQty_);
+            (pend - 1)->MatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
+         }
+         else {
+            twfsymb->LastQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(pkI020.FirstMatchQty_);
+            pkI020.FirstMatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
+         }
       }
       else {
          const f9twf::ExgMdMatchData*  pbeg = pkI020.MatchData_;
          OmsMdLastPrice bf = *twfsymb;
-         if (twfsymb->TotalQty_ == 0) // 開盤後第一筆, 一律需要觸發事件.
+         if (twfsymb->TotalQty_ == 0) // 開盤後第一筆.
             bf.LastPrice_.AssignNull();
          pkI020.FirstMatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
          twfsymb->TotalQty_ += fon9::PackBcdTo<fon9::fmkt::Qty>(pkI020.FirstMatchQty_);
@@ -108,18 +112,18 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
             if (*twfsymb != bf) {
                symb->UnlockMd();
                twfsymb->OnMdLastPriceEv(bf, coreMgr);
-               if (pbeg == pend)
-                  return;
                symb->LockMd();
             }
-            else if (pbeg == pend)
+            if (pbeg == pend)
                break;
             bf = *twfsymb;
             pbeg->MatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
-            twfsymb->TotalQty_ += fon9::PackBcdTo<fon9::fmkt::Qty>(pbeg->MatchQty_);
+            twfsymb->LastQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(pbeg->MatchQty_);
+            twfsymb->TotalQty_ += twfsymb->LastQty_;
             ++pbeg;
          }
       }
+      twfsymb->TotalQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(reinterpret_cast<const f9twf::ExgMdMatchCnt*>(pend)->MatchTotalQty_);
       symb->UnlockMd();
    }
 };
@@ -191,9 +195,12 @@ struct OmsTwfMiI080 : public f9twf::ExgMiHandlerPkCont {
    using base = f9twf::ExgMiHandlerPkCont;
    using base::base;
 
-   static inline void AssignPQ(const f9twf::ExgMdOrderPQ& pk, fon9::fmkt::PriQty& md, const OmsSymb& symb) {
-      pk.Price_.AssignTo(md.Pri_, symb.PriceOrigDiv_);
-      md.Qty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(pk.Qty_);
+   template <size_t arysz>
+   static inline void AssignPQ(const f9twf::ExgMdOrderPQ (&pk)[arysz], fon9::fmkt::PriQty (&md)[arysz], const OmsSymb& symb) {
+      for (size_t L = 0; L < arysz; ++L) {
+         pk[L].Price_.AssignTo(md[L].Pri_, symb.PriceOrigDiv_);
+         md[L].Qty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(pk[L].Qty_);
+      }
    }
    void PkContOnReceived(const void* pk, unsigned pksz, SeqT seq) override {
       (void)pksz;
@@ -209,14 +216,15 @@ struct OmsTwfMiI080 : public f9twf::ExgMiHandlerPkCont {
       if (twfsymb->IsNeedsOnMdBSEv()) {
          auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
          const OmsMdBS bf = *twfsymb;
-         AssignPQ(pkI080.BuyOrderBook_[0], twfsymb->Buy_, *symb);
-         AssignPQ(pkI080.SellOrderBook_[0], twfsymb->Sell_, *symb);
+         assert(fon9::numofele(pkI080.BuyOrderBook_) == fon9::numofele(twfsymb->Buys_));
+         AssignPQ(pkI080.BuyOrderBook_,  twfsymb->Buys_,  *symb);
+         AssignPQ(pkI080.SellOrderBook_, twfsymb->Sells_, *symb);
          symb->UnlockMd();
          twfsymb->OnMdBSEv(bf, coreMgr);
       }
       else {
-         AssignPQ(pkI080.BuyOrderBook_[0], twfsymb->Buy_, *symb);
-         AssignPQ(pkI080.SellOrderBook_[0], twfsymb->Sell_, *symb);
+         AssignPQ(pkI080.BuyOrderBook_,  twfsymb->Buys_,  *symb);
+         AssignPQ(pkI080.SellOrderBook_, twfsymb->Sells_, *symb);
          symb->UnlockMd();
       }
    }

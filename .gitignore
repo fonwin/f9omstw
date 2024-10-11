@@ -1,5 +1,5 @@
-## Ignore fonix config test.
-fonixcfg/
+## Ignore fon9 debug run config.
+run/
 *.f9dbf
 *.f9gv
 

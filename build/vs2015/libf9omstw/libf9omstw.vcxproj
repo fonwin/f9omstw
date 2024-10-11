@@ -74,6 +74,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\f9omstw\OmsCx.h" />
     <ClInclude Include="..\..\..\f9omstw\IvacNo.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsBase.hpp" />
     <ClInclude Include="..\..\..\f9omstw\OmsBrk.hpp" />

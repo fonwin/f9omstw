@@ -254,6 +254,9 @@
     <ClInclude Include="..\..\..\f9omstw\OmsScForceFlag.h">
       <Filter>Header Files\_policy</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCx.h">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">

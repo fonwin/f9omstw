@@ -28,7 +28,13 @@ bool OmsSymb::GetPriLmt(fon9::fmkt::Pri* upLmt, fon9::fmkt::Pri* dnLmt) const {
 OmsMdLastPriceEv* OmsSymb::GetMdLastPriceEv() {
    return nullptr;
 }
+OmsMdLastPriceEv* OmsSymb::GetMdLastPriceEv_OddLot() {
+   return nullptr;
+}
 OmsMdBSEv* OmsSymb::GetMdBSEv() {
+   return nullptr;
+}
+OmsMdBSEv* OmsSymb::GetMdBSEv_OddLot() {
    return nullptr;
 }
 

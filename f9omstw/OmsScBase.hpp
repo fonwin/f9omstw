@@ -322,17 +322,20 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
 #define OmsErrCode_Sc_IsRelatedStk  static_cast<OmsErrCode>(OmsErrCode_FromRisk + 800)
 
 //--------------------------------------------------------------------------//
-/// 11103..11107 需對應 10103..10107 的錯誤碼.
 #define OmsErrCode_CondSc_Adj                    1000
-#define OmsErrCode_CondSc_BadCondOp              static_cast<OmsErrCode>(OmsErrCode_FromRisk + OmsErrCode_CondSc_Adj + 999)
+#define OmsErrCode_CondSc_BadCondOp              static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 999)
+#define OmsErrCode_CondSc_BadCondName            static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 998)
+#define OmsErrCode_CondSc_Deny                   static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 997)
+/// 11101..111xx 需對應 10101..101xx 的錯誤碼.
+/// 找不到用來判斷條件的商品.
+#define OmsErrCode_CondSc_SymbNotFound           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_SymbNotFound)
+/// Symb 無法取得所需要的行情價: msSymb.GetMdBSEv() 或 mdSymb.GetMdLastPriceEv();  通常為系統設計錯誤.
+#define OmsErrCode_CondSc_MdSymbPriNotFound      static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_SymbPriNotFound)
 #define OmsErrCode_CondSc_BadPri                 static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_BadPri)
+#define OmsErrCode_CondSc_BadQty                 static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_BadQty)
 #define OmsErrCode_CondSc_OverPriUpLmt           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_OverPriUpLmt)
 #define OmsErrCode_CondSc_OverPriDnLmt           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_OverPriDnLmt)
 #define OmsErrCode_CondSc_BadPriTickSize         static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_BadPriTickSize)
-
-/// Symb 無法取得所需要的行情價: msSymb.GetMdBSEv() 或 mdSymb.GetMdLastPriceEv();
-/// 通常為系統設計錯誤.
-#define OmsErrCode_CondSc_MdSymb                 static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_SymbPriNotFound)
 
 //--------------------------------------------------------------------------//
 static inline OmsErrCode CheckPriTickSize(fon9::fmkt::Pri curpri, OmsOrder& order) {
@@ -344,7 +347,7 @@ extern OmsErrCode CheckLmtPri(fon9::fmkt::Pri curpri, fon9::fmkt::Pri upLmt, fon
 
 /// 根據 execPriSel 及 priTicksAway 取得下單價.
 /// 若 execPriSel == f9fmkt_ExecPriSel_Unknown, 則應直接使用 [固定價], 與行情無關, 此時 out 不變.
-/// 可能返回 OmsErrCode_CondSc_MdSymb; 通常為設計有誤.
+/// 可能返回 OmsErrCode_CondSc_MdSymbPriNotFound; 通常為設計有誤.
 extern OmsErrCode GetExecPri(OmsSymb& mdSymb, f9fmkt_ExecPriSel execPriSel, int8_t priTicksAway, fon9::fmkt::Pri& out);
 static inline bool CheckExecPri(OmsRequestRunnerInCore& runner,
                                 OmsSymb& mdSymb, f9fmkt_ExecPriSel execPriSel, int8_t priTicksAway, fon9::fmkt::Pri& out) {

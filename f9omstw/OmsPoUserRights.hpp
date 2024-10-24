@@ -48,6 +48,12 @@ public:
    OmsIvRight              IvDenys_{};
    char                    Padding___[1];
    f9oms_ScForceFlag       ScForceFlags_{};
+   /// 允許使用那些條件單?
+   /// - 使用「,」分隔;
+   /// - 若第一碼為「*」則表示允許全部條件單;
+   /// - 若有「-」則表示之後的設定不理會,
+   ///   例: "LP,LQ,TQ,-BQ,BP,SQ,SP", 則僅允許 "LP,LQ,TQ", 之後的設定不理會.
+   fon9::CharVector        CondAllows_;
 };
 
 } // namespaces

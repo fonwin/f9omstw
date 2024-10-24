@@ -83,6 +83,40 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr, OmsIvConfig* ivConfig) 
       ? (this->IvConfig_.Rights_ | this->IvDenys_)
       : OmsIvRight::DenyAll;
 }
+void OmsRequestPolicy::SetCondAllows(fon9::StrView value) {
+   this->CondAllows_.clear();
+   if (value.Get1st() == '*') {
+      this->CondAllows_.push_back('*');
+      return;
+   }
+   for (char c : value) {
+      if (c == '-')
+         break;
+      if (fon9::isspace(c))
+         continue;
+      this->CondAllows_.push_back(c);
+   }
+}
+bool OmsRequestPolicy::IsCondAllowed(fon9::StrView condName) const {
+   const char* const pbeg = this->CondAllows_.begin();
+   if (*pbeg == '*' || condName.empty())
+      return true;
+   const char* const pend = this->CondAllows_.end();
+   if (pbeg == pend)
+      return false;
+   const auto condNameSz = condName.size();
+   const char* pfind = pbeg;
+   for (;;) {
+      pfind = std::search(pfind, pend, condName.begin(), condName.end());
+      if (pfind == pend)
+         return false;
+      if (pfind + condNameSz == pend || *(pfind + condNameSz) == ',') {
+         if (pfind == pbeg || *(pfind - 1) == ',')
+            return true;
+      }
+      ++pfind;
+   }
+}
 //--------------------------------------------------------------------------//
 OmsIvKind OmsAddIvConfig(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, const OmsIvConfig& ivConfig, OmsBrkTree& brks) {
    OmsIvBase*     ivBase;
@@ -132,6 +166,8 @@ OmsRequestPolicySP OmsRequestPolicyCfg::MakePolicy(OmsResource& res, fon9::intru
    pol->SetScForceFlags(this->UserRights_.ScForceFlags_);
    pol->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
       ToStrView(this->TeamGroupName_), ToStrView(this->UserRights_.AllowOrdTeams_)));
+   pol->SetCondAllows(ToStrView(this->UserRights_.CondAllows_));
+
    for (const auto& item : this->IvList_) {
       auto ec = OmsAddIvConfig(*pol, ToStrView(item.first), item.second, *res.Brks_);
       if (ec != OmsIvKind::Unknown)

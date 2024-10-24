@@ -31,11 +31,11 @@ namespace f9omstw {
 
 using UomsTwsOrderFactory = OmsOrderFactoryT<OmsOrder, UtwsOrderRaw, kPoolObjCount>;
 using OmsTwsRequestIniFactory = OmsRequestFactoryT<UtwsRequestIni, kPoolObjCount>;
-using OmsTwsRequestChgFactory = OmsRequestFactoryT<OmsTwsRequestChg, kPoolObjCount>;
+using OmsTwsRequestChgFactory = OmsRequestFactoryT<UtwsRequestChg, kPoolObjCount>;
 //--------------------------------------------------------------------------//
 using UomsTwfOrder1Factory = OmsOrderFactoryT<OmsTwfOrder1, UtwfOrderRaw1, kPoolObjCount>;
 using OmsTwfRequestIni1Factory = OmsRequestFactoryT<UtwfRequestIni1, kPoolObjCount>;
-using OmsTwfRequestChg1Factory = OmsRequestFactoryT<OmsTwfRequestChg1, kPoolObjCount>;
+using OmsTwfRequestChg1Factory = OmsRequestFactoryT<UtwfRequestChg1, kPoolObjCount>;
 
 using UomsTwfOrder7Factory = OmsOrderFactoryT<OmsTwfOrder7, OmsTwfOrderRaw7, 0>;
 using OmsTwfRequestIni7Factory = OmsRequestFactoryT<OmsTwfRequestIni7, 0>;
@@ -262,7 +262,10 @@ public:
                      OmsRequestRunStepSP{new UtwsCondStepAfSc(
                                          std::move(twsNewSenderStep)
                      )} )} )} ),
-            new OmsTwsRequestChgFactory("TwsChg", std::move(twsChgSenderStep)),
+            new OmsTwsRequestChgFactory("TwsChg",
+                     OmsRequestRunStepSP{new UtwsCondStepChg(
+                                         std::move(twsChgSenderStep)
+                     )} ),
             twsRptFactory,
             twsFilFactory
          ));
@@ -354,7 +357,10 @@ public:
                      OmsRequestRunStepSP{new UtwfCondStepAfSc(
                                          std::move(twfNewSenderStep)
                      )} )} )} ),
-            new OmsTwfRequestChg1Factory("TwfChg", std::move(twfChgSenderStep)),
+            new OmsTwfRequestChg1Factory("TwfChg",
+                     OmsRequestRunStepSP{new UtwfCondStepChg1(
+                                         std::move(twfChgSenderStep)
+                     )} ),
             twfRpt1Factory,
             twfFil1Factory,
             twfFil2Factory,

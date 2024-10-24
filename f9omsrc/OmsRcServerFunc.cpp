@@ -138,12 +138,16 @@ void OmsRcServerNote::OnRecvHelpOfferSt(ApiSession& ses, fon9::rc::RcFunctionPar
    (void)param;
    ses.ForceLogout("Server.OnRecvHelpOfferSt not supported.");
 }
+void OmsRcServerNote::OnRecvOmsOp_Unknown(ApiSession& ses, fon9::rc::RcFunctionParam& param, f9OmsRc_OpKind opkind) {
+   (void)param; (void)opkind;
+   ses.ForceLogout("OmsRcServer:Unknown f9OmsRc_OpKind");
+}
 void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
    f9OmsRc_OpKind opkind{};
    fon9::BitvTo(param.RecvBuffer_, opkind);
    switch (opkind) {
    default:
-      ses.ForceLogout("OmsRcServer:Unknown f9OmsRc_OpKind");
+      this->OnRecvOmsOp_Unknown(ses, param, opkind);
       return;
    case f9OmsRc_OpKind_Config:
       this->OnRecvStartApi(ses);
@@ -167,6 +171,28 @@ void OmsRcServerNote::OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& pa
       this->OnRecvHelpOfferSt(ses, param);
       break;
    }
+}
+void OmsRcServerNote::SendRequestAbandon(RequestFillRunner& runner, ApiSession& ses, const char* cstrForceLogout) {
+   assert(runner.Request_->IsAbandoned());
+   runner.ExLog_.MoveOut();
+   if (this->ApiSesCfg_->MakeReportMessage(runner.ExLog_, *runner.Request_))
+      ses.Send(f9rc_FunctionCode_OmsApi, std::move(runner.ExLog_));
+   if (cstrForceLogout) {
+      ses.ForceLogout(cstrForceLogout);
+      runner.Clear();
+   }
+}
+bool OmsRcServerNote::CheckFcOverForceLogout(RequestFillRunner& runner, ApiSession& ses) {
+   if (++this->PolicyConfig_.FcReqOverCount_ > kFcOverCountForceLogout) {
+      // 超過流量, 若超過次數超過 n 則強制斷線.
+      // 避免有惡意連線, 大量下單壓垮系統.
+      const char* cstrForceLogout = "FlowControl: ForceLogout.";
+      runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl, cstrForceLogout);
+      this->SendRequestAbandon(runner, ses, cstrForceLogout);
+      return true;
+   }
+   runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl);
+   return false;
 }
 void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) {
    f9_LatencyMeasure_Push("OmsRcSvrFunc.Begin");
@@ -203,114 +229,110 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
          fon9::BitvTo(param.RecvBuffer_, reqTableId);
          --reqTableId;
       }
-      const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId];
-      size_t            byteCount;
-      if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
-         fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
-      if (byteCount <= 0)
+      RequestFillRunner  runner;
+      switch (this->OnFillRequest(ses, param, runner, reqTableId)) {
+      default:
+      case FillRequestResult_Empty:
          continue;
-      OmsRequestRunner  runner;
-      f9_LatencyMeasure_Push("OmsRcSvrFunc.BfExLog");
-      fon9::RevPrint(runner.ExLog_, '\n');
-      f9_LatencyMeasure_Push("OmsRcSvrFunc.AfExLog");
-      char* const    pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
-      fon9::StrView  reqstr{pout, byteCount};
-      runner.ExLog_.SetPrefixUsed(pout);
-      param.RecvBuffer_.Read(pout, byteCount);
-
-      auto pol = this->Handler_->RequestPolicy_;
-      this->PolicyConfig_.UpdateIvDenys(pol.get());
-
-      f9_LatencyMeasure_Push("OmsRcSvrFunc.BfMakeReq");
-      struct MakeReqCache {
-         OmsRequestSP*        ReqCachePtr_;
-         OmsRequestFactory*   ReqFactory_;
-         MakeReqCache(OmsRequestSP* p) : ReqCachePtr_{p} {
-         }
-         ~MakeReqCache() {
-            if (this->ReqFactory_) { // 重新補充 ReqCache_;
-               *this->ReqCachePtr_ = this->ReqFactory_->MakeRequest(fon9::TimeStamp{});
-            }
-         }
-      };
-      MakeReqCache makeReqCache{&this->ReqCache_[reqTableId]};
-      runner.Request_ = std::move(*makeReqCache.ReqCachePtr_);
-      if (fon9_LIKELY(runner.Request_)) {
-         makeReqCache.ReqFactory_ = cfg.Factory_;
-         runner.Request_->ResetCrTime(param.RecvTime_);
-         assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
-         static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
+      case FillRequestResult_ForceLogout:
+         runner.Clear();
+         return;
+      case FillRequestResult_ReportRequest:
+         // 回報補單不用考慮流量.
+         goto __SKIP_CheckFc_AND_RUN_REQUEST;
+      case FillRequestResult_TradingRequest:
+         break;
       }
-      else {
-         makeReqCache.ReqFactory_ = nullptr;
-         // Rc client 端使用 TwsRpt 補登回報(補單).
-         runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
-         if (!runner.Request_) {
-            ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
-            return;
-         }
-         // 回報(補單)權限需要自主檢查.
-         if (!pol || !runner.CheckReportRights(*pol)) {
-            ses.ForceLogout("OmsRcServer:deny input report.");
-            return;
-         }
-         runner.Request_->SetReportNeedsLog();
-         runner.Request_->SetForcePublish();
-      }
-      f9_LatencyMeasure_Push("SetReqFields.Begin");
-      ApiReqFieldArg arg{*runner.Request_, ses};
-      for (const auto& fldcfg : cfg.ApiFields_) {
-         arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
-         if (fldcfg.Field_)
-            fldcfg.Field_->StrToCell(arg, arg.ClientFieldValue_);
-         if (fldcfg.FnPut_)
-            (*fldcfg.FnPut_)(fldcfg, arg);
-      }
-      f9_LatencyMeasure_Push("SetReqFields.AfApiFields");
-      arg.ClientFieldValue_.Reset(nullptr);
-      for (const auto& fldcfg : cfg.SysFields_) {
-         if (fldcfg.FnPut_)
-            (*fldcfg.FnPut_)(fldcfg, arg);
-      }
-      f9_LatencyMeasure_Push("SetReqFields.AfSysFields");
-      const char* cstrForceLogout;
-      if (fon9_UNLIKELY(runner.Request_->IsReportIn())) // 回報補單不用考慮流量, 且沒有 SetPolicy().
-         goto __RUN_REPORT;
-
-      if (fon9_LIKELY(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0)) {
-         static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
-      __RUN_REPORT:
+      if (fon9_LIKELY(this->CheckFcFetch())) {
+      __SKIP_CheckFc_AND_RUN_REQUEST:;
          f9_LatencyMeasure_Push("OmsRcSvrFunc.BfToCore");
          if (fon9_LIKELY(this->Handler_->Core_->MoveToCore(std::move(runner)))) {
             f9_LatencyMeasure_Push("\x1" "OmsRcSvrFunc.AfToCore");
+            // 成功將 runner 移入 OmsCore
+            // => 繼續取出下一筆 req;
             continue;
          }
-         cstrForceLogout = nullptr;
+         // 將 runner 移入 OmsCore 失敗 => assert(runner.Request_->IsAbandoned());
+         // 接下來: 將失敗的 reqest abandon 訊息回覆給對方.
       }
-      else {
-         if (++this->PolicyConfig_.FcReqOverCount_ > kFcOverCountForceLogout) {
-            // 超過流量, 若超過次數超過 n 則強制斷線.
-            // 避免有惡意連線, 大量下單壓垮系統.
-            runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl,
-                                  cstrForceLogout = "FlowControl: ForceLogout.");
-         }
-         else {
-            runner.RequestAbandon(nullptr, OmsErrCode_OverFlowControl);
-            cstrForceLogout = nullptr;
-         }
-      }
-      // request abandon, 立即回報失敗.
-      assert(runner.Request_->IsAbandoned());
-      runner.ExLog_.MoveOut();
-      if (this->ApiSesCfg_->MakeReportMessage(runner.ExLog_, *runner.Request_))
-         ses.Send(f9rc_FunctionCode_OmsApi, std::move(runner.ExLog_));
-      if (cstrForceLogout) {
-         ses.ForceLogout(cstrForceLogout);
-         makeReqCache.ReqFactory_ = nullptr;
+      else if (this->CheckFcOverForceLogout(runner, ses)) {
+         // 超過 [流量管制次數],
+         // 已回覆 request abandon 訊息, 並已強制登出,
+         // 所以直接結束迴圈, 準備結束 Session.
          break;
       }
+      else {
+         // 超過 [流量管制] 但尚未超過管制次數;
+         // 已在檢查時設定 request abandon,
+         // 接下來: 將失敗的 reqest abandon 訊息回覆給對方.
+      }
+      this->SendRequestAbandon(runner, ses, nullptr);
    }
    f9_LatencyMeasure_Push("OmsRcSvrFunc.AfParse");
+}
+OmsRcServerNote::FillRequestResult OmsRcServerNote::OnFillRequest(ApiSession& ses, fon9::rc::RcFunctionParam& param, RequestFillRunner& runner, unsigned reqTableId) {
+   assert(reqTableId <= this->ApiSesCfg_->ApiReqCfgs_.size());
+   const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId];
+   size_t            byteCount;
+   if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
+      fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
+   if (byteCount <= 0)
+      return FillRequestResult_Empty;
+   f9_LatencyMeasure_Push("OmsRcSvrFunc.BfExLog");
+   fon9::RevPrint(runner.ExLog_, '\n');
+   f9_LatencyMeasure_Push("OmsRcSvrFunc.AfExLog");
+   char* const    pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
+   fon9::StrView  reqstr{pout, byteCount};
+   runner.ExLog_.SetPrefixUsed(pout);
+   param.RecvBuffer_.Read(pout, byteCount);
+
+   auto pol = this->Handler_->RequestPolicy_;
+   this->PolicyConfig_.UpdateIvDenys(pol.get());
+
+   f9_LatencyMeasure_Push("OmsRcSvrFunc.BfMakeReq");
+   runner.ResetReqCache(&this->ReqCache_[reqTableId]);
+   if (fon9_LIKELY(runner.Request_)) {
+      runner.Request_->ResetCrTime(param.RecvTime_);
+      assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
+      static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
+   }
+   else {
+      // Rc client 端使用 TwsRpt 補登回報(補單).
+      runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
+      if (!runner.Request_) {
+         ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
+         return FillRequestResult_ForceLogout;
+      }
+      // 回報(補單)權限需要自主檢查.
+      if (!pol || !runner.CheckReportRights(*pol)) {
+         ses.ForceLogout("OmsRcServer:deny input report.");
+         return FillRequestResult_ForceLogout;
+      }
+      runner.Request_->SetReportNeedsLog();
+      runner.Request_->SetForcePublish();
+   }
+   f9_LatencyMeasure_Push("SetReqFields.Begin");
+   ApiReqFieldArg arg{*runner.Request_, ses};
+   for (const auto& fldcfg : cfg.ApiFields_) {
+      arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
+      if (fldcfg.Field_)
+         fldcfg.Field_->StrToCell(arg, arg.ClientFieldValue_);
+      if (fldcfg.FnPut_)
+         (*fldcfg.FnPut_)(fldcfg, arg);
+   }
+   f9_LatencyMeasure_Push("SetReqFields.AfApiFields");
+   arg.ClientFieldValue_.Reset(nullptr);
+   for (const auto& fldcfg : cfg.SysFields_) {
+      if (fldcfg.FnPut_)
+         (*fldcfg.FnPut_)(fldcfg, arg);
+   }
+   f9_LatencyMeasure_Push("SetReqFields.AfSysFields");
+   if (fon9_LIKELY(!runner.Request_->IsReportIn())) {
+      static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
+      return FillRequestResult_TradingRequest;
+   }
+   // 回報補單不用 SetPolicy().
+   return FillRequestResult_ReportRequest;
 }
 //--------------------------------------------------------------------------//
 void OmsRcServerNote::Handler::ClearResource() {
@@ -571,6 +593,11 @@ static FnPutApiField_Register regFnPutApiField_ApiSes{
    "ApiSes.FromIp", &FnPutApiField_ApiSesFromIp,
 };
 
+static OmsRcServerAgent* OmsRcServerAgent_Creator(ApiSesCfgSP cfg) {
+   return new OmsRcServerAgent{std::move(cfg)};
+}
+f9p_OmsRcServerAgent_Creator_Fn_t f9p_OmsRcServerAgent_Creator_Fn = OmsRcServerAgent_Creator;
+
 } // namespaces
 
 //--------------------------------------------------------------------------//
@@ -608,9 +635,9 @@ static bool OmsRcServerAgent_Start(fon9::seed::PluginsHolder& holder, fon9::StrV
       }
       else if (tag == "AddTo") {
          if (!sesCfg)
-            holder.SetPluginsSt(fon9::LogLevel::Error, "Config not setted.");
+            holder.SetPluginsSt(fon9::LogLevel::Error, "Config not set.");
          else if (fon9::rc::RcFunctionMgr* rcFuncMgr = fon9::rc::FindRcFunctionMgr(holder, value)) {
-            rcFuncMgr->Add(fon9::rc::RcFunctionAgentSP{new f9omstw::OmsRcServerAgent{sesCfg}});
+            rcFuncMgr->Add(fon9::rc::RcFunctionAgentSP{f9omstw::f9p_OmsRcServerAgent_Creator_Fn(sesCfg)});
             continue;
          }
          return false;

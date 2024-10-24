@@ -18,27 +18,6 @@ enum class OmsCxSrcEvMask : uint8_t {
    MdBS_OddLot        = 0x08,
 };
 fon9_ENABLE_ENUM_BITWISE_OP(OmsCxSrcEvMask);
-//--------------------------------------------------------------------------//
-struct OmsCxBaseIniDat {
-   /// 用來判斷條件的商品, 與下單商品可能不同.
-   fon9::CharVector  CondSymbId_;
-   fon9::CharAry<2>  CondName_{nullptr};
-   fon9::CharAry<2>  CondOp_{nullptr};
-   /// 先風控,風控通過後,才開始等候條件.
-   fon9::EnabledYN   CondAfterSc_{};
-   /// 需要那些事件來判斷條件?
-   OmsCxSrcEvMask    CondSrcEvMask_{};
-   char              CondPadding___[2];
-   /// 某些判斷, 可能需要同時判斷 Pri 及 Qty, 所以建立2個獨立欄位, 因而不使用 union;
-   fon9::fmkt::Pri   CondPri_{fon9::fmkt::Pri::Null()};
-   fon9::fmkt::Qty   CondQty_{0};
-
-   template <class Derivid>
-   static void CxMakeFields(fon9::seed::Fields& flds, const Derivid* = nullptr) {
-      MakeFields(flds, fon9_OffsetOfBase(Derivid, OmsCxBaseIniDat));
-   }
-   static void MakeFields(fon9::seed::Fields& flds, int ofsadj);
-};
 // ======================================================================== //
 /// - 包含 CondPri 及 CondQty 的修改;
 /// - 其他 Cond 欄位不允許修改, 若要調整, 應刪除後重下;
@@ -53,14 +32,32 @@ struct OmsCxBaseChangeable {
    static void MakeFields(fon9::seed::Fields& flds, int ofsadj);
 
    void ContinuePrevUpdate(const OmsCxBaseChangeable& prev) {
-      this->CondPri_ = prev.CondPri_;
-      this->CondQty_ = prev.CondQty_;
+      *this = prev;
    }
 };
 /// 條件改單要求, 可包含 OmsCxBaseChgDat;
 using OmsCxBaseChgDat = OmsCxBaseChangeable;
 /// 若系統支援更改條件內容, 則 OrderRaw 需要紀錄[最後異動]的條件;
 using OmsCxBaseOrdRaw = OmsCxBaseChangeable;
+//--------------------------------------------------------------------------//
+struct OmsCxBaseIniDat : public OmsCxBaseChangeable {
+   /// 用來判斷條件的商品, 與下單商品可能不同.
+   fon9::CharVector  CondSymbId_;
+   fon9::CharAry<2>  CondName_{nullptr};
+   fon9::CharAry<2>  CondOp_{nullptr};
+   /// 先風控,風控通過後,才開始等候條件.
+   fon9::EnabledYN   CondAfterSc_{};
+   /// 需要那些事件來判斷條件?
+   OmsCxSrcEvMask    CondSrcEvMask_{};
+   char              CondPadding___[2];
+   /// 某些判斷, 可能需要同時判斷 Pri 及 Qty, 所以建立2個獨立欄位, 因而不使用 union;
+
+   template <class Derivid>
+   static void CxMakeFields(fon9::seed::Fields& flds, const Derivid* = nullptr) {
+      MakeFields(flds, fon9_OffsetOfBase(Derivid, OmsCxBaseIniDat));
+   }
+   static void MakeFields(fon9::seed::Fields& flds, int ofsadj);
+};
 //--------------------------------------------------------------------------//
 class OmsCxBaseCondEvArgs {
    fon9_NON_COPY_NON_MOVE(OmsCxBaseCondEvArgs);
@@ -117,11 +114,30 @@ struct OmsCxBaseCondFn {
    /// 這裡預設都是傳回 false;
    virtual bool OnOmsCx_MdBSEv(const OmsCxBaseCondEvArgs& args);
    virtual bool OnOmsCx_MdBSEv_OddLot(const OmsCxBaseCondEvArgs& args);
+   /// 檢查條件內容是否正確.
+   /// 預設傳回 OmsErrCode_Null;
+   virtual OmsErrCode OnOmsCx_CheckCondDat(const OmsCxBaseChangeable& dat);
+   /// 若reqChg的內容允許(this->OnOmsCx_CheckCondDat(reqChg) 返回 OmsErrCode_Null),
+   /// 則將修改後的內容填入 ordraw;
+   virtual OmsErrCode OnOmsCx_AssignReqChgToOrd(const OmsCxBaseChgDat& reqChg, OmsCxBaseOrdRaw& ordraw);
    /// 收單階段(OmsCore/OmsRequestRunStep)的條件判斷.
    /// 這裡預設傳回 false;
    /// \retval true  則應立即送出, 不用等候條件.
    /// \retval false 需要等候條件, 成立才送出. 例: 最後成交單量,就不可在[收單階段]判斷,此時傳回false.
    virtual bool OmsCx_IsNeedsFireNow(OmsSymb& condSymb, const OmsCxBaseOrdRaw& cxRaw);
+};
+enum class OmsCxBaseCondFn_CheckFlag {
+   CondQtyCannotZero = 0x01,
+   CondPriCannotNull = 0x02,
+};
+fon9_ENABLE_ENUM_BITWISE_OP(OmsCxBaseCondFn_CheckFlag);
+struct OmsCxBaseCondFn_CheckCond : public OmsCxBaseCondFn {
+   OmsCxBaseCondFn_CheckFlag  CheckFlags_{};
+   char                       Padding____[4];
+   OmsCxBaseCondFn_CheckCond(OmsCxBaseCondFn_CheckFlag checkFlags) : CheckFlags_{checkFlags} {
+   }
+   ~OmsCxBaseCondFn_CheckCond();
+   OmsErrCode OnOmsCx_CheckCondDat(const OmsCxBaseChangeable& dat) override;
 };
 using OmsCxBaseCondFnSP = std::unique_ptr<OmsCxBaseCondFn>;
 
@@ -175,6 +191,29 @@ public:
       TCxData::CxMakeFields(flds, static_cast<OmsCxCombine*>(nullptr));
    }
 };
+
+template <class TOrdRaw, class TCxData>
+class OmsCxCombineOrdRaw : public OmsCxCombine<TOrdRaw, TCxData> {
+   fon9_NON_COPY_NON_MOVE(OmsCxCombineOrdRaw);
+   using base = OmsCxCombine<TOrdRaw, TCxData>;
+public:
+   using base::base;
+   OmsCxCombineOrdRaw() = default;
+
+   void ContinuePrevUpdate(const OmsOrderRaw& prev) override {
+      if (fon9_LIKELY(prev.UpdateOrderSt_ != f9fmkt_OrderSt_NewWaitingCond))
+         TOrdRaw::ContinuePrevUpdate(prev);
+      else {
+         // 在 WaitingCond 狀態下的委託: assert(LeavesQty_ != 0)
+         // (1) 若 LeavesQty_ != AfterQty_ : assert(AfterQty_ == 0); 則為: [尚未風控] 的條件單.
+         // (2) 若 LeavesQty_ == AfterQty_ :                         則為: [已經風控] 的條件單;
+         const auto afQty = static_cast<const OmsCxCombineOrdRaw*>(&prev)->AfterQty_;
+         TOrdRaw::ContinuePrevUpdate(prev);
+         this->BeforeQty_ = this->AfterQty_ = afQty;
+      }
+      TCxData::ContinuePrevUpdate(*static_cast<const OmsCxCombineOrdRaw*>(&prev));
+   }
+};
 //--------------------------------------------------------------------------//
 /// 例: TBase = OmsTwsRequestIni; TCxData = OmsCxBaseIniFn;
 /// 檢查 txReq 是否仍需要等候條件.
@@ -202,16 +241,16 @@ inline const OrdRaw* GetWaitingOrdRaw(const TxReq& txReq) {
 }
 
 template <class TxReq, class TCxData, class TOrdRaw>
-class OmsCxCombineReq : public OmsCxCombine<TxReq, TCxData> {
-   fon9_NON_COPY_NON_MOVE(OmsCxCombineReq);
+class OmsCxCombineReqIni : public OmsCxCombine<TxReq, TCxData> {
+   fon9_NON_COPY_NON_MOVE(OmsCxCombineReqIni);
    using base = OmsCxCombine<TxReq, TCxData>;
 public:
    using base::base;
-   OmsCxCombineReq() = default;
+   OmsCxCombineReqIni() = default;
    const TOrdRaw* GetWaitingCxOrdRaw() const override {
       return GetWaitingOrdRaw<TOrdRaw>(*this);
    }
-   const OmsCxCombineReq* GetWaitingRequestTrade() const override {
+   const OmsCxCombineReqIni* GetWaitingRequestTrade() const override {
       return GetWaitingOrdRaw<TOrdRaw>(*this) ? this : nullptr;
    }
 };

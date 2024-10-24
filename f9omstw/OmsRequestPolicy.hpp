@@ -20,6 +20,7 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    mutable OmsUserRightFlag   UserRightFlags_{};
    char                       padding___[3];
    mutable f9oms_ScForceFlag  ScForceFlags_{};
+   fon9::CharVector           CondAllows_;
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -74,6 +75,9 @@ public:
    void SetScForceFlags(f9oms_ScForceFlag value) const {
       this->ScForceFlags_ = value;
    }
+   void SetCondAllows(fon9::StrView value);
+   /// \retval true condName.empty() 或有權限.
+   bool IsCondAllowed(fon9::StrView condName) const;
 
    /// - 如果 ivr 是 Subac:
    ///   - 則 subWilds 必定是 empty().

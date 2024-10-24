@@ -11,14 +11,22 @@
 
 namespace f9omstw {
 
+// ======================================================================== //
 struct UtwOmsCxIni : public OmsCxBaseIniFn {
    fon9_NON_COPY_NON_MOVE(UtwOmsCxIni);
    UtwOmsCxIni() = default;
    fon9::intrusive_ptr<UtwsSymb> CondSymb_;
    virtual fon9::StrView GetTxSymbId() const = 0;
 
-   bool BeforeReqInCore_CheckCond(OmsRequestRunner& runner, OmsResource& res) {
-      OmsErrCode ec = this->CreateCondFn();
+   bool BeforeReqInCore_CheckCond(OmsRequestRunner& runner, OmsResource& res, const OmsRequestPolicy* pol) {
+      if (this->CondName_.empty1st())
+         return true;
+      OmsErrCode ec;
+      if (fon9_UNLIKELY(pol == nullptr || !pol->IsCondAllowed(ToStrView(this->CondName_)))) {
+         ec = OmsErrCode_CondSc_Deny;
+         goto __REQUEST_ABANDON;
+      }
+      ec = this->CreateCondFn();
       if (fon9_LIKELY(ec == OmsErrCode_Null)) {
          if (this->CondFn_ == nullptr) // 非條件單.
             return true;
@@ -95,9 +103,9 @@ struct UtwOmsCxIni : public OmsCxBaseIniFn {
 };
 //--------------------------------------------------------------------------//
 template <class TxReq, class TOrdRaw>
-class UtwCondRequestIni: public OmsCxCombineReq<TxReq, UtwOmsCxIni, TOrdRaw> {
+class UtwCondRequestIni: public OmsCxCombineReqIni<TxReq, UtwOmsCxIni, TOrdRaw> {
    fon9_NON_COPY_NON_MOVE(UtwCondRequestIni);
-   using base = OmsCxCombineReq<TxReq, UtwOmsCxIni, TOrdRaw>;
+   using base = OmsCxCombineReqIni<TxReq, UtwOmsCxIni, TOrdRaw>;
 public:
    using base::base;
    UtwCondRequestIni() = default;
@@ -105,13 +113,14 @@ public:
       return ToStrView(this->Symbol_);
    }
    OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override {
-      return (this->BeforeReqInCore_CheckCond(runner, res)
+      return (this->BeforeReqInCore_CheckCond(runner, res, this->Policy())
               ? base::BeforeReqInCore(runner, res)
               : nullptr);
    }
    void OnWaitCondBfSc(OmsRequestRunnerInCore&& runner) const override {
       auto& ordraw = *static_cast<TOrdRaw*>(&runner.OrderRaw());
-      ordraw.BeforeQty_ = ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
+      ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
+      ordraw.LeavesQty_ = this->Qty_;
       ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewWaitingCond;
       runner.Update(f9fmkt_TradingRequestSt_WaitingCond);
    }
@@ -141,17 +150,110 @@ struct UtwCondStepAfSc : public OmsRequestRunStep {
          ->RunCondStepAfSc(std::move(runner), *static_cast<OrdRawT*>(&runner.OrderRaw()), *this->NextStep_);
    }
 };
-//--------------------------------------------------------------------------//
-using UtwsOrderRaw     = OmsCxCombine<OmsTwsOrderRaw, OmsCxBaseOrdRaw>;
+// ======================================================================== //
+template <class ReqChgT, class OrdRawT, class ReqIniT>
+struct UtwCondStepChg : public OmsRequestRunStep {
+   fon9_NON_COPY_NON_MOVE(UtwCondStepChg);
+   using base = OmsRequestRunStep;
+   using base::base;
+   void RunRequest(OmsRequestRunnerInCore&& runner) override {
+      OrdRawT& ordraw = *static_cast<OrdRawT*>(&runner.OrderRaw());
+      auto&    reqChg = *static_cast<const ReqChgT*>(&ordraw.Request());
+      if (ordraw.Order().LastOrderSt() == f9fmkt_OrderSt_NewWaitingCond) {
+         switch (reqChg.RxKind()) {
+         case f9fmkt_RxKind_RequestChgQty:
+            if (reqChg.Qty_ != 0) {
+            __CHG_QTY:;
+               if (reqChg.Qty_ > 0) {
+                  ordraw.LeavesQty_ = fon9::unsigned_cast(reqChg.Qty_);
+               __LeavesQty_Changed:;
+                  if (ordraw.AfterQty_ > 0) {
+                     ordraw.BeforeQty_ = ordraw.AfterQty_;
+                     ordraw.AfterQty_ = ordraw.LeavesQty_;
+                  }
+                  runner.Update(f9fmkt_TradingRequestSt_Done);
+                  return;
+               }
+               const auto decQty = fon9::unsigned_cast(-reqChg.Qty_);
+               if (ordraw.LeavesQty_ > decQty) {
+                  ordraw.LeavesQty_ = static_cast<decltype(ordraw.LeavesQty_)>(ordraw.LeavesQty_ - decQty);
+                  goto __LeavesQty_Changed;
+               }
+            }
+            /* fall through */ // 改量後剩餘數量為 0, 視為刪單;
+         case f9fmkt_RxKind_RequestDelete:
+            ordraw.LeavesQty_ = ordraw.AfterQty_ = 0;
+            ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
+            runner.Update(f9fmkt_TradingRequestSt_Done);
+            // 刪單後, 應該要通知 CondSymb,
+            // 但在觸發條件時會檢查條件單是否有效,
+            // 所以在此就不必通知 CondSymb 了!
+            return;
+         case f9fmkt_RxKind_RequestChgPri:
+            ordraw.LastPriType_ = reqChg.PriType_;
+            ordraw.LastPri_     = reqChg.Pri_;
+            runner.Update(f9fmkt_TradingRequestSt_Done);
+            return;
+         case f9fmkt_RxKind_RequestChgCond:
+            assert(dynamic_cast<const ReqIniT*>(ordraw.Order().Initiator()) != nullptr);
+            if (auto* reqIni = static_cast<const ReqIniT*>(ordraw.Order().Initiator())) {
+               assert(reqIni->CondFn_.get() != nullptr);
+               OmsErrCode res = reqIni->CondFn_->OnOmsCx_AssignReqChgToOrd(reqChg, ordraw);
+               if (res != OmsErrCode_Null)
+                  runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, res, nullptr);
+               else {
+                  if (reqChg.PriType_ != f9fmkt_PriType_Unknown || !reqChg.Pri_.IsNull()) {
+                     // 同時改價;
+                     ordraw.LastPriType_ = reqChg.PriType_;
+                     ordraw.LastPri_ = reqChg.Pri_;
+                  }
+                  if (reqChg.Qty_ != 0) { // 同時改量;
+                     goto __CHG_QTY;
+                  }
+                  runner.Update(f9fmkt_TradingRequestSt_Done);
+               }
+               return;
+            }
+            break;
+         case f9fmkt_RxKind_RequestQuery:
+            // 目前條件單不支援: 查詢; 自行開發者,可自定查詢功能;
+            runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_RequestNotSupportThisOrder, nullptr);
+            return;
+         case f9fmkt_RxKind_Unknown:
+         case f9fmkt_RxKind_RequestNew:
+         case f9fmkt_RxKind_RequestRerun:
+         case f9fmkt_RxKind_Filled:
+         case f9fmkt_RxKind_Order:
+         case f9fmkt_RxKind_Event:
+         default:
+            runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Bad_RxKind, nullptr);
+            return;
+         }
+      }
+      else if (reqChg.RxKind() == f9fmkt_RxKind_RequestChgCond) {
+         runner.Reject(f9fmkt_TradingRequestSt_CheckingRejected, OmsErrCode_Triggered_Cannot_ChgCond, nullptr);
+         return;
+      }
+      this->ToNextStep(std::move(runner));
+   }
+};
+// ======================================================================== //
+using UtwsOrderRaw     = OmsCxCombineOrdRaw<OmsTwsOrderRaw, OmsCxBaseOrdRaw>;
 using UtwsRequestIni   = UtwCondRequestIni<OmsTwsRequestIni, UtwsOrderRaw>;
 using UtwsCondStepBfSc = UtwCondStepBfSc<UtwsRequestIni, UtwsOrderRaw>;
 using UtwsCondStepAfSc = UtwCondStepAfSc<UtwsRequestIni, UtwsOrderRaw>;
+
+using UtwsRequestChg  = OmsCxCombine<OmsTwsRequestChg, OmsCxBaseChgDat>;
+using UtwsCondStepChg = UtwCondStepChg<UtwsRequestChg, UtwsOrderRaw, UtwsRequestIni>;
 //--------------------------------------------------------------------------//
-using UtwfOrderRaw1    = OmsCxCombine<OmsTwfOrderRaw1, OmsCxBaseOrdRaw>;
+using UtwfOrderRaw1    = OmsCxCombineOrdRaw<OmsTwfOrderRaw1, OmsCxBaseOrdRaw>;
 using UtwfRequestIni1  = UtwCondRequestIni<OmsTwfRequestIni1, UtwfOrderRaw1>;
 using UtwfCondStepBfSc = UtwCondStepBfSc<UtwfRequestIni1, UtwfOrderRaw1>;
 using UtwfCondStepAfSc = UtwCondStepAfSc<UtwfRequestIni1, UtwfOrderRaw1>;
-//--------------------------------------------------------------------------//
+
+using UtwfRequestChg1  = OmsCxCombine<OmsTwfRequestChg1, OmsCxBaseChgDat>;
+using UtwfCondStepChg1 = UtwCondStepChg<UtwfRequestChg1, UtwfOrderRaw1, UtwfRequestIni1>;
+// ======================================================================== //
 
 } // namespaces
 #endif//__f9utw_UtwRequests_hpp__

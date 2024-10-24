@@ -27,6 +27,8 @@ public:
    void OnSessionLinkBroken(ApiSession& ses) override;
    // void OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) override;
 };
+typedef f9omstw::OmsRcServerAgent* (*f9p_OmsRcServerAgent_Creator_Fn_t) (ApiSesCfgSP cfg);
+extern f9p_OmsRcServerAgent_Creator_Fn_t f9p_OmsRcServerAgent_Creator_Fn;
 
 class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    fon9_NON_COPY_NON_MOVE(OmsRcServerNote);
@@ -81,7 +83,6 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
 
    std::vector<OmsRequestSP>  ReqCache_;
 
-   bool CheckApiReady(ApiSession& ses);
    void SendConfig(ApiSession& ses);
    void OnRecvOmsOp(ApiSession& ses, fon9::rc::RcFunctionParam& param);
    void OnRecvStartApi(ApiSession& ses);
@@ -89,7 +90,53 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    void StartPolicyRunner(ApiSession& ses, OmsCoreSP core);
 
 protected:
+   bool CheckApiReady(ApiSession& ses);
    virtual void OnRecvHelpOfferSt(ApiSession& ses, fon9::rc::RcFunctionParam& param);
+   /// 預設: ses.ForceLogout("Unknown f9OmsRc_OpKind");
+   virtual void OnRecvOmsOp_Unknown(ApiSession& ses, fon9::rc::RcFunctionParam& param, f9OmsRc_OpKind opkind);
+
+   class RequestFillRunner : public OmsRequestRunner {
+      fon9_NON_COPY_NON_MOVE(RequestFillRunner);
+      using base = OmsRequestRunner;
+      OmsRequestSP*        ReqCachePtr_;
+      OmsRequestFactory*   ReqFactory_{nullptr};
+   public:
+      using base::base;
+      RequestFillRunner() = default;
+      ~RequestFillRunner() {
+         if (this->ReqFactory_) { // 重新補充 ReqCache_;
+            *this->ReqCachePtr_ = this->ReqFactory_->MakeRequest(fon9::TimeStamp{});
+         }
+      }
+      void ResetReqCache(OmsRequestSP* p) {
+         assert(this->ReqFactory_ == nullptr && this->Request_.get() == nullptr);
+         this->ReqCachePtr_ = p;
+         if ((this->Request_ = std::move(*p)).get() != nullptr) {
+            this->ReqFactory_ = &this->Request_->Creator();
+         }
+      }
+      void Clear() {
+         this->ReqFactory_ = nullptr;
+      }
+   };
+   enum FillRequestResult {
+      /// 建立 runner.Request_ (TradingRequest) 成功, 並填入內容成功.
+      FillRequestResult_TradingRequest,
+      /// 建立 runner.Request_ (ReportRequest) 成功, 並填入內容成功.
+      FillRequestResult_ReportRequest,
+      /// param.RecvBuffer_ 無資料.
+      FillRequestResult_Empty,
+      /// 建立 runner.Request_ 失敗, 或沒有權限.
+      /// 已呼叫 ses.ForceLogout();
+      FillRequestResult_ForceLogout,
+   };
+   FillRequestResult OnFillRequest(ApiSession& ses, fon9::rc::RcFunctionParam& param, RequestFillRunner& runner, unsigned reqTableId);
+   bool CheckFcFetch() {
+      return(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0);
+   }
+   bool CheckFcOverForceLogout(RequestFillRunner& runner, ApiSession& ses);
+   // 解包階段 request abandon, 需要立即回報失敗.
+   void SendRequestAbandon(RequestFillRunner& runner, ApiSession& ses, const char* cstrForceLogout);
 
 public:
    const ApiSesCfgSP    ApiSesCfg_;

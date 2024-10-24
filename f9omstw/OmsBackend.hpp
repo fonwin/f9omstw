@@ -97,7 +97,8 @@ class OmsBackend {
    OmsRxSNO             PublishedSNO_{0};
    fon9::TimeInterval   FlushInterval_;
    int                  CpuAffinity_{-1};
-   char                 Padding____[4];
+   bool                 IsReadOnly_{false}; // 在 OpenReload() 時設定此旗標.
+   char                 Padding____[3];
    std::string          LogPath_;
 
    class RecoderFd : public fon9::AsyncFileAppender {

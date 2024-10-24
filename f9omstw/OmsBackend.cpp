@@ -27,9 +27,11 @@ void OmsBackend::OnBeforeDestroy() {
    this->SaveQuItems(items->QuItems_);
    items->QuItems_.clear();
 
-   fon9::RevBufferList rbuf{128};
-   fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::LocalNow(), " =====\n");
-   this->RecorderFd_->Append(rbuf.MoveOut());
+   if (!this->IsReadOnly_) {
+      fon9::RevBufferList rbuf{128};
+      fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::LocalNow(), " =====\n");
+      this->RecorderFd_->Append(rbuf.MoveOut());
+   }
 
    // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {

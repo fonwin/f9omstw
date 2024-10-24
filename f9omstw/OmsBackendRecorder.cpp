@@ -309,6 +309,7 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
    assert(!this->RecorderFd_->IsOpened());
    if (this->RecorderFd_->IsOpened())
       return OpenResult{0};
+   this->IsReadOnly_ = (fmode == fon9::FileMode::Read); // fmode: ReadOnly 不包含其他 Write、Append 旗標;
    this->LogPath_ = fon9::FilePath::ExtractPathName(&logFileName);
    auto res = this->RecorderFd_->OpenImmediately(logFileName, fmode);
    if (res.IsError()) {
@@ -393,6 +394,8 @@ OmsBackend::OpenResult OmsBackend::OpenReload(std::string logFileName, OmsResour
          }
       }
    }
+   if (this->IsReadOnly_)  // 通常用在分析程式, 例: OmsLogAnalyser
+      return res;          // 此時不應該寫入現在程式的欄位;
    fon9::RevBufferList rbuf{128};
    loader.MakeLayout(rbuf, resource.Core_.Owner_->RequestFactoryPark());
    loader.MakeLayout(rbuf, resource.Core_.Owner_->OrderFactoryPark());

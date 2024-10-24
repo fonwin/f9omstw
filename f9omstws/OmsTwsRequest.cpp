@@ -29,6 +29,25 @@ const char* OmsTwsRequestIni::GetNotEqualIniFieldName(const OmsRequestBase& req)
    }
    return "RequestTwsIni";
 }
+OmsIvRight OmsTwsRequestIni::CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const {
+   OmsIvRight retval = base::CheckIvRight(runner, res, scRes);
+   if (fon9_LIKELY(!IsEnumContains(retval, OmsIvRight::DenyCrBuyDbSell)))
+      return retval;
+   if (retval != OmsIvRight::DenyAll) {
+      if (IsTwsOTypeCr(this->OType_)) {
+         if (this->Side_ == f9fmkt_Side_Buy) {
+            runner.RequestAbandon(&res, OmsErrCode_IvDenyCrBuy);
+            return OmsIvRight::DenyAll;
+         }
+      } else if (IsTwsOTypeDb(this->OType_)) {
+         if (this->Side_ == f9fmkt_Side_Sell) {
+            runner.RequestAbandon(&res, OmsErrCode_IvDenyDbSell);
+            return OmsIvRight::DenyAll;
+         }
+      }
+   }
+   return retval;
+}
 const OmsRequestIni* OmsTwsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
    if (this->Market_ == f9fmkt_TradingMarket_Unknown || this->SessionId_ == f9fmkt_TradingSessionId_Unknown) {
       if (!scRes.Symb_)

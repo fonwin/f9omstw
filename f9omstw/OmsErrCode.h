@@ -98,6 +98,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// RequestIni 必須是 f9fmkt_RxKind_RequestNew;
    /// 此錯誤碼不一定會發生, 由實際下單步驟決定是否支援.
    OmsErrCode_IniMustRequestNew = 303,
+   OmsErrCode_IvDenyCrBuy = 304,
+   OmsErrCode_IvDenyDbSell = 305,
 
    /// 客戶端(例:RcClient) 超過下單流量管制: OmsPoUserRightsAgent 裡面的設定.
    OmsErrCode_OverFlowControl = 400,

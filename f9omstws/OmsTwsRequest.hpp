@@ -30,6 +30,8 @@ struct OmsTwsRequestIniDat {
 class OmsTwsRequestIni : public OmsRequestIni, public OmsTwsRequestIniDat {
    fon9_NON_COPY_NON_MOVE(OmsTwsRequestIni);
    using base = OmsRequestIni;
+protected:
+   OmsIvRight CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const override;
 public:
    using base::base;
    OmsTwsRequestIni() = default;

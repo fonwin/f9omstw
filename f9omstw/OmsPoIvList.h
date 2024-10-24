@@ -24,8 +24,15 @@ fon9_ENUM(f9oms_IvRight, uint8_t) {
    /// 通常用於「委託遺失(例如:新單尚未寫檔,但系統crash,重啟後委託遺失)」的補單操作。
    f9oms_IvRight_AllowAddReport = 0x20,
 
+   /// 禁止信用開倉(資買、券賣), 但允許平倉;
+   /// - 有些券商不允許某些帳號透過 API 下 [信用開倉] 單,
+   ///   但後臺匯入的資料並沒有提供此管制旗標,
+   ///   所以直接在主機上設定.
+   /// - 此旗標描述的功能, 在 OmsTwsRequestIni::CheckIvRight() 檢查;
+   f9oms_IvRight_DenyCrBuyDbSell = 0x40,
+
    f9oms_IvRight_AllowAll = f9oms_IvRight_AllowAddReport,
-   f9oms_IvRight_DenyAll  = f9oms_IvRight_DenyTradingAll,
+   f9oms_IvRight_DenyAll  = f9oms_IvRight_DenyTradingAll, // 因為已經禁止新單, 所以不用額外增加 f9oms_IvRight_DenyCrBuyDbSell;
    f9oms_IvRight_IsAdmin  = 0x80,
 };
 

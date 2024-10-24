@@ -155,9 +155,6 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
    }
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 
-   /// 使用 runner.Request_.Policy()  檢查 runner.Request_ 是否有「this->IvacNo_、this->SubacNo_」的交易權限.
-   OmsIvRight CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
-
    /// - 檢查 runner.Request_.Policy() 的權限是否允許 runner.Request_;
    /// - 應在 inireq = runner.Request_->BeforeReq_CheckOrdKey() 之後執行:
    ///   inireq->BeforeReq_CheckIvRight(runner...);
@@ -166,6 +163,11 @@ class OmsRequestIni : public OmsRequestTrade, public OmsRequestIniDat {
    bool BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
 
 protected:
+   /// 使用 runner.Request_.Policy()  檢查 runner.Request_ 是否有「this->IvacNo_、this->SubacNo_」的交易權限.
+   /// 通常透過 BeforeReq_CheckIvRight() 呼叫到這裡.
+   /// 衍生者可額外檢查返回值, 若禁止下單, 可在 runner.RequestAbandon(&res, OmsErrCode_XXX); 之後, 返回 OmsIvRight::DenyAll;
+   virtual OmsIvRight CheckIvRight(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) const;
+
    template <class Derived>
    static void MakeFields(fon9::seed::Fields& flds) {
       fon9_GCC_WARN_DISABLE("-Winvalid-offsetof");

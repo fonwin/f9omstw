@@ -27,6 +27,8 @@ enum class OmsIvRight : fon9::underlying_type_t<f9oms_IvRight> {
    /// IsEnumContains(pol.GetIvrAdminRights(), OmsIvRight::AllowAddReport);
    AllowAddReport = f9oms_IvRight_AllowAddReport,
 
+   DenyCrBuyDbSell = f9oms_IvRight_DenyCrBuyDbSell,
+
    AllowAll = f9oms_IvRight_AllowAll,
    DenyAll  = f9oms_IvRight_DenyAll,
    IsAdmin  = f9oms_IvRight_IsAdmin,

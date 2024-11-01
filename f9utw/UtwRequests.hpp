@@ -49,8 +49,10 @@ struct UtwOmsCxIni : public OmsCxBaseIniFn {
       return false;
    }
 
-   static constexpr int kPriority_BfSc = 1;
-   static constexpr int kPriority_AfSc = 0; // 已風控的條件單優先檢查.
+   //                                           xx12345678
+   static constexpr uint64_t kPriority_BfSc = 0x1000000000ULL;
+   static constexpr uint64_t kPriority_AfSc = 0x0000000000ULL; // 已風控的條件單優先檢查.
+   virtual uint32_t GetCondPriority() const = 0;
    /// 風控前,已進入等候狀態.
    /// - 因為尚未進行風控, 所以應設定 ordraw.BeforeQty_ = ordraw.AfterQty_ = ordraw.LeavesQty_ = reqQty;
    /// - 等條件成立後,在風控步驟,設定數量:
@@ -73,7 +75,7 @@ struct UtwOmsCxIni : public OmsCxBaseIniFn {
          else { // 先等候條件, 條件成立後才風控.
             runner.OrderRaw().RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
             OmsSymb::MdLocker mdLocker{*this->CondSymb_};
-            if (this->CondSymb_->AddCondReq(mdLocker, kPriority_BfSc, *this, cxRaw, nextStep, runner.ExLogForUpd_)) {
+            if (this->CondSymb_->AddCondReq(mdLocker, kPriority_BfSc + this->GetCondPriority(), *this, cxRaw, nextStep, runner.ExLogForUpd_)) {
                this->OnWaitCondBfSc(std::move(runner));
                return;
             }
@@ -92,7 +94,7 @@ struct UtwOmsCxIni : public OmsCxBaseIniFn {
          else {
             // 風控後,尚開始未等候的條件單 = 此時開始等候條件.
             OmsSymb::MdLocker mdLocker{*this->CondSymb_};
-            if (this->CondSymb_->AddCondReq(mdLocker, kPriority_AfSc, *this, cxRaw, nextStep, runner.ExLogForUpd_)) {
+            if (this->CondSymb_->AddCondReq(mdLocker, kPriority_AfSc + this->GetCondPriority(), *this, cxRaw, nextStep, runner.ExLogForUpd_)) {
                this->OnWaitCondAfSc(std::move(runner));
                return;
             }
@@ -116,6 +118,11 @@ public:
       return (this->BeforeReqInCore_CheckCond(runner, res, this->Policy())
               ? base::BeforeReqInCore(runner, res)
               : nullptr);
+   }
+   uint32_t GetCondPriority() const override {
+      return this->PriType_ == f9fmkt_PriType_Market
+         ? this->Policy()->CondPriorityM()
+         : this->Policy()->CondPriorityL();
    }
    void OnWaitCondBfSc(OmsRequestRunnerInCore&& runner) const override {
       auto& ordraw = *static_cast<TOrdRaw*>(&runner.OrderRaw());

@@ -91,7 +91,7 @@ static void RevPrint(fon9::RevBuffer& rbuf, const OmsMdLastPriceEv& dat) {
 static void RevPrint(fon9::RevBuffer& rbuf, const OmsMdBSEv& dat) {
    fon9::RevPrint(rbuf, "|SP=", dat.Sell_.Pri_, "|SQ=", dat.Sell_.Qty_, "|BP=", dat.Buy_.Pri_, "|BQ=", dat.Buy_.Qty_);
 }
-bool UtwsSymb::AddCondReq(const MdLocker& mdLocker, int priority, const OmsCxBaseIniFn& cxReq, OmsCxBaseOrdRaw& cxRaw, OmsRequestRunStep& nextStep, fon9::RevBuffer& rbuf) {
+bool UtwsSymb::AddCondReq(const MdLocker& mdLocker, uint64_t priority, const OmsCxBaseIniFn& cxReq, OmsCxBaseOrdRaw& cxRaw, OmsRequestRunStep& nextStep, fon9::RevBuffer& rbuf) {
    assert(cxReq.CondFn_ != nullptr && mdLocker.owns_lock());
    RevPrint(rbuf, '\n');
    if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice_OddLot))
@@ -110,6 +110,17 @@ bool UtwsSymb::AddCondReq(const MdLocker& mdLocker, int priority, const OmsCxBas
    if (cxReq.CondFn_->OmsCx_IsNeedsFireNow(*this, cxRaw))
       return false;
    this->CondReqList_.Add(mdLocker, priority, cxReq, nextStep);
+   //----- 檢查優先權排序是否正確:
+   // this->CondReqList_.unlock();
+   // {
+   //    auto clist = this->CondReqList_.Lock();
+   //    for (const auto& creq : *clist) {
+   //       printf("%llu, ", dynamic_cast<const OmsRequestTrade*>(creq.CxReq_)->RxSNO());
+   //    }
+   //    puts("");
+   // }
+   // this->CondReqList_.lock();
+   //-----
 
    if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice))
       this->SetIsNeedsOnMdLastPriceEv(true);
@@ -130,7 +141,6 @@ void UtwsSymb::CheckCondReq(OmsCxBaseCondEvArgs& args, OmsCoreMgr& coreMgr, fon9
    auto condList = this->CondReqList_.Lock();
    for (size_t idx = 0; idx < condList->size();) {
       const CondReq& creq = (*condList)[idx];
-      //----- if (0); auto sno = dynamic_cast<const OmsRequestTrade*>(creq.CxReq_)->RxSNO(); //for debug.
       // 若 order 仍然有效, 則取出條件要判斷的內容參數;
       if ((args.CxRaw_ = creq.CxReq_->GetWaitingCxOrdRaw()) != nullptr) {
          // ----- 檢查條件是否成立?

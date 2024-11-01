@@ -15,19 +15,18 @@ class UtwsSymb : public OmsSymb, public TwfExgSymbBasic {
 
 protected:
    struct CondReq {
-      int                     Priority_;
-      char                    Padding____[4];
+      uint64_t                Priority_;
       const OmsCxBaseIniFn*   CxReq_;
       OmsRequestRunStep*      NextStep_;
-      CondReq(int priority, const OmsCxBaseIniFn& cxReq, OmsRequestRunStep& nextStep)
+      CondReq(uint64_t priority, const OmsCxBaseIniFn& cxReq, OmsRequestRunStep& nextStep)
          : Priority_{priority}, CxReq_{&cxReq}, NextStep_{&nextStep} {
       }
    };
    struct CondReqComp {
-      bool operator()(const CondReq& lhs, int rhs) const {
+      bool operator()(const CondReq& lhs, uint64_t rhs) const {
          return lhs.Priority_ < rhs;
       }
-      bool operator()(int lhs, const CondReq& rhs) const {
+      bool operator()(uint64_t lhs, const CondReq& rhs) const {
          return lhs < rhs.Priority_;
       }
    };
@@ -37,7 +36,7 @@ protected:
       CondReqList() = default;
       void lock() { this->Mutex_.lock(); }
       void unlock() { this->Mutex_.unlock(); }
-      void Add(const MdLocker& mdLocker, int priority, const OmsCxBaseIniFn& cxReq, OmsRequestRunStep& nextStep) {
+      void Add(const MdLocker& mdLocker, uint64_t priority, const OmsCxBaseIniFn& cxReq, OmsRequestRunStep& nextStep) {
          // mdLocker 用的是 this->lock(), 所以 this->Mutex_ 必定已鎖.
          (void)mdLocker; assert(mdLocker.owns_lock());
          CondReqListImpl::iterator ipos = std::upper_bound(this->Base_.begin(), this->Base_.end(), priority, CondReqComp{});
@@ -66,10 +65,11 @@ public:
    void LockMd() override;
    void UnlockMd() override;
    /// 將 req.CondQty_ 及 req.CondPri_ 填入 cxRaw;
+   /// priority 越小, 優先權越高;
    /// 然後判斷現在條件是否成立.
    /// \retval false 條件已成立, 應立即送出, 不加入等候列表.
    /// \retval true  加入成功, 等後觸發.
-   bool AddCondReq(const MdLocker& mdLocker, int priority, const OmsCxBaseIniFn& cxReq, OmsCxBaseOrdRaw& cxRaw, OmsRequestRunStep& nextStep, fon9::RevBuffer& rbuf);
+   bool AddCondReq(const MdLocker& mdLocker, uint64_t priority, const OmsCxBaseIniFn& cxReq, OmsCxBaseOrdRaw& cxRaw, OmsRequestRunStep& nextStep, fon9::RevBuffer& rbuf);
    //--------------------------------------------------------------------//
    OmsMdLastPriceEv* GetMdLastPriceEv() override;
    void OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr& coreMgr) override;

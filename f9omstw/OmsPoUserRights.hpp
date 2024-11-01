@@ -54,6 +54,10 @@ public:
    /// - 若有「-」則表示之後的設定不理會,
    ///   例: "LP,LQ,TQ,-BQ,BP,SQ,SP", 則僅允許 "LP,LQ,TQ", 之後的設定不理會.
    fon9::CharVector        CondAllows_;
+   /// 市價單優先權, 越小優先權越高;
+   uint32_t                CondPriorityM_{10000};
+   /// 限價單優先權, 越小優先權越高;
+   uint32_t                CondPriorityL_{20000};
 };
 
 } // namespaces

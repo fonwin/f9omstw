@@ -167,6 +167,8 @@ OmsRequestPolicySP OmsRequestPolicyCfg::MakePolicy(OmsResource& res, fon9::intru
    pol->SetOrdTeamGroupCfg(res.OrdTeamGroupMgr_.SetTeamGroup(
       ToStrView(this->TeamGroupName_), ToStrView(this->UserRights_.AllowOrdTeams_)));
    pol->SetCondAllows(ToStrView(this->UserRights_.CondAllows_));
+   pol->SetCondPriorityM(this->UserRights_.CondPriorityM_);
+   pol->SetCondPriorityL(this->UserRights_.CondPriorityL_);
 
    for (const auto& item : this->IvList_) {
       auto ec = OmsAddIvConfig(*pol, ToStrView(item.first), item.second, *res.Brks_);

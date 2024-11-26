@@ -375,7 +375,7 @@ void OmsRcServerNote::Handler::SubscribeReport() {
 OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* item) {
    if (this->State_ != HandlerSt::Recovering)
       return 0;
-   if (item) {
+   if (fon9_LIKELY(item)) {
       // 如果在回補過程中 order 狀態改變, 要如何處理呢?
       // - 之前沒補到的.
       // - 或之後應該要補的(例:先前因 working order 回補了一些, 但後來 order 變成無剩餘量, 就被排除不補了!!).
@@ -385,8 +385,24 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
             if (ordraw && ordraw->Request().LastUpdated() != ordraw)
                return item->RxSNO() + 1;
          }
-         if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverWorkingOrder) {
-            if (item->RxSNO() < this->WkoRecoverSNO_) {
+         // 仍在[啟動回補時]的序號範圍內, 才需要考慮: MatchOnly 及 WorkingOrder 旗標.
+         // 因為超過此序號, 對於 client 而言, 應視為[新委託], 不是回補;
+         if (item->RxSNO() <= this->WkoRecoverSNO_) {
+            if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverMatchOrder) {
+               if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverLastSt) {
+                  // 回補有成交的委託, 但最後狀態不一定是成交回報, 所以用 HasFilled() 來判斷.
+                  if (ordraw && ordraw->Order().HasFilled() != OmsFilledFlag::None)
+                     goto __SEND_RECOVER_REPORT;
+               }
+               else if (ordraw && ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
+                  // 回補成交明細.
+                  goto __SEND_RECOVER_REPORT;
+               }
+               // 如果沒有其他回補旗標, 則表示僅回補成交, 其餘不回補, 所以直接返回.
+               if (!(this->RptFilter_ & f9OmsRc_RptFilter_RecoverWorkingOrder))
+                  return item->RxSNO() + 1;
+            }
+            if (this->RptFilter_ & f9OmsRc_RptFilter_RecoverWorkingOrder) {
                if (ordraw == nullptr) {
                   const OmsRequestBase* req = static_cast<const OmsRequestBase*>(item->CastToRequest());
                   if (req == nullptr)
@@ -398,6 +414,7 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
             }
          }
       }
+   __SEND_RECOVER_REPORT:;
       this->SendReport(*item);
       return item->RxSNO() + 1;
    }

@@ -165,7 +165,7 @@ class OmsRcSyn_SessionFactory : public OmsIoSessionFactory, public fon9::rc::RcF
 public:
    const f9OmsRc_RptFilter RptFilter_;
    bool                    IsOmsCoreRecovering_{};
-   char                    Padding_____[6];
+   char                    Padding_____[5];
 
    OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr, f9OmsRc_RptFilter rptFilter,
                            OmsRcClientAgent* omsRcCliAgent, fon9::rc::RcFuncConnClient* connCliAgent);
@@ -188,7 +188,7 @@ public:
       using base = OmsIoSessionFactoryConfigParser;
    protected:
       f9OmsRc_RptFilter RptFilter_{static_cast<f9OmsRc_RptFilter>(f9OmsRc_RptFilter_NoExternal | f9OmsRc_RptFilter_IncludeRcSynNew)};
-      char              Padding___[7];
+      char              Padding___[6];
       /// 預設: return new OmsRcSyn_SessionFactory(this->Name_, std::move(omsCoreMgr), this->RptFilter_);
       virtual fon9::intrusive_ptr<OmsRcSyn_SessionFactory> CreateRcSynSessionFactory(OmsCoreMgrSP&& omsCoreMgr);
    public:

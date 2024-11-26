@@ -59,14 +59,18 @@ fon9_ENUM(f9OmsRc_OpKind, uint8_t) {
    f9OmsRc_OpKind_HelpOfferSt = 3,
 };
 
-fon9_ENUM(f9OmsRc_RptFilter, uint8_t) {
+fon9_ENUM(f9OmsRc_RptFilter, uint16_t) {
    f9OmsRc_RptFilter_RptAll = 0,
    /// 回補階段, 回補最後狀態, 例如:
    /// - 若某筆要求已收到交易所回報, 則中間過程的 Queuing, Sending 不回補.
    /// - 若某筆要求正在 Sending, 則中間過程的 Queuing 不回補.
    f9OmsRc_RptFilter_RecoverLastSt = 0x01,
    /// 僅回補 WorkingOrder, 即時回報不考慮此旗標.
+   /// 可與 f9OmsRc_RptFilter_RecoverMatchOrder 旗標一起使用;
    f9OmsRc_RptFilter_RecoverWorkingOrder = 0x02,
+   /// 僅回補 有成交 的委託, 即時回報不考慮此旗標.
+   /// 可與 f9OmsRc_RptFilter_RecoverWorkingOrder 旗標一起使用;
+   f9OmsRc_RptFilter_RecoverMatchOrder = 0x100,
 
    /// 回報時不檢查 IvList, 所以僅會針對 UserId 符合規則者回報。
    /// 若無此旗標, 則: 若 UserId 不符, 會繼續檢查 [下單帳號] 是否存在於 IvList 的回報設定, 若是, 則也會回報。

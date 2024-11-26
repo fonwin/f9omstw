@@ -58,7 +58,7 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
       };
       HandlerSt         State_{};
       f9OmsRc_RptFilter RptFilter_;
-      char              Padding____[3];
+      char              Padding____[2];
       fon9::SubConn     RptSubr_{};
       OmsRxSNO          WkoRecoverSNO_{};
       void SubscribeReport();

@@ -193,6 +193,26 @@ void OmsRequestUpd::MakeFieldsImpl(fon9::seed::Fields& flds) {
    base::MakeFields<OmsRequestUpd>(flds);
 }
 OmsOrder* OmsRequestUpd::BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsResource& res) {
+   switch (this->RxKind()) {
+   case f9fmkt_RxKind_Unknown:
+   case f9fmkt_RxKind_RequestDelete:
+   case f9fmkt_RxKind_RequestChgQty:
+   case f9fmkt_RxKind_RequestChgPri:
+   case f9fmkt_RxKind_RequestQuery:
+   case f9fmkt_RxKind_RequestChgCond:
+      break;
+   default:
+   case f9fmkt_RxKind_RequestNew:
+   case f9fmkt_RxKind_RequestRerun:
+   case f9fmkt_RxKind_Filled:
+   case f9fmkt_RxKind_Order:
+   case f9fmkt_RxKind_Event:
+      // 為了避免使用者不小心(或惡意)填錯, 造成後續處理的問題,
+      // 所以在此將[非改單]的 RxKind, 設為 Unknown;
+      this->SetRxKind(f9fmkt_RxKind_Unknown);
+      runner.RequestAbandon(&res, OmsErrCode_Bad_RxKind);
+      return nullptr;
+   }
    assert(this == runner.Request_.get());
    if (const OmsRequestIni* iniReq = this->BeforeReq_GetInitiator(runner, res)) {
       OmsOrder& order = iniReq->LastUpdated()->Order();

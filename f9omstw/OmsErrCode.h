@@ -176,6 +176,10 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_MdNoData = 903,
    /// 下單要求在尚未執行(RunInCore)前, 被取消.
    OmsErrCode_AbandonBeforeRun = 904,
+   /// 系統重啟後取消:排隊中的委託
+   OmsErrCode_SystemRestart_QueuingCanceled = 905,
+   /// 系統重啟後取消:等候觸發的委託
+   OmsErrCode_SystemRestart_WaitingCanceled = 906,
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.

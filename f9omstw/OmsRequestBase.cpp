@@ -108,21 +108,26 @@ void OmsRequestBase::OnAfterBackendReload(OmsResource& res, void* backendLocker)
    auto* ordraw = this->LastUpdated();
    if (ordraw == nullptr) // Abandoned request.
       return;
-   if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing
-                  || ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
-      auto& order = ordraw->Order();
-      if (order.IsWorkingOrder()) { // order.LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled
-         // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
-         // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
-         // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
-         //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
-         static_cast<OmsBackend::Locker*>(backendLocker)->unlock();
-         if (OmsOrderRaw* ordupd = order.BeginUpdate(*this)) {
-            OmsRequestRunnerInCore runner{res, *ordupd, 0u};
-            runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, OmsErrCode_NoReadyLine, "Lg=System restart");
-         }
-         static_cast<OmsBackend::Locker*>(backendLocker)->lock();
+   OmsErrCode ec;
+   if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing))
+      ec = OmsErrCode_SystemRestart_QueuingCanceled;
+   else if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond))
+      ec = OmsErrCode_SystemRestart_WaitingCanceled;
+   else {
+      return;
+   }
+   auto& order = ordraw->Order();
+   if (order.IsWorkingOrder()) { // order.LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled
+      // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
+      // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
+      // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
+      //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
+      static_cast<OmsBackend::Locker*>(backendLocker)->unlock();
+      if (OmsOrderRaw* ordupd = order.BeginUpdate(*this)) {
+         OmsRequestRunnerInCore runner{res, *ordupd, 0u};
+         runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, ec, nullptr);
       }
+      static_cast<OmsBackend::Locker*>(backendLocker)->lock();
    }
 }
 void OmsRequestBase::OnAfterBackendReloadChild(const OmsRequestBase& childReq) const {
@@ -286,7 +291,27 @@ fon9::HostId OmsRequestBase::OrigHostId() const {
 }
 //--------------------------------------------------------------------------//
 void OmsRequestBase::RunReportInCore(OmsReportChecker&& checker) {
-   this->RunReportInCore_Start(std::move(checker));
+   switch (this->RxKind()) {
+   case f9fmkt_RxKind_Unknown:
+   case f9fmkt_RxKind_RequestDelete:
+   case f9fmkt_RxKind_RequestChgQty:
+   case f9fmkt_RxKind_RequestChgPri:
+   case f9fmkt_RxKind_RequestQuery:
+   case f9fmkt_RxKind_RequestChgCond:
+   case f9fmkt_RxKind_RequestNew:
+   case f9fmkt_RxKind_RequestRerun:
+   case f9fmkt_RxKind_Filled:
+      this->RunReportInCore_Start(std::move(checker));
+      break;
+   default:
+   case f9fmkt_RxKind_Order:
+   case f9fmkt_RxKind_Event:
+      // 為了避免使用者不小心(或惡意)填錯, 造成後續處理的問題,
+      // 所以在此將[非改單]的 RxKind, 設為 Unknown;
+      this->RxKind_ = f9fmkt_RxKind_Unknown;
+      checker.ReportAbandon("Bad RxKind");
+      break;
+   }
 }
 void OmsRequestBase::RunReportInCore_Start(OmsReportChecker&& checker) {
    assert(checker.Report_.get() == this);

@@ -34,7 +34,8 @@ void OmsBackend::OnBeforeDestroy() {
    }
 
    // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
-   for (OmsRxSNO L = 0; L <= this->LastSNO_; ++L) {
+   const size_t hSize = items->RxHistory_.size();
+   for (OmsRxSNO L = 0; L < hSize; ++L) {
       if (const OmsRxItem* item = items->RxHistory_[L])
          intrusive_ptr_release(item);
    }

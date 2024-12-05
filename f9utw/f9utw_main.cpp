@@ -26,6 +26,8 @@ extern "C"          fon9::seed::PluginsDesc f9p_OmsRcServerAgent;
 extern "C"          fon9::seed::PluginsDesc f9p_OmsTwfMiSystem;
 extern "C"          fon9::seed::PluginsDesc f9p_OmsTwsMdSystem;
 
+extern "C" void f9omstw_Reg_Default_CxUnitCreator();
+
 #ifdef F9CARD
 extern "C"          fon9::seed::PluginsDesc f9p_F9Card;
 #endif
@@ -54,6 +56,7 @@ void* ForceLinkSomething() {
       &f9p_SeedImporter,
       &f9p_OmsTwfMiSystem, &f9p_OmsTwsMdSystem,
    };
+   f9omstw_Reg_Default_CxUnitCreator();
    return forceLinkList;
 }
 

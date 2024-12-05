@@ -64,9 +64,10 @@ public:
 
    class MdLocker {
       fon9_NON_COPY_NON_MOVE(MdLocker);
-      MdLocker() = delete;
       OmsSymb* Owner_;
    public:
+      MdLocker() : Owner_{nullptr} {
+      }
       MdLocker(OmsSymb& owner) : Owner_(&owner) {
          owner.LockMd();
       }
@@ -78,6 +79,12 @@ public:
          assert(this->Owner_);
          this->Owner_->UnlockMd();
          this->Owner_ = nullptr;
+      }
+      void Lock(OmsSymb& owner) {
+         if (this->Owner_)
+            this->Owner_->UnlockMd();
+         this->Owner_ = &owner;
+         owner.LockMd();
       }
       bool owns_lock() const {
          return this->Owner_ != nullptr;

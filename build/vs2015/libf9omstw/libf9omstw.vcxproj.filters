@@ -257,6 +257,33 @@
     <ClInclude Include="..\..\..\f9omstw\OmsCx.h">
       <Filter>Header Files\_md_cx</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxBase.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxCombine.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxUnit.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxCreator.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxReqBase.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxExpr.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxSymb.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxSymbTree.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\f9omstw\OmsCxToCore.hpp">
+      <Filter>Header Files\_md_cx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\f9omstw\IvacNo.cpp">
@@ -420,6 +447,33 @@
     </ClCompile>
     <ClCompile Include="..\..\..\f9omstw\OmsTradingLineMgrCfg.cpp">
       <Filter>Source Files\_TradingLine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxBase.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxUnit.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxCreator.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxReqBase.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxExpr.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxSymb.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxSymbTree.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxUnit_Default.cpp">
+      <Filter>Source Files\_md_cx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\f9omstw\OmsCxToCore.cpp">
+      <Filter>Source Files\_md_cx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

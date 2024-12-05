@@ -4,11 +4,11 @@
 #include "f9utw/UtwSpCmdTwf.hpp"
 #include "f9utw/UtwSpCmdTws.hpp"
 #include "f9utw/UtwRequests.hpp"
-#include "f9utw/UtwOmsCoreUsrDef.hpp"
 
 #include "f9omstw/OmsCoreMgrSeed.hpp"
 #include "f9omstw/OmsEventSessionSt.hpp"
 #include "f9omstw/OmsTradingLineHelper1.hpp"
+#include "f9omstw/OmsCxSymbTree.hpp"
 
 #include "f9omstws/OmsTwsSenderStepG1.hpp"
 #include "f9omstws/OmsTwsSenderStepLgMgr.hpp"
@@ -64,10 +64,9 @@ class UtwOmsCoreMgrSeed : public OmsCoreMgrSeed {
 
    void InitCoreTables(OmsResource& res) override {
       res.UsrDef_.reset(new UtwOmsCoreUsrDef{});
+
       const bool isStkMarket = (this->TwsLineLg_ || this->TwsLineG1_);
-      res.Symbs_.reset(new OmsSymbTree(res.Core_,
-                                       UtwsSymb::MakeLayout(OmsSymbTree::DefaultTreeFlag(), isStkMarket),
-                                       &UtwsSymb::SymbMaker));
+      OmsCreateSymbTreeResouce<OmsSymbTree, UtwsSymb>(res, isStkMarket);
 
       OmsBrkTree::FnGetBrkIndex fnGetBrkIdx;
       if (this->BrkIdStart_.size() == sizeof(f9twf::BrkId)) {

@@ -23,6 +23,9 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    fon9::CharVector           CondAllows_;
    uint32_t                   CondPriorityM_;
    uint32_t                   CondPriorityL_;
+   uint16_t                   CondExpMaxC_; // 單一下單要求,多條件單,的最多條件數量限制.
+   uint16_t                   CondGrpMaxC_; // 群組單,下單要求數量限制.
+   char                       Padding4____[4];
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -82,8 +85,12 @@ public:
    bool IsCondAllowed(fon9::StrView condName) const;
    void SetCondPriorityM(uint32_t v) { this->CondPriorityM_ = v; }
    void SetCondPriorityL(uint32_t v) { this->CondPriorityL_ = v; }
+   void SetCondExpMaxC(uint16_t v)   { this->CondExpMaxC_ = v;   }
+   void SetCondGrpMaxC(uint16_t v)   { this->CondGrpMaxC_ = v;   }
    uint32_t CondPriorityM() const { return this->CondPriorityM_; }
    uint32_t CondPriorityL() const { return this->CondPriorityL_; }
+   uint16_t CondExpMaxC() const   { return this->CondExpMaxC_;   }
+   uint16_t CondGrpMaxC() const   { return this->CondGrpMaxC_;   }
 
    /// - 如果 ivr 是 Subac:
    ///   - 則 subWilds 必定是 empty().

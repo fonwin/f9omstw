@@ -326,6 +326,11 @@ inline bool Sc_LmtAmt(OmsRequestRunnerInCore& runner, fon9::StrView lmtName, Oms
 #define OmsErrCode_CondSc_BadCondOp              static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 999)
 #define OmsErrCode_CondSc_BadCondName            static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 998)
 #define OmsErrCode_CondSc_Deny                   static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 997)
+#define OmsErrCode_CondSc_BadCondExpress         static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 996)
+#define OmsErrCode_CondSc_OverExpMaxC            static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 995)
+#define OmsErrCode_CondSc_OverGrpMaxC            static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 994)
+#define OmsErrCode_CondSc_BadCondArgs            static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 993)
+#define OmsErrCode_CondSc_ChgCondNotSupported    static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_FromRisk + 992)
 /// 11101..111xx 需對應 10101..101xx 的錯誤碼.
 /// 找不到用來判斷條件的商品.
 #define OmsErrCode_CondSc_SymbNotFound           static_cast<OmsErrCode>(OmsErrCode_CondSc_Adj + OmsErrCode_Sc_SymbNotFound)

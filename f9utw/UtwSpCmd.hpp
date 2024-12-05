@@ -155,4 +155,4 @@ public:
 };
 
 } // namespaces
-#endif//__f9utw_TwfSpCmd_hpp__
+#endif//__f9utw_UtwSpCmd_hpp__

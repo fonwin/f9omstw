@@ -51,6 +51,9 @@ $OUTPUT_DIR/f9omsrc/OmsRcFramework_UT
 $OUTPUT_DIR/f9omsrc/OmsRcFramework_UT
 
 # -------------------------------
+$OUTPUT_DIR/f9omstw/OmsCx_UT
+
+# -------------------------------
 rm -f *.f9gv
 rm -f *.f9dbf
 { set +x; } 2>/dev/null

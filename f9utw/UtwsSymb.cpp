@@ -2,7 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9utw/UtwsSymb.hpp"
 #include "f9utw/UtwOmsCoreUsrDef.hpp"
-#include "f9omstw/OmsCoreMgr.hpp"
+#include "f9omstw/OmsCxReqBase.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 
 namespace f9omstw {
@@ -20,17 +20,13 @@ static inline fon9::fmkt::SymbData* GetUtwsSymbData(UtwsSymb* pthis, int tabid) 
       ? reinterpret_cast<fon9::fmkt::SymbData*>(reinterpret_cast<char*>(pthis) + kUtwsSymbOffset[tabid])
       : nullptr;
 }
-UtwsSymb::~UtwsSymb() {
-}
-TwfExgSymbBasic* UtwsSymb::GetTwfExgSymbBasic() {
-   return this;
-}
 fon9::fmkt::SymbData* UtwsSymb::GetSymbData(int tabid) {
    return GetUtwsSymbData(this, tabid);
 }
 fon9::fmkt::SymbData* UtwsSymb::FetchSymbData(int tabid) {
    return GetUtwsSymbData(this, tabid);
 }
+//--------------------------------------------------------------------//
 static fon9::seed::Fields UtwsSymb_MakeFields_MdDeal() {
    fon9::seed::Fields flds;
    flds.Add(fon9_MakeField(OmsMdLastPriceEv, LastPrice_, "LastPrice"));
@@ -40,20 +36,17 @@ static fon9::seed::Fields UtwsSymb_MakeFields_MdDeal() {
 }
 static fon9::seed::Fields UtwsSymb_MakeFields_MdBS() {
    fon9::seed::Fields flds;
-   char bsPriName[] = "-nP";
-   char bsQtyName[] = "-nQ";
    int  idx;
-   bsPriName[0] = bsQtyName[0] = 'S';
+   char bsName[] = "-n";
+   bsName[0] = 'S';
    for (idx = f9omstw_kMdBSCount - 1; idx >= 0; --idx) {
-      bsPriName[1] = bsQtyName[1] = static_cast<char>(idx + '1');
-      flds.Add(fon9_MakeField(UtwsSymb::MdBSEv, Sells_[idx].Pri_, bsPriName));
-      flds.Add(fon9_MakeField(UtwsSymb::MdBSEv, Sells_[idx].Qty_, bsQtyName));
+      bsName[1] = static_cast<char>(idx + '1');
+      flds.Add(fon9_MakeField(UtwsSymb::MdBSEv, Sells_[idx], bsName));
    }
-   bsPriName[0] = bsQtyName[0] = 'B';
+   bsName[0] = 'B';
    for (idx = 0; idx < f9omstw_kMdBSCount; ++idx) {
-      bsPriName[1] = bsQtyName[1] = static_cast<char>(idx + '1');
-      flds.Add(fon9_MakeField(UtwsSymb::MdBSEv, Buys_[idx].Pri_, bsPriName));
-      flds.Add(fon9_MakeField(UtwsSymb::MdBSEv, Buys_[idx].Qty_, bsQtyName));
+      bsName[1] = static_cast<char>(idx + '1');
+      flds.Add(fon9_MakeField(UtwsSymb::MdBSEv, Buys_[idx], bsName));
    }
    return flds;
 }
@@ -62,151 +55,127 @@ fon9::seed::LayoutSP UtwsSymb::MakeLayout(fon9::seed::TreeFlag treeflags, bool i
    auto flds = UtwsSymb::MakeFields();
    if (isStkMarket) {
       return new LayoutN(fon9_MakeField2(UtwsSymb, SymbId), treeflags,
-         new Tab{fon9::Named{"Base"}, std::move(flds), TabFlag::NoSapling_NoSeedCommand_Writable},
-         new Tab{fon9::Named{"MdDeal"},       UtwsSymb_MakeFields_MdDeal(), TabFlag::NoSapling_NoSeedCommand_Writable},
-         new Tab{fon9::Named{"MdBS"},         UtwsSymb_MakeFields_MdBS(),   TabFlag::NoSapling_NoSeedCommand_Writable},
-         new Tab{fon9::Named{"MdDealOddLot"}, UtwsSymb_MakeFields_MdDeal(), TabFlag::NoSapling_NoSeedCommand_Writable},
-         new Tab{fon9::Named{"MdBSOddLot"},   UtwsSymb_MakeFields_MdBS(),   TabFlag::NoSapling_NoSeedCommand_Writable}
-         );
+                         new Tab{fon9::Named{"Base"}, std::move(flds), TabFlag::NoSapling_NoSeedCommand_Writable},
+                         new Tab{fon9::Named{"MdDeal"},       UtwsSymb_MakeFields_MdDeal(), TabFlag::NoSapling_NoSeedCommand_Writable},
+                         new Tab{fon9::Named{"MdBS"},         UtwsSymb_MakeFields_MdBS(),   TabFlag::NoSapling_NoSeedCommand_Writable},
+                         new Tab{fon9::Named{"MdDealOddLot"}, UtwsSymb_MakeFields_MdDeal(), TabFlag::NoSapling_NoSeedCommand_Writable},
+                         new Tab{fon9::Named{"MdBSOddLot"},   UtwsSymb_MakeFields_MdBS(),   TabFlag::NoSapling_NoSeedCommand_Writable}
+      );
    }
-   flds.Add(fon9_MakeField_const (UtwsSymb, SymbId_, "ShortId"));
-   flds.Add(fon9_MakeField2_const(UtwsSymb, LongId));
-   return new LayoutN(fon9_MakeField2(UtwsSymb, SymbId), treeflags,
-         new Tab{fon9::Named{"Base"}, std::move(flds), TabFlag::NoSapling_NoSeedCommand_Writable},
-         new Tab{fon9::Named{"MdDeal"},       UtwsSymb_MakeFields_MdDeal(), TabFlag::NoSapling_NoSeedCommand_Writable},
-         new Tab{fon9::Named{"MdBS"},         UtwsSymb_MakeFields_MdBS(),   TabFlag::NoSapling_NoSeedCommand_Writable}
-         );
+   else {
+      flds.Add(fon9_MakeField_const (UtwsSymb, SymbId_, "ShortId"));
+      flds.Add(fon9_MakeField2_const(UtwsSymb, LongId));
+      return new LayoutN(fon9_MakeField2(UtwsSymb, SymbId), treeflags,
+                         new Tab{fon9::Named{"Base"}, std::move(flds), TabFlag::NoSapling_NoSeedCommand_Writable},
+                         new Tab{fon9::Named{"MdDeal"},       UtwsSymb_MakeFields_MdDeal(), TabFlag::NoSapling_NoSeedCommand_Writable},
+                         new Tab{fon9::Named{"MdBS"},         UtwsSymb_MakeFields_MdBS(),   TabFlag::NoSapling_NoSeedCommand_Writable}
+      );
+   }
 }
-//--------------------------------------------------------------------//
+// ======================================================================== //
+UtwsSymb::~UtwsSymb() {
+}
+TwfExgSymbBasic* UtwsSymb::GetTwfExgSymbBasic() {
+   return this;
+}
+// ======================================================================== //
 void UtwsSymb::LockMd() {
-   this->CondReqList_.lock();
+   this->LockReqList();
 }
 void UtwsSymb::UnlockMd() {
-   this->CondReqList_.unlock();
+   this->UnlockReqList();
 }
-
-static void RevPrint(fon9::RevBuffer& rbuf, const OmsMdLastPriceEv& dat) {
-   fon9::RevPrint(rbuf, "|LastPrice=", dat.LastPrice_, "|LastQty=", dat.LastQty_, "|TotalQty=", dat.TotalQty_);
-}
-static void RevPrint(fon9::RevBuffer& rbuf, const OmsMdBSEv& dat) {
-   fon9::RevPrint(rbuf, "|SP=", dat.Sell_.Pri_, "|SQ=", dat.Sell_.Qty_, "|BP=", dat.Buy_.Pri_, "|BQ=", dat.Buy_.Qty_);
-}
-bool UtwsSymb::AddCondReq(const MdLocker& mdLocker, uint64_t priority, const OmsCxBaseIniFn& cxReq, OmsCxBaseOrdRaw& cxRaw, OmsRequestRunStep& nextStep, fon9::RevBuffer& rbuf) {
-   assert(cxReq.CondFn_ != nullptr && mdLocker.owns_lock());
+void UtwsSymb::PrintMd(fon9::RevBuffer& rbuf, OmsCxSrcEvMask evMask) {
    RevPrint(rbuf, '\n');
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice_OddLot))
-      RevPrint(rbuf, this->MdLastPriceEv_OddLot_);
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdBS_OddLot))
-      RevPrint(rbuf, this->MdBSEv_OddLot_);
-   if (IsEnumContainsAny(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice_OddLot | OmsCxSrcEvMask::MdBS_OddLot))
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdLastPrice_OddLot))
+      RevPrint(rbuf, this->GetMdLastPrice_OddLot());
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdBS_OddLot))
+      RevPrint(rbuf, this->GetMdBS_OddLot());
+   if (IsEnumContainsAny(evMask, OmsCxSrcEvMask::MdLastPrice_OddLot | OmsCxSrcEvMask::MdBS_OddLot))
       RevPrint(rbuf, "|OddLot:");
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice))
-      RevPrint(rbuf, *this);
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdBS))
-      RevPrint(rbuf, this->MdBSEv_);
-
-   cxRaw.CondPri_ = cxReq.CondPri_;
-   cxRaw.CondQty_ = cxReq.CondQty_;
-   if (cxReq.CondFn_->OmsCx_IsNeedsFireNow(*this, cxRaw))
-      return false;
-   this->CondReqList_.Add(mdLocker, priority, cxReq, nextStep);
-   //----- 檢查優先權排序是否正確:
-   // this->CondReqList_.unlock();
-   // {
-   //    auto clist = this->CondReqList_.Lock();
-   //    for (const auto& creq : *clist) {
-   //       printf("%llu, ", dynamic_cast<const OmsRequestTrade*>(creq.CxReq_)->RxSNO());
-   //    }
-   //    puts("");
-   // }
-   // this->CondReqList_.lock();
-   //-----
-
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice))
-      this->SetIsNeedsOnMdLastPriceEv(true);
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdLastPrice_OddLot))
-      this->MdLastPriceEv_OddLot_.SetIsNeedsOnMdLastPriceEv(true);
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdBS))
-      this->MdBSEv_.SetIsNeedsOnMdBSEv(true);
-   if (IsEnumContains(cxReq.CondSrcEvMask_, OmsCxSrcEvMask::MdBS_OddLot))
-      this->MdBSEv_OddLot_.SetIsNeedsOnMdBSEv(true);
-   return true;
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdLastPrice))
+      RevPrint(rbuf, this->GetMdLastPrice());
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdBS))
+      RevPrint(rbuf, this->GetMdBS());
+   RevPrint(rbuf, '|', this->SymbId_, ':');
 }
-void UtwsSymb::CheckCondReq(OmsCxBaseCondEvArgs& args, OmsCoreMgr& coreMgr, fon9::RevBufferFixedMem& rbuf,
-                            bool (OmsCxBaseCondFn::*onOmsCxEvFn)(const OmsCxBaseCondEvArgs& args)) {
-   const char*    pbufTail = rbuf.GetCurrent();
-   OmsCxSrcEvMask afEvMask{};
-   OmsCore&       omsCore = *coreMgr.CurrentCore();
-   args.LogRBuf_ = &rbuf;
-   auto condList = this->CondReqList_.Lock();
-   for (size_t idx = 0; idx < condList->size();) {
-      const CondReq& creq = (*condList)[idx];
-      // 若 order 仍然有效, 則取出條件要判斷的內容參數;
-      if ((args.CxRaw_ = creq.CxReq_->GetWaitingCxOrdRaw()) != nullptr) {
-         // ----- 檢查條件是否成立?
-         if (fon9_LIKELY((creq.CxReq_->CondFn_.get()->*onOmsCxEvFn)(args))) {
-            // ----- 將 req 移到 [等候執行] 列表, 等候 OmsCore 的執行.
-            assert(dynamic_cast<UtwOmsCoreUsrDef*>(omsCore.GetUsrDef()) != nullptr);
-            static_cast<UtwOmsCoreUsrDef*>(omsCore.GetUsrDef())->AddCondFiredReq(omsCore, *creq.CxReq_, *creq.NextStep_, ToStrView(rbuf));
-            // 還原 rbuf 已有的字串(行情內容)
-            rbuf.SetPrefixUsed(const_cast<char*>(pbufTail));
-         }
-         else {
-            // [idx]的條件單仍然有效,且此次異動判斷未成立,所以:
-            // 保留[idx],下次有異動時繼續判斷;
-            afEvMask |= creq.CxReq_->CondSrcEvMask_;
-            ++idx;
-            continue;
+void UtwsSymb::RegCondReq(const MdLocker& mdLocker, const CondReq& src) {
+   assert(mdLocker.owns_lock());
+   this->CondReqList_Add(mdLocker, src);
+   //----- 檢查優先權排序是否正確:
+   #ifdef _DEBUG
+      auto& clist = this->GetCondReqList_ForDebug();
+      const auto clistSz = clist.size();
+      for (auto idx = clistSz; idx > 0;) {
+         const auto& creq = clist[--idx];
+         if (auto* txreq = dynamic_cast<const OmsRequestTrade*>(creq.CxRequest_)) {
+            if (creq.CxRequest_ != src.CxRequest_)
+               printf("%llu, ", txreq->RxSNO());
+            else {
+               bool isSortedOK = true;
+               if (idx > 0 && (clist[idx - 1].Priority_ <= src.Priority_))
+                  isSortedOK = false;
+               if ((idx + 1 < clistSz) && clist[idx + 1].Priority_ > src.Priority_)
+                  isSortedOK = false;
+               printf("[%llu:%s], ", txreq->RxSNO(), isSortedOK ? "OK" : "ERR");
+            }
          }
       }
-      // 從 condList 移除: (1)Order或條件已經失效; (2)條件成立已交給OmsCore處理;
-      condList->erase(condList->begin() + fon9::signed_cast(idx));
-   }
+      puts("");
+   #endif
+   //-----
+   const OmsCxSrcEvMask evMask = src.CxUnit_->RegEvMask();
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdLastPrice))          this->                      SetIsNeedsOnMdLastPriceEv(true);
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdLastPrice_OddLot))   this->MdLastPriceEv_OddLot_.SetIsNeedsOnMdLastPriceEv(true);
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdBS))                 this->MdBSEv_.              SetIsNeedsOnMdBSEv(true);
+   if (IsEnumContains(evMask, OmsCxSrcEvMask::MdBS_OddLot))          this->MdBSEv_OddLot_.       SetIsNeedsOnMdBSEv(true);
+}
+// ======================================================================== //
+void UtwsSymb::CheckCondReq(OmsCxMdEvArgs& args, OnOmsCxMdEvFnT onOmsCxEvFn) {
+   auto           condList = this->LockCondReqList();
+   OmsCxSrcEvMask afEvMask = condList->CheckCondReq(args, onOmsCxEvFn);
    this->                      SetIsNeedsOnMdLastPriceEv(IsEnumContains(afEvMask, OmsCxSrcEvMask::MdLastPrice));
    this->MdLastPriceEv_OddLot_.SetIsNeedsOnMdLastPriceEv(IsEnumContains(afEvMask, OmsCxSrcEvMask::MdLastPrice_OddLot));
    this->MdBSEv_              .SetIsNeedsOnMdBSEv       (IsEnumContains(afEvMask, OmsCxSrcEvMask::MdBS));
    this->MdBSEv_OddLot_       .SetIsNeedsOnMdBSEv       (IsEnumContains(afEvMask, OmsCxSrcEvMask::MdBS_OddLot));
 }
 //--------------------------------------------------------------------//
-void UtwsSymb::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr& coreMgr) {
-   OmsCxBaseCondEvArgs args{*this, bf, *this};
-   fon9::RevBufferFixedSize<256> rbuf;
+void UtwsSymb::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCore& omsCore) {
+   OmsCxMdEvArgs  args{omsCore, *this, bf, *this, OmsCxSrcEvMask::MdLastPrice};
    // 條件成立: 從 condList 移除, 加入: 等候 OmsCore 執行的 Request 列表.
    // 必須在此建立 log 字串, 避免 Md 在 OmsCore 執行 Request 時有異動.
-   RevPrint(rbuf, *static_cast<const OmsMdLastPriceEv*>(this));
-   this->CheckCondReq(args, coreMgr, rbuf, &OmsCxBaseCondFn::OnOmsCx_MdLastPriceEv);
+   RevPrint(args.LogRBuf_, *static_cast<const OmsMdLastPriceEv*>(this));
+   this->CheckCondReq(args, &OmsCxUnit::OnOmsCx_MdLastPriceEv);
 }
 OmsMdLastPriceEv* UtwsSymb::GetMdLastPriceEv() {
    return this;
 }
-void UtwsSymb::MdLastPriceEv_OddLot::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCoreMgr& coreMgr) {
-   UtwsSymb&           mdSymb = fon9::ContainerOf(*this, &UtwsSymb::MdLastPriceEv_OddLot_);
-   OmsCxBaseCondEvArgs args{mdSymb, bf, *this};
-   fon9::RevBufferFixedSize<256> rbuf;
-   fon9::RevPrint(rbuf, "|OddLot", *this);
-   mdSymb.CheckCondReq(args, coreMgr, rbuf, &OmsCxBaseCondFn::OnOmsCx_MdLastPriceEv_OddLot);
+//--------------------------------------------------------------------//
+void UtwsSymb::MdLastPriceEv_OddLot::OnMdLastPriceEv(const OmsMdLastPrice& bf, OmsCore& omsCore) {
+   UtwsSymb&      mdSymb = fon9::ContainerOf(*this, &UtwsSymb::MdLastPriceEv_OddLot_);
+   OmsCxMdEvArgs  args{omsCore, mdSymb, bf, *this, OmsCxSrcEvMask::MdLastPrice_OddLot};
+   fon9::RevPrint(args.LogRBuf_, "|OddLot", *this);
+   mdSymb.CheckCondReq(args, &OmsCxUnit::OnOmsCx_MdLastPriceEv_OddLot);
 }
 OmsMdLastPriceEv* UtwsSymb::GetMdLastPriceEv_OddLot() {
    return &this->MdLastPriceEv_OddLot_;
 }
 //--------------------------------------------------------------------//
-void UtwsSymb::MdBSEv::OnMdBSEv(const OmsMdBS& bf, OmsCoreMgr& coreMgr) {
-   UtwsSymb&           mdSymb = fon9::ContainerOf(*this, &UtwsSymb::MdBSEv_);
-   OmsCxBaseCondEvArgs args{mdSymb, bf, *this};
-   fon9::RevBufferFixedSize<256> rbuf;
-   RevPrint(rbuf, *this);
-   mdSymb.CheckCondReq(args, coreMgr, rbuf, &OmsCxBaseCondFn::OnOmsCx_MdBSEv);
+void UtwsSymb::MdBSEv::OnMdBSEv(const OmsMdBS& bf, OmsCore& omsCore) {
+   UtwsSymb&      mdSymb = fon9::ContainerOf(*this, &UtwsSymb::MdBSEv_);
+   OmsCxMdEvArgs  args{omsCore, mdSymb, bf, *this, OmsCxSrcEvMask::MdBS};
+   RevPrint(args.LogRBuf_, *this);
+   mdSymb.CheckCondReq(args, &OmsCxUnit::OnOmsCx_MdBSEv);
 }
 OmsMdBSEv* UtwsSymb::GetMdBSEv() {
    return &this->MdBSEv_;
 }
 //--------------------------------------------------------------------//
-void UtwsSymb::MdBSEv_OddLot::OnMdBSEv(const OmsMdBS& bf, OmsCoreMgr& coreMgr) {
-   UtwsSymb&           mdSymb = fon9::ContainerOf(*this, &UtwsSymb::MdBSEv_OddLot_);
-   OmsCxBaseCondEvArgs args{mdSymb, bf, *this};
-   fon9::RevBufferFixedSize<256> rbuf;
-   fon9::RevPrint(rbuf, "|OddLot", *this);
-   mdSymb.CheckCondReq(args, coreMgr, rbuf, &OmsCxBaseCondFn::OnOmsCx_MdBSEv_OddLot);
+void UtwsSymb::MdBSEv_OddLot::OnMdBSEv(const OmsMdBS& bf, OmsCore& omsCore) {
+   UtwsSymb&      mdSymb = fon9::ContainerOf(*this, &UtwsSymb::MdBSEv_OddLot_);
+   OmsCxMdEvArgs  args{omsCore, mdSymb, bf, *this, OmsCxSrcEvMask::MdBS_OddLot};
+   fon9::RevPrint(args.LogRBuf_, "|OddLot", *this);
+   mdSymb.CheckCondReq(args, &OmsCxUnit::OnOmsCx_MdBSEv_OddLot);
 }
 OmsMdBSEv* UtwsSymb::GetMdBSEv_OddLot() {
    return &this->MdBSEv_OddLot_;

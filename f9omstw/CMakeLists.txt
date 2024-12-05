@@ -56,6 +56,16 @@ set(f9omstw_src
 
  OmsMdEvent.cpp
  OmsCxRequest.cpp
+ OmsCxBase.cpp
+ OmsCxCreator.cpp
+ OmsCxUnit.cpp
+ OmsCxUnit_Default.cpp
+ OmsCxExpr.cpp
+ OmsCxReqBase.cpp
+ OmsCxSymb.cpp
+ OmsCxSymbTree.cpp
+ OmsCxToCore.cpp
+
  OmsParentOrder.cpp
  OmsParentRequest.cpp
 )
@@ -108,6 +118,9 @@ if(CMAKE_F9OMSTW_BUILD_UNIT_TEST)
 
    add_executable(OmsTwfReportQuote_UT ../f9omstwf/OmsTwfReportQuote_UT.cpp)
    target_link_libraries(OmsTwfReportQuote_UT f9omstw_s f9utw_s)
+
+   add_executable(OmsCx_UT ../f9omstw/OmsCx_UT.cpp)
+   target_link_libraries(OmsCx_UT f9omstw_s f9utw_s)
 endif()
 ############################## Unit Test END ############################
 #########################################################################

@@ -58,6 +58,11 @@ public:
    uint32_t                CondPriorityM_{10000};
    /// 限價單優先權, 越小優先權越高;
    uint32_t                CondPriorityL_{20000};
+   /// 單一下單要求裡面的件單,的最多條件數量限制.
+   uint16_t                CondExpMaxC_{5};
+   /// 群組單的子單,數量限制.
+   uint16_t                CondGrpMaxC_{6};
+   char                    Padding4____[4];
 };
 
 } // namespaces

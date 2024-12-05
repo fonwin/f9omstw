@@ -26,7 +26,9 @@ static void SerializeVer(Archive& ar, fon9::ArchiveWorker<Archive, OmsPoUserRigh
       rec.ScForceFlags_,
       rec.CondAllows_,
       rec.CondPriorityM_,
-      rec.CondPriorityL_
+      rec.CondPriorityL_,
+      rec.CondExpMaxC_,
+      rec.CondGrpMaxC_
       );
 }
 
@@ -73,6 +75,8 @@ static fon9::seed::Fields MakeOmsUserRightsFields() {
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, CondAllows));
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, CondPriorityM));
    fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, CondPriorityL));
+   fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, CondExpMaxC));
+   fields.Add(fon9_MakeField2(OmsPoUserRightsPolicy, CondGrpMaxC));
    return fields;
 }
 

@@ -24,16 +24,15 @@ void OmsBackend::OnBeforeDestroy() {
    if (this->LastSNO_ == 0 && !this->RecorderFd_->IsOpened())
       return;
 
-   this->SaveQuItems(items->QuItems_);
-   items->QuItems_.clear();
-
-   if (!this->IsReadOnly_) {
+   if (this->RecorderFd_->IsOpened() && !this->IsReadOnly_) {
+      this->SaveQuItems(items->QuItems_);
       fon9::RevBufferList rbuf{128};
       fon9::RevPrint(rbuf, "===== OMS end @ ", fon9::LocalNow(), " =====\n");
       this->RecorderFd_->Append(rbuf.MoveOut());
    }
+   items->QuItems_.clear();
 
-   // 必須從先建構的往後釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
+   // 先加入 RxHistory_ 的, 必須先釋放, 因為前面的 request 的可能仍會用到後面的 updated(OrderRaw);
    const size_t hSize = items->RxHistory_.size();
    for (OmsRxSNO L = 0; L < hSize; ++L) {
       if (const OmsRxItem* item = items->RxHistory_[L])

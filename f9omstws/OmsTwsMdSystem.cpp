@@ -18,6 +18,7 @@ namespace f9omstw {
 class OmsTwsMdSystem : public f9tws::ExgMdSystemBase {
    fon9_NON_COPY_NON_MOVE(OmsTwsMdSystem);
    using base = f9tws::ExgMdSystemBase;
+   OmsCoreSP                  OmsCore_;
    uint64_t                   IntervalDataCount_{0};
    fon9::fmkt::MdReceiverSt   MdReceiverSt_{fon9::fmkt::MdReceiverSt::DailyClear};
 public:
@@ -34,6 +35,7 @@ public:
       , OmsCoreMgr_{std::move(omsCoreMgr)} {
    }
    ~OmsTwsMdSystem() {
+      this->HbTimer_.DisposeAndWait();
    }
    fon9::TimeInterval OnMdSystem_HbTimer(fon9::TimeStamp now) override {
       (void)now;
@@ -52,8 +54,9 @@ public:
       case fon9::fmkt::MdReceiverSt::DataBroken:
          break;
       }
-      if (auto core = this->OmsCoreMgr_->CurrentCore()) {
-         core->RunCoreTask([this](OmsResource& coreResource) {
+      this->OmsCore_ = this->OmsCoreMgr_->CurrentCore();
+      if (this->OmsCore_) {
+         this->OmsCore_->RunCoreTask([this](OmsResource& coreResource) {
             auto mkt = this->Market_;
             auto symbs = coreResource.Symbs_->SymbMap_.Lock();
             for (const auto& isymb : *symbs) {
@@ -68,11 +71,17 @@ public:
       }
       return kMdHbInterval;
    }
-   OmsSymbSP FetchOmsSymb(const f9tws::StkNo stkNo) {
-      auto core = this->OmsCoreMgr_->CurrentCore();
-      if (!core)
+   OmsCoreSP GetOmsCore() {
+      if (OmsCoreSP omsCore = this->OmsCore_)
+         return omsCore;
+      return this->OmsCore_ = this->OmsCoreMgr_->CurrentCore();
+   }
+   OmsSymbSP FetchOmsSymb(const f9tws::StkNo stkNo, OmsCoreSP& omsCore) {
+      omsCore = this->GetOmsCore();
+      if (fon9_UNLIKELY(!omsCore)) {
          return nullptr;
-      auto symb = core->GetSymbs()->FetchOmsSymb(ToStrView(stkNo));
+      }
+      auto symb = omsCore->GetSymbs()->FetchOmsSymb(ToStrView(stkNo));
       if (!symb)
          return nullptr;
       ++this->IntervalDataCount_;
@@ -104,7 +113,8 @@ protected:
       }
       assert(dynamic_cast<OmsTwsMdSystem*>(&this->PkSys_) != nullptr);
       OmsTwsMdSystem* mdsys = static_cast<OmsTwsMdSystem*>(&this->PkSys_);
-      OmsSymbSP       omssymb = mdsys->FetchOmsSymb(mdfmt.StkNo_);
+      OmsCoreSP       omsCore;
+      OmsSymbSP       omssymb = mdsys->FetchOmsSymb(mdfmt.StkNo_, omsCore);
       if (!omssymb)
          return;
 
@@ -133,7 +143,7 @@ protected:
             const bool isNeedEv = symbmd->IsNeedsOnMdLastPriceEv();
             omssymb->UnlockMd();
             if (isNeedEv)
-               symbmd->OnMdLastPriceEv(bfmd, *mdsys->OmsCoreMgr_);
+               symbmd->OnMdLastPriceEv(bfmd, *omsCore);
          }
          ++mdPQs;
       }
@@ -144,11 +154,17 @@ protected:
             const OmsMdBS bfmd = *symbmd;
             // AssignBS() 在 ExgMdFmt6.hpp
             mdPQs = f9tws::AssignBS(symbmd->Buys_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x70) >> 4));
+            if (symbmd->Buy_.Qty_ && symbmd->Buy_.Pri_.IsZero())
+               symbmd->Buy_.Pri_ = kMdPriBuyMarket;
+            //-----
             mdPQs = f9tws::AssignBS(symbmd->Sells_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x0e) >> 1));
+            if (symbmd->Sell_.Qty_ && symbmd->Sell_.Pri_.IsZero())
+               symbmd->Sell_.Pri_ = kMdPriSellMarket;
+            //-----
             const bool isNeedEv = symbmd->IsNeedsOnMdBSEv();
             omssymb->UnlockMd();
             if (isNeedEv)
-               symbmd->OnMdBSEv(bfmd, *mdsys->OmsCoreMgr_);
+               symbmd->OnMdBSEv(bfmd, *omsCore);
          }
       }
    }

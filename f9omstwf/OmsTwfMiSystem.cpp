@@ -17,6 +17,7 @@ namespace f9omstw {
 class OmsTwfMiSystem : public f9twf::ExgMiSystemBase {
    fon9_NON_COPY_NON_MOVE(OmsTwfMiSystem);
    using base = f9twf::ExgMiSystemBase;
+   OmsCoreSP            OmsCore_;
 public:
    const OmsCoreMgrSP   OmsCoreMgr_;
 
@@ -26,15 +27,16 @@ public:
       , OmsCoreMgr_{std::move(omsCoreMgr)} {
    }
    ~OmsTwfMiSystem() {
+      this->HbTimer_.DisposeAndWait();
    }
    void OnMdReceiverStChanged(f9twf::ExgMiChannel& ch, fon9::fmkt::MdReceiverSt bf, fon9::fmkt::MdReceiverSt af) override {
       // DailyClear => * 設定 Symb 的 MdSt 位置.
       const bool isNoData = MdReceiverSt_IsNoData(af);
       if (isNoData || bf == fon9::fmkt::MdReceiverSt::DailyClear) {
-         auto core = this->OmsCoreMgr_->CurrentCore();
-         if (!core)
+         this->OmsCore_ = this->OmsCoreMgr_->CurrentCore();
+         if (!this->OmsCore_)
             return;
-         core->RunCoreTask([this, &ch, isNoData](OmsResource& coreResource) {
+         this->OmsCore_->RunCoreTask([this, &ch, isNoData](OmsResource& coreResource) {
             auto mkt = ch.Market_;
             auto sid = this->TradingSessionId_;
             auto symbs = coreResource.Symbs_->SymbMap_.Lock();
@@ -50,15 +52,20 @@ public:
          });
       }
    }
+   OmsCoreSP GetOmsCore() {
+      if (OmsCoreSP omsCore = this->OmsCore_)
+         return omsCore;
+      return this->OmsCore_ = this->OmsCoreMgr_->CurrentCore();
+   }
 
    static bool StartupPlugins(fon9::seed::PluginsHolder& holder, fon9::StrView args);
 };
-static OmsSymbSP FetchOmsSymb(f9twf::ExgMiChannel& channel, const f9twf::ExgMdProdId20& prodId) {
+static OmsSymbSP FetchOmsSymb(f9twf::ExgMiChannel& channel, const f9twf::ExgMdProdId20& prodId, OmsCoreSP& omsCore) {
    OmsTwfMiSystem& misys = *static_cast<OmsTwfMiSystem*>(&channel.MiSystem_);
-   auto            core = misys.OmsCoreMgr_->CurrentCore();
-   if (!core)
+   omsCore = misys.GetOmsCore();
+   if (!omsCore)
       return nullptr;
-   auto symb = core->GetSymbs()->FetchOmsSymb(fon9::StrView_eos_or_all(prodId.Chars_, ' '));
+   auto symb = omsCore->GetSymbs()->FetchOmsSymb(fon9::StrView_eos_or_all(prodId.Chars_, ' '));
    if (!symb)
       return nullptr;
    if (fon9_UNLIKELY(symb->TradingSessionId_ == f9fmkt_TradingSessionId_AfterHour
@@ -79,8 +86,9 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
    void PkContOnReceived(const void* pk, unsigned pksz, SeqT seq) override {
       (void)pksz;
       this->CheckLogLost(pk, seq);
-      auto& pkI020 = *static_cast<const f9twf::ExgMiI020*>(pk);
-      auto  symb = FetchOmsSymb(this->PkSys_, pkI020.ProdId_);
+      OmsCoreSP omsCore;
+      auto&     pkI020 = *static_cast<const f9twf::ExgMiI020*>(pk);
+      auto      symb = FetchOmsSymb(this->PkSys_, pkI020.ProdId_, omsCore);
       if (!symb)
          return;
       auto* twfsymb = symb->GetMdLastPriceEv();
@@ -107,11 +115,10 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
             bf.LastPrice_.AssignNull();
          pkI020.FirstMatchPrice_.AssignTo(twfsymb->LastPrice_, symb->PriceOrigDiv_);
          twfsymb->TotalQty_ += fon9::PackBcdTo<fon9::fmkt::Qty>(pkI020.FirstMatchQty_);
-         auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
          for (;;) {
             if (*twfsymb != bf) {
                symb->UnlockMd();
-               twfsymb->OnMdLastPriceEv(bf, coreMgr);
+               twfsymb->OnMdLastPriceEv(bf, *omsCore);
                symb->LockMd();
             }
             if (pbeg == pend)
@@ -167,8 +174,7 @@ struct OmsTwfMiI140 : public f9twf::ExgMiHandlerAnySeq {
          return;
       if (i30x.ListType_ != f9twf::ExgMdSysInfo_ListType::FlowGroup)
          return;
-      auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
-      auto  core = coreMgr.CurrentCore();
+      auto  core = static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->GetOmsCore();
       if (!core)
          return;
       auto flowGroup = fon9::PackBcdTo<uint8_t>(i30x.List_.FlowGroup_);
@@ -205,8 +211,9 @@ struct OmsTwfMiI080 : public f9twf::ExgMiHandlerPkCont {
    void PkContOnReceived(const void* pk, unsigned pksz, SeqT seq) override {
       (void)pksz;
       this->CheckLogLost(pk, seq);
-      auto& pkI080 = *static_cast<const f9twf::ExgMiI080*>(pk);
-      auto  symb = FetchOmsSymb(this->PkSys_, pkI080.ProdId_);
+      OmsCoreSP omsCore;
+      auto&     pkI080 = *static_cast<const f9twf::ExgMiI080*>(pk);
+      auto      symb = FetchOmsSymb(this->PkSys_, pkI080.ProdId_, omsCore);
       if (!symb)
          return;
       auto* twfsymb = symb->GetMdBSEv();
@@ -214,13 +221,12 @@ struct OmsTwfMiI080 : public f9twf::ExgMiHandlerPkCont {
          return;
       symb->LockMd();
       if (twfsymb->IsNeedsOnMdBSEv()) {
-         auto& coreMgr = *static_cast<OmsTwfMiSystem*>(&this->PkSys_.MiSystem_)->OmsCoreMgr_;
          const OmsMdBS bf = *twfsymb;
          assert(fon9::numofele(pkI080.BuyOrderBook_) == fon9::numofele(twfsymb->Buys_));
          AssignPQ(pkI080.BuyOrderBook_,  twfsymb->Buys_,  *symb);
          AssignPQ(pkI080.SellOrderBook_, twfsymb->Sells_, *symb);
          symb->UnlockMd();
-         twfsymb->OnMdBSEv(bf, coreMgr);
+         twfsymb->OnMdBSEv(bf, *omsCore);
       }
       else {
          AssignPQ(pkI080.BuyOrderBook_,  twfsymb->Buys_,  *symb);

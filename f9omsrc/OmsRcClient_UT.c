@@ -227,8 +227,10 @@ void SetRequest(UserDefine* ud, char* cmd) {
          }
          *cmd = '\0';
          cmd = fon9_StrTrimHead(cmd + 1);
-         if (*cmd == '|')
-            ++cmd;
+         switch (*cmd) {
+         case '|':   ++cmd;      break;
+         case '\0':  cmd = NULL; break;
+         }
          break;
       default:
          val = (char*)fon9_StrFetchNoTrim(cmd, (const char**)&cmd, "|");

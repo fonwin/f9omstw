@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-   enum f9oms_CondOp_Compare {
+   enum f9oms_CondOp_Compare : int8_t {
       f9oms_CondOp_Compare_Unknown = -1,
       /// 等於, ==, =
       f9oms_CondOp_Compare_EQ = 0,

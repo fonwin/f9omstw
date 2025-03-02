@@ -18,7 +18,16 @@ class OmsOrderFactory : public fon9::seed::Tab {
    virtual OmsOrderRaw* MakeOrderRawImpl() = 0;
    virtual OmsOrder* MakeOrderImpl() = 0;
 public:
-   using base::base;
+   OmsRequestFactory* const DeleteRequestFactory_{nullptr};
+
+   template <class... ArgsT>
+   OmsOrderFactory(ArgsT&&... args) : base(std::forward<ArgsT>(args)...) {
+   }
+   template <class... ArgsT>
+   OmsOrderFactory(OmsRequestFactory* deleteRequestFactory, ArgsT&&... args)
+      : base(std::forward<ArgsT>(args)...)
+      , DeleteRequestFactory_{deleteRequestFactory} {
+   }
 
    virtual ~OmsOrderFactory();
 
@@ -41,8 +50,8 @@ class OmsOrderFactoryBaseT : public OmsOrderFactory {
    }
 
 public:
-   OmsOrderFactoryBaseT(std::string name)
-      : base(fon9::Named(std::move(name)), f9omstw::MakeFieldsT<OrderRawT>()) {
+   OmsOrderFactoryBaseT(std::string name, OmsRequestFactory* deleteRequestFactory = nullptr)
+      : base(deleteRequestFactory, fon9::Named(std::move(name)), f9omstw::MakeFieldsT<OrderRawT>()) {
    }
 };
 

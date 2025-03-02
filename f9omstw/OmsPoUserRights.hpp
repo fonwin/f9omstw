@@ -63,6 +63,9 @@ public:
    /// 群組單的子單,數量限制.
    uint16_t                CondGrpMaxC_{6};
    char                    Padding4____[4];
+   /// 允許使用那些群組單?
+   /// 設定方式同 CondAllows_;
+   fon9::CharVector        GxAllows_;
 };
 
 } // namespaces

@@ -20,7 +20,8 @@ struct OmsCondStepBfSc : public OmsRequestRunStep {
    using base::base;
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
       const auto& txReq = *static_cast<const TxReqT*>(&runner.OrderRaw().Request());
-      txReq.RunCondStepBfSc_T(txReq, std::move(runner), *static_cast<OrdRawT*>(&runner.OrderRaw()), *this->NextStep_);
+      if (!txReq.ToWaitCond_BfSc(txReq, std::move(runner), *static_cast<OrdRawT*>(&runner.OrderRaw()), *this->NextStep_))
+         this->ToNextStep(std::move(runner));
    }
 };
 template <class TxReqT, class OrdRawT>
@@ -30,7 +31,8 @@ struct OmsCondStepAfSc : public OmsRequestRunStep {
    using base::base;
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
       const auto& txReq = *static_cast<const TxReqT*>(&runner.OrderRaw().Request());
-      txReq.RunCondStepAfSc_T(txReq, std::move(runner), *static_cast<OrdRawT*>(&runner.OrderRaw()), *this->NextStep_);
+      if (!txReq.ToWaitCond_AfSc(txReq, std::move(runner), *static_cast<OrdRawT*>(&runner.OrderRaw()), *this->NextStep_))
+         this->ToNextStep(std::move(runner));
    }
 };
 // ======================================================================== //

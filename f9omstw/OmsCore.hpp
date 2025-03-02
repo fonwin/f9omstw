@@ -113,6 +113,11 @@ public:
    ///            在返回前可能已在另一 thread (或 this_thread) 執行完畢, 且可能已有回報通知.
    ///            當然也有可能尚未執行, 或正在執行.
    bool MoveToCore(OmsRequestRunner&& runner);
+   /// 在 prevRunner.ForceFinish() 之後, 需要繼續執行.
+   void ContinueRunInCore(const OmsRequestRunnerInCore& prevRunner, OmsRequestRunner&& nextRunner) {
+      assert(prevRunner.IsFinished()); (void)prevRunner;
+      this->RunInCore(std::move(nextRunner));
+   }
    /// 到 core 處理 OmsEvent.
    void EventToCore(OmsEventSP&& omsEvent) {
       this->EventToCoreImpl(std::move(omsEvent));

@@ -37,7 +37,7 @@ struct OmsIvacTree::TreeOp : public fon9::seed::TreeOp {
    }
    void Get(fon9::StrView strKeyText, fon9::seed::FnPodOp fnCallback) override {
       this->OnPodOp(strKeyText, std::move(fnCallback),
-                    static_cast<OmsIvacTree*>(&this->Tree_)->Brk_->GetIvac(StrToIvacNC(strKeyText)));
+                    static_cast<OmsIvacTree*>(&this->Tree_)->Brk_->GetIvac(StrToIvacNo(strKeyText)));
    }
    void Add(fon9::StrView strKeyText, fon9::seed::FnPodOp fnCallback) override {
       this->OnPodOp(strKeyText, std::move(fnCallback),

@@ -150,7 +150,7 @@ namespace f9oms
    }
 
    [Flags]
-   public enum RptFilter : byte
+   public enum RptFilter : UInt16
    {
       RptAll = 0,
       /// 回補階段, 回補最後狀態, 例如:
@@ -158,7 +158,15 @@ namespace f9oms
       /// - 若某筆要求正在 Sending, 則中間過程的 Queuing 不回補.
       RecoverLastSt = 0x01,
       /// 僅回補 WorkingOrder, 即時回報不考慮此旗標.
+      /// 可與 RecoverMatchOrder 旗標一起使用;
       RecoverWorkingOrder = 0x02,
+      /// 僅回補 有成交 的委託, 即時回報不考慮此旗標.
+      /// 可與 RecoverWorkingOrder 旗標一起使用;
+      RecoverMatchOrder = 0x100,
+
+      /// 回報時不檢查 IvList, 所以僅會針對 UserId 符合規則者回報。
+      /// 若無此旗標, 則: 若 UserId 不符, 會繼續檢查 [下單帳號] 是否存在於 IvList 的回報設定, 若是, 則也會回報。
+      UncheckIvList = 0x04,
 
       /// Queuing 不回報(也不回補).
       NoQueuing = 0x10,

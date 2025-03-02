@@ -2,6 +2,7 @@
 // \author fonwinz@gmail.com
 #include "f9omstw/OmsOrder.hpp"
 #include "f9omstw/OmsCore.hpp"
+#include "f9omstw/OmsRequestFactory.hpp"
 #include "fon9/seed/FieldMaker.hpp"
 #include "fon9/seed/RawRd.hpp"
 
@@ -101,6 +102,20 @@ void OmsOrder::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) {
       pord = afFirstPending;
    } while (pord);
    this->FirstPending_ = afFirstPending;
+}
+OmsRequestTradeSP OmsOrder::MakeDeleteRequest() const {
+   if (this->Creator_ && this->Creator_->DeleteRequestFactory_) {
+      if (auto* ini = this->Initiator()) {
+         if (auto delreqSP = this->Creator_->DeleteRequestFactory_->MakeRequest()) {
+            assert(dynamic_cast<OmsRequestUpd*>(delreqSP.get()) != nullptr);
+            OmsRequestUpd* delreq = static_cast<OmsRequestUpd*>(delreqSP.get());
+            delreq->ForceResetRxKind(f9fmkt_RxKind_RequestDelete);
+            delreq->SetIniFrom(*ini);
+            return delreq;
+         }
+      }
+   }
+   return nullptr;
 }
 
 //--------------------------------------------------------------------------//

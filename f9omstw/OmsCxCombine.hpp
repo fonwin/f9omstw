@@ -29,7 +29,7 @@ public:
    OmsCxCombineOrdRaw() = default;
 
    void ContinuePrevUpdate(const OmsOrderRaw& prev) override {
-      if (fon9_LIKELY(prev.UpdateOrderSt_ != f9fmkt_OrderSt_NewWaitingCond))
+      if (fon9_LIKELY(prev.UpdateOrderSt_ >= f9fmkt_OrderSt_NewStarting))
          TOrdRaw::ContinuePrevUpdate(prev);
       else {
          // 在 WaitingCond 狀態下的委託: assert(LeavesQty_ != 0)

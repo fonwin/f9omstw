@@ -807,6 +807,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
    switch (rptReq->ReportSt()) {
    case f9fmkt_TradingRequestSt_Queuing:     rptReq->SetReportSt(f9fmkt_TradingRequestSt_QueuingAtOther);      break;
    case f9fmkt_TradingRequestSt_WaitingCond: rptReq->SetReportSt(f9fmkt_TradingRequestSt_WaitingCondAtOther);  break;
+   case f9fmkt_TradingRequestSt_WaitingRun:  rptReq->SetReportSt(f9fmkt_TradingRequestSt_WaitingRunAtOther);   break;
    }
    fon9_WARN_POP;
 

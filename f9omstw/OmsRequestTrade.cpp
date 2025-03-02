@@ -17,6 +17,9 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTrade, UsrDef));
    flds.Add(fon9_MakeField2(OmsRequestTrade, ClOrdId));
 }
+void OmsRequestTrade::AddChildIdField(fon9::seed::Fields& flds) {
+   flds.Add(fon9_MakeField2(OmsRequestTrade, ChildId));
+}
 OmsRequestTrade::~OmsRequestTrade() {
 }
 bool OmsRequestTrade::ValidateInUser(OmsRequestRunner&) {
@@ -200,10 +203,10 @@ OmsOrder* OmsRequestUpd::BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsR
    case f9fmkt_RxKind_RequestChgPri:
    case f9fmkt_RxKind_RequestQuery:
    case f9fmkt_RxKind_RequestChgCond:
+   case f9fmkt_RxKind_RequestRerun:
       break;
    default:
    case f9fmkt_RxKind_RequestNew:
-   case f9fmkt_RxKind_RequestRerun:
    case f9fmkt_RxKind_Filled:
    case f9fmkt_RxKind_Order:
    case f9fmkt_RxKind_Event:

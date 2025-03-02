@@ -7,8 +7,8 @@
 // 其餘直接直接使用[無條件單]的環境即可;
 // ----------
 // - 條件單從 [OmsCxReqBase衍生者] 的 BeforeReqInCore() 呼叫 OmsCxReqBase::BeforeReqInCore_CreateCxExpr() 解析條件內容, 建立條件運算式開始;
-// - 在風控前呼叫 OmsCxReqBase::RunCondStepBfSc_T<>(); 處理;
-//   在風控後呼叫 OmsCxReqBase::RunCondStepAfSc_T<>(); 處理;
+// - 在風控前呼叫 OmsCxReqBase::ToWaitCond_BfSc<>(); 處理;
+//   在風控後呼叫 OmsCxReqBase::ToWaitCond_AfSc<>(); 處理;
 //   - 是否先風控?
 //   - 條件是否已成立? 透過 OmsCxReqBase::RegCondToSymb_T<>(); 處理:
 //     - 計算條件運算式: 

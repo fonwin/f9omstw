@@ -19,11 +19,17 @@ public:
    OmsRequestBase&   Request_;
    ApiSession&       ApiSession_;
    fon9::StrView     ClientFieldValue_;
+   fon9::StrView     ReqStr_;
 
-   ApiReqFieldArg(OmsRequestBase& req, ApiSession& ses)
+   ApiReqFieldArg(OmsRequestBase& req, ApiSession& ses, fon9::StrView reqstr)
       : base{req}
       , Request_(req)
-      , ApiSession_(ses) {
+      , ApiSession_(ses)
+      , ReqStr_{reqstr} {
+   }
+   void ResetReqStrBegin(const char* pNewBegin) {
+      assert(this->ReqStr_.begin() <= pNewBegin);
+      this->ReqStr_.SetBegin(pNewBegin);
    }
 };
 
@@ -55,6 +61,11 @@ struct ApiReqFieldCfg {
    }
    ApiReqFieldCfg(const fon9::seed::Field* fld)
       : Field_(fld) {
+   }
+   ApiReqFieldCfg(FnPutApiField fnPut, fon9::Named&& apiNamed)
+      : Field_(nullptr)
+      , ApiNamed_(std::move(apiNamed))
+      , FnPut_{fnPut} {
    }
    ApiReqFieldCfg(const ApiReqFieldCfg&) = default;
    ApiReqFieldCfg(ApiReqFieldCfg&&) = default;

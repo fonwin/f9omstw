@@ -26,6 +26,8 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
    uint16_t                   CondExpMaxC_; // 單一下單要求,多條件單,的最多條件數量限制.
    uint16_t                   CondGrpMaxC_; // 群組單,下單要求數量限制.
    char                       Padding4____[4];
+   fon9::CharVector           GxAllows_;
+   static bool IsAllowedStr(const fon9::CharVector& cfg, fon9::StrView name);
 
    struct IvRec {
       OmsIvBase*        Iv_;
@@ -82,7 +84,9 @@ public:
    }
    void SetCondAllows(fon9::StrView value);
    /// \retval true condName.empty() 或有權限.
-   bool IsCondAllowed(fon9::StrView condName) const;
+   bool IsCondAllowed(fon9::StrView condName) const {
+      return IsAllowedStr(this->CondAllows_, condName);
+   }
    void SetCondPriorityM(uint32_t v) { this->CondPriorityM_ = v; }
    void SetCondPriorityL(uint32_t v) { this->CondPriorityL_ = v; }
    void SetCondExpMaxC(uint16_t v)   { this->CondExpMaxC_ = v;   }
@@ -91,6 +95,13 @@ public:
    uint32_t CondPriorityL() const { return this->CondPriorityL_; }
    uint16_t CondExpMaxC() const   { return this->CondExpMaxC_;   }
    uint16_t CondGrpMaxC() const   { return this->CondGrpMaxC_;   }
+
+   void SetGxAllows(fon9::StrView value);
+   /// \retval true  gxName有權限.
+   /// \retval false gxName無權限, 或 gxName.empty();
+   bool IsGxAllowed(fon9::StrView gxName) const {
+      return gxName.empty() ? false : IsAllowedStr(this->GxAllows_, gxName);
+   }
 
    /// - 如果 ivr 是 Subac:
    ///   - 則 subWilds 必定是 empty().

@@ -229,20 +229,51 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
          fon9::BitvTo(param.RecvBuffer_, reqTableId);
          --reqTableId;
       }
-      RequestFillRunner  runner;
-      switch (this->OnFillRequest(ses, param, runner, reqTableId)) {
-      default:
-      case FillRequestResult_Empty:
+      // -----
+      size_t   byteCount;
+      if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
+         fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
+      if (byteCount <= 0)
          continue;
-      case FillRequestResult_ForceLogout:
-         runner.Clear();
-         return;
-      case FillRequestResult_ReportRequest:
-         // 回報補單不用考慮流量.
-         goto __SKIP_CheckFc_AND_RUN_REQUEST;
-      case FillRequestResult_TradingRequest:
-         break;
+      RequestFillRunner runner{ses, *this, reqTableId};
+      f9_LatencyMeasure_Push("OmsRcSvrFunc.BfExLog");
+      fon9::RevPrint(runner.ExLog_, '\n');
+      f9_LatencyMeasure_Push("OmsRcSvrFunc.AfExLog");
+      char* const   pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
+      runner.ExLog_.SetPrefixUsed(pout);
+      param.RecvBuffer_.Read(pout, byteCount);
+      f9_LatencyMeasure_Push("OmsRcSvrFunc.AfReadReqStr");
+      // -----
+      auto  pol = this->Handler_->RequestPolicy_;
+      this->PolicyConfig_.UpdateIvDenys(pol.get());
+      if (fon9_LIKELY(runner.Request_)) {
+         runner.Request_->ResetCrTime(param.RecvTime_);
+         assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
+         static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
+         static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
       }
+      else {
+         // Rc client 端使用 TwsRpt 補登回報(補單).
+         // 回報補單不用 SetPolicy();
+         runner.Request_ = runner.ReqCfg_.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
+         if (!runner.Request_) {
+            ses.ForceLogout("OmsRcServer:bad factory: " + runner.ReqCfg_.Factory_->Name_);
+         __FORCE_LOGOUT:;
+            runner.Clear();
+            return;
+         }
+         // 回報(補單)權限需要自主檢查.
+         if (!pol || !runner.CheckReportRights(*pol)) {
+            ses.ForceLogout("OmsRcServer:deny input report.");
+            goto __FORCE_LOGOUT;
+         }
+         runner.Request_->SetReportNeedsLog();
+         runner.Request_->SetForcePublish();
+      }
+      runner.FillRequest(fon9::StrView{pout, byteCount});
+      if (fon9_UNLIKELY(runner.Request_->IsReportIn()))
+         goto __SKIP_CheckFc_AND_RUN_REQUEST; // 回報補單不用計算流量;
+      // -----
       if (fon9_LIKELY(this->CheckFcFetch())) {
       __SKIP_CheckFc_AND_RUN_REQUEST:;
          f9_LatencyMeasure_Push("OmsRcSvrFunc.BfToCore");
@@ -270,51 +301,11 @@ void OmsRcServerNote::OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionPa
    }
    f9_LatencyMeasure_Push("OmsRcSvrFunc.AfParse");
 }
-OmsRcServerNote::FillRequestResult OmsRcServerNote::OnFillRequest(ApiSession& ses, fon9::rc::RcFunctionParam& param, RequestFillRunner& runner, unsigned reqTableId) {
-   assert(reqTableId <= this->ApiSesCfg_->ApiReqCfgs_.size());
-   const ApiReqCfg&  cfg = this->ApiSesCfg_->ApiReqCfgs_[reqTableId];
-   size_t            byteCount;
-   if (!fon9::PopBitvByteArraySize(param.RecvBuffer_, byteCount))
-      fon9::Raise<fon9::BitvNeedsMore>("OmsRcServer:request string needs more");
-   if (byteCount <= 0)
-      return FillRequestResult_Empty;
-   f9_LatencyMeasure_Push("OmsRcSvrFunc.BfExLog");
-   fon9::RevPrint(runner.ExLog_, '\n');
-   f9_LatencyMeasure_Push("OmsRcSvrFunc.AfExLog");
-   char* const    pout = runner.ExLog_.AllocPrefix(byteCount) - byteCount;
-   fon9::StrView  reqstr{pout, byteCount};
-   runner.ExLog_.SetPrefixUsed(pout);
-   param.RecvBuffer_.Read(pout, byteCount);
-
-   auto pol = this->Handler_->RequestPolicy_;
-   this->PolicyConfig_.UpdateIvDenys(pol.get());
-
-   f9_LatencyMeasure_Push("OmsRcSvrFunc.BfMakeReq");
-   runner.ResetReqCache(&this->ReqCache_[reqTableId]);
-   if (fon9_LIKELY(runner.Request_)) {
-      runner.Request_->ResetCrTime(param.RecvTime_);
-      assert(dynamic_cast<OmsRequestTrade*>(runner.Request_.get()) != nullptr);
-      static_cast<OmsRequestTrade*>(runner.Request_.get())->LgOut_ = this->PolicyConfig_.UserRights_.LgOut_;
-   }
-   else {
-      // Rc client 端使用 TwsRpt 補登回報(補單).
-      runner.Request_ = cfg.Factory_->MakeReportIn(f9fmkt_RxKind_Unknown, param.RecvTime_);
-      if (!runner.Request_) {
-         ses.ForceLogout("OmsRcServer:bad factory: " + cfg.Factory_->Name_);
-         return FillRequestResult_ForceLogout;
-      }
-      // 回報(補單)權限需要自主檢查.
-      if (!pol || !runner.CheckReportRights(*pol)) {
-         ses.ForceLogout("OmsRcServer:deny input report.");
-         return FillRequestResult_ForceLogout;
-      }
-      runner.Request_->SetReportNeedsLog();
-      runner.Request_->SetForcePublish();
-   }
+void OmsRcServerNote::RequestFillRunner::FillRequest(fon9::StrView reqstr) {
    f9_LatencyMeasure_Push("SetReqFields.Begin");
-   ApiReqFieldArg arg{*runner.Request_, ses};
-   for (const auto& fldcfg : cfg.ApiFields_) {
-      arg.ClientFieldValue_ = fon9::StrFetchNoTrim(reqstr, *fon9_kCSTR_CELLSPL);
+   ApiReqFieldArg arg{*this->Request_, this->Ses_, reqstr};
+   for (const auto& fldcfg : this->ReqCfg_.ApiFields_) {
+      arg.ClientFieldValue_ = fon9::StrFetchNoTrim(arg.ReqStr_, *fon9_kCSTR_CELLSPL);
       if (fldcfg.Field_)
          fldcfg.Field_->StrToCell(arg, arg.ClientFieldValue_);
       if (fldcfg.FnPut_)
@@ -322,17 +313,11 @@ OmsRcServerNote::FillRequestResult OmsRcServerNote::OnFillRequest(ApiSession& se
    }
    f9_LatencyMeasure_Push("SetReqFields.AfApiFields");
    arg.ClientFieldValue_.Reset(nullptr);
-   for (const auto& fldcfg : cfg.SysFields_) {
+   for (const auto& fldcfg : this->ReqCfg_.SysFields_) {
       if (fldcfg.FnPut_)
          (*fldcfg.FnPut_)(fldcfg, arg);
    }
    f9_LatencyMeasure_Push("SetReqFields.AfSysFields");
-   if (fon9_LIKELY(!runner.Request_->IsReportIn())) {
-      static_cast<OmsRequestTrade*>(runner.Request_.get())->SetPolicy(std::move(pol));
-      return FillRequestResult_TradingRequest;
-   }
-   // 回報補單不用 SetPolicy().
-   return FillRequestResult_ReportRequest;
 }
 //--------------------------------------------------------------------------//
 void OmsRcServerNote::Handler::ClearResource() {
@@ -396,7 +381,17 @@ OmsRxSNO OmsRcServerNote::Handler::OnRecover(OmsCore& core, const OmsRxItem* ite
                }
                else if (ordraw && ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
                   // 回補成交明細.
+                  this->SendReport(ordraw->Request());
                   goto __SEND_RECOVER_REPORT;
+               }
+               // 在有 f9OmsRc_RptFilter_RecoverMatchOrder 旗標時,
+               // 應先回報 Initiator, 讓使用者可以對應原始委託內容.
+               if (ordraw == nullptr && item->CastToRequest()) {
+                  if ((ordraw = static_cast<const OmsRequestBase*>(item)->LastUpdated()) != nullptr) {
+                     if (ordraw->Order().HasFilled() != OmsFilledFlag::None && ordraw->Order().Initiator() == item)
+                        goto __SEND_RECOVER_REPORT;
+                     ordraw = nullptr; // 讓後續的判斷不要將 item 誤判成 ordraw;
+                  }
                }
                // 如果沒有其他回補旗標, 則表示僅回補成交, 其餘不回補, 所以直接返回.
                if (!(this->RptFilter_ & f9OmsRc_RptFilter_RecoverWorkingOrder))

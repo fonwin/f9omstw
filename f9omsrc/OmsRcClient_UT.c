@@ -17,8 +17,10 @@
 #include <crtdbg.h>
 #endif
 //--------------------------------------------------------------------------//
+#define f9rc_ClientLogFlag_ut    ((f9rc_ClientLogFlag)0x80000000)
+//--------------------------------------------------------------------------//
 #define kMaxFieldCount  64
-#define kMaxValueSize   64
+#define kMaxValueSize   1024
 typedef struct {
    // 為了簡化測試, 每個下單要求最多支援 kMaxFieldCount 個欄位, 每個欄位最多 kMaxValueSize bytes(包含EOS).
    char  Fields_[kMaxFieldCount][kMaxValueSize];
@@ -98,11 +100,17 @@ void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_Client
    }
    ud->LastSNO_ = rpt->ReportSNO_;
 
-   if (rpt->Layout_ != NULL && (ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All) {
+   if (rpt->Layout_ != NULL &&
+      ((ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All
+      || (ses->LogFlags_ & f9rc_ClientLogFlag_ut))) {
       char  msgbuf[1024*4];
       char* pmsg = msgbuf;
-      pmsg += sprintf(pmsg, "%u:%s(%u|%s)", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_
-                                          , rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_);
+      if (rpt->ReportSNO_)
+         pmsg += sprintf(pmsg, "[SNO=%" PRIu64 "]", rpt->ReportSNO_);
+      if (rpt->ReferenceSNO_)
+         pmsg += sprintf(pmsg, "[REF=%" PRIu64 "]", rpt->ReferenceSNO_);
+      pmsg += sprintf(pmsg, "%2u:%s(%u|%s)", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_
+                                           , rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_);
       for (unsigned L = 0; L < rpt->Layout_->FieldCount_; ++L) {
          pmsg += sprintf(pmsg, "|%s=%s",
                          rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
@@ -226,6 +234,18 @@ void SetRequest(UserDefine* ud, char* cmd) {
             goto __BREAK_PUT_FIELDS;
          }
          *cmd = '\0';
+         for (char* pn = val; pn != cmd;) {
+            if (*pn != '\\') {
+               ++pn;
+               continue;
+            }
+            switch (*++pn) {
+            case 'n':   *(pn - 1) = '\n';   break;
+            case '!':   *(pn - 1) = '\x01'; break;
+            case '\\':  break;
+            }
+            memcpy(pn, pn + 1, (size_t)(cmd - pn));
+         }
          cmd = fon9_StrTrimHead(cmd + 1);
          switch (*cmd) {
          case '|':   ++cmd;      break;
@@ -696,6 +716,8 @@ void PromptSleep(const char* psec, const void** wait, double secsDefault) {
    printf("\r");
 }
 //--------------------------------------------------------------------------//
+UserDefine  ud;
+//---------------------------------
 int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)
    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -813,7 +835,6 @@ __USAGE:
    f9sv_InitClientSessionParams(&f9rcCliParams, &svRcParams);
    svRcParams.FnOnConfig_ = &OnSvConfig;
 
-   UserDefine  ud;
    memset(&ud, 0, sizeof(ud));
    f9rcCliParams.UserData_ = &ud;
 

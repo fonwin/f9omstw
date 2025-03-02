@@ -39,6 +39,7 @@ public:
    char              padding__[1];
 
    using base::base;
+   OmsTwsReport() = default;
 
    void ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const override;
    void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
@@ -55,6 +56,23 @@ public:
 
 using OmsTwsReportFactory = OmsReportFactoryT<OmsTwsReport>;
 using OmsTwsReportFactorySP = fon9::intrusive_ptr<OmsTwsReportFactory>;
+//--------------------------------------------------------------------------//
+template <class OmsTwsReportDerived>
+struct OmsTwsReportFactoryT : public OmsTwsReportFactory {
+   fon9_NON_COPY_NON_MOVE(OmsTwsReportFactoryT);
+   using base = OmsTwsReportFactory;
+   OmsRequestSP MakeReportInImpl(f9fmkt_RxKind reqKind) override {
+      OmsTwsReportDerived* retval = new OmsTwsReportDerived(*this, reqKind);
+      retval->InitializeForReportIn();
+      return retval;
+   }
+public:
+   OmsTwsReportFactoryT(std::string name, OmsOrderFactorySP ordFactory)
+      : base(ordFactory, nullptr, fon9::Named(std::move(name)),
+             MakeFieldsT<OmsTwsReportDerived>()) {
+   }
+   static_assert(std::is_base_of<OmsTwsReport, OmsTwsReportDerived>::value, "");
+};
 
 } // namespaces
 #endif//__f9omstws_OmsTwsReport_hpp__

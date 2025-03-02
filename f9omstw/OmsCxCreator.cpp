@@ -8,7 +8,7 @@
 namespace f9omstw {
 
 #ifdef _DEBUG
-#define _PRINT_DEBUG_INFO
+//#define _PRINT_DEBUG_INFO   // 已經驗證完畢,可以不用輸出了!
 #endif
 // ======================================================================== //
 CxUnitCreator GetCxUnitCreator(fon9::StrView condName) {

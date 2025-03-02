@@ -128,7 +128,8 @@ static const char* DeserializeApiNamed(ApiNamed& dst, fon9::StrView& cfgstr, cha
          break;
       case '/':
          StrTrimHead(&name, name.begin() + 1);
-         if ((pInvalid = fon9::FindInvalidNameChar(name)) == nullptr) {
+         pInvalid = name.begin() + (name.Get1st() == '%'); // SysName[0]=='%' 使用 FuPut;
+         if ((pInvalid = fon9::FindInvalidNameChar(fon9::StrView{pInvalid, name.end()})) == nullptr) {
             dst.SysName_ = name;
             break;
          }
@@ -174,12 +175,24 @@ static void DeserializeApiNamed(ApiNamed& dst, fon9::StrView& cfgstr, char chTai
 
 static ApiReqFieldCfg* SetReqApiField(const fon9::ConfigLoader& cfgldr, OmsRequestFactory& fac, ApiReqCfg::ApiReqFields& flds, ApiNamed& apiNamed) {
    assert(!apiNamed.ApiName_.empty());
-   const auto* fld = fac.Fields_.Get(apiNamed.SysName_);
-   if (fld == nullptr)
-      return nullptr;
+   const auto*   fldfac = fac.Fields_.Get(apiNamed.SysName_);
+   FnPutApiField fnPut;
+   if (fon9_UNLIKELY(fldfac == nullptr)) {
+      // 由 API Client 提供內容, 但是沒有對應的 ReqFactory.Field;
+      // 這種欄位由 FnPutApiField 處理;
+      if (apiNamed.SysName_.Get1st() != '%')
+         return nullptr;
+      apiNamed.SysName_.IncBegin(1);
+      fnPut = FnPutApiField_Register::Register(apiNamed.SysName_, nullptr);
+      if (fnPut == nullptr) {
+         fon9::Raise<fon9::ConfigLoader::Err>("REQ API virtual %function not found.",
+                                              cfgldr.GetLineFrom(apiNamed.ApiName_.begin()),
+                                              std::errc::bad_message);
+      }
+   }
    for (auto& fldcfg : flds) {
       if (apiNamed.ApiName_ == &fldcfg.ApiNamed_.Name_) {
-         if (apiNamed.SysName_ != &fldcfg.Field_->Name_) {
+         if (fldcfg.Field_ != nullptr && apiNamed.SysName_ != &fldcfg.Field_->Name_) {
             fon9::Raise<fon9::ConfigLoader::Err>("REQ field dup defined, but SysName not match.",
                                                  cfgldr.GetLineFrom(apiNamed.SysName_.begin()),
                                                  std::errc::bad_message);
@@ -188,7 +201,10 @@ static ApiReqFieldCfg* SetReqApiField(const fon9::ConfigLoader& cfgldr, OmsReque
          return &fldcfg;
       }
    }
-   flds.emplace_back(fld, apiNamed.ToNamed(fld));
+   if (fldfac)
+      flds.emplace_back(fldfac, apiNamed.ToNamed(fldfac));
+   else
+      flds.emplace_back(fnPut, apiNamed.ToNamed(nullptr));
    return &flds.back();
 }
 static ApiReqFieldCfg* SetReqSysField(OmsRequestFactory& fac, ApiReqCfg::ApiReqFields& flds, fon9::StrView sysName) {
@@ -500,7 +516,10 @@ ApiSesCfgSP MakeApiSesCfg(OmsCoreMgrSP coreMgr, fon9::StrView cfgstr) {
          const auto& fld = *--ifldend;
          fon9::NumOutBuf nbuf;
          fon9::RevPrintNamed(rbuf, fld.ApiNamed_, ',');
-         fon9::RevPrint(rbuf, '\n', fld.Field_->GetTypeId(nbuf), '\t');
+         if (fld.Field_)
+            fon9::RevPrint(rbuf, '\n', fld.Field_->GetTypeId(nbuf), '\t');
+         else
+            fon9::RevPrint(rbuf, "\n" "C0" "\t");
       }
       fon9::RevPrint(rbuf, '{');
       fon9::RevPrintNamed(rbuf, cfg.ApiNamed_, ',');

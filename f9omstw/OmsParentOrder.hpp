@@ -9,6 +9,12 @@ namespace f9omstw {
 
 class OmsParentOrderRaw;
 struct OmsParentOrderRawDat;
+enum class ChildOrderSt {
+   Running,
+   /// 沒有執行過(< f9fmkt_OrderSt_NewRunning), 或沒執行就被刪除(== f9fmkt_OrderSt_NewQueuingCanceled)
+   NotRun,
+};
+static inline bool IsChildRunning(ChildOrderSt st) { return st == ChildOrderSt::Running; }
 
 class OmsParentOrder : public OmsOrder {
    fon9_NON_COPY_NON_MOVE(OmsParentOrder);
@@ -18,12 +24,12 @@ class OmsParentOrder : public OmsOrder {
    ChildRequests  WorkingChildRequests_;
 
    /// 重新執行母單.
-   /// newParent = RecalcAllChild() 的返回值, 可能為 nullptr, 表示最後狀態沒變, 但需要 Rerun.
+   /// newParent = RecalcAllChildForRerun() 的返回值, 可能為 nullptr, 表示最後狀態沒變, 但需要 Rerun.
    /// 若有提供 newParent, 則不論返回值, 返回前都有需要主動執行: OmsRequestRunnerInCore;
    virtual bool OnRerunParent(OmsResource& resource, OmsParentOrderRaw* newParent) = 0;
    /// 返回新的母單最後狀態, 若沒有變動, 則返回 nullptr;
    /// 若返回有異動, 則需: OmsRequestRunnerInCore runner{resource, *retval...};
-   OmsParentOrderRaw* RecalcAllChild();
+   OmsParentOrderRaw* RecalcAllChildForRerun();
    /// recalc 為單純的 OmsParentOrderRawDat, 不可 cast 成別種型別.
    /// 重新將 child 累加到 recalc 裡面, 包含:
    /// - recalc.ChildLeavesQty_ += childTail.LeavesQty_;
@@ -41,8 +47,6 @@ protected:
    /// 預設 do nothing.
    virtual void OnChildFilled(OmsParentOrderRaw& parentOrdraw, const OmsRequestBase& childFilled) = 0;
 
-   /// 設定: "Parent rerun@LocalHostId"
-   static void AssignRerunMessage(fon9::CharVector& message);
    bool ParentRerunStep(OmsResource& resource, OmsParentOrderRaw* newParent, OmsRequestRunStep& rerunStep);
 
 public:
@@ -51,9 +55,16 @@ public:
    }
    ~OmsParentOrder();
 
+   /// 設定: "Parent rerun@LocalHostId"
+   static void AssignRerunMessage(fon9::CharVector& message);
+
    size_t WorkingChildRequestCount() const {
       return this->WorkingChildRequests_.size();
    }
+   const OmsRequestIni* GetWorkingChildRequest(size_t idx) const {
+      return idx < this->WorkingChildRequests_.size() ? this->WorkingChildRequests_[idx] : nullptr;
+   }
+
    /// 將 childReq 加入 Parent.
    /// 當 Parent 的刪改需要觸及已送出的 Child 時, 從這裡查找工作中的 Child.
    void AddChild(const OmsRequestIni& childReq) {
@@ -107,14 +118,26 @@ public:
    /// childLeavesQty = childOrdraw.LeavesQty_;
    /// childAdjQty = fon9::signed_cast(childOrdraw.AfterQty_ - childOrdraw.BeforeQty_);
    template <class ChildOrderRaw>
-   static void GetChildOrderQtysT(const OmsOrderRaw& childOrdraw, OmsParentQty& childLeavesQty, OmsParentQtyS& childAdjQty) {
+   ChildOrderSt GetChildOrderQtysT(const OmsOrderRaw& childOrdraw, OmsParentQty& childLeavesQty, OmsParentQtyS& childAdjQty) const {
       assert(dynamic_cast<const ChildOrderRaw*>(&childOrdraw) != nullptr);
       const auto& child = *static_cast<const ChildOrderRaw*>(&childOrdraw);
       childLeavesQty = child.LeavesQty_;
       childAdjQty = fon9::signed_cast(child.AfterQty_ - child.BeforeQty_);
+      if (fon9_LIKELY(childAdjQty != 0 || child.BeforeQty_ != 0)) // Bf、Af 數量有變動: 必定是已成立(執行中)的子單;
+         return ChildOrderSt::Running;
+      assert(child.BeforeQty_ == 0 && child.AfterQty_ == 0);
+      // 若 child 尚未開成立 or 首次執行失敗(風控失敗、無可用線路...)
+      // 需要用前一個 childOrdraw 來計算異動數量;
+      if (const OmsOrderRaw* prev = childOrdraw.Order().TailPrev())
+         childAdjQty = fon9::signed_cast(childLeavesQty - static_cast<const ChildOrderRaw*>(prev)->LeavesQty_);
+      else { // 首次執行失敗? 或強制減量?
+         auto* childIni = static_cast<const OmsRequestIni*>(&childOrdraw.Request());
+         childAdjQty = fon9::signed_cast(childLeavesQty - this->GetChildRequestIniQty(*childIni));
+      }
+      return(f9fmkt_OrderSt_IsNotRunning(childOrdraw.UpdateOrderSt_) ? ChildOrderSt::NotRun : ChildOrderSt::Running);
    }
    /// 請參考 GetChildOrderQtysT<>();
-   virtual void GetChildOrderQtys(const OmsOrderRaw& childOrdraw, OmsParentQty& childLeavesQty, OmsParentQtyS& childAdjQty) const = 0;
+   virtual ChildOrderSt GetChildOrderQtys(const OmsOrderRaw& childOrdraw, OmsParentQty& childLeavesQty, OmsParentQtyS& childAdjQty) const = 0;
    virtual OmsParentQty GetChildRequestIniQty(const OmsRequestIni& childReqIni) const = 0;
 
    /// - 先判斷是否需要重新執行?
@@ -134,16 +157,22 @@ public:
 /// - ChildLeavesQty_ = 子單尚未成交的數量:Sum(Child.LeavesQty);
 /// - LeavesQty_ = 尚未建立子單的數量 + ChildLeavesQty_;
 struct OmsParentOrderRawDat {
+   /// 母單的下單要求數量;
    OmsParentQty   RequireQty_;
+   /// 已成立的子單, 尚未成交的數量;
    OmsParentQty   ChildLeavesQty_;
+   /// 母單的剩餘量;
    OmsParentQty   LeavesQty_;
    OmsParentQty   BeforeQty_;
    OmsParentQty   AfterQty_;
-   void DecChildParentLeavesQty(OmsParentQty adjQty) {
-      assert(fon9::signed_cast(adjQty) > 0);
-      assert(this->LeavesQty_ >= adjQty && this->ChildLeavesQty_ >= adjQty);
-      if (fon9::signed_cast(this->ChildLeavesQty_ -= adjQty) < 0)
-         this->ChildLeavesQty_ = 0;
+   void DecChildParentLeavesQty(OmsParentQty adjQty, bool isRunningChild) {
+      assert(fon9::signed_cast(adjQty) >= 0);
+      if (fon9_LIKELY(isRunningChild)) {
+         assert(this->ChildLeavesQty_ >= adjQty);
+         if (fon9::signed_cast(this->ChildLeavesQty_ -= adjQty) < 0)
+            this->ChildLeavesQty_ = 0;
+      }
+      assert(this->LeavesQty_ >= adjQty);
       if (fon9::signed_cast(this->LeavesQty_ -= adjQty) < 0)
          this->LeavesQty_ = 0;
       this->AfterQty_ = this->LeavesQty_;

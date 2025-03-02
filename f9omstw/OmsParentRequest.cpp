@@ -124,7 +124,8 @@ void OmsParentRequestIni::OnAfterBackendReloadChild(const OmsRequestBase& childR
       if (childReq.RxKind() == f9fmkt_RxKind_RequestNew) {
          assert(dynamic_cast<const OmsRequestIni*>(&childReq) != nullptr);
          assert(dynamic_cast<OmsParentOrder*>(&this->LastUpdated()->Order()) != nullptr);
-         static_cast<OmsParentOrder*>(&this->LastUpdated()->Order())->EraseChild(static_cast<const OmsRequestIni*>(&childReq));
+         // static_cast<OmsParentOrder*>(&this->LastUpdated()->Order())->EraseChild(static_cast<const OmsRequestIni*>(&childReq));
+         // 不能在 BackendReload 時 EraseChild: 因為如果要 Rerun 需要重新計算相關數量, 所以必須在 OmsParentOrder::RecalcAllChildForRerun() 時處理;
       }
    }
 }
@@ -160,15 +161,31 @@ void OmsParentRequestIni::OnChildError(const OmsRequestBase& childReq, OmsResour
    parentOrder.EraseChild(&childIni);
 
    OmsRequestRunnerInCore runner{res, *parentOrder.BeginUpdate(*this), childRunner};
-   auto  qtyRejected = this->GetChildRequestQty(childIni);
+   OmsParentQty qtyRejected;
+   bool         isRunningChild;
+   if (auto* childOrdraw = childIni.LastUpdated()) {
+      OmsParentQty   childLeavesQty;
+      OmsParentQtyS  childAdjQty;
+      ChildOrderSt   childSt = parentOrder.GetChildOrderQtys(*childOrdraw, childLeavesQty, childAdjQty);
+      assert(childLeavesQty == 0);
+      qtyRejected = (childAdjQty <= 0 ? fon9::unsigned_cast(-childAdjQty) : 0);
+      isRunningChild = IsChildRunning(childSt);
+   }
+   else {
+      qtyRejected = this->GetChildRequestQty(childIni);
+      isRunningChild = (childIni.ReportSt() != f9fmkt_TradingRequestSt_WaitingRun);
+   }
    auto& ordraw = runner.OrderRawT<OmsParentOrderRaw>();
    CopyErr_FromChild_ToParent(ordraw, childIni);
-   assert(ordraw.ChildLeavesQty_ >= qtyRejected);
-   if (fon9::signed_cast(ordraw.ChildLeavesQty_ -= qtyRejected) < 0)
-      ordraw.ChildLeavesQty_ = 0;
-   // ===== 子單失敗後的 OrderSt =====
-   ordraw.AfterQty_ = ordraw.LeavesQty_ = ordraw.ChildLeavesQty_;
-   parentOrder.SetParentStopRun();
+   ordraw.DecChildParentLeavesQty(qtyRejected, isRunningChild);
+   this->OnNewChildError(childIni, std::move(runner));
+}
+void OmsParentRequestIni::OnNewChildError(const OmsRequestIni& childIni, OmsRequestRunnerInCore&& parentRunner) const {
+   (void)childIni;
+   SetParentOrderFinalReject(parentRunner.OrderRawT<OmsParentOrderRaw>());
+}
+void SetParentOrderFinalReject(OmsParentOrderRaw& ordraw) {
+   ordraw.Order().SetParentStopRun();
    if (ordraw.LeavesQty_ > 0) {
       // 還有剩餘量 => 部分失敗.
       ordraw.RequestSt_ = f9fmkt_TradingRequestSt_PartExchangeRejected;
@@ -217,15 +234,26 @@ void OmsParentRequestIni::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
    }
    OmsParentQty   childLeavesQty;
    OmsParentQtyS  childAdjQty;
-   const bool     isRunningDone = DecRunningChildCount(this->RunningChildCount_);
+   bool           isRunningDone = DecRunningChildCount(this->RunningChildCount_);
    this->GetNewChildOrderQtys(childOrdraw, childLeavesQty, childAdjQty);
-
    if (childLeavesQty == 0)
       parentOrder.EraseChild(childOrdraw.Order().Initiator());
    // 子單數量, 只有可能變少(例:排隊中減量), 不可能變多.
    assert(childAdjQty <= 0);
    if (childAdjQty > 0) {
       return;
+   }
+   // 若剩餘的子單都尚未成立, 則 isRunningDone 應為 true;
+   if (!isRunningDone) {
+      size_t idx = 0;
+      while (auto* iChildReq = parentOrder.GetWorkingChildRequest(idx++)) {
+         if (auto* iChildOrdraw = iChildReq->LastUpdated())
+            if (iChildOrdraw->RequestSt_ >= f9fmkt_TradingRequestSt_Running)
+               if (&iChildOrdraw->Order() != &childOrdraw.Order())
+                  goto __HAS_RUNNING_CHILD;
+      }
+      isRunningDone = true;
+   __HAS_RUNNING_CHILD:;
    }
 
    const auto  lastReqSt = this->LastUpdated()->RequestSt_;
@@ -240,11 +268,11 @@ void OmsParentRequestIni::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
       }
       else if (lastReqSt == f9fmkt_TradingRequestSt_PartExchangeRejected) {
          // 子單部分失敗, 最後的成功: 狀態不變.
-         return;
+         goto __NOTIFY_UPDATED;
       }
       else if (lastReqSt >= f9fmkt_TradingRequestSt_Done) {
          // 母單處在其他狀態, 最後的成功: 狀態不變.
-         return;
+         goto __NOTIFY_UPDATED;
       }
       // 新單的 RequestSt (未更新過) or (為 PartExchangeAccepted)
       // => 則應變成 ExchangeAccepted;
@@ -254,7 +282,7 @@ void OmsParentRequestIni::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
       OmsRequestRunnerInCore runner{childRunner, *parentOrder.BeginUpdate(*this)};
       auto& ordraw = runner.OrderRawT<OmsParentOrderRaw>();
       if (childAdjQty != 0) {
-         ordraw.DecChildParentLeavesQty(fon9::unsigned_cast(-childAdjQty));
+         ordraw.DecChildParentLeavesQty(fon9::unsigned_cast(-childAdjQty), f9fmkt_OrderSt_IsRunning(childOrdraw.UpdateOrderSt_) != 0);
       }
       if (isParentDone) { // 母單已完畢(且子單已全部回報), 中途可能有: 成功、失敗、成交、刪改...
          ordraw.RequestSt_ = f9fmkt_TradingRequestSt_ExchangeAccepted;
@@ -270,7 +298,14 @@ void OmsParentRequestIni::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
          if (ordraw.UpdateOrderSt_ < f9fmkt_OrderSt_NewPartExchangeAccepted)
             ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewPartExchangeAccepted;
       }
+      this->OnChildIniUpdated(childRunner, &runner);
+      return;
    }
+__NOTIFY_UPDATED:;
+   this->OnChildIniUpdated(childRunner, nullptr);
+}
+void OmsParentRequestIni::OnChildIniUpdated(const OmsRequestRunnerInCore& childRunner, OmsRequestRunnerInCore* parentRunner) const {
+   (void)childRunner; (void)parentRunner;
 }
 
 void OmsParentRequestIni::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
@@ -538,7 +573,7 @@ void OmsParentRequestChg::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
    auto&          parentOrder = *static_cast<OmsParentOrder*>(&this->LastUpdated()->Order());
    OmsParentQty   childLeavesQty;
    OmsParentQtyS  childAdjQty;
-   parentOrder.GetChildOrderQtys(childOrdraw, childLeavesQty, childAdjQty);
+   ChildOrderSt   childSt = parentOrder.GetChildOrderQtys(childOrdraw, childLeavesQty, childAdjQty);
    assert(childAdjQty <= 0); // 子單改單, 數量只可能變少, 不可能增量.
    if (childLeavesQty <= 0)
       parentOrder.EraseChild(childOrdraw.Order().Initiator());
@@ -558,7 +593,7 @@ void OmsParentRequestChg::OnChildRequestUpdated(const OmsRequestRunnerInCore& ch
    OmsRequestRunnerInCore runner{childRunner, *parentOrder.BeginUpdate(*this)};
    auto& ordraw = runner.OrderRawT<OmsParentOrderRaw>();
    if (childAdjQty != 0) {
-      ordraw.DecChildParentLeavesQty(fon9::unsigned_cast(-childAdjQty));
+      ordraw.DecChildParentLeavesQty(fon9::unsigned_cast(-childAdjQty), IsChildRunning(childSt));
    }
    if (isRunningDone) // 母單改單的子單已全部回報.
       ordraw.RequestSt_ = f9fmkt_TradingRequestSt_ExchangeAccepted;

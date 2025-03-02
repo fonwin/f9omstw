@@ -83,39 +83,46 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr, OmsIvConfig* ivConfig) 
       ? (this->IvConfig_.Rights_ | this->IvDenys_)
       : OmsIvRight::DenyAll;
 }
-void OmsRequestPolicy::SetCondAllows(fon9::StrView value) {
-   this->CondAllows_.clear();
+//--------------------------------------------------------------------------//
+static fon9::CharVector SetAllowsStr(fon9::StrView value) {
+   fon9::CharVector res;
    if (value.Get1st() == '*') {
-      this->CondAllows_.push_back('*');
-      return;
+      res.push_back('*');
    }
-   for (char c : value) {
+   else for (char c : value) {
       if (c == '-')
          break;
       if (fon9::isspace(c))
          continue;
-      this->CondAllows_.push_back(c);
+      res.push_back(c);
    }
+   return res;
 }
-bool OmsRequestPolicy::IsCondAllowed(fon9::StrView condName) const {
-   const char* const pbeg = this->CondAllows_.begin();
-   if (*pbeg == '*' || condName.empty())
+bool OmsRequestPolicy::IsAllowedStr(const fon9::CharVector& cfg, fon9::StrView name) {
+   const char* const pbeg = cfg.begin();
+   if (*pbeg == '*' || name.empty())
       return true;
-   const char* const pend = this->CondAllows_.end();
+   const char* const pend = cfg.end();
    if (pbeg == pend)
       return false;
-   const auto condNameSz = condName.size();
+   const auto nameSz = name.size();
    const char* pfind = pbeg;
    for (;;) {
-      pfind = std::search(pfind, pend, condName.begin(), condName.end());
+      pfind = std::search(pfind, pend, name.begin(), name.end());
       if (pfind == pend)
          return false;
-      if (pfind + condNameSz == pend || *(pfind + condNameSz) == ',') {
+      if (pfind + nameSz == pend || *(pfind + nameSz) == ',') {
          if (pfind == pbeg || *(pfind - 1) == ',')
             return true;
       }
       ++pfind;
    }
+}
+void OmsRequestPolicy::SetCondAllows(fon9::StrView value) {
+   this->CondAllows_ = SetAllowsStr(value);
+}
+void OmsRequestPolicy::SetGxAllows(fon9::StrView value) {
+   this->GxAllows_ = SetAllowsStr(value);
 }
 //--------------------------------------------------------------------------//
 OmsIvKind OmsAddIvConfig(OmsRequestPolicy& dst, const fon9::StrView srcIvKey, const OmsIvConfig& ivConfig, OmsBrkTree& brks) {
@@ -171,6 +178,7 @@ OmsRequestPolicySP OmsRequestPolicyCfg::MakePolicy(OmsResource& res, fon9::intru
    pol->SetCondPriorityL(this->UserRights_.CondPriorityL_);
    pol->SetCondExpMaxC(this->UserRights_.CondExpMaxC_);
    pol->SetCondGrpMaxC(this->UserRights_.CondGrpMaxC_);
+   pol->SetGxAllows(ToStrView(this->UserRights_.GxAllows_));
 
    for (const auto& item : this->IvList_) {
       auto ec = OmsAddIvConfig(*pol, ToStrView(item.first), item.second, *res.Brks_);

@@ -89,55 +89,6 @@ class OmsRcServerNote : public fon9::rc::RcFunctionNote {
    void OnRecvTDayConfirm(ApiSession& ses, fon9::rc::RcFunctionParam& param);
    void StartPolicyRunner(ApiSession& ses, OmsCoreSP core);
 
-protected:
-   bool CheckApiReady(ApiSession& ses);
-   virtual void OnRecvHelpOfferSt(ApiSession& ses, fon9::rc::RcFunctionParam& param);
-   /// 預設: ses.ForceLogout("Unknown f9OmsRc_OpKind");
-   virtual void OnRecvOmsOp_Unknown(ApiSession& ses, fon9::rc::RcFunctionParam& param, f9OmsRc_OpKind opkind);
-
-   class RequestFillRunner : public OmsRequestRunner {
-      fon9_NON_COPY_NON_MOVE(RequestFillRunner);
-      using base = OmsRequestRunner;
-      OmsRequestSP*        ReqCachePtr_;
-      OmsRequestFactory*   ReqFactory_{nullptr};
-   public:
-      using base::base;
-      RequestFillRunner() = default;
-      ~RequestFillRunner() {
-         if (this->ReqFactory_) { // 重新補充 ReqCache_;
-            *this->ReqCachePtr_ = this->ReqFactory_->MakeRequest(fon9::TimeStamp{});
-         }
-      }
-      void ResetReqCache(OmsRequestSP* p) {
-         assert(this->ReqFactory_ == nullptr && this->Request_.get() == nullptr);
-         this->ReqCachePtr_ = p;
-         if ((this->Request_ = std::move(*p)).get() != nullptr) {
-            this->ReqFactory_ = &this->Request_->Creator();
-         }
-      }
-      void Clear() {
-         this->ReqFactory_ = nullptr;
-      }
-   };
-   enum FillRequestResult {
-      /// 建立 runner.Request_ (TradingRequest) 成功, 並填入內容成功.
-      FillRequestResult_TradingRequest,
-      /// 建立 runner.Request_ (ReportRequest) 成功, 並填入內容成功.
-      FillRequestResult_ReportRequest,
-      /// param.RecvBuffer_ 無資料.
-      FillRequestResult_Empty,
-      /// 建立 runner.Request_ 失敗, 或沒有權限.
-      /// 已呼叫 ses.ForceLogout();
-      FillRequestResult_ForceLogout,
-   };
-   FillRequestResult OnFillRequest(ApiSession& ses, fon9::rc::RcFunctionParam& param, RequestFillRunner& runner, unsigned reqTableId);
-   bool CheckFcFetch() {
-      return(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0);
-   }
-   bool CheckFcOverForceLogout(RequestFillRunner& runner, ApiSession& ses);
-   // 解包階段 request abandon, 需要立即回報失敗.
-   void SendRequestAbandon(RequestFillRunner& runner, ApiSession& ses, const char* cstrForceLogout);
-
 public:
    const ApiSesCfgSP    ApiSesCfg_;
 
@@ -145,6 +96,41 @@ public:
    ~OmsRcServerNote();
 
    void OnRecvFunctionCall(ApiSession& ses, fon9::rc::RcFunctionParam& param) override;
+
+   class RequestFillRunner : public OmsRequestRunner {
+      fon9_NON_COPY_NON_MOVE(RequestFillRunner);
+      using base = OmsRequestRunner;
+      OmsRequestSP*        ReqCachePtr_;
+      OmsRequestFactory*   ReqFactory_{nullptr};
+
+      void ResetReqCache(OmsRequestSP* p) {
+         assert(this->ReqFactory_ == nullptr && this->Request_.get() == nullptr);
+         this->ReqCachePtr_ = p;
+         if ((this->Request_ = std::move(*p)).get() != nullptr) {
+            this->ReqFactory_ = &this->Request_->Creator();
+         }
+      }
+   public:
+      ApiSession&       Ses_;
+      OmsRcServerNote&  Owner_;
+      const ApiReqCfg&  ReqCfg_;
+      RequestFillRunner(ApiSession& ses, OmsRcServerNote& owner, unsigned reqTableId)
+         : Ses_(ses)
+         , Owner_(owner)
+         , ReqCfg_(owner.ApiSesCfg_->ApiReqCfgs_[reqTableId]) {
+         assert(reqTableId < owner.ApiSesCfg_->ApiReqCfgs_.size());
+         this->ResetReqCache(&owner.ReqCache_[reqTableId]);
+      }
+      ~RequestFillRunner() {
+         if (this->ReqFactory_) { // 重新補充 ReqCache_;
+            *this->ReqCachePtr_ = this->ReqFactory_->MakeRequest(fon9::TimeStamp{});
+         }
+      }
+      void Clear() {
+         this->ReqFactory_ = nullptr;
+      }
+      void FillRequest(fon9::StrView reqstr);
+   };
 
    const PolicyConfig& GetPolicyConfig() const {
       return this->PolicyConfig_;
@@ -174,6 +160,19 @@ public:
       }
       return false;
    }
+
+protected:
+   bool CheckApiReady(ApiSession& ses);
+   virtual void OnRecvHelpOfferSt(ApiSession& ses, fon9::rc::RcFunctionParam& param);
+   /// 預設: ses.ForceLogout("Unknown f9OmsRc_OpKind");
+   virtual void OnRecvOmsOp_Unknown(ApiSession& ses, fon9::rc::RcFunctionParam& param, f9OmsRc_OpKind opkind);
+
+   bool CheckFcFetch() {
+      return(this->PolicyConfig_.FcReq_.Fetch().GetOrigValue() <= 0);
+   }
+   bool CheckFcOverForceLogout(RequestFillRunner& runner, ApiSession& ses);
+   // 解包階段 request abandon, 需要立即回報失敗.
+   void SendRequestAbandon(RequestFillRunner& runner, ApiSession& ses, const char* cstrForceLogout);
 };
 
 } // namespaces

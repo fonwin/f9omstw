@@ -159,6 +159,13 @@ public:
    const OmsReportFilled* FindFilled(OmsReportFilled::MatchKey matchKey) {
       return OmsReportFilled::Find(this->FilledHead_, this->FilledLast_, matchKey);
    }
+   const OmsReportFilled* FirstFilled() const {
+      return this->FilledHead_;
+   }
+   /// 建立一個 [刪單要求].
+   /// 如果無法建立(沒有設定刪單要求Factory), 則返回 nullptr;
+   /// 不考慮 this->IsWorkingOrder();
+   OmsRequestTradeSP MakeDeleteRequest() const;
 
    // ----- 底下為 [子母單機制] 的支援 {
    /// 在 OmsOrder::InitializeByStarter() 裡面呼叫;

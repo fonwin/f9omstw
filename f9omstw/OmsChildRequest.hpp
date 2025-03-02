@@ -77,5 +77,19 @@ public:
    }
 };
 
+/// 提供 ChildId 欄位;
+template <class RequestBase>
+class OmsChildIdRequestT : public OmsChildRequestT<RequestBase> {
+   fon9_NON_COPY_NON_MOVE(OmsChildIdRequestT);
+   using base = OmsChildRequestT<RequestBase>;
+public:
+   using base::base;
+   OmsChildIdRequestT() = default;
+   static void MakeFields(fon9::seed::Fields& flds) {
+      base::MakeFields(flds);
+      base::AddChildIdField(flds);
+   }
+};
+
 } // namespaces
 #endif//__f9omstw_OmsChildRequest_hpp__

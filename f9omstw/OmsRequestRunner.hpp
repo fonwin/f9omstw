@@ -135,6 +135,9 @@ public:
    ///   - 讓 req.LastUpdated() 設定為 this->OrderRaw_;
    ///   - 且不再需要 this;
    void ForceFinish();
+   bool IsFinished() const {
+      return this->OrderRaw_ == nullptr;
+   }
 
    OmsOrderRaw& OrderRaw() {
       assert(this->OrderRaw_ != nullptr);

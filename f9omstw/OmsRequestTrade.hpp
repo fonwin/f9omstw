@@ -50,6 +50,8 @@ struct OmsRequestCliDef {
    }
 };
 
+using ChildId = uint16_t;
+
 /// 下單要求(排除成交): 新、刪、改、查; 共同的基底 OmsRequestTrade;
 class OmsRequestTrade : public OmsRequestBase,
                         public OmsRequestFrom,
@@ -58,6 +60,8 @@ class OmsRequestTrade : public OmsRequestBase,
    using base = OmsRequestBase;
 
    OmsRequestPolicySP   Policy_;
+   ChildId              ChildId_{0};
+   char                 Padding____[6];
 
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
@@ -79,6 +83,10 @@ public:
       : base{reqKind} {
    }
    ~OmsRequestTrade();
+
+   static void AddChildIdField(fon9::seed::Fields& flds);
+   void SetChildId(ChildId value) { this->ChildId_ = value; }
+   ChildId GetChildId() const     { return this->ChildId_; }
 
    /// 收單程序, 可在建立 req 之後, 才設定是哪種下單要求.
    void SetRxKind(f9fmkt_RxKind reqKind) {

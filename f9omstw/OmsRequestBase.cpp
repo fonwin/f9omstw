@@ -137,6 +137,7 @@ void OmsRequestBase::OnOrderUpdated(const OmsRequestRunnerInCore& runner) const 
    if (auto* reqParent = this->GetParentRequest())
       reqParent->OnChildRequestUpdated(runner);
    else if (OmsOrder* ordParent = runner.OrderRaw().Order().GetParentOrder())
+      // 因為有些 Request(例:OmsReportFilled,直接對子單的刪改) 不會有 Parent, 所以會來到此處通知 ParentOrder;
       ordParent->OnChildOrderUpdated(runner);
 }
 void OmsRequestBase::OnChildRequestUpdated(const OmsRequestRunnerInCore& childRunner) const {
@@ -162,15 +163,34 @@ void OmsRequestBase::OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parent
 //--------------------------------------------------------------------------//
 OmsOrder* OmsRequestBase::SearchOrderByOrdKey(OmsResource& res) const {
    if (const OmsBrk* brk = res.Brks_->GetBrkRec(ToStrView(this->BrkId_))) {
-      if (const OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this))
-         return ordNoMap->GetOrder(this->OrdNo_);
+      if (const OmsOrdNoMap* ordNoMap = brk->GetOrdNoMap(*this)) {
+         if (OmsOrder* order = ordNoMap->GetOrder(this->OrdNo_)) {
+            if (auto* ini = order->Initiator()) {
+               // 不同 Market/SessionId 有可能共用 OrdNoMap;
+               // 所以需要額外判斷 Market 及 SessionId;
+               if (this->Market() != ini->Market())
+                  return nullptr;
+               if (this->SessionId() != f9fmkt_TradingSessionId_Unknown
+                && this->SessionId() != ini->SessionId())
+                  return nullptr;
+            }
+            return order;
+         }
+      }
    }
    return nullptr;
 }
 OmsOrder* OmsRequestBase::SearchOrderByKey(OmsRxSNO srcSNO, OmsResource& res) {
-   if (srcSNO == 0)
-      return this->SearchOrderByOrdKey(res);
-
+   if (srcSNO == 0) {
+      if (OmsOrder* order = this->SearchOrderByOrdKey(res)) {
+         if (this->SessionId() == f9fmkt_TradingSessionId_Unknown) {
+            if (auto* ini = order->Initiator())
+               this->SetSessionId(ini->SessionId());
+         }
+         return order;
+      }
+      return nullptr;
+   }
    const OmsRequestBase* srcReq = res.GetRequest(srcSNO);
    if (srcReq == nullptr)
       return nullptr;

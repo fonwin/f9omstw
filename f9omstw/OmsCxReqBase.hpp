@@ -131,8 +131,7 @@ public:
    /// ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
    /// ordraw.LeavesQty_ = reqQty;
    template <class TOrdRaw, typename TQty>
-   static void RequestNerw_OnWaitCondBfSc_T(OmsRequestRunnerInCore& runner, TQty reqQty, const TOrdRaw*) {
-      auto& ordraw = *static_cast<TOrdRaw*>(&runner.OrderRaw());
+   static void RequestNew_SetBfScQty_T(TOrdRaw& ordraw, TQty reqQty) {
       ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
       ordraw.LeavesQty_ = reqQty;
    }
@@ -141,35 +140,34 @@ public:
    ///   uint32_t GetCondPriority () const;
    ///   bool     RegCondToSymb   (OmsRequestRunnerInCore& runner, uint64_t priority, OmsRequestRunStep& nextStep) const;
    ///   // 通知: 風控前,已進入等候狀態.
-   ///   // - 請參考 RequestNerw_OnWaitCondBfSc_T<>();
+   ///   // - 請參考 RequestNew_SetBfScQty_T<>();
    ///   // - 等條件成立後,在風控步驟,設定數量:
    ///   //   - BeforeQty = 0;
    ///   //   - AfterQty = LeavesQty;
    ///   void OnWaitCondBfSc (OmsRequestRunnerInCore& runner) const;
    /// \endcode
    template <class TCxReq>
-   static void RunCondStepBfSc_T(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& nextStep) {
-      if (fon9_UNLIKELY(rthis.CxExpr_)) {
-         assert(rthis.CxUnitCount_ > 0 && rthis.FirstCxUnit_ != nullptr);
+   static bool ToWaitCond_BfSc(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) {
+      if (fon9_LIKELY(!rthis.CxExpr_))
+          return false;
+      assert(rthis.CxUnitCount_ > 0 && rthis.FirstCxUnit_ != nullptr);
+      const f9fmkt_TradingRequestSt reqst = runner.OrderRaw().RequestSt_;
+      if (fon9_LIKELY(reqst < f9fmkt_TradingRequestSt_WaitToCheck)) {
          if (fon9_LIKELY(rthis.CxUnitCount_ <= 1)) {
             cxRaw = rthis.FirstCxUnit_->Cond_;
          }
-         if (rthis.CondAfterSc_ == fon9::EnabledYN::Yes) {
-            // 先風控,然後才開始等候條件.
-         }
-         else {
-            // 先等候條件, 條件成立後才風控.
-            runner.OrderRaw().RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
-            // 風控前, 加入 CondSymb 開始等候條件.
-            if (rthis.RegCondToSymb(runner, kPriority_BfSc + rthis.GetCondPriority(), nextStep)) {
-               rthis.OnWaitCondBfSc(runner);
-               rthis.UpdateWaitCondSt(std::move(runner));
-               return;
-            }
-            // ----- 條件已成立,則直接進行下一步驟.
+         if (rthis.CondAfterSc_ == fon9::EnabledYN::Yes) // 先風控,之後才開始等候條件.
+            return false;
+         // 先等候條件, 條件成立後才風控.
+         // 風控前, 加入 CondSymb 開始等候條件.
+         if (rthis.RegCondToSymb(runner, kPriority_BfSc + rthis.GetCondPriority(), condNextStep)) {
+            rthis.OnWaitCondBfSc(runner);
+            rthis.UpdateWaitCondSt(std::move(runner));
+            return true;
          }
       }
-      nextStep.RunRequest(std::move(runner));
+      // 條件已成立 or 此次執行(因reqst)不用等條件 => 則直接進行下一步驟.
+      return false;
    }
    /// TCxReq 須繼承自 OmsCxReqBase, 且須支援底下成員函式:
    /// \code
@@ -179,25 +177,20 @@ public:
    ///   void OnWaitCondAfSc (OmsRequestRunnerInCore& runner) const;
    /// \endcode
    template <class TCxReq>
-   static void RunCondStepAfSc_T(TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& nextStep) {
+   static bool ToWaitCond_AfSc(TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) {
       (void)cxRaw;
-      if (rthis.CxExpr_) {
-         if (runner.OrderRaw().RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond) {
-            // 風控前,已等候過條件,所以: 此時必定是[已觸發]狀態,不用再進入等候狀態;
-            assert(rthis.CondAfterSc_ != fon9::EnabledYN::Yes);
-         }
-         else {
-            assert(rthis.CondAfterSc_ == fon9::EnabledYN::Yes);
+      if (rthis.CxExpr_ && rthis.CondAfterSc_ == fon9::EnabledYN::Yes) {
+         if (runner.OrderRaw().RequestSt_ < f9fmkt_TradingRequestSt_WaitToGoOut) {
             // 風控後, 加入 CondSymb 開始等候條件.
             // 風控後, 尚開始未等候的條件單 => 此時開始等候條件.
-            if (rthis.RegCondToSymb(runner, kPriority_AfSc + rthis.GetCondPriority(), nextStep)) {
+            if (rthis.RegCondToSymb(runner, kPriority_AfSc + rthis.GetCondPriority(), condNextStep)) {
                rthis.OnWaitCondAfSc(runner);
                rthis.UpdateWaitCondSt(std::move(runner));
-               return;
+               return true;
             }
          }
       }
-      nextStep.RunRequest(std::move(runner));
+      return false;
    }
    // --------------------------------------------------------------------- //
    /// CxSymb 必須支援:
@@ -371,7 +364,7 @@ public:
       return this->RegCondToSymb_T(runner, priority, nextStep, static_cast<TSymb*>(nullptr));
    }
    void OnWaitCondBfSc(OmsRequestRunnerInCore& runner) const {
-      this->RequestNerw_OnWaitCondBfSc_T(runner, this->Qty_, static_cast<TOrdRaw*>(nullptr));
+      this->RequestNew_SetBfScQty_T(*static_cast<TOrdRaw*>(&runner.OrderRaw()), this->Qty_);
    }
    void OnWaitCondAfSc(OmsRequestRunnerInCore& runner) const {
       (void)runner;

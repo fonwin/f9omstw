@@ -132,8 +132,11 @@ inline void OmsOrder::RunnerEndUpdate(const OmsRequestRunnerInCore& runner) {
 }
 inline void OmsRequestRunnerInCore::ForceFinish() {
    if (fon9_LIKELY(this->OrderRaw_)) {
-      this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
-      this->OrderRaw_->Order().RunnerEndUpdate(*this);
+      auto& order = this->OrderRaw_->Order();
+      if (fon9_LIKELY(!order.CheckContinueTailUpdate(*this))) {
+         this->Resource_.Backend_.OnBefore_Order_EndUpdate(*this);
+         order.RunnerEndUpdate(*this);
+      }
       this->OrderRaw_ = nullptr;
    }
 }

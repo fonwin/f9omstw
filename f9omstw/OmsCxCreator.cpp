@@ -96,16 +96,39 @@ struct OmsCxCreatorInternal : public OmsCxCreatorArgs {
    /// 返回 FirstCxUnit_;
    OmsCxUnit* MakeCxUnitList();
 };
-// ======================================================================== //
-bool OmsCxReqBase::BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb) {
-   fon9::StrView cxArgsStr{ToStrView(this->CxArgs_)};
-   if (cxArgsStr.empty()) {
-      this->CxArgs_.clear();
-      return true;
+struct OmsCxCreator_BeforeReqInCore : public OmsCxCreatorInternal {
+   fon9_NON_COPY_NON_MOVE(OmsCxCreator_BeforeReqInCore);
+   using base = OmsCxCreatorInternal;
+   template <class... ArgsT>
+   OmsCxCreator_BeforeReqInCore(OmsRequestRunner& runner, ArgsT&&... args) : base(std::forward<ArgsT>(args)...), Runner_(runner) {
    }
-   OmsCxCreatorInternal args(*this, cxArgsStr, runner, res, txReq, std::move(txSymb));
+   OmsRequestRunner& Runner_;
+   void RequestAbandon(OmsErrCode ec, fon9::StrView reason) override {
+      this->Runner_.RequestAbandon(&this->OmsResource_, ec, reason.ToString());
+   }
+};
+struct OmsCxCreator_RunInCore : public OmsCxCreatorInternal {
+   fon9_NON_COPY_NON_MOVE(OmsCxCreator_RunInCore);
+   using base = OmsCxCreatorInternal;
+   template <class... ArgsT>
+   OmsCxCreator_RunInCore(OmsRequestRunnerInCore& runner, ArgsT&&... args) : base(std::forward<ArgsT>(args)...), Runner_(runner) {
+   #if _DEBUG
+      auto& ordraw = this->Runner_.OrderRaw();
+      assert(ordraw.RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond || ordraw.RequestSt_ == f9fmkt_TradingRequestSt_WaitingCondAtOther);
+      assert(ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCond || ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCondAtOther);
+   #endif
+   }
+   OmsRequestRunnerInCore& Runner_;
+   void RequestAbandon(OmsErrCode ec, fon9::StrView reason) override {
+      auto& ordraw = this->Runner_.OrderRaw();
+      ordraw.ErrCode_ = ec;
+      ordraw.Message_.assign(reason);
+   }
+};
+// ======================================================================== //
+bool OmsCxReqBase::InternalCreateCxExpr(OmsCxCreatorInternal& args) {
    if (fon9_UNLIKELY(args.Policy_ == nullptr)) {
-      runner.RequestAbandon(&res, OmsErrCode_CondSc_Deny);
+      args.RequestAbandon(OmsErrCode_CondSc_Deny);
       return false;
    }
    #ifdef _PRINT_DEBUG_INFO
@@ -143,6 +166,31 @@ bool OmsCxReqBase::BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsRes
    #endif
    //-----
    return true;
+}
+bool OmsCxReqBase::BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb) {
+   fon9::StrView cxArgsStr{ToStrView(this->CxArgs_)};
+   if (fon9_LIKELY(cxArgsStr.empty())) {
+      this->CxArgs_.clear();
+      return true;
+   }
+   OmsCxCreator_BeforeReqInCore args(runner, *this, cxArgsStr, res, txReq, std::move(txSymb));
+   return this->InternalCreateCxExpr(args);
+}
+bool OmsCxReqBase::RecreateCxExpr(OmsRequestRunnerInCore& runner, const OmsRequestTrade& txReq) {
+   // 不支援重啟條件單: 重啟條件風險太高;
+   (void)txReq;
+   assert(!this->CxArgs_.empty() && this->CxExpr_ == nullptr);
+   auto& ordraw = runner.OrderRaw();
+   auto& order = ordraw.Order();
+   assert(ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCond || ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCondAtOther);
+   if (ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCond || ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCondAtOther) {
+      ordraw.RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
+      OmsSymbSP txSymb = order.ScResource().Symb_;
+      OmsCxCreator_RunInCore args{runner, *this, ToStrView(this->CxArgs_), runner.Resource_, txReq, std::move(txSymb)};
+      return this->InternalCreateCxExpr(args);
+   }
+   ordraw.ErrCode_ = OmsErrCode_RequestNotSupportThisOrder;
+   return false;
 }
 // ======================================================================== //
 OmsCxExprUP OmsCxCreatorInternal::CreateCxExpr() {

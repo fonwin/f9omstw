@@ -77,17 +77,17 @@ public:
    }
 };
 
-/// 提供 ChildId 欄位;
+/// 提供 ChildId、ChildMark 相關欄位;
 template <class RequestBase>
-class OmsChildIdRequestT : public OmsChildRequestT<RequestBase> {
-   fon9_NON_COPY_NON_MOVE(OmsChildIdRequestT);
+class OmsChildExtRequestT : public OmsChildRequestT<RequestBase> {
+   fon9_NON_COPY_NON_MOVE(OmsChildExtRequestT);
    using base = OmsChildRequestT<RequestBase>;
 public:
    using base::base;
-   OmsChildIdRequestT() = default;
+   OmsChildExtRequestT() = default;
    static void MakeFields(fon9::seed::Fields& flds) {
       base::MakeFields(flds);
-      base::AddChildIdField(flds);
+      base::AddChildExtField(flds);
    }
 };
 

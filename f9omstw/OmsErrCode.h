@@ -180,6 +180,13 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_SystemRestart_QueuingCanceled = 905,
    /// 系統重啟後取消:等候觸發的委託
    OmsErrCode_SystemRestart_WaitingCanceled = 906,
+   /// 重啟前條件未觸發, 重啟後委託狀態不變(WaitingCond),
+   /// 但沒有進入[等條件]的流程, 所以不會再觸發;
+   /// 後續必須手動處理: 手動刪單、重啟條件(如果有支援)、強迫送出(如果有支援);
+   OmsErrCode_SystemRestart_StopWaiting = 907,
+   /// 條件單重新進入等候狀態:
+   /// (1)重啟時設定手動處理條件單; (2)備援主機接手備援;
+   OmsErrCode_ReWaitingCond = 908,
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.

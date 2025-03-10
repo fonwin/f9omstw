@@ -67,6 +67,11 @@ OmsOrderRaw* OmsOrder::InitializeByStarter(OmsOrderFactory& creator, OmsRequestB
    return retval;
 }
 OmsOrderRaw* OmsOrder::BeginUpdate(const OmsRequestBase& req) {
+   if (fon9_UNLIKELY(this->IsContinueTailUpdate())) {
+      assert(this->Tail_ != this->Head_ && this->Tail_->RxSNO() == 0);
+      if (fon9_UNLIKELY(this->Tail_->RxSNO() == 0)) // 為了避免在開發(debug)階段沒發現問題, 所以再次判斷 RxSNO;
+         return const_cast<OmsOrderRaw*>(this->Tail_);
+   }
    OmsOrderRaw* retval = this->Creator_->MakeOrderRawImpl();
    retval->InitializeByTail(*this->Tail_, req);
    this->TailPrev_ = this->Tail_;
@@ -78,6 +83,9 @@ OmsOrderRaw* OmsOrder::BeginUpdate(const OmsRequestBase& req) {
    else
       this->Tail_ = retval;
    return retval;
+}
+void OmsOrder::OnContinueTailEndUpdate(const OmsRequestRunnerInCore& runner) {
+   (void)runner;
 }
 void OmsOrder::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) {
    assert(this->FirstPending_ != nullptr);

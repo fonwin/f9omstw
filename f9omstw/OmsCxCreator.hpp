@@ -12,12 +12,13 @@ namespace f9omstw {
 struct OmsCxCreatorArgs {
    fon9_NON_COPY_NON_MOVE(OmsCxCreatorArgs);
    OmsCxCreatorArgs() = delete;
-   OmsCxCreatorArgs(OmsCxReqBase& owner, const fon9::StrView& cxArgsStr, OmsRequestRunner& runner, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb)
-      : Owner_(owner), Runner_(runner), OmsResource_(res), TxSymb_(std::move(txSymb)), Policy_{txReq.Policy()}, CxArgsStr_{cxArgsStr} {
+   OmsCxCreatorArgs(OmsCxReqBase& owner, const fon9::StrView& cxArgsStr, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb)
+      : Owner_(owner), OmsResource_(res), TxSymb_(std::move(txSymb)), Policy_{txReq.Policy()}, CxArgsStr_{cxArgsStr} {
       this->CxNormalized_.reserve(fon9::StrTrimHead(&this->CxArgsStr_).size());
    }
+   virtual ~OmsCxCreatorArgs() {}
+
    const OmsCxReqBase&     Owner_;
-   OmsRequestRunner&       Runner_;
    OmsResource&            OmsResource_;
    const OmsSymbSP         TxSymb_;
    const OmsRequestPolicy* Policy_;
@@ -40,9 +41,8 @@ struct OmsCxCreatorArgs {
    bool                    IsAllowChgCond_{true};
    char                    Padding6_[6];
 
-   void RequestAbandon(OmsErrCode ec, std::string reason = std::string{}) {
-      this->Runner_.RequestAbandon(&this->OmsResource_, ec, std::move(reason));
-   }
+   virtual void RequestAbandon(OmsErrCode ec, fon9::StrView reason = nullptr) = 0;
+
    /// chkFlags 必須要有 CondPriNeeds 旗標;
    /// chkFlags 若有 CondPriAllowMarket, 則允許使用 'M' 設定判斷市價;
    /// 不改變 this->Cond_.CheckFlags_;

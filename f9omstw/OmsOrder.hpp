@@ -32,6 +32,9 @@ enum class OmsOrderFlag : uint8_t {
    IsNeedsOnOrderUpdated = 0x01,
    IsChildOrder = 0x02 | IsNeedsOnOrderUpdated,
 
+   /// 此旗標, 表示 OmsOrder::BeginUpdate() 持續使用 Tail_ 進行委託異動;
+   IsContinueTailUpdate = 0x04,
+
    /// 有此旗標: 會觸發生出子單.
    /// - 在 RequestParentNew.RunStep or OmsOrder.RerunParent() 設定。
    /// - 重啟、同步不會設定此旗標。
@@ -86,6 +89,11 @@ protected:
    /// - 則透過 this->ScResource_.Symb_ = this->FindSymb() 尋找商品.
    /// - 預設: return res.Symbs_->GetSymb(symbid);
    virtual OmsSymbSP FindSymb(OmsResource& res, const fon9::StrView& symbid);
+
+   /// 當有設定 OmsOrderFlag::IsContinueTailUpdate 旗標時,
+   /// 在 OmsRequestRunnerInCore::ForceFinish() 結束更新時, 會呼叫此處通知某次異動結束.
+   /// 預設: do nothing;
+   virtual void OnContinueTailEndUpdate(const OmsRequestRunnerInCore& runner);
 
 public:
    /// 若透過類似 ObjSupplier 的機制, 無法提供建構時參數.
@@ -152,6 +160,26 @@ public:
    ///    若有需要: this->OnOrderUpdated(runner);
    /// }
    void RunnerEndUpdate(const OmsRequestRunnerInCore& runner);
+   /// 設定持續使用 Tail 來處理異動;
+   /// - 不支援 [第一次執行] 時, 設定此旗標;
+   /// - 必須在 BeginUpdate() 之後, 再次呼叫 BeginUpdate() 之前設定, 才會生效;
+   /// - 必須在最後一次結束異動前取消設定;
+   void SetContinueTailUpdate(bool value) {
+      assert(this->Tail_ != this->Head_);
+      if (value)
+         this->Flags_ |= OmsOrderFlag::IsContinueTailUpdate;
+      else
+         this->Flags_ -= OmsOrderFlag::IsContinueTailUpdate;
+   }
+   bool IsContinueTailUpdate() const {
+      return IsEnumContains(this->Flags_, OmsOrderFlag::IsContinueTailUpdate);
+   }
+   bool CheckContinueTailUpdate(const OmsRequestRunnerInCore& runner) {
+      if (fon9_LIKELY(!this->IsContinueTailUpdate()))
+         return false;
+      this->OnContinueTailEndUpdate(runner);
+      return true;
+   }
 
    const OmsReportFilled* InsertFilled(const OmsReportFilled* currFilled) {
       return OmsReportFilled::Insert(&this->FilledHead_, &this->FilledLast_, currFilled);

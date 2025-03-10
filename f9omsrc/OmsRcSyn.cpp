@@ -845,6 +845,17 @@ bool OmsRcSyn_SessionFactory::Creator::OnUnknownTag(PluginsHolder& holder, StrVi
          this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ & ~f9OmsRc_RptFilter_IncludeRcSynNew);
       return true;
    }
+   if (tag == "NoExternal") {
+      if (fon9::toupper(value.Get1st()) == 'Y')
+         this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ | f9OmsRc_RptFilter_NoExternal);
+      else
+         this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(this->RptFilter_ & ~f9OmsRc_RptFilter_NoExternal);
+      return true;
+   }
+   if (tag == "RptFilter") { // 強制指定 RptFilter;
+      this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(fon9::HexStrTo(value));
+      return true;
+   }
    return base::OnUnknownTag(holder, tag, value);
 }
 intrusive_ptr<OmsRcSyn_SessionFactory> OmsRcSyn_SessionFactory::Creator::CreateRcSynSessionFactory(OmsCoreMgrSP&& omsCoreMgr) {

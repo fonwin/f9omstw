@@ -17,8 +17,9 @@ void OmsRequestTrade::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTrade, UsrDef));
    flds.Add(fon9_MakeField2(OmsRequestTrade, ClOrdId));
 }
-void OmsRequestTrade::AddChildIdField(fon9::seed::Fields& flds) {
+void OmsRequestTrade::AddChildExtField(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsRequestTrade, ChildId));
+   flds.Add(fon9_MakeField2(OmsRequestTrade, ChildMark));
 }
 OmsRequestTrade::~OmsRequestTrade() {
 }

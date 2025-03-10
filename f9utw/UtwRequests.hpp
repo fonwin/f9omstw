@@ -63,7 +63,18 @@ struct OmsCondStepChg : public OmsRequestRunStep {
    void RunRequest(OmsRequestRunnerInCore&& runner) override {
       OrdRawT& ordraw = *static_cast<OrdRawT*>(&runner.OrderRaw());
       auto&    reqChg = *static_cast<const ReqChgT*>(&ordraw.Request());
-      if (fon9_LIKELY(ordraw.Order().LastOrderSt() != f9fmkt_OrderSt_NewWaitingCond)) {
+      f9fmkt_OrderSt delSt;
+      fon9_WARN_DISABLE_SWITCH;
+      switch (ordraw.Order().LastOrderSt()) {
+      case f9fmkt_OrderSt_NewWaitingRun:
+         delSt = f9fmkt_OrderSt_NewNotRunCanceled;
+         break;
+      case f9fmkt_OrderSt_NewWaitingCond:
+      case f9fmkt_OrderSt_NewWaitToCheck:
+      case f9fmkt_OrderSt_NewWaitToGoOut:
+         delSt = f9fmkt_OrderSt_NewQueuingCanceled;
+         break;
+      default:
          if (fon9_LIKELY(reqChg.RxKind() != f9fmkt_RxKind_RequestChgCond))
             this->ToNextStep(std::move(runner));
          else {
@@ -71,6 +82,8 @@ struct OmsCondStepChg : public OmsRequestRunStep {
          }
          return;
       }
+      fon9_WARN_POP;
+
       switch (reqChg.RxKind()) {
       case f9fmkt_RxKind_RequestChgQty:
          if (reqChg.Qty_ != 0) {
@@ -81,7 +94,7 @@ struct OmsCondStepChg : public OmsRequestRunStep {
       case f9fmkt_RxKind_RequestDelete:
       __DELETE_COND_REQUEST:;
          ordraw.LeavesQty_ = ordraw.AfterQty_ = 0;
-         ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_NewQueuingCanceled;
+         ordraw.UpdateOrderSt_ = delSt;
          // 刪單後, 應該要通知 CondSymb,
          // 但在觸發條件時會檢查條件單是否有效,
          // 所以在此就不必通知 CondSymb 了!

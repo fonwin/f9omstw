@@ -25,7 +25,7 @@ class OmsParentOrder : public OmsOrder {
 
    /// 重新執行母單.
    /// newParent = RecalcAllChildForRerun() 的返回值, 可能為 nullptr, 表示最後狀態沒變, 但需要 Rerun.
-   /// 若有提供 newParent, 則不論返回值, 返回前都有需要主動執行: OmsRequestRunnerInCore;
+   /// 若有提供 newParent(重新計算子單數量後有異動), 則不論返回值, 返回前都有需要主動執行: OmsRequestRunnerInCore;
    virtual bool OnRerunParent(OmsResource& resource, OmsParentOrderRaw* newParent) = 0;
    /// 返回新的母單最後狀態, 若沒有變動, 則返回 nullptr;
    /// 若返回有異動, 則需: OmsRequestRunnerInCore runner{resource, *retval...};

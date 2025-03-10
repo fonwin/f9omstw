@@ -14,6 +14,8 @@ enum class OmsCxCheckResult {
    TrueLocked,
    FireNow,
 };
+// OmsCxReqBase 內部使用, 輔助建構 CxExpr;
+struct OmsCxCreatorInternal;
 //--------------------------------------------------------------------//
 class OmsCxReqBase {
    fon9_NON_COPY_NON_MOVE(OmsCxReqBase);
@@ -89,9 +91,11 @@ public:
    bool IsAllowChgCond() const { return this->IsAllowChgCond_; }
    uint16_t CxUnitCount() const { return this->CxUnitCount_; }
    // --------------------------------------------------------------------- //
-   /// txReq 比定為 this 的衍生;
+   /// txReq 必定為 this 的衍生;
    /// 當條件沒有設定 SymbId 時, 使用 [下單要求] 的商品 txSymb;
    bool BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb);
+   bool RecreateCxExpr(OmsRequestRunnerInCore& runner, const OmsRequestTrade& txReq);
+   bool InternalCreateCxExpr(OmsCxCreatorInternal& args);
    // --------------------------------------------------------------------- //
    /// 實作方式請參考 OnOmsCxMdEv_T();
    virtual OmsCxCheckResult OnOmsCxMdEv(const OmsCxReqToSymb& creq, OnOmsCxMdEvFnT onOmsCxEvFn, OmsCxMdEvArgs& args) const = 0;
@@ -148,14 +152,27 @@ public:
    /// \endcode
    template <class TCxReq>
    static bool ToWaitCond_BfSc(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) {
-      if (fon9_LIKELY(!rthis.CxExpr_))
-          return false;
+      auto& ordraw = runner.OrderRaw();
+      const f9fmkt_TradingRequestSt reqst = ordraw.RequestSt_;
+      if (fon9_LIKELY(!rthis.CxExpr_)) {
+         if (fon9_LIKELY(reqst != f9fmkt_TradingRequestSt_WaitingCond))
+            return false;
+         // Rerun: 重建 CxExpr_; 重新進入 WaitingCond 狀態;
+         ordraw.Order().GetSymb(runner.Resource_, ToStrView(rthis.Symbol_));
+         if (const_cast<TCxReq*>(&rthis)->RecreateCxExpr(runner, rthis)) {
+            // 重建 CxExpr 成功, 執行條件檢查流程, 必要時進入條件等候狀態;
+            ordraw.ErrCode_ = OmsErrCode_ReWaitingCond;
+            goto __TO_WAIT_COND;
+         }
+         // 重建 CxExpr_ 失敗, 返回 true 中斷下單流程;
+         return true;
+      }
       assert(rthis.CxUnitCount_ > 0 && rthis.FirstCxUnit_ != nullptr);
-      const f9fmkt_TradingRequestSt reqst = runner.OrderRaw().RequestSt_;
       if (fon9_LIKELY(reqst < f9fmkt_TradingRequestSt_WaitToCheck)) {
          if (fon9_LIKELY(rthis.CxUnitCount_ <= 1)) {
             cxRaw = rthis.FirstCxUnit_->Cond_;
          }
+      __TO_WAIT_COND:;
          if (rthis.CondAfterSc_ == fon9::EnabledYN::Yes) // 先風控,之後才開始等候條件.
             return false;
          // 先等候條件, 條件成立後才風控.

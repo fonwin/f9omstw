@@ -440,5 +440,10 @@ protected:
    virtual void RunReportInCore_NewOrder(OmsReportRunnerInCore&& runner);
 };
 
+/// 重啟時, 若下單要求為 WiatingCond, 且委託尚有剩餘量;
+/// true = 拒絕該下單要求;
+/// false = 下單要求狀態不變(且保留下單數量), 但設定 ErrCode = OmsErrCode_SystemRestart_StopWaiting;
+extern bool IsReloadWaitingCondReject;
+
 } // namespaces
 #endif//__f9omstw_OmsRequestBase_hpp__

@@ -51,6 +51,7 @@ struct OmsRequestCliDef {
 };
 
 using ChildId = uint16_t;
+using ChildMark = uint16_t;
 
 /// 下單要求(排除成交): 新、刪、改、查; 共同的基底 OmsRequestTrade;
 class OmsRequestTrade : public OmsRequestBase,
@@ -61,7 +62,8 @@ class OmsRequestTrade : public OmsRequestBase,
 
    OmsRequestPolicySP   Policy_;
    ChildId              ChildId_{0};
-   char                 Padding____[6];
+   ChildMark            ChildMark_{0};
+   char                 Padding____[4];
 
    static void MakeFieldsImpl(fon9::seed::Fields& flds);
 protected:
@@ -84,9 +86,14 @@ public:
    }
    ~OmsRequestTrade();
 
-   static void AddChildIdField(fon9::seed::Fields& flds);
-   void SetChildId(ChildId value) { this->ChildId_ = value; }
-   ChildId GetChildId() const     { return this->ChildId_; }
+   static void AddChildExtField(fon9::seed::Fields& flds);
+   /// 母單給子單的依序編號.
+   /// 由母單(於子單執行前)自主填入, 若不填則預設為 0;
+   void SetChildId(ChildId value)      { this->ChildId_ = value; }
+   ChildId GetChildId() const          { return this->ChildId_; }
+   /// 除了 [ChildId:依序編號] 之外, 還可以給子單 [作記號] 方便以後的識別及處置;
+   void SetChildMark(ChildMark value)  { this->ChildMark_ = value; }
+   ChildMark GetChildMark() const      { return this->ChildMark_; }
 
    /// 收單程序, 可在建立 req 之後, 才設定是哪種下單要求.
    void SetRxKind(f9fmkt_RxKind reqKind) {

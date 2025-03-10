@@ -7,6 +7,8 @@
 
 namespace f9omstw {
 
+bool IsReloadWaitingCondReject = true;
+
 void OmsRequestBase::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(OmsRequestBase, RxKind_, "Kind"));
    flds.Add(fon9_MakeField2(OmsRequestBase, Market));
@@ -105,27 +107,39 @@ void OmsRequestBase::OnAfterBackendReload(OmsResource& res, void* backendLocker)
       parentRequest->OnAfterBackendReloadChild(*this);
    if (this->IsReportIn()) // 如果是回報, 應該由原主機更新狀態, 不能因本機重啟而改變.
       return;
-   auto* ordraw = this->LastUpdated();
-   if (ordraw == nullptr) // Abandoned request.
+   auto* lastOrdraw = this->LastUpdated();
+   if (lastOrdraw == nullptr) // Abandoned request.
       return;
    OmsErrCode ec;
-   if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing))
+   bool       isReject;
+   if (fon9_UNLIKELY(lastOrdraw->RequestSt_ == f9fmkt_TradingRequestSt_Queuing)) {
       ec = OmsErrCode_SystemRestart_QueuingCanceled;
-   else if (fon9_UNLIKELY(ordraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond))
-      ec = OmsErrCode_SystemRestart_WaitingCanceled;
+      isReject = true;
+   }
+   else if (fon9_UNLIKELY(lastOrdraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
+      isReject = IsReloadWaitingCondReject;
+      ec = isReject ? OmsErrCode_SystemRestart_WaitingCanceled :OmsErrCode_SystemRestart_StopWaiting;
+   }
    else {
       return;
    }
-   auto& order = ordraw->Order();
+   auto& order = lastOrdraw->Order();
    if (order.IsWorkingOrder()) { // order.LastOrderSt() != f9fmkt_OrderSt_NewQueuingCanceled
       // 若 req 最後狀態為 Queueing, 則應改成 f9fmkt_TradingRequestSt_QueuingCanceled.
       // - 發生原因: 可能因為程式沒有正常結束: crash? kill -9?
-      // - 不能強迫設定 const_cast<OmsOrderRaw*>(ordraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
+      // - 不能強迫設定 const_cast<OmsOrderRaw*>(lastOrdraw)->RequestSt_ = f9fmkt_TradingRequestSt_QueuingCanceled;
       //   應使用正常更新方式處理, 否則訂閱端(如果有保留最後 RxSNO), 可能會不知道該筆要求變成 QueuingCanceled.
       static_cast<OmsBackend::Locker*>(backendLocker)->unlock();
       if (OmsOrderRaw* ordupd = order.BeginUpdate(*this)) {
          OmsRequestRunnerInCore runner{res, *ordupd, 0u};
-         runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, ec, nullptr);
+         if (isReject)
+            runner.Reject(f9fmkt_TradingRequestSt_QueuingCanceled, ec, nullptr);
+         else {
+            auto& ordraw = runner.OrderRaw();
+            ordraw.RequestSt_ = lastOrdraw->RequestSt_;
+            ordraw.UpdateOrderSt_ = lastOrdraw->UpdateOrderSt_;
+            ordraw.ErrCode_ = ec;
+         }
       }
       static_cast<OmsBackend::Locker*>(backendLocker)->lock();
    }

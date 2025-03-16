@@ -147,6 +147,7 @@ public:
       case f9fmkt_RxKind_Event:
       case f9fmkt_RxKind_RequestChgCond:
       case f9fmkt_RxKind_RequestRerun:
+      case f9fmkt_RxKind_RequestForceContinue:
          return f9fmkt::TradingRequest::Op_NotSupported;
 
       case f9fmkt_RxKind_RequestDelete:

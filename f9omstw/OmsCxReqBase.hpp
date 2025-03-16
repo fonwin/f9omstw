@@ -88,6 +88,7 @@ public:
    }
    static void MakeFields(fon9::seed::Fields& flds, int ofsadj);
 
+   bool IsCondAfterSc() const { return this->CondAfterSc_ == fon9::EnabledYN::Yes; }
    bool IsAllowChgCond() const { return this->IsAllowChgCond_; }
    uint16_t CxUnitCount() const { return this->CxUnitCount_; }
    // --------------------------------------------------------------------- //
@@ -216,7 +217,11 @@ public:
    /// \retval false 沒有註冊,條件已成立.
    template <class CxSymb>
    bool RegCondToSymb_T(OmsRequestRunnerInCore& runner, uint64_t priority, OmsRequestRunStep& nextStep, const CxSymb*) const {
-      assert(this->FirstCxUnit_ && this->CxExpr_ && this->CxExpr_->GetCxReqSt() < CxReqSt_Waiting);
+      assert(this->FirstCxUnit_ && this->CxExpr_);
+      if (this->CxExpr_->GetCxReqSt() == CxReqSt_Waiting) {
+         runner.OrderRaw().ErrCode_ = OmsErrCode_ReWaitingCond;
+         return true;
+      }
       typename CxSymb::CondReq creq;
       creq.CxRequest_ = this;
       creq.Priority_  = priority;
@@ -233,7 +238,7 @@ public:
          if (isCondTrue) { // 條件成立.
             this->CxExpr_->SetCxReqSt(CxReqSt_Fired);
             symb->PrintMd(runner.ExLogForUpd_, first->RegEvMask());
-            return false;                         // 直接執行, 不需要 Symb MdEv;
+            return false; // 直接執行, 不需要 Symb MdEv;
          }
          this->CxExpr_->SetCxReqSt(CxReqSt_Waiting);
          creq.CxUnit_ = first;

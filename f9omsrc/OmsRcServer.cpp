@@ -578,7 +578,6 @@ bool ApiSesCfg::MakeReportMessage(fon9::RevBufferList& rbuf, const OmsRxItem& it
    }
    const ApiRptCfg* rptcfg;
    OmsRxSNO         refSNO;
-   fon9_WARN_DISABLE_SWITCH;
    switch (item.RxKind()) {
    case f9fmkt_RxKind_Event:
       refSNO = 0;
@@ -590,19 +589,31 @@ bool ApiSesCfg::MakeReportMessage(fon9::RevBufferList& rbuf, const OmsRxItem& it
                                                 static_cast<const OmsOrderRaw*>(&item)->Request().Creator());
       break;
    default:
-      const OmsOrderRaw* ordraw = static_cast<const OmsRequestBase*>(&item)->LastUpdated();
-      assert(ordraw != nullptr || static_cast<const OmsRequestBase*>(&item)->IsAbandoned());
-      if (ordraw == nullptr)
-         refSNO = 0;
-      else if(const auto* inireq = ordraw->Order().Initiator())
-         refSNO = inireq->RxSNO();
-      else
-         refSNO = 0;
-      rptcfg = this->ApiRptCfgs_.GetRptCfgRequest(static_cast<const OmsRequestBase*>(&item)->Creator(),
-                                                  ordraw == nullptr ? ApiRptCfgs::RequestE_Abandon : ApiRptCfgs::RequestE_Normal);
-      break;
+   case f9fmkt_RxKind_Unknown:
+   case f9fmkt_RxKind_RequestNew:
+   case f9fmkt_RxKind_RequestDelete:
+   case f9fmkt_RxKind_RequestChgQty:
+   case f9fmkt_RxKind_RequestChgPri:
+   case f9fmkt_RxKind_RequestQuery:
+   case f9fmkt_RxKind_RequestChgCond:
+   case f9fmkt_RxKind_RequestForceContinue:
+   case f9fmkt_RxKind_RequestRerun:
+   case f9fmkt_RxKind_Filled:
+      if (auto* req = static_cast<const OmsRequestBase*>(item.CastToRequest())) {
+         const OmsOrderRaw* ordraw = req->LastUpdated();
+         assert(ordraw != nullptr || req->IsAbandoned());
+         if (ordraw == nullptr)
+            refSNO = 0;
+         else if (const auto* inireq = ordraw->Order().Initiator())
+            refSNO = inireq->RxSNO();
+         else
+            refSNO = 0;
+         rptcfg = this->ApiRptCfgs_.GetRptCfgRequest(req->Creator(), ordraw == nullptr
+                                                     ? ApiRptCfgs::RequestE_Abandon : ApiRptCfgs::RequestE_Normal);
+         break;
+      }
+      return false;
    }
-   fon9_WARN_POP;
    if (rptcfg == nullptr)
       return false;
    ApiRptFieldArg arg{item};

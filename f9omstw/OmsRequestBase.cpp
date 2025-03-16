@@ -334,6 +334,7 @@ void OmsRequestBase::RunReportInCore(OmsReportChecker&& checker) {
    case f9fmkt_RxKind_RequestChgCond:
    case f9fmkt_RxKind_RequestNew:
    case f9fmkt_RxKind_RequestRerun:
+   case f9fmkt_RxKind_RequestForceContinue:
    case f9fmkt_RxKind_Filled:
       this->RunReportInCore_Start(std::move(checker));
       break;
@@ -538,6 +539,7 @@ OmsErrCode OmsRequestBase::GetOkErrCode() const {
    case f9fmkt_RxKind_Filled:
    case f9fmkt_RxKind_RequestQuery:
    case f9fmkt_RxKind_RequestRerun:
+   case f9fmkt_RxKind_RequestForceContinue:
    case f9fmkt_RxKind_RequestChgCond:  return this->ErrCode_;
    case f9fmkt_RxKind_RequestNew:      return OmsErrCode_NewOrderOK;
    case f9fmkt_RxKind_RequestDelete:   return OmsErrCode_DelOrderOK;

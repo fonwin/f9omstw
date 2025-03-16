@@ -205,6 +205,7 @@ OmsOrder* OmsRequestUpd::BeforeReqInCore_GetOrder(OmsRequestRunner& runner, OmsR
    case f9fmkt_RxKind_RequestQuery:
    case f9fmkt_RxKind_RequestChgCond:
    case f9fmkt_RxKind_RequestRerun:
+   case f9fmkt_RxKind_RequestForceContinue:
       break;
    default:
    case f9fmkt_RxKind_RequestNew:

@@ -134,6 +134,7 @@ struct OmsCondStepChg : public OmsRequestRunStep {
       case f9fmkt_RxKind_Unknown:
       case f9fmkt_RxKind_RequestNew:
       case f9fmkt_RxKind_RequestRerun:
+      case f9fmkt_RxKind_RequestForceContinue:
       case f9fmkt_RxKind_Filled:
       case f9fmkt_RxKind_Order:
       case f9fmkt_RxKind_Event:

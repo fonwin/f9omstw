@@ -86,6 +86,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Symb_NoChgPri = 207,
    /// 已觸發, 無法更改條件內容;
    OmsErrCode_Triggered_Cannot_ChgCond = 208,
+   /// 無剩餘量, 無法改單;
+   OmsErrCode_NoLeavesCannotChg = 209,
 
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 300,
@@ -187,6 +189,8 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    /// 條件單重新進入等候狀態:
    /// (1)重啟時設定手動處理條件單; (2)備援主機接手備援;
    OmsErrCode_ReWaitingCond = 908,
+   /// 原始下單要求必須是刪改要求;
+   OmsErrCode_OrigIsNotChgReq = 909,
 
    // -----------------------------------------------------------------------
    /// 09xxx = FIX SessionReject.

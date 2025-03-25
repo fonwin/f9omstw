@@ -118,7 +118,11 @@ void OmsRequestBase::OnAfterBackendReload(OmsResource& res, void* backendLocker)
    }
    else if (fon9_UNLIKELY(lastOrdraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
       isReject = IsReloadWaitingCondReject;
-      ec = isReject ? OmsErrCode_SystemRestart_WaitingCanceled :OmsErrCode_SystemRestart_StopWaiting;
+      ec = isReject ? OmsErrCode_SystemRestart_WaitingCanceled : OmsErrCode_SystemRestart_StopWaiting;
+      if (!isReject) {
+         if (lastOrdraw->ErrCode_ == ec)
+            return;
+      }
    }
    else {
       return;

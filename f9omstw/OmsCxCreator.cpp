@@ -177,8 +177,6 @@ bool OmsCxReqBase::BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsRes
    return this->InternalCreateCxExpr(args);
 }
 bool OmsCxReqBase::RecreateCxExpr(OmsRequestRunnerInCore& runner, const OmsRequestTrade& txReq) {
-   // 不支援重啟條件單: 重啟條件風險太高;
-   (void)txReq;
    assert(!this->CxArgs_.empty() && this->CxExpr_ == nullptr);
    auto& ordraw = runner.OrderRaw();
    auto& order = ordraw.Order();

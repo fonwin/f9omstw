@@ -125,8 +125,9 @@ public:
       return(priType == f9fmkt_PriType_Market ? policy.CondPriorityM() : policy.CondPriorityL());
    }
 
-   static constexpr uint64_t kPriority_AfSc = (0x00ULL << 32); // 已風控的條件單優先檢查.
-   static constexpr uint64_t kPriority_BfSc = (0x10ULL << 32); // 未風控的條件單排在後面.
+   static constexpr uint64_t kPriority_AfSc   = (0x00ULL << 32); // 已風控的條件單優先檢查.
+   static constexpr uint64_t kPriority_BfSc   = (0x10ULL << 32); // 未風控的條件單排在後面.
+   static constexpr uint64_t kPriority_ReqChg = (0x20ULL << 32);
 
    static void UpdateWaitCondSt(OmsRequestRunnerInCore&& runner) {
       runner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_NewWaitingCond;
@@ -159,7 +160,7 @@ public:
          if (fon9_LIKELY(reqst != f9fmkt_TradingRequestSt_WaitingCond))
             return false;
          // Rerun: 重建 CxExpr_; 重新進入 WaitingCond 狀態;
-         ordraw.Order().GetSymb(runner.Resource_, ToStrView(rthis.Symbol_));
+         ordraw.Order().GetSymb(runner.Resource_, rthis.Symbol_);
          if (const_cast<TCxReq*>(&rthis)->RecreateCxExpr(runner, rthis)) {
             // 重建 CxExpr 成功, 執行條件檢查流程, 必要時進入條件等候狀態;
             ordraw.ErrCode_ = OmsErrCode_ReWaitingCond;
@@ -208,6 +209,50 @@ public:
             }
          }
       }
+      return false;
+   }
+   /// 條件改單.
+   template <class TCxReq, class TReqIni>
+   static bool ToWaitCond_ReqChg(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep, const TReqIni* reqIni) {
+      auto& ordraw = runner.OrderRaw();
+      const f9fmkt_TradingRequestSt reqst = ordraw.RequestSt_;
+      if (fon9_LIKELY(!rthis.CxExpr_)) {
+         if (fon9_LIKELY(reqst != f9fmkt_TradingRequestSt_WaitingCond)) {
+            // 一般改單(非條件改單), 返回 false, 繼續處理一般改單流程;
+            return false;
+         }
+         // Rerun: 重建 CxExpr_; 重新進入 WaitingCond 狀態;
+         if (reqIni)
+            ordraw.Order().GetSymb(runner.Resource_, reqIni->Symbol_);
+         if (const_cast<TCxReq*>(&rthis)->RecreateCxExpr(runner, rthis)) {
+            // 重建 CxExpr 成功, 執行條件檢查流程, 必要時進入條件等候狀態;
+            ordraw.ErrCode_ = OmsErrCode_ReWaitingCond;
+            goto __TO_WAIT_COND;
+         }
+         // 重建 CxExpr_ 失敗, 返回 true 中斷下單流程;
+         return true;
+      }
+      if (fon9_LIKELY(reqst < f9fmkt_TradingRequestSt_WaitToCheck)) {
+      __TO_WAIT_COND:;
+         if (fon9_LIKELY(rthis.CxUnitCount_ <= 1)) {
+            if (rthis.RxKind() == f9fmkt_RxKind_RequestChgCond) {
+               // 因為 rthis 的 CondPri, CondQty 需要填入 CxUnit 的內容,
+               // 所以不允許 [rthis:條件改單] 改 ini 的條件;
+               ordraw.ErrCode_ = OmsErrCode_Bad_RxKind;
+               ordraw.RequestSt_ = f9fmkt_TradingRequestSt_InternalRejected;
+               return true;
+            }
+            f9omstw::OmsCxBaseChgDat* rthisCond = const_cast<TCxReq*>(&rthis);
+            *rthisCond  = rthis.FirstCxUnit_->Cond_;
+         }
+         // 先等候條件, 條件成立後才風控.
+         // 風控前, 加入 CondSymb 開始等候條件.
+         if (rthis.RegCondToSymb(runner, kPriority_ReqChg + rthis.GetCondPriority(), condNextStep)) {
+            ordraw.RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
+            return true;
+         }
+      }
+      // 條件已成立 or 此次執行(因reqst)不用等條件 => 則直接進行下一步驟.
       return false;
    }
    // --------------------------------------------------------------------- //

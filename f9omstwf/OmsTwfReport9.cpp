@@ -192,6 +192,19 @@ void OmsTwfReport9::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
    base::OnSynReport(ref, message);
    this->Message_.assign(message);
    this->PriStyle_ = OmsReportPriStyle::HasDecimal;
+   if (ref) {
+      auto ini = dynamic_cast<const OmsTwfRequestIni9*>(ref);
+      if (fon9_LIKELY(ini != nullptr)) {
+      ___COPY_FROM_INI:;
+         this->Symbol_ = ini->Symbol_;
+         this->IvacNo_ = ini->IvacNo_;
+         return;
+      }
+      if (auto* ordraw = ref->LastUpdated()) {
+         if ((ini = dynamic_cast<const OmsTwfRequestIni9*>(ordraw->Order().Initiator())) != nullptr)
+            goto ___COPY_FROM_INI;
+      }
+   }
 }
 OmsErrCode OmsTwfReport9::GetOkErrCode() const {
    if (this->RxKind() == f9fmkt_RxKind_RequestNew)

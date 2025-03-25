@@ -98,6 +98,20 @@ void OmsTwfReport2::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
    base::OnSynReport(ref, message);
    this->Message_.assign(message);
    this->PriStyle_ = OmsReportPriStyle::HasDecimal;
+   if (ref) {
+      auto ini = dynamic_cast<const OmsTwfRequestIni1*>(ref);
+      if (fon9_LIKELY(ini != nullptr)) {
+      ___COPY_FROM_INI:;
+         this->Symbol_ = ini->Symbol_;
+         this->IvacNo_ = ini->IvacNo_;
+         this->Side_   = ini->Side_;
+         return;
+      }
+      if (auto* ordraw = ref->LastUpdated()) {
+         if ((ini = dynamic_cast<const OmsTwfRequestIni1*>(ordraw->Order().Initiator())) != nullptr)
+            goto ___COPY_FROM_INI;
+      }
+   }
 }
 //--------------------------------------------------------------------------//
 static void OmsTwf1_ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const OmsRequestBase& rpt, const OmsTwfReport2* chkFields) {

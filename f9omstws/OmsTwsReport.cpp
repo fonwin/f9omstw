@@ -124,6 +124,20 @@ void OmsTwsReport::OnSynReport(const OmsRequestBase* ref, fon9::StrView message)
    base::OnSynReport(ref, message);
    this->Message_.assign(message);
    this->QtyStyle_ = OmsReportQtyStyle::OddLot;
+   if (ref) {
+      auto ini = dynamic_cast<const OmsTwsRequestIni*>(ref);
+      if (fon9_LIKELY(ini != nullptr)) {
+      ___COPY_FROM_INI:;
+         this->Symbol_ = ini->Symbol_;
+         this->IvacNo_ = ini->IvacNo_;
+         this->Side_   = ini->Side_;
+         return;
+      }
+      if (auto* ordraw = ref->LastUpdated()) {
+         if ((ini = dynamic_cast<const OmsTwsRequestIni*>(ordraw->Order().Initiator())) != nullptr)
+            goto ___COPY_FROM_INI;
+      }
+   }
 }
 //--------------------------------------------------------------------------//
 bool OmsTwsRequestChg::PutAskToRemoteMessage(OmsRequestRunnerInCore& runner, fon9::RevBuffer& rbuf) const {

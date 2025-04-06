@@ -39,8 +39,10 @@ enum OmsRequestFlag : uint8_t {
    ///     此旗標僅是為了協助處理上述欄位的填寫.
    OmsRequestFlag_ForceInternal = 0x20,
 
-   /// req 已成功執行 OmsCore.MoveToCore();
-   OmsRequestFlag_InCore = 0x40,
+   /// 尚未尚未進行處理的 Request,
+   /// 由建立 Request 的地方自行 設定/清除 此旗標;
+   /// 一旦 Request 進入 OmsCore, 就應該清除此旗標;
+   OmsRequestFlag_NotYetToCore = 0x40,
 
    /// 無法進入委託流程: 無法建立 OmsOrder, 或找不到對應的 OmsOrder.
    OmsRequestFlag_Abandon = 0x80,
@@ -92,12 +94,11 @@ class OmsRequestBase : public fon9::fmkt::TradingRequest, public OmsRequestId, p
 
    friend class OmsBackend; // 取得修改 SetLastUpdated() 的權限.
    void SetLastUpdated(OmsOrderRaw& lastupd) const;
-
    union {
       /// 當 this->IsAbandoned(): 此時這裡記錄中斷要求的原因.
       /// 可能為 nullptr, 表示只提供 ErrCode_ 沒有額外訊息.
-      std::string*         AbandonReason_;
-      OmsOrderRaw mutable* LastUpdated_{nullptr};
+      std::string*                              AbandonReason_;
+      const fon9::fmkt::TradingRxItem mutable*  LastUpdatedOrReportRef_{nullptr};
    };
    fon9::TimeStamp      CrTime_;
    OmsRequestFactory*   Creator_;
@@ -210,11 +211,18 @@ public:
       return(this->RxItemFlags_ & OmsRequestFlag_ForceInternal) == OmsRequestFlag_ForceInternal;
    }
 
-   void SetInCore() {
-      this->RxItemFlags_ |= OmsRequestFlag_InCore;
+   void SetNotYetToCore() {
+      this->RxItemFlags_ |= OmsRequestFlag_NotYetToCore;
    }
-   bool IsInCore() const {
-      return (this->RxItemFlags_ & OmsRequestFlag_InCore) == OmsRequestFlag_InCore;
+   void ClearNotYetToCore() {
+      this->RxItemFlags_ = static_cast<OmsRequestFlag>(this->RxItemFlags_ & ~OmsRequestFlag_NotYetToCore);
+   }
+   bool IsNotYetToCore() const {
+      if (this->IsAbandoned())
+         return false;
+      if (this->LastUpdatedOrReportRef_ && this->LastUpdatedOrReportRef_->RxKind() == f9fmkt_RxKind_Order)
+         return false;
+      return (this->RxItemFlags_ & OmsRequestFlag_NotYetToCore) == OmsRequestFlag_NotYetToCore;
    }
 
    /// 透過 this->OrdKey(BrkId+Market+SessionId+OrdNo)取出此筆要求要操作的委託書(OmsOrder).
@@ -225,9 +233,13 @@ public:
    /// 最後一次委託異動完畢後的內容.
    /// 若 OmsRequestRunnerInCore 正在處理, 則此處傳回的是「上一次異動」的內容,
    /// 若 this 為首次執行 OmsRequestRunnerInCore, 則會傳回 nullptr.
-   const OmsOrderRaw* LastUpdated() const {
-      return this->IsAbandoned() ? nullptr : this->LastUpdated_;
+   const OmsOrderRaw* LastUpdated() const;
+   const OmsRequestBase* ReportRef() const;
+   OmsOrder* Order() const {
+      return GetRequestOrder(this);
    }
+   friend OmsOrder* GetRequestOrder(const OmsRequestBase* pthis);
+
    OmsErrCode ErrCode() const {
       return this->ErrCode_;
    }
@@ -412,8 +424,8 @@ protected:
    //        - 透過 checker.ReportAbandon() 記錄 log.
    //        - Order 不會有任何異動.
    /// - 預設傳回 false;
-   virtual bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu);
-   virtual bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu);
+   virtual bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const;
+   virtual bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const;
    /// RunReportInCore_Start() 的過程:
    /// - 回報找不到「原始下單要求」, 但有找到「原始委託」.
    /// - this = 新單回報
@@ -441,9 +453,9 @@ protected:
 };
 
 /// 重啟時, 若下單要求為 WiatingCond, 且委託尚有剩餘量;
-/// true = 拒絕該下單要求;
-/// false = 下單要求狀態不變(且保留下單數量), 但設定 ErrCode = OmsErrCode_SystemRestart_StopWaiting;
-extern bool IsReloadWaitingCondReject;
+/// true  = 下單要求狀態不變(且保留下單數量), 但設定 ErrCode = OmsErrCode_SystemRestart_StopWaiting;
+/// false = 拒絕該下單要求(預設);
+extern bool IsReloadKeepWaitingRequest;
 
 } // namespaces
 #endif//__f9omstw_OmsRequestBase_hpp__

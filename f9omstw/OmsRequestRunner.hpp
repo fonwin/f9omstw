@@ -63,6 +63,20 @@ static inline bool OmsParseForceReportReqUID(const OmsRequestId& rpt, OmsRxSNO& 
    return true;
 }
 
+#define f9omstw_kCSTR_ForceReportReqPTR  "REQ.PTR"
+static inline void OmsForceAssignReportReqPTR(OmsRequestId& rpt, const OmsRequestBase* ptr) {
+   memcpy(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqPTR, sizeof(f9omstw_kCSTR_ForceReportReqPTR));
+   memcpy(rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqPTR), &ptr, sizeof(ptr));
+   static_assert(sizeof(rpt.ReqUID_) >= sizeof(f9omstw_kCSTR_ForceReportReqPTR) + sizeof(ptr),
+                 "OmsRequestId::ReqUID_ too small.");
+}
+static inline bool OmsParseForceReportReqPTR(const OmsRequestId& rpt, const OmsRequestBase*& ptr) {
+   if (fon9_LIKELY(memcmp(rpt.ReqUID_.Chars_, f9omstw_kCSTR_ForceReportReqPTR, sizeof(f9omstw_kCSTR_ForceReportReqPTR)) != 0))
+      return false;
+   memcpy(&ptr, rpt.ReqUID_.Chars_ + sizeof(f9omstw_kCSTR_ForceReportReqPTR), sizeof(ptr));
+   return true;
+}
+
 //--------------------------------------------------------------------------//
 /// - 禁止使用 new 的方式建立 OmsRequestRunnerInCore;
 ///   只能用「堆疊變數」的方式, 並在解構時自動結束更新.

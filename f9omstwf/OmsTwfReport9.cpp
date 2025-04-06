@@ -147,7 +147,7 @@ void OmsTwfReport9::RunReportInCore_MakeReqUID() {
       break;
    }
 }
-bool OmsTwfReport9::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
+bool OmsTwfReport9::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const {
    assert(dynamic_cast<const OmsTwfOrderRaw9*>(&ordu) != nullptr);
    const OmsTwfOrderRaw9& ordraw = *static_cast<const OmsTwfOrderRaw9*>(&ordu);
    if (this->Side_ != f9fmkt_Side_Sell) { // this->Side_ = Buy or Unknown(Bid+Offer).
@@ -162,7 +162,7 @@ bool OmsTwfReport9::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
    }
    return true;
 }
-bool OmsTwfReport9::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) {
+bool OmsTwfReport9::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const {
    return static_cast<const OmsTwfOrderRaw9*>(&ordu)->LastExgTime_ == this->ExgTime_;
 }
 //--------------------------------------------------------------------------//
@@ -197,7 +197,6 @@ void OmsTwfReport9::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
       if (fon9_LIKELY(ini != nullptr)) {
       ___COPY_FROM_INI:;
          this->Symbol_ = ini->Symbol_;
-         this->IvacNo_ = ini->IvacNo_;
          return;
       }
       if (auto* ordraw = ref->LastUpdated()) {

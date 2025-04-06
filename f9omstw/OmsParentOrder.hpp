@@ -187,14 +187,10 @@ struct OmsParentOrderRawDat {
    OmsParentQty   Leg2CumQty_;
    OmsParentAmt   Leg1CumAmt_;
    OmsParentAmt   Leg2CumAmt_;
-   /// 原始回報來源的異動時間, 用於協助判斷是否為重複回報.
-   /// 來自回報的 OrdRaw.UpdateTime 欄位;
-   fon9::TimeStamp   SrcUTime_;
 
    /// 全部內容清為 '\0' 或 Null()
    void ClearRawDat() {
       fon9::ForceZeroNonTrivial(this);
-      this->SrcUTime_.AssignNull();
    }
    /// 先從 prev 複製全部, 然後修改:
    /// - this->BeforeQty_ = this->AfterQty_ = this.LeavesQty_;

@@ -24,8 +24,8 @@ protected:
    void RunReportInCore_OrderNotFound(OmsReportChecker&& checker, OmsOrdNoMap& ordnoMap) override;
    void RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) override;
    void RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) override;
-   bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) override;
-   bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) override;
+   bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const override;
+   bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const override;
 
 public:
    fon9::TimeStamp   ExgTime_{fon9::TimeStamp::Null()};

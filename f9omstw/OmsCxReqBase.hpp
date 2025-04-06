@@ -20,9 +20,9 @@ struct OmsCxCreatorInternal;
 class OmsCxReqBase {
    fon9_NON_COPY_NON_MOVE(OmsCxReqBase);
 
-   OmsCxUnit*        FirstCxUnit_;
+   OmsCxUnit*        FirstCxUnit_{};
    /// Y=先風控,然後等條件,條件成立後執行風控的下一步驟(送單);
-   fon9::EnabledYN   CondAfterSc_;
+   fon9::EnabledYN   CondAfterSc_{};
    bool              IsAllowChgCond_{false};
    uint16_t          CxUnitCount_{0};
    uint16_t          CxSymbCount_{0};
@@ -40,8 +40,8 @@ class OmsCxReqBase {
       CxExpress(OmsCxExpr&& from) : base(std::move(from)) {
          this->SetCxReqSt(CxReqSt_Initialing);
       }
-      void SetCxReqSt(CxReqSt v) { this->Padding7____[0] = static_cast<char>(v); }
-      CxReqSt GetCxReqSt() const { return static_cast<CxReqSt>(this->Padding7____[0]); }
+      void SetCxReqSt(CxReqSt v) { this->CxReqSt_ = static_cast<uint8_t>(v); }
+      CxReqSt GetCxReqSt() const { return static_cast<CxReqSt>(this->CxReqSt_); }
    };
    CxExpress* CxExpr_{nullptr};
 
@@ -94,8 +94,8 @@ public:
    // --------------------------------------------------------------------- //
    /// txReq 必定為 this 的衍生;
    /// 當條件沒有設定 SymbId 時, 使用 [下單要求] 的商品 txSymb;
-   bool BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb);
-   bool RecreateCxExpr(OmsRequestRunnerInCore& runner, const OmsRequestTrade& txReq);
+   bool BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, OmsSymbSP txSymb);
+   bool RecreateCxExpr(OmsRequestRunnerInCore& runner);
    bool InternalCreateCxExpr(OmsCxCreatorInternal& args);
    // --------------------------------------------------------------------- //
    /// 實作方式請參考 OnOmsCxMdEv_T();
@@ -129,133 +129,12 @@ public:
    static constexpr uint64_t kPriority_BfSc   = (0x10ULL << 32); // 未風控的條件單排在後面.
    static constexpr uint64_t kPriority_ReqChg = (0x20ULL << 32);
 
-   static void UpdateWaitCondSt(OmsRequestRunnerInCore&& runner) {
+   static void OrderUpdateWaitCondSt(OmsRequestRunnerInCore&& runner) {
       runner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_NewWaitingCond;
       runner.Update(f9fmkt_TradingRequestSt_WaitingCond);
    }
-   /// 在尚未執行風控前, 進入等候狀態, 此時設定相關的 Qty:
-   /// ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
-   /// ordraw.LeavesQty_ = reqQty;
-   template <class TOrdRaw, typename TQty>
-   static void RequestNew_SetBfScQty_T(TOrdRaw& ordraw, TQty reqQty) {
-      ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
-      ordraw.LeavesQty_ = reqQty;
-   }
-   /// TCxReq 須繼承自 OmsCxReqBase, 且須支援底下成員函式:
-   /// \code
-   ///   uint32_t GetCondPriority () const;
-   ///   bool     RegCondToSymb   (OmsRequestRunnerInCore& runner, uint64_t priority, OmsRequestRunStep& nextStep) const;
-   ///   // 通知: 風控前,已進入等候狀態.
-   ///   // - 請參考 RequestNew_SetBfScQty_T<>();
-   ///   // - 等條件成立後,在風控步驟,設定數量:
-   ///   //   - BeforeQty = 0;
-   ///   //   - AfterQty = LeavesQty;
-   ///   void OnWaitCondBfSc (OmsRequestRunnerInCore& runner) const;
-   /// \endcode
-   template <class TCxReq>
-   static bool ToWaitCond_BfSc(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) {
-      auto& ordraw = runner.OrderRaw();
-      const f9fmkt_TradingRequestSt reqst = ordraw.RequestSt_;
-      if (fon9_LIKELY(!rthis.CxExpr_)) {
-         if (fon9_LIKELY(reqst != f9fmkt_TradingRequestSt_WaitingCond))
-            return false;
-         // Rerun: 重建 CxExpr_; 重新進入 WaitingCond 狀態;
-         ordraw.Order().GetSymb(runner.Resource_, rthis.Symbol_);
-         if (const_cast<TCxReq*>(&rthis)->RecreateCxExpr(runner, rthis)) {
-            // 重建 CxExpr 成功, 執行條件檢查流程, 必要時進入條件等候狀態;
-            ordraw.ErrCode_ = OmsErrCode_ReWaitingCond;
-            goto __TO_WAIT_COND;
-         }
-         // 重建 CxExpr_ 失敗, 返回 true 中斷下單流程;
-         return true;
-      }
-      assert(rthis.CxUnitCount_ > 0 && rthis.FirstCxUnit_ != nullptr);
-      if (fon9_LIKELY(reqst < f9fmkt_TradingRequestSt_WaitToCheck)) {
-         if (fon9_LIKELY(rthis.CxUnitCount_ <= 1)) {
-            cxRaw = rthis.FirstCxUnit_->Cond_;
-         }
-      __TO_WAIT_COND:;
-         if (rthis.CondAfterSc_ == fon9::EnabledYN::Yes) // 先風控,之後才開始等候條件.
-            return false;
-         // 先等候條件, 條件成立後才風控.
-         // 風控前, 加入 CondSymb 開始等候條件.
-         if (rthis.RegCondToSymb(runner, kPriority_BfSc + rthis.GetCondPriority(), condNextStep)) {
-            rthis.OnWaitCondBfSc(runner);
-            rthis.UpdateWaitCondSt(std::move(runner));
-            return true;
-         }
-      }
-      // 條件已成立 or 此次執行(因reqst)不用等條件 => 則直接進行下一步驟.
-      return false;
-   }
-   /// TCxReq 須繼承自 OmsCxReqBase, 且須支援底下成員函式:
-   /// \code
-   ///   uint32_t GetCondPriority () const;
-   ///   bool     RegCondToSymb   (OmsRequestRunnerInCore& runner, uint64_t priority, OmsRequestRunStep& nextStep) const;
-   ///   // 通知: 風控後,已進入等候狀態.
-   ///   void OnWaitCondAfSc (OmsRequestRunnerInCore& runner) const;
-   /// \endcode
-   template <class TCxReq>
-   static bool ToWaitCond_AfSc(TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) {
-      (void)cxRaw;
-      if (rthis.CxExpr_ && rthis.CondAfterSc_ == fon9::EnabledYN::Yes) {
-         if (runner.OrderRaw().RequestSt_ < f9fmkt_TradingRequestSt_WaitToGoOut) {
-            // 風控後, 加入 CondSymb 開始等候條件.
-            // 風控後, 尚開始未等候的條件單 => 此時開始等候條件.
-            if (rthis.RegCondToSymb(runner, kPriority_AfSc + rthis.GetCondPriority(), condNextStep)) {
-               rthis.OnWaitCondAfSc(runner);
-               rthis.UpdateWaitCondSt(std::move(runner));
-               return true;
-            }
-         }
-      }
-      return false;
-   }
-   /// 條件改單.
-   template <class TCxReq, class TReqIni>
-   static bool ToWaitCond_ReqChg(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep, const TReqIni* reqIni) {
-      auto& ordraw = runner.OrderRaw();
-      const f9fmkt_TradingRequestSt reqst = ordraw.RequestSt_;
-      if (fon9_LIKELY(!rthis.CxExpr_)) {
-         if (fon9_LIKELY(reqst != f9fmkt_TradingRequestSt_WaitingCond)) {
-            // 一般改單(非條件改單), 返回 false, 繼續處理一般改單流程;
-            return false;
-         }
-         // Rerun: 重建 CxExpr_; 重新進入 WaitingCond 狀態;
-         if (reqIni)
-            ordraw.Order().GetSymb(runner.Resource_, reqIni->Symbol_);
-         if (const_cast<TCxReq*>(&rthis)->RecreateCxExpr(runner, rthis)) {
-            // 重建 CxExpr 成功, 執行條件檢查流程, 必要時進入條件等候狀態;
-            ordraw.ErrCode_ = OmsErrCode_ReWaitingCond;
-            goto __TO_WAIT_COND;
-         }
-         // 重建 CxExpr_ 失敗, 返回 true 中斷下單流程;
-         return true;
-      }
-      if (fon9_LIKELY(reqst < f9fmkt_TradingRequestSt_WaitToCheck)) {
-      __TO_WAIT_COND:;
-         if (fon9_LIKELY(rthis.CxUnitCount_ <= 1)) {
-            if (rthis.RxKind() == f9fmkt_RxKind_RequestChgCond) {
-               // 因為 rthis 的 CondPri, CondQty 需要填入 CxUnit 的內容,
-               // 所以不允許 [rthis:條件改單] 改 ini 的條件;
-               ordraw.ErrCode_ = OmsErrCode_Bad_RxKind;
-               ordraw.RequestSt_ = f9fmkt_TradingRequestSt_InternalRejected;
-               return true;
-            }
-            f9omstw::OmsCxBaseChgDat* rthisCond = const_cast<TCxReq*>(&rthis);
-            *rthisCond  = rthis.FirstCxUnit_->Cond_;
-         }
-         // 先等候條件, 條件成立後才風控.
-         // 風控前, 加入 CondSymb 開始等候條件.
-         if (rthis.RegCondToSymb(runner, kPriority_ReqChg + rthis.GetCondPriority(), condNextStep)) {
-            ordraw.RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
-            return true;
-         }
-      }
-      // 條件已成立 or 此次執行(因reqst)不用等條件 => 則直接進行下一步驟.
-      return false;
-   }
    // --------------------------------------------------------------------- //
+   virtual bool RegCondToSymb(OmsRequestRunnerInCore& runner, uint64_t priorityAdj, OmsRequestRunStep& nextStep) const = 0;
    /// CxSymb 必須支援:
    /// - void RegCondReq(const MdLocker& mdLocker, CondReq& src);
    /// \retval true  註冊成功,等候條件成立.
@@ -269,8 +148,8 @@ public:
       }
       typename CxSymb::CondReq creq;
       creq.CxRequest_ = this;
-      creq.Priority_  = priority;
-      creq.NextStep_  = &nextStep;
+      creq.Priority_ = priority;
+      creq.NextStep_ = &nextStep;
 
       OmsCxUnit*        first = this->FirstCxUnit_;
       CxSymb*           symb = static_cast<CxSymb*>(first->CondSymb_.get());
@@ -338,6 +217,57 @@ public:
       expr->SetCxReqSt(CxReqSt_Waiting);
       return true;
    }
+   /// 通知: 風控前,已進入等候狀態.
+   /// - 請參考 RequestNew_SetBfSc_T<>();
+   /// - 等條件成立後,在風控步驟,設定數量/價格...
+   ///   - BeforeQty = 0;
+   ///   - AfterQty = LeavesQty;
+   virtual void OnWaitCondBfSc(OmsRequestRunnerInCore& runner) const = 0;
+
+   /// 取得 Req 的 [剩餘量]
+   template <typename TQty, class TxReq> // TxReq = Report: 回報 Rerun/Force 使用的是 LeavesQty
+   static auto AssignReqLeavesQty(TQty& qty, const TxReq* req) -> decltype(req->LeavesQty_, bool()) {
+      qty = req->LeavesQty_;
+      return true;
+   }
+   static bool AssignReqLeavesQty(...) {
+      return false;
+   }
+   /// 在尚未執行風控前, 進入等候狀態, 此時設定相關的 Qty:
+   /// ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
+   /// ordraw.LeavesQty_ = reqLeavesQty;
+   template <class TOrdRaw, class TReq>
+   static void RequestNew_SetBfSc_T(TOrdRaw& ordraw, const TReq& req) {
+      ordraw.BeforeQty_ = ordraw.AfterQty_ = 0;
+      // 風控前等條件: 進入條件等候前(可能之前是 WaitingRun)
+      // 可能有設定過 LeavesQty, 此時不可重複設定 LeavesQty,
+      // 因為: 可能有改過數量;
+      if (ordraw.LeavesQty_ == 0) {
+         if (!AssignReqLeavesQty(ordraw.LeavesQty_, &req))
+            ordraw.LeavesQty_ = req.Qty_;
+      }
+      if (ordraw.LastPriType_ == f9fmkt_PriType_Unknown)
+         ordraw.LastPriType_ = req.PriType_;
+      if (ordraw.LastPri_.IsNull())
+         ordraw.LastPri_ = req.Pri_;
+   }
+   template <class TCxReq>
+   static bool ToWaitCond_BfSc(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) {
+      runner.OrderRaw().Order().GetSymb(runner.Resource_, rthis.Symbol_);
+      return rthis.GetCxReq()->ToWaitCond_BfSc(std::move(runner), cxRaw, condNextStep);
+   }
+   bool ToWaitCond_BfSc(OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) const;
+   // --------------------------------------------------------------------- //
+   virtual void OnWaitCondAfSc(OmsRequestRunnerInCore& runner) const = 0;
+   bool ToWaitCond_AfSc(OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep) const;
+   // --------------------------------------------------------------------- //
+   /// 條件改單.
+   template <class TCxReq, class ReqIniForSymbT>
+   static bool ToWaitCond_ReqChg(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep, const ReqIniForSymbT& reqIniForSymb) {
+      runner.OrderRaw().Order().GetSymb(runner.Resource_, reqIniForSymb.Symbol_);
+      return rthis.GetCxReq()->ToWaitCond_ReqChg(const_cast<TCxReq*>(&rthis), std::move(runner), condNextStep);
+   }
+   bool ToWaitCond_ReqChg(OmsCxBaseChgDat* pthisCond, OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep) const;
    // --------------------------------------------------------------------- //
    OmsErrCode OnOmsCx_AssignReqChgToOrd(const OmsCxBaseChgDat& reqChg, OmsCxBaseRaw& cxRaw) const {
       assert(this->CxUnitCount_ == 1 && this->FirstCxUnit_ != nullptr);
@@ -351,10 +281,10 @@ public:
    /// CxSymb 必須支援:
    /// - OmsRequestRunStep* DelCondReq (const MdLocker& mdLocker, const OmsCxUnit& cxUnit); // 可參考 OmsCxSymb;
    /// - void               PrintMd    (fon9::RevBuffer& rbuf, OmsCxSrcEvMask evMask);
-   template <class CoreUsrDef, class CxSymb, class TCxReq>
-   static void OnAfterChgCond_Checker_T(const TCxReq& rthis, OmsRequestRunnerInCore&& runner, const OmsCxBaseRaw& cxRaw, const CoreUsrDef*, const CxSymb*) {
-      assert(rthis.CxUnitCount_ == 1 && rthis.CxExpr_ && rthis.FirstCxUnit_);
-      OmsCxUnit*  first = rthis.FirstCxUnit_;
+   template <class CoreUsrDef, class CxSymb>
+   void OnAfterChgCond_Checker_T(const OmsRequestTrade& cxreq, OmsRequestRunnerInCore&& runner, const OmsCxBaseRaw& cxRaw, const CoreUsrDef*, const CxSymb*) const {
+      assert(this->CxUnitCount_ == 1 && this->CxExpr_ && this->FirstCxUnit_);
+      OmsCxUnit*  first = this->FirstCxUnit_;
       CxSymb*     symb = static_cast<CxSymb*>(first->CondSymb_.get());
       OmsSymb::MdLocker mdLocker{*symb};
       if (!first->CheckNeedsFireNow(*symb, cxRaw)) { // 條件不成立, 不用觸發執行.
@@ -364,10 +294,10 @@ public:
       // 條件成立, 觸發執行.
       if (OmsRequestRunStep* nextStep = symb->DelCondReq(mdLocker, *first)) {
          fon9::RevBufferFixedSize<256> rbuf;
-         rthis.CxExpr_->SetCxReqSt(CxReqSt_Fired);
+         this->CxExpr_->SetCxReqSt(CxReqSt_Fired);
          symb->PrintMd(rbuf, first->RegEvMask());
          mdLocker.Unlock();
-         static_cast<CoreUsrDef*>(runner.Resource_.UsrDef_.get())->AddCondFiredReq(runner.Resource_.Core_, rthis, *nextStep, ToStrView(rbuf));
+         static_cast<CoreUsrDef*>(runner.Resource_.UsrDef_.get())->AddCondFiredReq(runner.Resource_.Core_, cxreq, *nextStep, ToStrView(rbuf));
          runner.Update(f9fmkt_TradingRequestSt_Done);
       }
       else {
@@ -411,6 +341,8 @@ public:
    using base::base;
    OmsCxCombineReqIni() = default;
    // --------------------------------------------------------------------- //
+   const OmsCxReqBase* GetCxReq() const override { return this; }
+   // --------------------------------------------------------------------- //
    /// 若 order 及條件單仍有效, 則取出判斷用的參數(CondPri_, CondQty_);
    const TOrdRaw* GetWaitingCxRaw() const {
       return static_cast<const TOrdRaw*>(f9omstw::GetWaitingOrdRaw(*this));
@@ -420,20 +352,21 @@ public:
    }
    // --------------------------------------------------------------------- //
    OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override {
-      return (this->BeforeReqInCore_CreateCxExpr(runner, res, *this, res.Symbs_->GetOmsSymb(ToStrView(this->Symbol_)))
+      return (this->BeforeReqInCore_CreateCxExpr(runner, res, res.Symbs_->GetOmsSymb(ToStrView(this->Symbol_)))
               ? base::BeforeReqInCore(runner, res)
               : nullptr);
    }
    uint32_t GetCondPriority() const {
       return this->GetCondPriority_T(*this->Policy(), this->PriType_);
    }
-   bool RegCondToSymb(OmsRequestRunnerInCore& runner, uint64_t priority, OmsRequestRunStep& nextStep) const {
-      return this->RegCondToSymb_T(runner, priority, nextStep, static_cast<TSymb*>(nullptr));
+   bool RegCondToSymb(OmsRequestRunnerInCore& runner, uint64_t priorityAdj, OmsRequestRunStep& nextStep) const override {
+      return this->RegCondToSymb_T(runner, priorityAdj + this->GetCondPriority(), nextStep, static_cast<TSymb*>(nullptr));
    }
-   void OnWaitCondBfSc(OmsRequestRunnerInCore& runner) const {
-      this->RequestNew_SetBfScQty_T(*static_cast<TOrdRaw*>(&runner.OrderRaw()), this->Qty_);
+   // --------------------------------------------------------------------- //
+   void OnWaitCondBfSc(OmsRequestRunnerInCore& runner) const override {
+      this->RequestNew_SetBfSc_T(*static_cast<TOrdRaw*>(&runner.OrderRaw()), *this);
    }
-   void OnWaitCondAfSc(OmsRequestRunnerInCore& runner) const {
+   void OnWaitCondAfSc(OmsRequestRunnerInCore& runner) const override {
       (void)runner;
    }
 };

@@ -181,7 +181,6 @@ OmsParentOrderRaw* OmsParentOrder::RecalcAllChildForRerun() {
    if (auto* newParent = static_cast<OmsParentOrderRaw*>(this->BeginUpdate(*this->Initiator()))) {
       recalc.BeforeQty_ = tail->LeavesQty_;
       recalc.AfterQty_ = recalc.LeavesQty_;
-      recalc.SrcUTime_ = fon9::UtcNow();
       OmsParentOrderRawDat* afdat = newParent;
       *afdat = recalc;
       if (newParent->LeavesQty_ > 0) {
@@ -343,7 +342,6 @@ void OmsParentOrderRaw::MakeFields(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField2(OmsParentOrderRaw, Leg1CumAmt));
    flds.Add(fon9_MakeField2(OmsParentOrderRaw, Leg2CumQty));
    flds.Add(fon9_MakeField2(OmsParentOrderRaw, Leg2CumAmt));
-   flds.Add(fon9_MakeField2(OmsParentOrderRaw, SrcUTime));
 }
 void OmsParentOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    base::ContinuePrevUpdate(prev);

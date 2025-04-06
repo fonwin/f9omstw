@@ -13,6 +13,7 @@ void OmsTwsReport::MakeFields(fon9::seed::Fields& flds) {
    base::AddFieldsForReport(flds);
    flds.Add(fon9_MakeField2(OmsTwsReport, ExgTime));
    flds.Add(fon9_MakeField2(OmsTwsReport, BeforeQty));
+   flds.Add(fon9_MakeField2(OmsTwsReport, LeavesQty));
    flds.Add(fon9_MakeField2(OmsTwsReport, OutPvcId));
 }
 //--------------------------------------------------------------------------//
@@ -21,6 +22,7 @@ static inline void AdjustReportQtys(OmsOrder& order, OmsResource& res, OmsTwsRep
       rpt.QtyStyle_ = OmsReportQtyStyle::OddLot;
       rpt.Qty_ *= shUnit;
       rpt.BeforeQty_ *= shUnit;
+      rpt.LeavesQty_ *= shUnit;
    }
 }
 //--------------------------------------------------------------------------//
@@ -38,7 +40,7 @@ static inline OmsTwsOType RptOType2OrdOType(const OmsTwsReport& rpt) {
 static inline void OmsAssignOrderFromReportNewOrig(OmsTwsOrderRaw& ordraw, OmsTwsReport& rpt) {
    if (ordraw.OType_ == OmsTwsOType{})
       ordraw.OType_ = RptOType2OrdOType(rpt);
-   ordraw.AfterQty_ = ordraw.LeavesQty_ = rpt.Qty_;
+   OmsAssignOrdAfterQtyFromRpt(ordraw, rpt);
    OmsTwsReport_Update(ordraw);
 }
 void OmsTwsReport::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
@@ -72,18 +74,17 @@ void OmsTwsReport::RunReportInCore_MakeReqUID() {
                                            ? this->Pri_.GetOrigValue()
                                            : this->BeforeQty_));
 }
-bool OmsTwsReport::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
-   return static_cast<const OmsTwsOrderRaw*>(&ordu)->BeforeQty_ == this->BeforeQty_
-      && static_cast<const OmsTwsOrderRaw*>(&ordu)->AfterQty_ == this->Qty_;
+bool OmsTwsReport::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const {
+   return OmsIsBfAfMatch(*static_cast<const OmsTwsOrderRaw*>(&ordu), *this);
 }
-bool OmsTwsReport::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) {
+bool OmsTwsReport::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const {
    return static_cast<const OmsTwsOrderRaw*>(&ordu)->LastExgTime_ == this->ExgTime_;
 }
 //--------------------------------------------------------------------------//
 void OmsTwsReport::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) {
    OmsTwsOrderRaw&  ordraw = inCoreRunner.OrderRawT<OmsTwsOrderRaw>();
    // AdjustReportQtys(ordraw.Order(), inCoreRunner.Resource_, *this); 已在 RunReportInCore_Order() 處理過了.
-   ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
+   OmsAssignOrdAfterQtyFromRpt(ordraw, *this);
    ordraw.OType_ = RptOType2OrdOType(*this);
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
    OmsTwsReport_Update(ordraw);
@@ -129,7 +130,6 @@ void OmsTwsReport::OnSynReport(const OmsRequestBase* ref, fon9::StrView message)
       if (fon9_LIKELY(ini != nullptr)) {
       ___COPY_FROM_INI:;
          this->Symbol_ = ini->Symbol_;
-         this->IvacNo_ = ini->IvacNo_;
          this->Side_   = ini->Side_;
          return;
       }

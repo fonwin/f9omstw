@@ -42,7 +42,8 @@ class OmsRcSynClientSession : public fon9::rc::RcClientSession {
    fon9_NON_COPY_NON_MOVE(OmsRcSynClientSession);
    using base = fon9::rc::RcClientSession;
    fon9::HostId   HostId_;
-   char           Padding____[4];
+   bool           IsAllowOrdNoEmpty_{false};
+   char           Padding____[3];
 
    using RptMap = std::vector<OmsRcSynRptDefine>;
    RptMap         RptMap_;
@@ -87,6 +88,12 @@ public:
    static void InitClientSessionParams(f9OmsRc_ClientSessionParams& omsRcParams) {
       omsRcParams.FnOnConfig_ = &OmsRcSynClientSession::OnOmsRcSyn_Config;
       omsRcParams.FnOnReport_ = &OmsRcSynClientSession::OnOmsRcSyn_Report;
+   }
+   void SetAllowOrdNoEmpty(bool value) {
+      this->IsAllowOrdNoEmpty_ = value;
+   }
+   bool IsAllowOrdNoEmpty() const {
+      return this->IsAllowOrdNoEmpty_;
    }
 
    fon9::HostId GetHostId() const {
@@ -164,10 +171,27 @@ class OmsRcSyn_SessionFactory : public OmsIoSessionFactory, public fon9::rc::RcF
 
 public:
    const f9OmsRc_RptFilter RptFilter_;
+   const bool              IsAllowOrdNoEmpty_;
    bool                    IsOmsCoreRecovering_{};
-   char                    Padding_____[5];
+   char                    Padding_____[4];
 
-   OmsRcSyn_SessionFactory(std::string name, OmsCoreMgrSP&& omsCoreMgr, f9OmsRc_RptFilter rptFilter,
+   class Creator : public OmsIoSessionFactoryConfigParser {
+      fon9_NON_COPY_NON_MOVE(Creator);
+      using base = OmsIoSessionFactoryConfigParser;
+   protected:
+      /// 預設: return new OmsRcSyn_SessionFactory(*this, std::move(omsCoreMgr), nullptr, nullptr);
+      virtual fon9::intrusive_ptr<OmsRcSyn_SessionFactory> CreateRcSynSessionFactory(OmsCoreMgrSP&& omsCoreMgr);
+   public:
+      f9OmsRc_RptFilter RptFilter_{static_cast<f9OmsRc_RptFilter>(f9OmsRc_RptFilter_NoExternal | f9OmsRc_RptFilter_IncludeRcSynNew)};
+      bool              IsAllowOrdNoEmpty_{false};
+      char              Padding___[5];
+
+      using base::base;
+      bool OnUnknownTag(fon9::seed::PluginsHolder& holder, fon9::StrView tag, fon9::StrView value) override;
+      fon9::SessionFactorySP CreateSessionFactory() override;
+   };
+
+   OmsRcSyn_SessionFactory(const Creator& creator, OmsCoreMgrSP&& omsCoreMgr,
                            OmsRcClientAgent* omsRcCliAgent, fon9::rc::RcFuncConnClient* connCliAgent);
 
    virtual OmsRcSynClientSessionSP CreateOmsRcSynClientSession(f9rc_ClientSessionParams& f9rcCliParams);
@@ -183,19 +207,7 @@ public:
 
    void AppendMapSNO(fon9::HostId srcHostId, OmsRxSNO srcSNO, const OmsRequestId& origId);
 
-   class Creator : public OmsIoSessionFactoryConfigParser {
-      fon9_NON_COPY_NON_MOVE(Creator);
-      using base = OmsIoSessionFactoryConfigParser;
-   protected:
-      f9OmsRc_RptFilter RptFilter_{static_cast<f9OmsRc_RptFilter>(f9OmsRc_RptFilter_NoExternal | f9OmsRc_RptFilter_IncludeRcSynNew)};
-      char              Padding___[6];
-      /// 預設: return new OmsRcSyn_SessionFactory(this->Name_, std::move(omsCoreMgr), this->RptFilter_);
-      virtual fon9::intrusive_ptr<OmsRcSyn_SessionFactory> CreateRcSynSessionFactory(OmsCoreMgrSP&& omsCoreMgr);
-   public:
-      using base::base;
-      bool OnUnknownTag(fon9::seed::PluginsHolder& holder, fon9::StrView tag, fon9::StrView value) override;
-      fon9::SessionFactorySP CreateSessionFactory() override;
-   };
+   const OmsRequestBase* GetRcSynRequest(fon9::HostId hostid, OmsRxSNO sno);
 };
 
 } // namespaces

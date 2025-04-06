@@ -35,6 +35,20 @@ OmsCore::StartResult OmsCore::Start(std::string logFileName, fon9::TimeInterval 
    this->Plant();
    return res;
 }
+const OmsRequestBase* OmsCore::GetByRequestId(const OmsRequestId& reqid) {
+   fon9::HostId   hostid;
+   OmsRxSNO       sno = OmsReqUID_Builder::ParseReqUID(reqid, hostid);
+   if (hostid == fon9::LocalHostId_) {
+      if (auto* req = dynamic_cast<const OmsRequestBase*>(this->GetRxItem(sno))) {
+         if (req->ReqUID_ == reqid.ReqUID_)
+            return req;
+      }
+      return nullptr;
+   }
+   if (this->Owner_)
+      return this->Owner_->GetSynRequest(hostid, sno);
+   return nullptr;
+}
 //--------------------------------------------------------------------------//
 const f9fmkt_TradingSessionSt* OmsCore::GetSessionSt(f9fmkt_TradingMarket mkt, f9fmkt_TradingSessionId sesId, uint8_t flowGroup) {
    return &(*this->MapSessionSt_.Lock())[ToSessionKey(mkt, sesId, flowGroup)];
@@ -139,7 +153,6 @@ void OmsCore::EventInCore(OmsEventSP&& omsEvent) {
 //--------------------------------------------------------------------------//
 bool OmsCore::MoveToCore(OmsRequestRunner&& runner) {
    if (fon9_LIKELY(runner.Request_->IsReportIn() || runner.ValidateInUser())) {
-      runner.Request_->SetInCore();
       return this->MoveToCoreImpl(std::move(runner));
    }
    return false;

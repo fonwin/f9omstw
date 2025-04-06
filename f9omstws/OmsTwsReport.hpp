@@ -20,8 +20,8 @@ protected:
    void RunReportInCore_MakeReqUID() override;
    void RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) override;
    void RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) override;
-   bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) override;
-   bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) override;
+   bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const override;
+   bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const override;
    /// 從 ini 複製基本欄位: Side_, Symbol_, IvacNo_, SubacNo_, IvacNoFlag_, OType_(如果this->OType_==OmsTwsOType{})
    void AssignFromIniBase(const OmsTwsRequestIni& ini);
 
@@ -30,13 +30,15 @@ public:
    fon9::DayTime     ExgTime_{fon9::DayTime::Null()};
    fon9::CharVector  Message_;
    OmsTwsQty         BeforeQty_{};
+   /// 若為 this->LeavesQty_ == 0; 則使用 this->Qty_; (AfterQty);
+   OmsTwsQty         LeavesQty_{};
    /// 通常用在建立回報時設定,
    /// 在更新 ordraw 時: 會先將 this->Qty_, this->BeforeQty_ 調整成股數,
    /// 並將此欄改為 OmsReportQtyStyle::OddLot;
    /// 讓後續的處理可以不用考慮此欄.
    OmsReportQtyStyle QtyStyle_{OmsReportQtyStyle::BySessionId};
    fon9::CharAryF<2> OutPvcId_{nullptr};
-   char              padding__[1];
+   char              padding__[5];
 
    using base::base;
    OmsTwsReport() = default;

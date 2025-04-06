@@ -308,10 +308,6 @@ void OmsParentRequestIni::OnChildIniUpdated(const OmsRequestRunnerInCore& childR
    (void)childRunner; (void)parentRunner;
 }
 
-void OmsParentRequestIni::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
-   this->ReportRef_ = ref;
-   base::OnSynReport(ref, message);
-}
 fon9::HostId OmsParentRequestIni::OrigHostId() const {
    return this->OrigHostId_;
 }
@@ -325,6 +321,15 @@ static inline bool IsReportRefMatch(const OmsParentRequestIni& rthis, const OmsR
       && ref.OrdNo_ == rthis.OrdNo_
       && rthis.GetNotEqualIniFieldName(ref) == nullptr;
 }
+void OmsParentRequestIni::AssignToParentOrdraw(OmsReportRunnerInCore& runner) const {
+   const auto srcUTime = this->GetSrcUTime();
+   if (!srcUTime.IsNull()) {
+      // 備援機的返回的回報可能延遲, 若由備援機使用自己的時間, 則相同回報, 有不同時間, 會造成 IsNeedsReport() 的誤判.
+      // 所以需要: 填入原始來源的異動時間.
+      // 因此 [全部主機/同一筆] ParentOrderRaw 的 UpdateTime_ 會完全一樣;
+      runner.OrderRaw().UpdateTime_ = srcUTime;
+   }
+}
 void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
    // 母單回報(新單、刪改、成交)都會來到這裡:
    // - 只會從原始收單主機送來, 不會有其他主機的母單回報. 所以:
@@ -333,30 +338,29 @@ void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
    // - 成交也是透過這裡回報.
    // - 子單刪改造成的異動, 仍會先由 OmsParentRequestIni::OnChildRequestUpdated() 處理.
    //   若子單已無剩餘量, 則會從 WorkingChild 移除.
-   OmsRxSNO refSNO;
-   if (OmsParseForceReportReqUID(*this, refSNO)) {
-      assert(this->ReportRef_ != nullptr);
-      if (this->ReportRef_ == nullptr || refSNO != this->ReportRef_->RxSNO()) {
-         checker.ReportAbandon("ParentReport: Bad ReportRef.");
-         return;
-      }
-      this->ReqUID_ = this->ReportRef_->ReqUID_;
+   const OmsRequestBase* ReportRef_ = nullptr;
+   if (OmsParseForceReportReqPTR(*this, ReportRef_))
+      this->ReqUID_ = ReportRef_->ReqUID_;
+   else {
+      ReportRef_ = this->ReportRef();
    }
+   OmsOrder*    pParentOrder;
+   OmsOrdNoMap* ordnoMap = nullptr;
    fon9_WARN_DISABLE_SWITCH;
    switch (this->RxKind()) {
    case f9fmkt_RxKind_Filled:
-      if (fon9_UNLIKELY(this->ReportRef_ == nullptr)) {
+      if (fon9_UNLIKELY(ReportRef_ == nullptr)) {
          checker.ReportAbandon("ParentReport: Unknown filled ref.");
          return;
       }
-      if (fon9_UNLIKELY(this->ReportRef_->RxSNO() <= 0)) {
-         // 對子單而言, 此筆成交可能為重複回報, 造成 this->ReportRef_ 沒有加入 OmsCore.
+      if (fon9_UNLIKELY(ReportRef_->RxSNO() <= 0)) {
+         // 對子單而言, 此筆成交可能為重複回報, 造成 ReportRef_ 沒有加入 OmsCore.
          // 所以: 從子單找看看有沒有這筆成交.
-         assert(dynamic_cast<const OmsReportFilled*>(this->ReportRef_) != nullptr);
-         auto* reqFilled = static_cast<const OmsReportFilled*>(this->ReportRef_);
+         assert(dynamic_cast<const OmsReportFilled*>(ReportRef_) != nullptr);
+         auto* reqFilled = static_cast<const OmsReportFilled*>(ReportRef_);
          if (auto* childIni = checker.Resource_.GetRequest(reqFilled->IniSNO_)) {
             if (auto* childIniOrdraw = childIni->LastUpdated()) {
-               if ((this->ReportRef_ = childIniOrdraw->Order().FindFilled(reqFilled->MatchKey_)) != nullptr)
+               if ((ReportRef_ = childIniOrdraw->Order().FindFilled(reqFilled->MatchKey_)) != nullptr)
                   goto __RPT_FILLED;
             }
          }
@@ -364,20 +368,20 @@ void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
          return;
       }
    __RPT_FILLED:;
-      if (auto* childOrdraw = this->ReportRef_->LastUpdated()) {
+      if (auto* childOrdraw = ReportRef_->LastUpdated()) {
          // 子單成交有正確的更新子單內容, 表示此筆成交沒有重複, 可讓母單繼續處理.
-         if (auto* pParentOrder = childOrdraw->Order().GetParentOrder()) {
+         if ((pParentOrder = childOrdraw->Order().GetParentOrder()) != nullptr) {
             assert(dynamic_cast<OmsParentOrder*>(pParentOrder) != nullptr);
             // 要檢查 此筆成交 是否為重複更新?
             auto* pHeadOrdraw = pParentOrder->Head();
             while (pHeadOrdraw) {
-               if (&pHeadOrdraw->Request() == this->ReportRef_) {
+               if (&pHeadOrdraw->Request() == ReportRef_) {
                   checker.ReportAbandon("ParentReport: Duplicate filled.");
                   return;
                }
                pHeadOrdraw = pHeadOrdraw->Next();
             }
-            // =====> (1) 先用 this->ReportRef_(RequestFilled) 處理成交回報(更新 Cum* 欄位),
+            // =====> (1) 先用 ReportRef_(RequestFilled) 處理成交回報(更新 Cum* 欄位),
             static_cast<OmsParentOrder*>(pParentOrder)->RunChildOrderUpdated(
                *childOrdraw, checker.Resource_, nullptr, &checker,
                [](OmsParentOrder& parentOrder, const OmsRequestBase& parentIni, OmsRequestRunnerInCore&& parentRunner, void* udata) {
@@ -397,13 +401,15 @@ void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
       checker.ReportAbandon("ParentReport: Unknown filled NoChild.");
       return;
    case f9fmkt_RxKind_RequestNew:
-      if (this->ReportRef_) {
-         // this->ReportRef_(母單新單要求) 後續的回報(例: 建立子單後的母單異動回報);
-         if (fon9_LIKELY(IsReportRefMatch(*this, *this->ReportRef_))) {
-            if (this->IsNeedsReport_ForNew(checker, *this->ReportRef_)) {
-               OmsOrder&               order = this->ReportRef_->LastUpdated()->Order();
-               OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order.BeginUpdate(*this->ReportRef_)};
+      if (ReportRef_) {
+         // ReportRef_(母單新單要求) 後續的回報(例: 建立子單後的母單異動回報);
+         if (fon9_LIKELY(IsReportRefMatch(*this, *ReportRef_))) {
+            if (this->IsNeedsReport_ForNew(checker, *ReportRef_)) {
+               assert(ReportRef_->LastUpdated() != nullptr);
+               pParentOrder = &ReportRef_->LastUpdated()->Order();
+               OmsReportRunnerInCore   inCoreRunner{std::move(checker), *pParentOrder->BeginUpdate(*ReportRef_)};
                this->OnParentReportInCore_NewUpdate(inCoreRunner);
+               this->AssignToParentOrdraw(inCoreRunner);
                inCoreRunner.UpdateReport(*this);
             }
          }
@@ -412,65 +418,79 @@ void OmsParentRequestIni::RunReportInCore(OmsReportChecker&& checker) {
          }
       }
       else {
-         // 新建立的 [新單] 回報.
-         if (OmsOrdNoMap* ordnoMap = checker.GetOrdNoMap()) {
-            assert(!OmsIsReqUIDEmpty(*this));
-            if (fon9_UNLIKELY(OmsIsReqUIDEmpty(*this)))
-               checker.ReportAbandon("ParentReport: Bad new ReqUID.");
-            else if (OmsOrder* order = ordnoMap->GetOrder(this->OrdNo_)) {
-               (void)order;
-               checker.ReportAbandon("ParentReport: duplicate OrdNo.");
-            }
-            else  {
-               assert(this->Creator().OrderFactory_.get() != nullptr);
-               if (OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get()) {
-                  OmsReportRunnerInCore   inCoreRunner{std::move(checker), *ordfac->MakeOrder(*this, nullptr)};
-                  auto&                   ordraw = inCoreRunner.OrderRaw();
-                  ordraw.OrdNo_ = this->OrdNo_;
-                  this->OnParentReportInCore_NewReport(inCoreRunner);
-                  inCoreRunner.Resource_.Backend_.FetchSNO(*this);
-                  inCoreRunner.UpdateReport(*this);
-                  ordnoMap->EmplaceOrder(ordraw);
-               }
-               else {
-                  checker.ReportAbandon("ParentReport: No OrderFactory.");
-               }
-            }
+         // 新的 [母單新單] 回報.
+         assert(!OmsIsReqUIDEmpty(*this));
+         if (fon9_UNLIKELY(OmsIsReqUIDEmpty(*this))) {
+            checker.ReportAbandon("ParentReport: Bad new ReqUID.");
+            break;
          }
-         else {
+         if (OmsIsOrdNoEmpty(this->OrdNo_)) {
+            // 母單沒有委託書號, 直接建立 Order;
+         }
+         else if ((ordnoMap = checker.GetOrdNoMap()) == nullptr) {
             // checker.GetOrdNoMap(); 失敗.
             // 已呼叫過 checker.ReportAbandon(), 所以直接結束.
+            break;
+         }
+         else if (ordnoMap->GetOrder(this->OrdNo_)) {
+            checker.ReportAbandon("ParentReport: duplicate OrdNo.");
+            break;
+         }
+         assert(this->Creator().OrderFactory_.get() != nullptr);
+         if (OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get()) {
+            OmsReportRunnerInCore   inCoreRunner{std::move(checker), *ordfac->MakeOrder(*this, nullptr)};
+            auto&                   ordraw = inCoreRunner.OrderRaw();
+            ordraw.OrdNo_ = this->OrdNo_;
+            this->OnParentReportInCore_NewReport(inCoreRunner);
+            this->AssignToParentOrdraw(inCoreRunner);
+            inCoreRunner.Resource_.Backend_.FetchSNO(*this);
+            inCoreRunner.UpdateReport(*this);
+            if (ordnoMap)
+               ordnoMap->EmplaceOrder(ordraw);
+         }
+         else {
+            checker.ReportAbandon("ParentReport: No OrderFactory.");
          }
       }
       break;
    default: // 刪改回報.
-      if (this->ReportRef_) {
-         // this->ReportRef_(母單刪改要求) 的後續回報.
-         if (fon9_LIKELY(IsReportRefMatch(*this, *this->ReportRef_))) {
-            if (this->IsNeedsReport_ForChg(checker, *this->ReportRef_)) {
-               OmsOrder&               order = this->ReportRef_->LastUpdated()->Order();
-               OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order.BeginUpdate(*this->ReportRef_)};
-               this->OnParentReportInCore_ChgUpdate(inCoreRunner);
-               inCoreRunner.UpdateReport(*this);
+      if (ReportRef_) {
+         if (ReportRef_->RxKind() == f9fmkt_RxKind_RequestNew) {
+            // 新的 [刪改] 回報.
+            if (auto* iniOrdraw = ReportRef_->LastUpdated()) {
+               pParentOrder = &iniOrdraw->Order();
+               goto __UPDATE_NEWCHG;
             }
          }
-         else {
-            checker.ReportAbandon("ParentReport: Bad ChgUpdate.");
+         // ReportRef_(母單刪改要求) 的後續回報.
+         else if (fon9_LIKELY(IsReportRefMatch(*this, *ReportRef_))) {
+            if (this->IsNeedsReport_ForChg(checker, *ReportRef_)) {
+               pParentOrder = &(ReportRef_->LastUpdated()->Order());
+               OmsReportRunnerInCore   inCoreRunner{std::move(checker), *pParentOrder->BeginUpdate(*ReportRef_)};
+               this->OnParentReportInCore_ChgUpdate(inCoreRunner);
+               this->AssignToParentOrdraw(inCoreRunner);
+               inCoreRunner.UpdateReport(*this);
+            }
+            break;
          }
+         checker.ReportAbandon("ParentReport: Bad ChgUpdate.");
+         break;
       }
       else {
          // 新建立的 [刪改] 回報.
          // 先用 OrdNo 找到 RequestIni.
-         if (OmsOrdNoMap* ordnoMap = checker.GetOrdNoMap()) {
+         if ((ordnoMap = checker.GetOrdNoMap()) != nullptr) {
             assert(!OmsIsReqUIDEmpty(*this));
             if (fon9_UNLIKELY(OmsIsReqUIDEmpty(*this)))
                checker.ReportAbandon("ParentReport: Bad chg ReqUID.");
-            else if (OmsOrder* order = ordnoMap->GetOrder(this->OrdNo_)) {
+            else if ((pParentOrder = ordnoMap->GetOrder(this->OrdNo_)) != nullptr) {
                // auto* ini = order->Initiator();
                // if (fon9_LIKELY(檢查 this 與 ini 的欄位是否相符))) {
                // [改單回報] 不一定回提供全部欄位, 所以用委託書號找到 原委託 即可.
-                  OmsReportRunnerInCore   inCoreRunner{std::move(checker), *order->BeginUpdate(*this)};
+            __UPDATE_NEWCHG:;
+                  OmsReportRunnerInCore   inCoreRunner{std::move(checker), *pParentOrder->BeginUpdate(*this)};
                   this->OnParentReportInCore_ChgReport(inCoreRunner);
+                  this->AssignToParentOrdraw(inCoreRunner);
                   inCoreRunner.Resource_.Backend_.FetchSNO(*this);
                   inCoreRunner.UpdateReport(*this);
                // }
@@ -495,13 +515,18 @@ fon9::TimeStamp OmsParentRequestIni::GetSrcUTime() const {
    return fon9::TimeStamp::Null();
 }
 bool OmsParentRequestIni::IsNeedsReport(const OmsRequestBase& ref) const {
-   if (ref.LastUpdated() == nullptr)
+   const auto* refLastUpdated = ref.LastUpdated();
+   if (refLastUpdated == nullptr)
       return true;
-   auto& refOrder = ref.LastUpdated()->Order();
+   auto& refOrder = refLastUpdated->Order();
    if (!refOrder.IsWorkingOrder())
       return false;
-   assert(dynamic_cast<const OmsParentOrderRaw*>(refOrder.Tail()) != nullptr);
-   return this->GetSrcUTime() > static_cast<const OmsParentOrderRaw*>(refOrder.Tail())->SrcUTime_;
+   auto* tail = refOrder.Tail();
+   if (this->GetSrcUTime() <= tail->UpdateTime_)
+      return false;
+   if (this->ReportSt() != refLastUpdated->RequestSt_)
+      return true;
+   return !this->RunReportInCore_IsBfAfMatch(*tail);
 }
 bool OmsParentRequestIni::IsNeedsReport_ForNew(OmsReportChecker& checker, const OmsRequestBase& ref) {
    if (this->IsNeedsReport(ref))

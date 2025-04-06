@@ -257,7 +257,8 @@ void OmsBackend::OnBefore_Order_EndUpdate(OmsRequestRunnerInCore& runner) {
 
    ordraw.SetRxSNO(++this->LastSNO_);
    ordraw.Request().SetLastUpdated(ordraw);
-   ordraw.UpdateTime_ = fon9::UtcNow();
+   if (ordraw.UpdateTime_.IsNullOrZero()) // 沒有主動設定 UpdateTime, 某些回報(或特殊情況), 可能由程序設定, 此時這裡就不用變動.
+      ordraw.UpdateTime_ = fon9::UtcNow();// 則在此設定;
    if (fon9_LIKELY(runner.Resource_.Core_.CoreSt() != OmsCoreSt::Loading)) {
       runner.Resource_.Core_.Owner_->UpdateSc(runner);
    }

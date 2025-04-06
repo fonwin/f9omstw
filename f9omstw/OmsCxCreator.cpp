@@ -112,7 +112,7 @@ struct OmsCxCreator_RunInCore : public OmsCxCreatorInternal {
    using base = OmsCxCreatorInternal;
    template <class... ArgsT>
    OmsCxCreator_RunInCore(OmsRequestRunnerInCore& runner, ArgsT&&... args) : base(std::forward<ArgsT>(args)...), Runner_(runner) {
-   #if _DEBUG
+   #ifdef _DEBUG
       auto& ordraw = this->Runner_.OrderRaw();
       assert(ordraw.RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond || ordraw.RequestSt_ == f9fmkt_TradingRequestSt_WaitingCondAtOther);
       assert(ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCond || ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCondAtOther);
@@ -167,16 +167,16 @@ bool OmsCxReqBase::InternalCreateCxExpr(OmsCxCreatorInternal& args) {
    //-----
    return true;
 }
-bool OmsCxReqBase::BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, const OmsRequestTrade& txReq, OmsSymbSP txSymb) {
+bool OmsCxReqBase::BeforeReqInCore_CreateCxExpr(OmsRequestRunner& runner, OmsResource& res, OmsSymbSP txSymb) {
    fon9::StrView cxArgsStr{ToStrView(this->CxArgs_)};
    if (fon9_LIKELY(cxArgsStr.empty())) {
       this->CxArgs_.clear();
       return true;
    }
-   OmsCxCreator_BeforeReqInCore args(runner, *this, cxArgsStr, res, txReq, std::move(txSymb));
+   OmsCxCreator_BeforeReqInCore args(runner, *this, cxArgsStr, res, *static_cast<const OmsRequestTrade*>(runner.Request_.get()), std::move(txSymb));
    return this->InternalCreateCxExpr(args);
 }
-bool OmsCxReqBase::RecreateCxExpr(OmsRequestRunnerInCore& runner, const OmsRequestTrade& txReq) {
+bool OmsCxReqBase::RecreateCxExpr(OmsRequestRunnerInCore& runner) {
    assert(!this->CxArgs_.empty() && this->CxExpr_ == nullptr);
    auto& ordraw = runner.OrderRaw();
    auto& order = ordraw.Order();
@@ -184,7 +184,7 @@ bool OmsCxReqBase::RecreateCxExpr(OmsRequestRunnerInCore& runner, const OmsReque
    if (ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCond || ordraw.UpdateOrderSt_ == f9fmkt_OrderSt_NewWaitingCondAtOther) {
       ordraw.RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
       OmsSymbSP txSymb = order.ScResource().Symb_;
-      OmsCxCreator_RunInCore args{runner, *this, ToStrView(this->CxArgs_), runner.Resource_, txReq, std::move(txSymb)};
+      OmsCxCreator_RunInCore args{runner, *this, ToStrView(this->CxArgs_), runner.Resource_, *static_cast<const OmsRequestTrade*>(&ordraw.Request()), std::move(txSymb)};
       return this->InternalCreateCxExpr(args);
    }
    ordraw.ErrCode_ = OmsErrCode_RequestNotSupportThisOrder;

@@ -20,6 +20,25 @@ public:
    }
 };
 //--------------------------------------------------------------------------//
+template <class TBase, class TCxData, class TOrdRaw>
+class OmsCxReportCombine : public OmsCxCombine<TBase, TCxData> {
+   fon9_NON_COPY_NON_MOVE(OmsCxReportCombine);
+   using base = OmsCxCombine<TBase, TCxData>;
+public:
+   using base::base;
+   OmsCxReportCombine() = default;
+
+   bool AssignReportChgCondToOrdraw(OmsOrderRaw& ordraw) const override {
+      assert(dynamic_cast<TOrdRaw*>(&ordraw) != nullptr);
+      static_cast<TOrdRaw*>(&ordraw)->CondQty_ = this->CondQty_;
+      static_cast<TOrdRaw*>(&ordraw)->CondPri_ = this->CondPri_;
+      // 可能同時改量;
+      OmsAssignOrdAfterQtyFromRpt(*static_cast<TOrdRaw*>(&ordraw), *this);
+      // 可能同時改價: 返回後,後續會處理;
+      return true;
+   }
+};
+//--------------------------------------------------------------------------//
 template <class TOrdRaw, class TCxData>
 class OmsCxCombineOrdRaw : public OmsCxCombine<TOrdRaw, TCxData> {
    fon9_NON_COPY_NON_MOVE(OmsCxCombineOrdRaw);

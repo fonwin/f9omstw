@@ -190,6 +190,14 @@ public:
    const OmsRxItem* GetRxItem(OmsRxSNO sno) {
       return this->Backend_.GetItem(sno, this->Backend_.Lock());
    }
+   /// 使用 reqid 取得委託, reqid 必須使用 OmsReqUID_Builder 格式;
+   /// 若其中的 HostId 不是 fon9::LocalHostId_ 則透過 Owner_ 透過 FnGetSynRequest_ 尋找(OmsRcSyn.cpp 有支援)
+   const OmsRequestBase* GetByRequestId(const OmsRequestId& reqid);
+   OmsOrder* GetOrderByRequestId(const OmsRequestId& reqid) {
+      if (auto* req = this->GetByRequestId(reqid))
+         return req->LastUpdated() ? &req->LastUpdated()->Order() : nullptr;
+      return nullptr;
+   }
 
    /// OmsSymbTree 有 lock 保護, 所以不需要透過 Resource 取用.
    OmsSymbTree* GetSymbs() const { return this->Symbs_.get(); }

@@ -26,6 +26,11 @@ void OmsRequestBase::RevPrint(fon9::RevBuffer& rbuf) const {
          fon9::RevPrint(rbuf, ':', *this->AbandonReason_);
       fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL f9omstw_kCSTR_RequestAbandonHeader, this->ErrCode_);
    }
+   if (auto* lastupd = this->LastUpdated()) {
+      const OmsRxSNO reqRefSNO = lastupd->Order().Head()->Request().RxSNO();
+      fon9::RevPrint(rbuf, reqRefSNO);
+   }
+   fon9::RevPrint(rbuf, fon9_kCSTR_CELLSPL);
    RevPrintFields(rbuf, *this->Creator_, fon9::seed::SimpleRawRd{*this});
 }
 void OmsOrderRaw::RevPrint(fon9::RevBuffer& rbuf) const {
@@ -96,10 +101,15 @@ struct OmsBackend::Loader {
             return "MakeRequest:Cannot make request or report.";
       }
       req->RxSNO_ = this->LastSNO_;
-      req->SetInCore();
       StrToFields(flds.Fields_, fon9::seed::SimpleRawWr{*req}, ln);
       req->OnAfterReloadFields(this->Resource_);
-
+      // -----
+      this->LastReqRefSNO_ = fon9::StrTo(&ln, OmsRxSNO{});
+      if (this->LastReqRefSNO_ == req->RxSNO_)
+         this->LastReqRefSNO_ = 0;
+      if (ln.Get1st() == *fon9_kCSTR_CELLSPL)
+         ln.IncBegin(1);
+      // -----
       if (ln.size() >= sizeof(f9omstw_kCSTR_RequestAbandonHeader)
       && memcmp(ln.begin(), f9omstw_kCSTR_RequestAbandonHeader, sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1) == 0) {
          ln.SetBegin(ln.begin() + sizeof(f9omstw_kCSTR_RequestAbandonHeader) - 1);
@@ -139,12 +149,15 @@ struct OmsBackend::Loader {
          }
       }
       else { // ln = reqFrom 的首次異動 => order 的首次異動? 或後續異動?
+         OmsRxSNO iniSNO = this->LastReqRefSNO_;
+         this->LastReqRefSNO_ = 0;
          if (const auto* fldIniSNO = reqFrom->Creator_->Fields_.Get("IniSNO")) {
-            auto iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
+            iniSNO = static_cast<OmsRxSNO>(fldIniSNO->GetNumber(fon9::seed::SimpleRawRd{*reqFrom}, 0, 0));
             if (iniSNO == 0)
                // 有 IniSNO 欄位, 但 IniSNO=0:
                // 可能因回報亂序, 尚未收到 Initiator 之前的刪改查成交.
                goto __GET_ORDER_BY_ORDKEY;
+      __FIND_ORDER_BY_REF_SNO:;
             const auto* reqIni = this->Items_.GetRequest(iniSNO);
             if (reqIni == nullptr)
                return "Loader.MakeOrder: Ini request not found.";
@@ -156,6 +169,8 @@ struct OmsBackend::Loader {
       __GET_ORDER_BY_ORDKEY:
             if ((order = reqFrom->SearchOrderByOrdKey(this->Resource_)) == nullptr) {
                assert(lastupd == nullptr);
+               if (iniSNO != 0)
+                  goto __FIND_ORDER_BY_REF_SNO;
                ordraw = static_cast<OmsOrderFactory*>(flds.Factory_)->MakeOrder(*reqFrom, nullptr);
                order = &ordraw->Order();
             }
@@ -197,6 +212,7 @@ struct OmsBackend::Loader {
    OmsResource&   Resource_;
    ItemsImpl&     Items_;
    OmsRxSNO       LastSNO_{0};
+   OmsRxSNO       LastReqRefSNO_{0};
    Loader(OmsResource& resource, ItemsImpl& items)
       : Resource_(resource)
       , Items_(items) {

@@ -22,8 +22,8 @@ protected:
    void RunReportInCore_OrderNotFound(OmsReportChecker&& checker, OmsOrdNoMap& ordnoMap) override;
    void RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) override;
    void RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) override;
-   bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) override;
-   bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) override;
+   bool RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const override;
+   bool RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const override;
 
 public:
    fon9::TimeStamp         ExgTime_{fon9::TimeStamp::Null()};
@@ -31,8 +31,10 @@ public:
    f9twf::TmpSessionId_t   OutPvcId_{};
    /// this->Qty_ 為 AfterQty;
    OmsTwfQty               BeforeQty_{};
+   /// 若為 this->LeavesQty_ == 0; 則使用 this->Qty_; (AfterQty);
+   OmsTwfQty               LeavesQty_{};
    OmsReportPriStyle       PriStyle_{OmsReportPriStyle::NoDecimal};
-   char                    padding__[3];
+   char                    padding__[1];
 
    using base::base;
 

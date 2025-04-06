@@ -30,7 +30,8 @@ bool OmsRequestRunnerInCore::AllocOrdNo(OmsOrdTeamGroupId tgId, const OmsRequest
 void OmsRequestRunnerInCore::Update(f9fmkt_TradingRequestSt reqst) {
    this->OrderRaw_->RequestSt_ = reqst;
    // 新單異動, 需同時更新 OrderSt
-   if (fon9_LIKELY(this->OrderRaw_->Request().RxKind() == f9fmkt_RxKind_RequestNew)) {
+   const auto curRxKind = this->OrderRaw_->Request().RxKind();
+   if (fon9_LIKELY(curRxKind == f9fmkt_RxKind_RequestNew)) {
    __UPDATE_ORDER_ST:;
       if (this->OrderRaw_->UpdateOrderSt_ < static_cast<f9fmkt_OrderSt>(reqst)
           && reqst < f9fmkt_TradingRequestSt_Restated) {
@@ -39,7 +40,7 @@ void OmsRequestRunnerInCore::Update(f9fmkt_TradingRequestSt reqst) {
             this->OrderRaw_->OnOrderReject();
       }
    }
-   else if (fon9_UNLIKELY(this->OrderRaw_->Request().RxKind() == f9fmkt_RxKind_RequestRerun)) {
+   else if (fon9_UNLIKELY(curRxKind == f9fmkt_RxKind_RequestRerun || curRxKind == f9fmkt_RxKind_RequestForceContinue)) {
       if (auto* upd = dynamic_cast<const OmsRequestUpd*>(&this->OrderRaw_->Request())) {
          if (this->Resource_.Backend_.GetItem(upd->IniSNO())->RxKind() == f9fmkt_RxKind_RequestNew)
             goto __UPDATE_ORDER_ST;

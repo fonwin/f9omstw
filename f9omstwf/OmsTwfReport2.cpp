@@ -13,6 +13,7 @@ void OmsTwfReport2::MakeFields(fon9::seed::Fields& flds) {
    base::AddFieldsForReport(flds);
    flds.Add(fon9_MakeField2(OmsTwfReport2, ExgTime));
    flds.Add(fon9_MakeField2(OmsTwfReport2, BeforeQty));
+   flds.Add(fon9_MakeField2(OmsTwfReport2, LeavesQty));
    flds.Add(fon9_MakeField2(OmsTwfReport2, OutPvcId));
 }
 //--------------------------------------------------------------------------//
@@ -30,7 +31,7 @@ static inline bool AdjustReportPrice(int32_t priMul, OmsTwfReport2& rpt) {
 static inline void OmsAssignOrderFromReportNewOrig(OmsTwfOrderRaw1& ordraw, OmsTwfReport2& rpt) {
    if (ordraw.PosEff_ == OmsTwfPosEff{})
       ordraw.PosEff_ = rpt.PosEff_;
-   ordraw.AfterQty_ = ordraw.LeavesQty_ = rpt.Qty_;
+   OmsAssignOrdAfterQtyFromRpt(ordraw, rpt);
 }
 void OmsTwfReport2::RunReportInCore_FromOrig(OmsReportChecker&& checker, const OmsRequestBase& origReq) {
    if (fon9_LIKELY(this->RunReportInCore_FromOrig_Precheck(checker, origReq))) {
@@ -63,11 +64,10 @@ void OmsTwfReport2::RunReportInCore_MakeReqUID() {
    }
    this->MakeReportReqUID(this->ExgTime_, uidval);
 }
-bool OmsTwfReport2::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
-   return static_cast<const OmsTwfOrderRaw1*>(&ordu)->BeforeQty_ == this->BeforeQty_
-      && static_cast<const OmsTwfOrderRaw1*>(&ordu)->AfterQty_ == this->Qty_;
+bool OmsTwfReport2::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const {
+   return OmsIsBfAfMatch(*static_cast<const OmsTwfOrderRaw1*>(&ordu), *this);
 }
-bool OmsTwfReport2::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) {
+bool OmsTwfReport2::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const {
    return static_cast<const OmsTwfOrderRaw1*>(&ordu)->LastExgTime_ == this->ExgTime_;
 }
 //--------------------------------------------------------------------------//
@@ -85,8 +85,8 @@ void OmsTwfReport2::RunReportInCore_OrderNotFound(OmsReportChecker&& checker, Om
 }
 void OmsTwfReport2::RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) {
    OmsTwfOrderRaw1&  ordraw = inCoreRunner.OrderRawT<OmsTwfOrderRaw1>();
-   ordraw.AfterQty_ = ordraw.LeavesQty_ = this->Qty_;
-   ordraw.PosEff_   = this->PosEff_;
+   OmsAssignOrdAfterQtyFromRpt(ordraw, *this);
+   ordraw.PosEff_ = this->PosEff_;
    OmsRunReportInCore_InitiatorNew(std::move(inCoreRunner), ordraw, *this);
 }
 void OmsTwfReport2::RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) {
@@ -103,7 +103,6 @@ void OmsTwfReport2::OnSynReport(const OmsRequestBase* ref, fon9::StrView message
       if (fon9_LIKELY(ini != nullptr)) {
       ___COPY_FROM_INI:;
          this->Symbol_ = ini->Symbol_;
-         this->IvacNo_ = ini->IvacNo_;
          this->Side_   = ini->Side_;
          return;
       }

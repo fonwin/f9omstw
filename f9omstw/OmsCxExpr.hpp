@@ -58,7 +58,8 @@ protected:
    Leaf     Curr_;
    Leaf     Right_;
    CombSt   CombSt_;
-   char     Padding7____[7];
+   uint8_t  CxReqSt_;
+   char     Padding6____[6];
 
    static void RevPrintLeaf(fon9::RevBuffer& rbuf, Leaf leaf, CombSt combSt, CombSt maskIsUnit);
 };

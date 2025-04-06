@@ -34,6 +34,9 @@ bool OmsRequestTrade::ParseAskerMessage(fon9::StrView message) {
    (void)message;
    return true;
 }
+const OmsCxReqBase* OmsRequestTrade::GetCxReq() const {
+   return nullptr;
+}
 
 //--------------------------------------------------------------------------//
 
@@ -77,6 +80,24 @@ const char* OmsRequestIni::GetNotEqualIniFieldNameImpl(const OmsRequestIni& req)
    if (this->SubacNo_ != req.SubacNo_)
       return "SubacNo";
    return nullptr;
+}
+void OmsRequestIni::OnSynReport(const OmsRequestBase* ref, fon9::StrView message) {
+   base::OnSynReport(ref, message);
+   if (ref) {
+      auto ini = dynamic_cast<const OmsRequestIni*>(ref);
+      if (ini == nullptr) {
+         if (auto* ordraw = ref->LastUpdated())
+            ini = ordraw->Order().Initiator();
+      }
+      if (fon9_LIKELY(ini != nullptr)) {
+         if (this->IvacNo_ == 0)
+            this->IvacNo_ = ini->IvacNo_;
+         if (this->SubacNo_.empty1st())
+            this->SubacNo_ = ini->SubacNo_;
+         if (this->SalesNo_.empty1st())
+            this->SalesNo_ = ini->SalesNo_;
+      }
+   }
 }
 const OmsRequestIni* OmsRequestIni::BeforeReq_CheckOrdKey(OmsRequestRunner& runner, OmsResource& res, OmsScResource& scRes) {
    if (this->Market_ == f9fmkt_TradingMarket_Unknown) {
@@ -188,6 +209,10 @@ OmsOrderRaw* OmsRequestIni::BeforeReqInCore(OmsRequestRunner& runner, OmsResourc
       }
    }
    return nullptr;
+}
+bool OmsRequestIni::AssignReportChgCondToOrdraw(OmsOrderRaw& ordraw) const {
+   (void)ordraw;
+   return false;
 }
 
 //--------------------------------------------------------------------------//

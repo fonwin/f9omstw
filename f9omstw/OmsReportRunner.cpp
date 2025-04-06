@@ -62,20 +62,29 @@ OmsOrdNoMap* OmsReportChecker::GetOrdNoMap() {
    return nullptr;
 }
 const OmsRequestBase* OmsReportChecker::SearchOrigRequestId() {
-   OmsRequestBase& rpt = *this->Report_;
-   OmsRxSNO        sno;
+   OmsRequestBase&       rpt = *this->Report_;
+   OmsRxSNO              sno;
+   const OmsRequestBase* origReq;
    if (OmsParseForceReportReqUID(rpt, sno)) {
-      if (auto* retval = this->Resource_.GetRequest(sno)) {
-         rpt.ReqUID_ = retval->ReqUID_;
-         return retval;
-      }
-      return nullptr;
+      origReq = this->Resource_.GetRequest(sno);
+      goto __FOUND_BY_REQ_UID;
    }
+   if (OmsParseForceReportReqPTR(rpt, origReq)) {
+   __FOUND_BY_REQ_UID:;
+      if (origReq == nullptr)
+         return nullptr;
+      rpt.ReqUID_ = origReq->ReqUID_;
+      // 從 OmsParseForceReportReqPTR() 取得的 origReq, 有可能在之前執行 origReq 回報時被排除, 所以沒有編 RxSNO();
+      if (origReq->RxSNO() > 0) {
+         return origReq;
+      }
+   }
+
    fon9::HostId rptHostId;
    sno = OmsReqUID_Builder::ParseReqUID(rpt, rptHostId);
    if (rptHostId != fon9::LocalHostId_) // 不是本機的 rpt.ReqUID_, 不可使用 sno 取的 origReq;
       return nullptr;
-   const OmsRequestBase* origReq = this->Resource_.GetRequest(sno);
+   origReq = this->Resource_.GetRequest(sno);
    if (fon9_UNLIKELY(origReq == nullptr)) // 無法用 ReqUID 的 RxSNO 取得 request.
       return nullptr;
    // -----

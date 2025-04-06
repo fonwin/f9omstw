@@ -8,6 +8,8 @@
 
 namespace f9omstw {
 
+class OmsCxReqBase;
+
 /// - 用於 OmsRequestTrade.SesName_;
 ///   如果內容為 fon9_kCSTR_OmsForceInternal 則表示此筆為[強制內部單]回報.
 /// - 成交回報則使用 OmsReportFilled.ReqUID_ = "I:原有規則";
@@ -141,6 +143,9 @@ public:
    /// 解析 PutAskToRemoteMessage() 打包的訊息, 一般只有在 TwfRpt, TwsRpt... 才需要覆寫此函式.
    /// TwfChg.PutAskToRemoteMessage() => TwfRpt.ParseAskerMessage();
    virtual bool ParseAskerMessage(fon9::StrView message);
+
+   /// 預設返回 nullptr;
+   virtual const OmsCxReqBase* GetCxReq() const;
 };
 
 //--------------------------------------------------------------------------//
@@ -234,6 +239,13 @@ public:
    /// - 應在 iniReq = runner.Request_->BeforeReq_GetInitiator() 之後執行:
    ///   iniReq->BeforeReq_CheckIvRight(runner);
    bool BeforeReq_CheckIvRight(OmsRequestRunner& runner, OmsResource& res) const;
+
+   /// 將 this(Report) 的 條件改單內容 填入 ordraw;
+   /// 預設傳回 false: 不支援填入: 條件改單內容;
+   virtual bool AssignReportChgCondToOrdraw(OmsOrderRaw& ordraw) const;
+
+   /// 同步來源端, 的回報可能沒有 IvacNo...
+   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
 };
 
 /// 複製 OmsRequestIni 基本資料, 及 Policy: dst.SetPolicy(src.Policy());

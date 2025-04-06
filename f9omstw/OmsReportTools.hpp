@@ -155,6 +155,28 @@ void OmsRestoreLeavesQtyFromReport(OrdQtysT& ordQtys) {
    assert(fon9::signed_cast(ordQtys.LeavesQty_) >= 0);
 }
 
+template <class OrdQtysT, class ReportT>
+auto OmsAssignLeavesQtyFromReport(OrdQtysT* ordQtys, const ReportT* rpt)
+->decltype(rpt->LeavesQty_, bool()) {
+   if (ordQtys->BeforeQty_ == 0 && ordQtys->AfterQty_ == 0) {
+      ordQtys->LeavesQty_ = rpt->LeavesQty_;
+      return true;
+   }
+   return false;
+}
+inline bool OmsAssignLeavesQtyFromReport(...) {
+   return false;
+}
+
+template <class OrdQtysT, class ReportT>
+inline auto OmsAssignCondFromReport(OrdQtysT* ordQtys, const ReportT* rpt)
+->decltype(rpt->AssignReportChgCondToOrdraw(*ordQtys), bool()) {
+   return rpt->AssignReportChgCondToOrdraw(*ordQtys);
+}
+inline bool OmsAssignCondFromReport(...) {
+   return false;
+}
+
 //--------------------------------------------------------------------------//
 
 template <class RequestIniT, class ReportT>
@@ -246,16 +268,25 @@ bool OmsAssignQtysFromReportBfAf(OmsReportRunnerInCore& inCoreRunner, OrdQtysT& 
    }
    // 回報的改後數量=0, 但有「在途成交」或「遺漏改量」, 應先等補齊後再處理.
    else if (fon9_UNLIKELY(rptAfterQty == 0 && rptBeforeQty < ordQtys.LeavesQty_)) {
+      if (rptBeforeQty == 0) {
+         // [風控前: 等條件、尚未成立...] 的改單(Rerun、Force...);
+         // 這類回報直接處理, 不可以 Pending;
+         assert(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone);
+      }
+      else {
 __REPORT_PENDING:
-      ordQtys.BeforeQty_ = rptBeforeQty;
-      ordQtys.AfterQty_ = rptAfterQty;
-      inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
-      return true;
+         ordQtys.BeforeQty_ = rptBeforeQty;
+         ordQtys.AfterQty_ = rptAfterQty;
+         inCoreRunner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportPending;
+         return true;
+      }
    }
    // 尚未收到新單結果: 使用 Pending 機制, 先將改單結果存於 ordQtys, 等收到新單結果時再處理.
    if (fon9_UNLIKELY(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone)) {
       fon9_WARN_DISABLE_SWITCH;
       switch (inCoreRunner.OrderRaw().Order().LastOrderSt()) {
+      case f9fmkt_OrderSt_NewWaitingRun:
+      case f9fmkt_OrderSt_NewWaitingRunAtOther:
       case f9fmkt_OrderSt_NewWaitingCond:
       case f9fmkt_OrderSt_NewWaitingCondAtOther:
       case f9fmkt_OrderSt_NewQueuing:
@@ -267,30 +298,46 @@ __REPORT_PENDING:
       }
       fon9_WARN_POP;
    }
-   // ----- 刪減回報 ------------------------------------------
-   if (rpt.RxKind() == f9fmkt_RxKind_RequestChgQty
-       || rpt.RxKind() == f9fmkt_RxKind_RequestDelete) {
+   switch (rpt.RxKind()) {
+   case f9fmkt_RxKind_RequestChgQty:
+   case f9fmkt_RxKind_RequestDelete:
+      // ----- 刪減回報 ------------------------------------------
       if (fon9_LIKELY(!isReportRejected)) {
          ordQtys.BeforeQty_ = rptBeforeQty;
          ordQtys.AfterQty_ = rptAfterQty;
-         OmsRecalcLeavesQtyFromReport(inCoreRunner, ordQtys);
+         if (!OmsAssignLeavesQtyFromReport(&ordQtys, &rpt))
+            OmsRecalcLeavesQtyFromReport(inCoreRunner, ordQtys);
       }
       else {
          // 失敗的刪改(且不是 ExchangeNoLeavesQty: 上面已經判斷過了), 數量不會變動.
          assert(ordQtys.BeforeQty_ == ordQtys.AfterQty_);
       }
       return true;
-   }
-   // ----- 改價回報 ------------------------------------------
-   if (rpt.RxKind() == f9fmkt_RxKind_RequestChgPri) {
+   case f9fmkt_RxKind_RequestChgPri:
+      // ----- 改價回報 ------------------------------------------
       if (fon9_UNLIKELY(isReportRejected))
          return true;
       ordQtys.AfterQty_ = ordQtys.BeforeQty_ = rptAfterQty;
       if (OmsCheckReportChgPriStale(&inCoreRunner, &ordQtys, &rpt))
          return true;
+      break;
+   case f9fmkt_RxKind_RequestChgCond:
+      if (OmsAssignCondFromReport(&ordQtys, &rpt))
+         return true;
+      break;
+   case f9fmkt_RxKind_RequestForceContinue:
+   case f9fmkt_RxKind_RequestRerun:
+      return true;
+   default:
+   case f9fmkt_RxKind_Unknown:
+   case f9fmkt_RxKind_RequestNew:
+   case f9fmkt_RxKind_RequestQuery:
+   case f9fmkt_RxKind_Filled:
+   case f9fmkt_RxKind_Order:
+   case f9fmkt_RxKind_Event:
+      break;
    }
-   // [條件單:改條件]回報, 由衍生者自行處理.
-   assert(rpt.RxKind() == f9fmkt_RxKind_RequestChgCond && "OmsAssignQtysFromReportBfAf: Unknown report kind.");
+   assert(!"OmsAssignQtysFromReportBfAf: Unknown report kind.");
    return false;
 }
 
@@ -485,6 +532,46 @@ void OmsProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const Oms
       break;
    }
    fon9_WARN_POP;
+}
+
+//--------------------------------------------------------------------------//
+template <class OrdrawT, class ReportT>
+static inline void OmsAssignOrdAfterQtyFromRpt(OrdrawT& ordraw, const ReportT& rpt) {
+   ordraw.AfterQty_ = rpt.Qty_;
+   ordraw.LeavesQty_ = (rpt.LeavesQty_ ? rpt.LeavesQty_ : rpt.Qty_);
+}
+template <class OrdrawT, class ReportT>
+static inline bool OmsIsBfAfLeavesQtyMatch(const OrdrawT& ordu, const ReportT& rpt) {
+   if (ordu.BeforeQty_ == rpt.BeforeQty_ && ordu.AfterQty_ == rpt.Qty_) {
+      if (ordu.BeforeQty_ == 0 && ordu.AfterQty_ == 0) {
+         // 尚未風控前的改單(WaitingCond,WaitingRun...):
+         // Bf == Af == 0; 僅更改 LeavesQty;
+         // 所以仍需判斷 LeavesQty, 才能確定 Qty 是否有變動;
+         return(ordu.LeavesQty_ == rpt.LeavesQty_);
+      }
+      return true;
+   }
+   return false;
+}
+template <class OrdrawT, class ReportT>
+static inline bool OmsIsBfAfQtyLeavesQtyMatch(const OrdrawT& ordu, const ReportT& rpt) {
+   if (ordu.BeforeQty_ == rpt.BeforeQty_ && ordu.AfterQty_ == rpt.AfterQty_) {
+      if (ordu.BeforeQty_ == 0 && ordu.AfterQty_ == 0)
+         return(ordu.LeavesQty_ == rpt.LeavesQty_);
+      return true;
+   }
+   return false;
+}
+
+template <class OrdrawT, class ReportT>
+static inline bool OmsIsBfAfPriMatch(const OrdrawT& ordu, const ReportT& rpt) {
+   return ordu.LastPriType_ == rpt.PriType_
+       && ordu.LastPri_ == rpt.Pri_;
+}
+template <class OrdrawT, class ReportT>
+static inline bool OmsIsBfAfMatch(const OrdrawT& ordu, const ReportT& rpt) {
+   return OmsIsBfAfLeavesQtyMatch(ordu, rpt)
+       && OmsIsBfAfPriMatch(ordu, rpt);
 }
 
 } // namespaces

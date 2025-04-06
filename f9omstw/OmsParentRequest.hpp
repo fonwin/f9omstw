@@ -45,10 +45,8 @@ class OmsParentRequestIni : public OmsRequestIni {
    /// 在使用 SeedCommand 啟用 ParentOrder 時使用;
    /// 不儲存, 重啟後歸0: 因為系統重啟前, Parent/Child 的狀態都無法正確更新, 所以重啟後不可以啟用 ParentOrder.
    fon9::HostId               OrigHostId_{};
-   /// 透過 this->OnSynReport() 設定;
-   /// 在處理回報時的原始下單要求(新刪改): 從 RcSyn 收到回報時的 ReferenceSNO 取得.
-   /// 協助 this->RunReportInCore() 的處理.
-   const OmsRequestBase*      ReportRef_{};
+
+   void AssignToParentOrdraw(OmsReportRunnerInCore& runner) const;
 
 protected:
    void RunReportInCore(OmsReportChecker&& checker) override;
@@ -56,7 +54,7 @@ protected:
    /// 預設: 透過 this->IsNeedsReport() 檢查;
    virtual bool IsNeedsReport_ForNew(OmsReportChecker& checker, const OmsRequestBase& ref);
    virtual bool IsNeedsReport_ForChg(OmsReportChecker& checker, const OmsRequestBase& ref);
-   /// return(this->GetSrcUTime() > Tail.SrcUTime_);
+   /// 根據 ref 來判斷 this 是否需要回報(是否為重複回報)?
    virtual bool IsNeedsReport(const OmsRequestBase& ref) const;
    /// 回報來源的異動時間, 用於協助判斷是否為重複回報, 來自回報的 OrdRaw.UpdateTime 欄位;
    /// 母單回報 Request(例: BergReport), 必須包含 UpdateTime 欄位, 並在此返回.
@@ -93,7 +91,6 @@ protected:
 public:
    using base::base;
    OmsParentRequestIni() = default;
-   void OnSynReport(const OmsRequestBase* ref, fon9::StrView message) override;
    bool IsParentRequest() const override;
    void OnChildAbandoned(const OmsRequestBase& childReq, OmsResource& res) const override;
    void OnChildRequestUpdated(const OmsRequestRunnerInCore& childRunner) const override;

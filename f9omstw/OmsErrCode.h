@@ -88,6 +88,10 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_Triggered_Cannot_ChgCond = 208,
    /// 無剩餘量, 無法改單;
    OmsErrCode_NoLeavesCannotChg = 209,
+   /// 無剩餘量, 無法 Rerun/Force;
+   OmsErrCode_NoLeavesCannotRerun = 210,
+   /// 已觸發, 無法 Rerun/Force;
+   OmsErrCode_Triggered_Cannot_Rerun = 211,
 
    /// OmsRequestIni::BeforeReq_CheckIvRight(); Ivr not found, or no permission.
    OmsErrCode_IvNoPermission = 300,
@@ -143,6 +147,13 @@ fon9_ENUM(OmsErrCode, uint16_t) {
    OmsErrCode_RemoteBack_NoReadyLine = 610,
    /// 繞送接收端退回繞進請求: [繞送接收端] 忙碌中.
    OmsErrCode_RemoteBack_Busy = 611,
+
+   /// 尚未接手該主機的備援.
+   OmsErrCode_NotTackOverThisHost = 620,
+   /// RequestId 沒有提供原主機代號.
+   OmsErrCode_RequestIdNoHostId = 621,
+   /// 備援機制不支援接手改單要求.
+   OmsErrCode_NotSupport_TackoverChgReq = 622,
       
    // -----------------------------------------------------------------------
    /// 刪改查要求, 但找不到對應的委託書.

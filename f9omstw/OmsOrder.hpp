@@ -460,12 +460,42 @@ inline OmsFilledFlag OmsOrder::HasFilled() const {
       return tail->HasFilled();
    return OmsFilledFlag::None;
 }
-
-// -----
+//--------------------------------------------------------------------------//
 inline void OmsRequestBase::SetLastUpdated(OmsOrderRaw& lastupd) const {
    // 若 lastupd 來自 Parent, 但 this 為 child 的成交, 則不可改變 this->LastUpdated_;
-   if (this->LastUpdated_ == nullptr || &this->LastUpdated_->Order() == &lastupd.Order())
-      this->LastUpdated_ = &lastupd;
+   assert(!this->IsAbandoned());
+   auto* curlast = this->LastUpdated();
+   if (fon9_LIKELY(curlast == nullptr || &curlast->Order() == &lastupd.Order()))
+      this->LastUpdatedOrReportRef_ = &lastupd;
+}
+inline const OmsOrderRaw* OmsRequestBase::LastUpdated() const {
+   if (auto* curitem = this->LastUpdatedOrReportRef_)
+      if (fon9_LIKELY(!this->IsAbandoned() && curitem->RxKind() == f9fmkt_RxKind_Order)) {
+         assert(dynamic_cast<const OmsOrderRaw*>(curitem) != nullptr);
+         return static_cast<const OmsOrderRaw*>(curitem);
+      }
+   return nullptr;
+}
+inline const OmsRequestBase* OmsRequestBase::ReportRef() const {
+   if (auto* curitem = this->LastUpdatedOrReportRef_)
+      if (!this->IsAbandoned() && curitem->RxKind() != f9fmkt_RxKind_Order) {
+         assert(dynamic_cast<const OmsRequestBase*>(curitem) != nullptr);
+         return static_cast<const OmsRequestBase*>(curitem);
+      }
+   return nullptr;
+}
+inline OmsOrder* GetRequestOrder(const OmsRequestBase* pthis) {
+   for (;;) {
+      auto* curitem = pthis->LastUpdatedOrReportRef_;
+      if (fon9_UNLIKELY(curitem == nullptr || pthis->IsAbandoned()))
+         return nullptr;
+      if (fon9_LIKELY(curitem->RxKind() == f9fmkt_RxKind_Order)) {
+         assert(dynamic_cast<const OmsOrderRaw*>(curitem) != nullptr);
+         return &static_cast<const OmsOrderRaw*>(curitem)->Order();
+      }
+      assert(dynamic_cast<const OmsRequestBase*>(curitem) != nullptr);
+      pthis = static_cast<const OmsRequestBase*>(curitem);
+   }
 }
 
 } // namespaces

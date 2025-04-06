@@ -46,7 +46,8 @@ static const f9omstw_ErrCodeTx* LoadOmsErrMsgTx(fon9::StrView cfgstr, const fon9
    while (!fon9::StrTrimHead(&cfgstr).empty()) {
       fon9::StrView ecstr = fon9::StrFetchTrim(cfgstr, '=');
       OmsErrCode    ec = static_cast<OmsErrCode>(fon9::StrTo(ecstr, 0u));
-      if (fon9::StrTrimHead(&cfgstr).Get1st() == '{') {
+      fon9::StrTrimHead(&cfgstr);
+      if (cfgstr.Get1st() == '{' && cfgstr.cbegin()[1] != ':') { // "{" 是多行設定, 但是要排除 "{:FieldName:}" 開頭的設定;
          cfgstr.SetBegin(cfgstr.begin() + 1);
          ecstr = fon9::SbrFetchNoTrim(cfgstr, '}');
          while (!fon9::StrTrimHead(&ecstr).empty()) { // en: ...\n

@@ -7,7 +7,7 @@
 
 namespace f9omstw {
 
-bool IsReloadWaitingCondReject = true;
+bool IsReloadKeepWaitingRequest = false;
 
 void OmsRequestBase::MakeFieldsImpl(fon9::seed::Fields& flds) {
    flds.Add(fon9_MakeField(OmsRequestBase, RxKind_, "Kind"));
@@ -117,12 +117,21 @@ void OmsRequestBase::OnAfterBackendReload(OmsResource& res, void* backendLocker)
       isReject = true;
    }
    else if (fon9_UNLIKELY(lastOrdraw->RequestSt_ == f9fmkt_TradingRequestSt_WaitingCond)) {
-      isReject = IsReloadWaitingCondReject;
-      ec = isReject ? OmsErrCode_SystemRestart_WaitingCanceled : OmsErrCode_SystemRestart_StopWaiting;
-      if (!isReject) {
-         if (lastOrdraw->ErrCode_ == ec)
-            return;
+      if (IsReloadKeepWaitingRequest) {
+         // 不要異動(連 ErrCode 都不要), 因為:
+         // 若備援已接手, 然後本機重啟,
+         // 則此時本機的數量及狀態, 可能不正確.
+         // 若在此時更新, 則備援同步後, 會造成接手主機更新到錯誤的資料.
+         return;
       }
+      // isReject = !IsReloadKeepWaitingRequest;
+      // ec = isReject ? OmsErrCode_SystemRestart_WaitingCanceled : OmsErrCode_SystemRestart_StopWaiting;
+      // if (!isReject) {
+      //    if (lastOrdraw->ErrCode_ == ec)
+      //       return;
+      // }
+      ec = OmsErrCode_SystemRestart_WaitingCanceled;
+      isReject = true;
    }
    else {
       return;
@@ -240,7 +249,7 @@ OmsOrder* OmsRequestBase::SearchOrderByKey(OmsRxSNO srcSNO, OmsResource& res) {
    return &lastUpdated->Order();
 }
 const OmsRequestIni* OmsRequestBase::BeforeReq_GetInitiator(OmsRequestRunner& runner, OmsRxSNO* pIniSNO, OmsResource& res) {
-   assert(this->LastUpdated_ == nullptr && this->AbandonReason_ == nullptr);
+   assert(this->LastUpdatedOrReportRef_ == nullptr && this->AbandonReason_ == nullptr);
    if (OmsOrder* order = this->SearchOrderByKey(pIniSNO ? *pIniSNO : 0, res)) {
       if (const OmsRequestIni* iniReq = order->Initiator()) {
          if (pIniSNO && *pIniSNO == 0)
@@ -312,12 +321,18 @@ void OmsRequestBase::OnSynReport(const OmsRequestBase* ref, fon9::StrView messag
       this->SessionId_ = ref->SessionId();
       if (this->RxKind_ == f9fmkt_RxKind_Unknown)
          this->RxKind_ = ref->RxKind();
-      if (this->RxKind() == ref->RxKind() && ref->RxSNO() > 0) {
-         // this = 針對 ref 的回報.
-         OmsForceAssignReportReqUID(*this, ref->RxSNO());
+      // ref 可能尚未進入 OmsCore, 所以 RxSNO 尚未編號,
+      // 若 ref 有 OrdNo 則仍可正常運作, 否則就必須等候 OmsCore 先處理 ref, 否則可能會找不到 orig req;
+      if (this->RxKind() == ref->RxKind()) {
+         // this = 針對 ref 的後續回報.
+         OmsForceAssignReportReqPTR(*this, ref);
       }
-      else if (OmsIsReqUIDEmpty(*this)) {
-         *static_cast<OmsRequestId*>(this) = *ref;
+      else {
+         // this = 針對 ref(ReqNew) 的改單回報;
+         assert(ref->RxKind() == f9fmkt_RxKind_RequestNew);
+         this->LastUpdatedOrReportRef_ = ref;
+         if (OmsIsReqUIDEmpty(*this))
+            *static_cast<OmsRequestId*>(this) = *ref;
       }
    }
 }
@@ -362,8 +377,23 @@ void OmsRequestBase::RunReportInCore_Start(OmsReportChecker&& checker) {
    // 若已呼叫過 checker.ReportAbandon(), 則直接結束.
    if (checker.CheckerSt_ == OmsReportCheckerSt::Abandoned)
       return;
+   OmsOrder* order;
    // ReqUID 找不到原下單要求, 使用 OrdKey 來找.
-   if (OmsIsOrdNoEmpty(this->OrdNo_)) {
+   if (fon9_UNLIKELY(OmsIsOrdNoEmpty(this->OrdNo_))) {
+      if (this->IsSynReport()) {
+         // OmsRcSyn 同步來的委託, 允許無委託書號;
+         if (this->RxKind() == f9fmkt_RxKind_RequestNew) {
+            if (OmsOrderFactory* ordfac = this->Creator().OrderFactory_.get()) {
+               OmsReportRunnerInCore inCoreRunner{std::move(checker), *ordfac->MakeOrder(*this, nullptr)};
+               this->RunReportInCore_NewOrder(std::move(inCoreRunner));
+               return;
+            }
+         }
+         else if ((order = this->Order()) != nullptr) {
+            this->RunReportInCore_Order(std::move(checker), *order);
+            return;
+         }
+      }
       this->RunReportInCore_OrdNoEmpty(std::move(checker));
       return;
    }
@@ -374,7 +404,7 @@ void OmsRequestBase::RunReportInCore_Start(OmsReportChecker&& checker) {
    if (OmsIsReqUIDEmpty(*this))
       this->RunReportInCore_MakeReqUID();
 
-   if (OmsOrder* order = ordnoMap->GetOrder(this->OrdNo_))
+   if ((order = ordnoMap->GetOrder(this->OrdNo_)) != nullptr)
       this->RunReportInCore_Order(std::move(checker), *order);
    else
       this->RunReportInCore_OrderNotFound(std::move(checker), *ordnoMap);
@@ -404,15 +434,47 @@ bool OmsRequestBase::RunReportInCore_FromOrig_Precheck(OmsReportChecker& checker
    }
    if (fon9_LIKELY(checker.CheckerSt_ == OmsReportCheckerSt::NotReceived))
       return true;
+   // =====
    // 不確定是否有收過此回報: 檢查是否重複回報.
    auto* lastUpdated = origReq.LastUpdated();
+   auto* tail = lastUpdated->Order().Tail();
+   // 某些狀態可能重複回報, 例: Waiting(AtOther), 或是某些群組單可能一直持續相同狀態;
+   fon9_WARN_DISABLE_SWITCH;
+   switch (this->ReportSt()) {
+   case f9fmkt_TradingRequestSt_WaitingRun:
+   case f9fmkt_TradingRequestSt_WaitingRunAtOther:
+      switch (lastUpdated->RequestSt_) {
+      case f9fmkt_TradingRequestSt_WaitingRun:
+      case f9fmkt_TradingRequestSt_WaitingRunAtOther:
+         goto __CHECK_QTY;
+      }
+      break;
+   case f9fmkt_TradingRequestSt_WaitingCond:
+   case f9fmkt_TradingRequestSt_WaitingCondAtOther:
+      switch (lastUpdated->RequestSt_) {
+      case f9fmkt_TradingRequestSt_WaitingCond:
+      case f9fmkt_TradingRequestSt_WaitingCondAtOther:
+         goto __CHECK_QTY;
+      }
+      break;
+   case f9fmkt_TradingRequestSt_Checking:
+   __CHECK_QTY:;
+      if (this->RunReportInCore_IsBfAfMatch(*tail))
+         goto __DUP_REPORT;
+      goto __ST_PASS;
+   }
+   fon9_WARN_POP;
+   // -----
    if (fon9_UNLIKELY(this->ReportSt() <= lastUpdated->RequestSt_)) {
+__DUP_REPORT:;
       checker.ReportAbandon("Report: Duplicate or Obsolete report.");
       return false;
    }
+__ST_PASS:;
+   // =====
    // Order 在此筆回報之前尚未編制 OrdNo, 此次回報提供了 Order 的 [委託書號].
    // 這種情況會在 OmsReportRunnerInCore::UpdateReportImpl() 將 OrdNo 填入 ordraw;
-   if (OmsIsOrdNoEmpty(lastUpdated->Order().Tail()->OrdNo_)) {
+   if (OmsIsOrdNoEmpty(tail->OrdNo_)) {
       if (!OmsIsOrdNoEmpty(checker.Report_->OrdNo_)) {
          if (OmsOrdNoMap* ordnoMap = checker.GetOrdNoMap()) {
             if (ordnoMap->EmplaceOrder(checker.Report_->OrdNo_, &lastUpdated->Order()))
@@ -460,12 +522,12 @@ void OmsRequestBase::RunReportInCore_OrdNoEmpty(OmsReportChecker&& checker) {
    // }
    // checker.ReportAbandon("Report: OrdNo is empty, but kind isnot 'N'");
 }
-bool OmsRequestBase::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) {
+bool OmsRequestBase::RunReportInCore_IsBfAfMatch(const OmsOrderRaw& ordu) const {
    (void)ordu;
    assert(!"Derived must override RunReportInCore_IsBfAfMatch()");
    return false;
 }
-bool OmsRequestBase::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) {
+bool OmsRequestBase::RunReportInCore_IsExgTimeMatch(const OmsOrderRaw& ordu) const {
    (void)ordu;
    assert(!"Derived must override RunReportInCore_IsExgTimeMatch()");
    return false;

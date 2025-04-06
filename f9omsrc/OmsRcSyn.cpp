@@ -22,13 +22,14 @@ using namespace fon9::seed;
 
 static const char kCSTR_SplRemoteStillConnectedLn[] = "|The remote host is still connected.\n";
 //--------------------------------------------------------------------------//
-OmsRcSyn_SessionFactory::OmsRcSyn_SessionFactory(std::string       name,
+OmsRcSyn_SessionFactory::OmsRcSyn_SessionFactory(const Creator&    creator,
                                                  OmsCoreMgrSP&&    omsCoreMgr,
-                                                 f9OmsRc_RptFilter rptFilter,
                                                  OmsRcClientAgent* omsRcCliAgent,
                                                  RcFuncConnClient* connCliAgent)
-   : base(std::move(name), std::move(omsCoreMgr))
-   , RptFilter_{rptFilter} {
+   : base(creator.Name_, std::move(omsCoreMgr))
+   , RptFilter_{creator.RptFilter_}
+   , IsAllowOrdNoEmpty_{creator.IsAllowOrdNoEmpty_} {
+   this->OmsCoreMgr_->SetFnGetSynRequest(std::bind(&OmsRcSyn_SessionFactory::GetRcSynRequest, this, std::placeholders::_1, std::placeholders::_2));
    this->Add(RcFunctionAgentSP{omsRcCliAgent ? omsRcCliAgent : new OmsRcClientAgent});
    this->Add(RcFunctionAgentSP{connCliAgent ? connCliAgent : new RcFuncConnClient("f9OmsRcSyn.0", "f9OmsRcSyn")});
    this->Add(RcFunctionAgentSP{new RcFuncSaslClient{}});
@@ -75,6 +76,14 @@ unsigned OmsRcSyn_SessionFactory::RcFunctionMgrAddRef() {
 unsigned OmsRcSyn_SessionFactory::RcFunctionMgrRelease() {
    return intrusive_ptr_release(this);
 }
+const OmsRequestBase* OmsRcSyn_SessionFactory::GetRcSynRequest(fon9::HostId hostid, OmsRxSNO sno) {
+   if (RemoteReqMapSP reqmap = this->FindRemoteMap(hostid)) {
+      auto snoMap = reqmap->MapSNO_.Lock();
+      if (sno < snoMap->size())
+         return (*snoMap)[sno].get();
+   }
+   return nullptr;
+}
 
 SessionServerSP OmsRcSyn_SessionFactory::CreateSessionServer(IoManager&, const IoConfigItem&, std::string& errReason) {
    errReason = this->Name_ + ": Not support server.";
@@ -116,7 +125,11 @@ SessionSP OmsRcSyn_SessionFactory::CreateSession(IoManager& mgr, const IoConfigI
    f9OmsRc_ClientSessionParams   omsRcParams;
    f9OmsRc_InitClientSessionParams(&f9rcCliParams, &omsRcParams);
    OmsRcSynClientSession::InitClientSessionParams(omsRcParams);
-   return this->CreateOmsRcSynClientSession(f9rcCliParams);
+   if (auto retval = this->CreateOmsRcSynClientSession(f9rcCliParams)) {
+      retval->SetAllowOrdNoEmpty(this->IsAllowOrdNoEmpty_);
+      return retval;
+   }
+   return nullptr;
 }
 OmsRcSynClientSessionSP OmsRcSyn_SessionFactory::CreateOmsRcSynClientSession(f9rc_ClientSessionParams& f9rcCliParams) {
    return new OmsRcSynClientSession(this, &f9rcCliParams);
@@ -564,6 +577,7 @@ static OmsRequestSP OnOmsRcSyn_MakeRpt(const OmsRcSynRptDefine& rptdef, const f9
                          : f9fmkt_RxKind_Unknown); // 此時應該是 f9fmkt_RxKind_Order;
    OmsRequestSP  req = rptdef.RptFactory_->MakeReportIn(kind, fon9::UtcNow());
    req->SetSynReport();
+   req->SetNotYetToCore();
    OnOmsRcSyn_AssignReq(rptdef, rpt, *req);
    return req;
 }
@@ -686,7 +700,7 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       *pSrcReqSP = OnOmsRcSyn_MakeRpt(rptdef, apiRpt);
       return;
    }
-   if (!ref->IsInCore()) {
+   if (ref->IsNotYetToCore()) {
       // ref 尚未執行 OmsCore.MoveToCore();
       *pSrcReqSP = ref;
       if (apiRpt->Layout_->LayoutKind_ != f9OmsRc_LayoutKind_ReportOrder) {
@@ -699,9 +713,12 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
       rptReq.reset(const_cast<OmsRequestBase*>(ref));
       OnOmsRcSyn_AssignReq(rptdef, apiRpt, *rptReq);
       if (ref->RxKind() == f9fmkt_RxKind_RequestNew) {
-         // 新單回報: 必須等到 [有委託書號] 才處理.
-         // 如果有需要同步 Queuing, WaitingCond 則對方需要先填入委託書號。
-         if (OmsIsOrdNoEmpty(ref->OrdNo_)) {
+         if (synSes->IsAllowOrdNoEmpty()) {
+            // 通常是系統有大量 WaitingCond, WaitingRun, WaitToCheck, WaitToGoOut... 且不一定會執行後續,
+            // 若先編制委託書號, 則會浪費大量委託書號資源;
+            // 所以提供: 允許沒有委託書號時就進行同步;
+         }
+         else if (OmsIsOrdNoEmpty(ref->OrdNo_)) {
             if (ref->ReportSt() >= f9fmkt_TradingRequestSt_Done) {
                // 拋棄: [沒編委託書號] 的 [新單結束(例:失敗新單)].
                (*snoMap)[apiRpt->ReferenceSNO_].reset();
@@ -823,14 +840,16 @@ void f9OmsRc_CALL OmsRcSynClientSession::OnOmsRcSyn_Report(f9rc_ClientSession* s
    // => 改成在 RemapReqUID() 時設定.
    // rptReq->SetParentReport((*snoMap)[rptReq->GetParentRequestSNO()].get());
    // -----
-   assert(rptReq->IsParentRequest() // 母單改量,可能是 f9fmkt_TradingRequestSt_Sending;
-         || (rptReq->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep)
-         || (rptReq->RxKind() == f9fmkt_RxKind_RequestNew && !OmsIsOrdNoEmpty(rptReq->OrdNo_)));
+   // 20250328: 允許無委託書號, 任意回報都可能需要同步, 所以底下的 assert() 不一定成立;
+   //assert(rptReq->IsParentRequest() // 母單改量,可能是 f9fmkt_TradingRequestSt_Sending;
+   //      || (rptReq->ReportSt() > f9fmkt_TradingRequestSt_LastRunStep)
+   //      || (rptReq->RxKind() == f9fmkt_RxKind_RequestNew && !OmsIsOrdNoEmpty(rptReq->OrdNo_)));
    synSes->OnOmsRcSyn_RunReport(std::move(rptReq), ref, message);
 }
 void OmsRcSynClientSession::OnOmsRcSyn_RunReport(OmsRequestSP rptReq, const OmsRequestBase* ref, const StrView& message) {
    (void)ref; (void)message;
    OmsRequestRunner runner;
+   rptReq->ClearNotYetToCore();
    runner.Request_ = std::move(rptReq);
    this->OmsCore_->MoveToCore(std::move(runner));
 }
@@ -857,10 +876,14 @@ bool OmsRcSyn_SessionFactory::Creator::OnUnknownTag(PluginsHolder& holder, StrVi
       this->RptFilter_ = static_cast<f9OmsRc_RptFilter>(fon9::HexStrTo(value));
       return true;
    }
+   if (fon9::iequals(tag, "AllowOrdNoEmpty")) {
+      this->IsAllowOrdNoEmpty_ = (fon9::toupper(value.Get1st()) == 'Y');
+      return true;
+   }
    return base::OnUnknownTag(holder, tag, value);
 }
 intrusive_ptr<OmsRcSyn_SessionFactory> OmsRcSyn_SessionFactory::Creator::CreateRcSynSessionFactory(OmsCoreMgrSP&& omsCoreMgr) {
-   return new OmsRcSyn_SessionFactory(this->Name_, std::move(omsCoreMgr), this->RptFilter_, nullptr, nullptr);
+   return new OmsRcSyn_SessionFactory(*this, std::move(omsCoreMgr), nullptr, nullptr);
 }
 SessionFactorySP OmsRcSyn_SessionFactory::Creator::CreateSessionFactory() {
    if (auto omsCoreMgr = this->GetOmsCoreMgr()) {

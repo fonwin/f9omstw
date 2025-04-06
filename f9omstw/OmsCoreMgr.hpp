@@ -23,6 +23,8 @@ using OmsOrderFactoryParkSP = fon9::intrusive_ptr<OmsOrderFactoryPark>;
 using OmsEventFactoryPark = OmsFactoryPark_NoKey<OmsEventFactory, fon9::seed::TreeFlag::Unordered>;
 using OmsEventFactoryParkSP = fon9::intrusive_ptr<OmsEventFactoryPark>;
 
+using OmsFnGetSynRequest = std::function<const OmsRequestBase* (fon9::HostId, OmsRxSNO)>;
+
 class TwfExgMapMgr;
 
 //--------------------------------------------------------------------------//
@@ -63,11 +65,12 @@ class OmsCoreMgr : public fon9::seed::MaTree {
                          fon9::seed::MaTreeBase::Locker&& ulk,
                          fon9::seed::SeedVisitor* visitor) override;
    };
-   OmsCoreSP         CurrentCore_;
-   CurrentCoreSeed&  CurrentCoreSeed_;
-   bool              IsTDayChanging_{false};
-   ErrCodeActSeed*   ErrCodeActSeed_;
-   TwfExgMapMgr*     TwfExgMapMgr_{};
+   OmsCoreSP            CurrentCore_;
+   CurrentCoreSeed&     CurrentCoreSeed_;
+   bool                 IsTDayChanging_{false};
+   ErrCodeActSeed*      ErrCodeActSeed_;
+   TwfExgMapMgr*        TwfExgMapMgr_{};
+   OmsFnGetSynRequest   FnGetSynRequest_;
 
 protected:
    OmsOrderFactoryParkSP   OrderFactoryPark_;
@@ -87,6 +90,12 @@ public:
 
    OmsCoreMgr(FnSetRequestLgOut fnSetRequestLgOut);
 
+   void SetFnGetSynRequest(OmsFnGetSynRequest&& fnGetSynRequest) {
+      this->FnGetSynRequest_ = std::move(fnGetSynRequest);
+   }
+   const OmsRequestBase* GetSynRequest(fon9::HostId hostid, OmsRxSNO sno) const {
+      return this->FnGetSynRequest_ ? this->FnGetSynRequest_(hostid, sno) : nullptr;
+   }
    /// 事件順序:
    /// cur->SetCoreSt(OmsCoreSt::CurrentCoreReady);
    /// old->SetCoreSt(OmsCoreSt::Disposing);

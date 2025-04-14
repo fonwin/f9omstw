@@ -15,6 +15,8 @@
 
 #ifdef fon9_WINDOWS
 #include <crtdbg.h>
+#else
+#define strncpy_s(dstbuf,dstsz,srcbuf,count)    strncpy(dstbuf,srcbuf,count)
 #endif
 //--------------------------------------------------------------------------//
 #define f9rc_ClientLogFlag_ut    ((f9rc_ClientLogFlag)0x80000000)
@@ -104,15 +106,17 @@ void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_Client
       ((ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All
       || (ses->LogFlags_ & f9rc_ClientLogFlag_ut))) {
       char  msgbuf[1024*4];
+      char* const pend = msgbuf + sizeof(msgbuf);
       char* pmsg = msgbuf;
       if (rpt->ReportSNO_)
-         pmsg += sprintf(pmsg, "[SNO=%" PRIu64 "]", rpt->ReportSNO_);
+         pmsg += snprintf(pmsg, (size_t)(pend - pmsg), "[SNO=%" PRIu64 "]", rpt->ReportSNO_);
       if (rpt->ReferenceSNO_)
-         pmsg += sprintf(pmsg, "[REF=%" PRIu64 "]", rpt->ReferenceSNO_);
-      pmsg += sprintf(pmsg, "%2u:%s(%u|%s)", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_
-                                           , rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_);
+         pmsg += snprintf(pmsg, (size_t)(pend - pmsg), "[REF=%" PRIu64 "]", rpt->ReferenceSNO_);
+      pmsg += snprintf(pmsg, (size_t)(pend - pmsg),
+                       "%2u:%s(%u|%s)", rpt->Layout_->LayoutId_, rpt->Layout_->LayoutName_.Begin_,
+                       rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_);
       for (unsigned L = 0; L < rpt->Layout_->FieldCount_; ++L) {
-         pmsg += sprintf(pmsg, "|%s=%s",
+         pmsg += snprintf(pmsg, (size_t)(pend - pmsg), "|%s=%s",
                          rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
                          rpt->FieldArray_[L].Begin_);
       }
@@ -260,7 +264,7 @@ void SetRequest(UserDefine* ud, char* cmd) {
             cmd = NULL;
          break;
       }
-      strncpy(req->Fields_[iFld], val, sizeof(req->Fields_[iFld]) - 1);
+      strncpy_s(req->Fields_[iFld], kMaxValueSize - 1, val, sizeof(req->Fields_[iFld]) - 1);
       req->Fields_[iFld][sizeof(req->Fields_[iFld]) - 1] = '\0';
       if (!cmd)
          break;
@@ -366,9 +370,9 @@ __CMD_PARSE_END:;
       if (pAutoOrdNo)
          f9omstw_IncStrAlpha((char*)pAutoOrdNo->Begin_, (char*)pAutoOrdNo->End_);
       if (pClOrdId)
-         pClOrdId->End_ = pClOrdId->Begin_ + sprintf((char*)pClOrdId->Begin_, "%s:%lu", groupName, L + 1);
+         pClOrdId->End_ = pClOrdId->Begin_ + snprintf((char*)pClOrdId->Begin_, kMaxValueSize, "%s:%lu", groupName, L + 1);
       if (pUsrDef)
-         pUsrDef->End_ = pUsrDef->Begin_ + sprintf((char*)pUsrDef->Begin_, "%" PRIu64, fon9_GetSystemUS());
+         pUsrDef->End_ = pUsrDef->Begin_ + snprintf((char*)pUsrDef->Begin_, kMaxValueSize, "%" PRIu64, fon9_GetSystemUS());
       if (fon9_UNLIKELY(args.IsBatch_)) {
          char* reqstr = (char*)(ptrL->ReqStr_.Begin_);
          for (unsigned iFld = 0; iFld < ptrL->Layout_->FieldCount_; ++iFld) {

@@ -255,7 +255,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
    clOrdIdStr->Begin_ = clOrdIdBuf;
    // Admin 送一筆 Fonwin 可以收到的回報.
    printf("[TEST ] Admin send, Fonwin recv.");
-   clOrdIdStr->End_ = clOrdIdStr->Begin_ + sprintf(clOrdIdBuf, "%u", ++clOrdIdNum);
+   clOrdIdStr->End_ = clOrdIdStr->Begin_ + snprintf(clOrdIdBuf, sizeof(clOrdIdBuf), "%u", ++clOrdIdNum);
    PUT_FIELD_VAL(fldValues, reqNew->IdxIvacNo_, "10");
    f9OmsRc_SendRequestFields(udAdmin.Session_, reqNew, fldValues);
    WaitLastSNO2(&udAdmin, &udFonwin, expectedSNO += kReqUsedSNO);
@@ -264,7 +264,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
    // Admin 送一筆 Fonwin 收不到的回報.
    printf("[TEST ] Admin send, Fonwin cannot recv.");
    udFonwin.CheckSum_ += AddCheckSum_NextReqOrd(expectedSNO + 1);
-   clOrdIdStr->End_ = clOrdIdStr->Begin_ + sprintf(clOrdIdBuf, "%u", ++clOrdIdNum);
+   clOrdIdStr->End_ = clOrdIdStr->Begin_ + snprintf(clOrdIdBuf, sizeof(clOrdIdBuf), "%u", ++clOrdIdNum);
    PUT_FIELD_VAL(fldValues, reqNew->IdxIvacNo_, "32");
    f9OmsRc_SendRequestFields(udAdmin.Session_, reqNew, fldValues);
    WaitLastSNO(&udAdmin, expectedSNO += kReqUsedSNO);
@@ -273,7 +273,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
 
    // Fonwin 送一筆 Admin 沒有的帳號, 但因 Admin 可用帳號有 "*", 所以可以收到.
    printf("[TEST ] Fonwin send, Admin recv.");
-   clOrdIdStr->End_ = clOrdIdStr->Begin_ + sprintf(clOrdIdBuf, "%u", ++clOrdIdNum);
+   clOrdIdStr->End_ = clOrdIdStr->Begin_ + snprintf(clOrdIdBuf, sizeof(clOrdIdBuf), "%u", ++clOrdIdNum);
    PUT_FIELD_VAL(fldValues, reqNew->IdxIvacNo_, "21");
    f9OmsRc_SendRequestFields(udFonwin.Session_, reqNew, fldValues);
    WaitLastSNO2(&udAdmin, &udFonwin, expectedSNO += kReqUsedSNO);
@@ -286,7 +286,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
    // 測試超過流量: API 等候.
    puts("Test FlowControl.");
    for (times = 0; times < kFcCount + kFcOverCount; ++times) {
-      clOrdIdStr->End_ = clOrdIdStr->Begin_ + sprintf(clOrdIdBuf, "%u", ++clOrdIdNum);
+      clOrdIdStr->End_ = clOrdIdStr->Begin_ + snprintf(clOrdIdBuf, sizeof(clOrdIdBuf), "%u", ++clOrdIdNum);
       f9OmsRc_SendRequestFields(udFonwin.Session_, reqNew, fldValues);
    }
    WaitLastSNO2(&udAdmin, &udFonwin, expectedSNO += times * kReqUsedSNO);
@@ -299,7 +299,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
                    + AddCheckSum_NextReqOrd_Times(expectedSNO + 1, kFcCount)
                    + AddCheckSum_NextReqOrd_Times(0, kFcOverCount);
    for (times = 0; times < kFcCount + kFcOverCount; ++times) {
-      clOrdIdStr->End_ = clOrdIdStr->Begin_ + sprintf(clOrdIdBuf, "%u", ++clOrdIdNum);
+      clOrdIdStr->End_ = clOrdIdStr->Begin_ + snprintf(clOrdIdBuf, sizeof(clOrdIdBuf), "%u", ++clOrdIdNum);
       f9OmsRc_SendRequestFields(udFonwin.Session_, reqNew, fldValues);
    }
    SleepMS(100); // 等候 abandon request 的 log 輸出.
@@ -315,7 +315,7 @@ int OmsRcFramework_UT_C_main(int argc, char** argv) {
 
    // 測試超過流量: force logout.
    for (times = 0; times < kFcCount + kFcOverCount; ++times) {
-      clOrdIdStr->End_ = clOrdIdStr->Begin_ + sprintf(clOrdIdBuf, "%u", ++clOrdIdNum);
+      clOrdIdStr->End_ = clOrdIdStr->Begin_ + snprintf(clOrdIdBuf, sizeof(clOrdIdBuf), "%u", ++clOrdIdNum);
       f9OmsRc_SendRequestFields(udFonwin.Session_, reqNew, fldValues);
    }
    //---------------------------------------------

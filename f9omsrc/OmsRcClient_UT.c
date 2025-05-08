@@ -47,6 +47,8 @@ typedef struct {
    const void*                LastCommandUserData_;
 } UserDefine;
 fon9_WARN_POP;
+
+static f9OmsRc_RptFilter   gRptFilter = f9OmsRc_RptFilter_RptAll;
 //--------------------------------------------------------------------------//
 void PrintEvSplit(const char* evName) {
    printf("========== %s: ", evName);
@@ -86,7 +88,7 @@ void fon9_CAPI_CALL OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_Client
       ud->LastSNO_ = 0;
       ud->CoreTDay_ = cfg->CoreTDay_;
    }
-   f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, f9OmsRc_RptFilter_RptAll);
+   f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, gRptFilter);
 }
 void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
    UserDefine* ud = ses->UserData_;
@@ -781,6 +783,9 @@ int main(int argc, char* argv[]) {
          break;
       case 'D': // DefaultThreadPool
          fon9_PresetDefaultThreadPoolStrArg(*pargv);
+         break;
+      case 'R': // RptFilter
+         gRptFilter = (f9OmsRc_RptFilter)strtoul(*pargv, NULL, 16);
          break;
       case '?':   goto __USAGE;
       default:    goto __UNKNOWN_ARGUMENT;

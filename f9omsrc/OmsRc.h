@@ -337,6 +337,19 @@ f9OmsRc_API_FN(const char*) f9OmsRc_ApiVersionInfo(void);
 ///   - 建立 Session 時, 必須提供 f9OmsRc_ClientSessionParams; 參數.
 ///   - 且需要經過 f9OmsRc_InitClientSessionParams() 初始化.
 f9OmsRc_API_FN(int) f9OmsRc_Initialize(const char* logFileFmt);
+/// \ref f9OmsRc_Initialize()
+/// - iosvCfg Io服務管理員參數設定, 預設 = "ThreadCount=1|Wait=Block"
+///   - 可用參數: "Cpus=綁核列表|ThreadCount=執行緒數量|Wait=事件等候方式"
+///   - 綁核列表: 核心代號, 若綁多個核心, 則使用「,」分隔;
+///     - 綁定的核心只會處理: (1)連線[成功/失敗]事件; (2)讀取訊息事件;
+///     - 送出訊息, 不會來到綁定的核心;
+///       - 所以理論上 iosvChg 的設定, 不會影響送單的延遲;
+///       - 但是 OS/Driver 在處理同一個 Io 的收送時, 是否會因 [收/送] 在不同的核心而有延遲? 則需要在實機上驗證;
+///         因為不同的 OS/Driver 結果可能會有差異;
+///   - 事件等候方式:
+///      - Block: 由 OS/Driver 發現有事件(Readable/Writable/Error) 時喚醒;
+///      - Busy:  持續輪詢是否有事件;
+///      - Yield: 類似 Busy, 但若無事件, 則會暫時釋放執行權;
 f9OmsRc_API_FN(int) f9OmsRc_Initialize2(const char* logFileFmt, const char* iosvCfg);
 
 /// 用指定名稱取得「下單表單格式」.

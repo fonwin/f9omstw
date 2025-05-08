@@ -13,7 +13,9 @@ inline void OmsLogSplit(fon9::RevBufferList& rbuf) {
       fon9::RevPrint(rbuf, fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
 }
 void OmsReportChecker::ReportAbandon(fon9::StrView reason) {
-   assert(this->Report_->RxSNO() == 0);
+   // 某些特殊情況下, this->Report_ 可能已經成立(RxSNO != 0),
+   // 此時若該回報的後續回報被拒絕, 則也會來到這裡.
+   // 所以 assert(this->Report_->RxSNO() == 0); 不一定成立;
    this->CheckerSt_ = OmsReportCheckerSt::Abandoned;
    OmsLogSplit(this->ExLog_);
    if ((this->Report_->RxItemFlags() & OmsRequestFlag_ForcePublish) == OmsRequestFlag_ForcePublish) {

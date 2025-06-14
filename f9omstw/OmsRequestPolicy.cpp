@@ -33,9 +33,12 @@ void OmsRequestPolicy::AddIvConfig(OmsIvBase* ivr, fon9::StrView subWilds, OmsIv
       subWilds.Reset(nullptr);
    }
    IvRec& rec = this->IvMap_.kfetch(ivr);
-   if (subWilds.empty())
+   if (subWilds.empty()) {
       rec.Config_ = config;
+      rec.ConfigValid_ = true;
+   }
    else {
+      ++rec.SubCount_;
       rec.SubWilds_.append(subWilds);
       rec.SubWilds_.push_back('\n');
       rec.SubWilds_.append(&config, sizeof(config));
@@ -43,7 +46,7 @@ void OmsRequestPolicy::AddIvConfig(OmsIvBase* ivr, fon9::StrView subWilds, OmsIv
 }
 OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr, OmsIvConfig* ivConfig) const {
    if (fon9_LIKELY(!this->IvMap_.empty())) {
-      OmsIvBase*  ivSrc = ivr;
+      OmsIvBase* const  ivSrc = ivr;
       for (;;) {
          auto ifind = this->IvMap_.find(ivr);
          if (fon9_LIKELY(ifind != this->IvMap_.end())) {
@@ -51,7 +54,8 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr, OmsIvConfig* ivConfig) 
                *ivConfig = ifind->Config_;
             if (fon9_LIKELY(ivSrc == ivr))
                return ifind->Config_.Rights_ | this->IvDenys_;
-            if (fon9_LIKELY(ifind->SubWilds_.empty())) {
+            if (fon9_LIKELY(ifind->SubCount_ == 0)) {
+               assert(ifind->SubWilds_.empty());
                if (ivr == nullptr || ivr->IvKind_ == OmsIvKind::Brk)
                   return ifind->Config_.Rights_ | this->IvDenys_;
                break; // 找不到 wild 的設定, 使用 this->IvRights_
@@ -64,7 +68,10 @@ OmsIvRight OmsRequestPolicy::GetIvRights(OmsIvBase* ivr, OmsIvConfig* ivConfig) 
                if (fon9::IsStrWildMatch(ToStrView(rbuf), fon9::StrView{subw.begin(), pspl})) {
                   if (pspl + kTailSize > subw.end()) // '\n' 已到尾端: '\n' 之後沒有 IvRight; => 不會發生此情況!
                      return ifind->Config_.Rights_ | this->IvDenys_; // 直接使用 ifind->Rights_;
-                  return fon9::GetUnaligned(reinterpret_cast<const OmsIvRight*>(pspl + 1)) | this->IvDenys_;
+                  ++pspl; // skip '\n';
+                  if (ivConfig)
+                     memcpy(ivConfig, pspl, sizeof(*ivConfig));
+                  return fon9::GetUnaligned(reinterpret_cast<const OmsIvRight*>(pspl)) | this->IvDenys_;
                }
                if (pspl + kTailSize >= subw.end())
                   break;

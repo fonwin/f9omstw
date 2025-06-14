@@ -34,7 +34,9 @@ class OmsRequestPolicy : public fon9::intrusive_ref_counter<OmsRequestPolicy> {
       /// 如果有多組 SubWilds_, 中間用 '\n' 分隔, 例如: ("A*" + "\n" + IvConcig) + ("B*" + "\n" + IvConcig);
       fon9::CharVector  SubWilds_;
       OmsIvConfig       Config_{OmsIvRight::DenyAll};
-      char              Padding____[6];
+      bool              ConfigValid_{false};
+      char              Padding____[1];
+      uint32_t          SubCount_{0};
 
       IvRec(OmsIvBase* iv) : Iv_{iv} {
       }

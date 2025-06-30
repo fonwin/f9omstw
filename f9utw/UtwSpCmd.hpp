@@ -19,15 +19,6 @@ class SpCmdBase : public fon9::seed::NamedSeed {
    fon9_NON_COPY_NON_MOVE(SpCmdBase);
    using base = fon9::seed::NamedSeed;
 
-protected:
-   /// 呼叫 OnSeedCommand() 時, ulk 在解鎖狀態.
-   /// 預設: resHandler("Unknown command.");
-   void OnSeedCommand(fon9::seed::SeedOpResult& res,
-                      fon9::StrView cmdln,
-                      fon9::seed::FnCommandResultHandler resHandler,
-                      fon9::seed::MaTreeBase::Locker&& ulk,
-                      fon9::seed::SeedVisitor* visitor) override;
-
 public:
    template <class... NamedArgsT>
    SpCmdBase(NamedArgsT&&... namedargs)
@@ -42,6 +33,19 @@ class SpCmdItem : public SpCmdBase {
    using base = SpCmdBase;
    std::string State_;
 protected:
+   fon9::seed::UnsafeSeedSubj NotifySubj_;
+
+   /// 呼叫 OnSeedCommand() 時, ulk 在解鎖狀態.
+   /// 預設: resHandler("Unknown command.");
+   void OnSeedCommand(fon9::seed::SeedOpResult& res,
+                      fon9::StrView cmdln,
+                      fon9::seed::FnCommandResultHandler resHandler,
+                      fon9::seed::MaTreeBase::Locker&& ulk,
+                      fon9::seed::SeedVisitor* visitor) override;
+   fon9::seed::OpResult FromPodOp_CheckSubscribeRights(fon9::seed::Tab& tab, const fon9::seed::SeedVisitor& visitor) override;
+   fon9::seed::OpResult FromPodOp_Subscribe(const fon9::seed::MaTreePodOp& lk, fon9::SubConn* pSubConn, fon9::seed::Tab& tab, fon9::seed::FnSeedSubr subr) override;
+   fon9::seed::OpResult FromPodOp_Unsubscribe(const fon9::seed::MaTreePodOp& lk, fon9::SubConn* pSubConn, fon9::seed::Tab& tab) override;
+
    void UpdateState(std::string&& st);
 
 public:

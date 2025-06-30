@@ -151,13 +151,14 @@ void OmsOrderRaw::InitializeByStarter(OmsOrder& order, const OmsRequestBase& sta
 }
 void OmsOrderRaw::InitializeByTail(const OmsOrderRaw& tail, const OmsRequestBase& req) {
    assert(tail.Next_ == nullptr && tail.Order_->Tail() == &tail);
-   tail.Next_ = this;
    this->Market_ = req.Market();
    this->SessionId_ = req.SessionId();
    this->Request_ = &req;
    this->Order_ = tail.Order_;
    this->UpdSeq_ = tail.UpdSeq_ + 1;
    this->ContinuePrevUpdate(tail);
+   // 在最後設定 tail.Next_, 避免其他 thread 取用 this(tail->Next_) 的相關資料時發生問題;
+   tail.Next_ = this;
 }
 void OmsOrderRaw::ContinuePrevUpdate(const OmsOrderRaw& prev) {
    assert(this->Order_ == prev.Order_);

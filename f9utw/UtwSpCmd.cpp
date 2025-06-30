@@ -12,7 +12,7 @@ namespace f9omstw {
 using namespace fon9::seed;
 
 //--------------------------------------------------------------------------//
-void SpCmdBase::OnSeedCommand(SeedOpResult& res,
+void SpCmdItem::OnSeedCommand(SeedOpResult& res,
                               fon9::StrView cmdln,
                               FnCommandResultHandler resHandler,
                               MaTreeBase::Locker&& ulk,
@@ -20,6 +20,21 @@ void SpCmdBase::OnSeedCommand(SeedOpResult& res,
    (void)ulk; (void)cmdln; (void)visitor;
    res.OpResult_ = OpResult::bad_command_argument;
    resHandler(res, "Unknown command.");
+}
+OpResult SpCmdItem::FromPodOp_CheckSubscribeRights(Tab& tab, const SeedVisitor& visitor) {
+   (void)tab;
+   if (ToStrView(this->Args_.ReqFrom_.UserId_) == ToStrView(visitor.AuthR_.AuthcId_))
+      return OpResult::no_error;
+   return OpResult::access_denied;
+}
+OpResult SpCmdItem::FromPodOp_Subscribe(const MaTreePodOp& lk, fon9::SubConn* pSubConn, Tab& tab, FnSeedSubr subr) {
+   this->NotifySubj_.Subscribe(pSubConn, subr);
+   subr(SeedNotifySubscribeOK{*lk.Sender_, tab, lk.KeyText_, SimpleRawRd{*lk.Seed_}});
+   return OpResult::no_error;
+}
+OpResult SpCmdItem::FromPodOp_Unsubscribe(const MaTreePodOp& lk, fon9::SubConn* pSubConn, Tab& tab) {
+   (void)tab;
+   return this->NotifySubj_.SafeUnsubscribe(lk.Locker_, pSubConn);
 }
 //--------------------------------------------------------------------------//
 LayoutSP SpCmdItem::MakeDefaultLayout() {
@@ -134,7 +149,13 @@ OmsRxSNO SpCmdDord::OnReportRecover(OmsCore& core, const OmsRxItem* item) {
        || item == nullptr) {     // 已回補完畢.
    __FINISHED:;
       this->OmsLogUpdateState(fon9::RevPrintTo<std::string>(fon9::UtcNow(), "|Done@RxSNO=", this->LastCheckRxSNO_));
+   __NOTIFY:;
       this->RptUnsub();
+      if (!this->NotifySubj_.IsEmpty()) {
+         fon9::seed::MaTree& ownerTree = *static_cast<MaTree*>(this->SpCmdMgr_.GetSapling().get());
+         auto subjLocker = ownerTree.Lock();
+         fon9::seed::SeedSubj_Notify(this->NotifySubj_, ownerTree, *ownerTree.LayoutSP_->GetTab(0), &this->Name_, *this);
+      }
       return 0; // 返回 0 表示停止回補, 不會再有回補訊息.
    }
    // 限制[尚未完成]的刪單要求數量.
@@ -148,7 +169,7 @@ OmsRxSNO SpCmdDord::OnReportRecover(OmsCore& core, const OmsRxItem* item) {
       }
       else {
          this->OmsLogUpdateState("dord: Cannot make delete request. STOP cmd.");
-         return 0;
+         goto __NOTIFY;
       }
    }
    // 返回下一個要回補的序號, 一般而言返回 item->RxSNO() + 1;

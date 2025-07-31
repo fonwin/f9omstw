@@ -93,7 +93,10 @@ bool OmsCxReqBase::ToWaitCond_ReqChg(OmsCxBaseChgDat* pthisCond, OmsRequestRunne
       }
       // 先等候條件, 條件成立後才風控.
       // 風控前, 加入 CondSymb 開始等候條件.
-      if (this->RegCondToSymb(runner, kPriority_ReqChg, condNextStep)) {
+      const auto priorityAdj = (f9fmkt_OrderSt_IsAfterOrEqual(ordraw.UpdateOrderSt_, f9fmkt_OrderSt_NewAlreadyGoOut)
+                                ? kPriority_ReqChg
+                                : kPriority_ChgNWC);
+      if (this->RegCondToSymb(runner, priorityAdj, condNextStep)) {
          ordraw.RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
          return true;
       }

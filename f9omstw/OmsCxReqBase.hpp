@@ -125,9 +125,11 @@ public:
       return(priType == f9fmkt_PriType_Market ? policy.CondPriorityM() : policy.CondPriorityL());
    }
 
-   static constexpr uint64_t kPriority_AfSc   = (0x00ULL << 32); // 已風控的條件單優先檢查.
-   static constexpr uint64_t kPriority_BfSc   = (0x10ULL << 32); // 未風控的條件單排在後面.
-   static constexpr uint64_t kPriority_ReqChg = (0x20ULL << 32);
+   static constexpr uint64_t kPriority_AfSc   = (0x110ULL << 32); // 已風控的條件單優先檢查.
+   static constexpr uint64_t kPriority_BfSc   = (0x120ULL << 32); // 未風控的條件單排在後面.
+   static constexpr uint64_t kPriority_ReqChg = (0x130ULL << 32);
+   // 條件刪改 [等候條件的新單], 優先權需在新單之前, 這樣可以在 [新單、改單] 同時成立時, 先執行改單;
+   static constexpr uint64_t kPriority_ChgNWC = (0x100ULL << 32);
 
    static void OrderUpdateWaitCondSt(OmsRequestRunnerInCore&& runner) {
       runner.OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_NewWaitingCond;

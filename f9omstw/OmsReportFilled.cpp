@@ -137,7 +137,7 @@ void OmsReportFilled::RunReportInCore_FilledOrder(OmsReportChecker&& checker, Om
       checker.ReportAbandon("OmsFilled: Duplicate MatchKey.");
       return;
    }
-   if (iniReq && order.LastOrderSt() < f9fmkt_OrderSt_NewDone)
+   if (iniReq && f9fmkt_OrderSt_IsBefore(order.LastOrderSt(), f9fmkt_OrderSt_NewDone))
       this->RunReportInCore_FilledBeforeNewDone(checker.Resource_, order);
    // 更新 order.
    OmsReportRunnerInCore inCoreRunner{std::move(checker), *order.BeginUpdate(*this)};
@@ -147,7 +147,7 @@ void OmsReportFilled::RunReportInCore_FilledOrder(OmsReportChecker&& checker, Om
    if (iniReq)
       this->IniSNO_ = iniReq->RxSNO();
 
-   if (fon9_LIKELY(order.LastOrderSt() >= f9fmkt_OrderSt_NewDone
+   if (fon9_LIKELY(f9fmkt_OrderSt_IsAfterOrEqual(order.LastOrderSt(), f9fmkt_OrderSt_NewDone)
                    && !this->RunReportInCore_FilledIsNeedsReportPending(inCoreRunner.OrderRaw())))
       this->RunReportInCore_FilledUpdateCum(std::move(inCoreRunner));
    else
@@ -163,7 +163,7 @@ OmsOrderRaw* OmsReportFilled::RunReportInCore_FilledMakeOrder(OmsReportChecker& 
 void OmsReportFilled::ProcessPendingReport(const OmsRequestRunnerInCore& prevRunner) const {
    assert(this->LastUpdated()->UpdateOrderSt_ == f9fmkt_OrderSt_ReportPending);
    OmsOrder& order = this->LastUpdated()->Order();
-   if (order.LastOrderSt() < f9fmkt_OrderSt_NewDone
+   if (f9fmkt_OrderSt_IsBefore(order.LastOrderSt(), f9fmkt_OrderSt_NewDone)
        || this->RunReportInCore_FilledIsNeedsReportPending(*order.Tail()))
       return;
    const OmsRequestIni*    ini = order.Initiator();
@@ -192,8 +192,10 @@ void OmsReportFilled::OnSynReport(const OmsRequestBase* ref, fon9::StrView messa
 }
 //--------------------------------------------------------------------------//
 void OmsBadAfterWriteLog(OmsReportRunnerInCore& inCoreRunner, int afterQty) {
-   fon9::RevPrint(inCoreRunner.ExLogForUpd_, "Bad.After=", afterQty,
-                  fon9_kCSTR_ROWSPL ">" fon9_kCSTR_CELLSPL);
+   if (inCoreRunner.ExLogForUpd_.cfront()) {
+      fon9::RevPrint(inCoreRunner.ExLogForUpd_, ">" fon9_kCSTR_CELLSPL);
+   }
+   fon9::RevPrint(inCoreRunner.ExLogForUpd_, "Bad.After=", afterQty, '\n');
 }
 
 } // namespaces

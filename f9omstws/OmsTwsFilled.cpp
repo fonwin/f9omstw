@@ -44,7 +44,7 @@ void OmsTwsFilled::RunReportInCore(OmsReportChecker&& checker) {
 void OmsTwsFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, OmsOrder& order) {
    if (this->ErrCode() != OmsErrCode_FilledBeforeNewDone)
       return;
-   assert(order.LastOrderSt() < f9fmkt_OrderSt_NewDone && order.Initiator() != nullptr);
+   assert(f9fmkt_OrderSt_IsBefore(order.LastOrderSt(), f9fmkt_OrderSt_NewDone) && order.Initiator() != nullptr);
    OmsInternalRunnerInCore inCoreRunner{resource, *order.BeginUpdate(*order.Initiator())};
    auto& ordraw = inCoreRunner.OrderRawT<OmsTwsOrderRaw>();
    if (ordraw.LastPriTime_.IsNull())

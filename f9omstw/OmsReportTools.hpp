@@ -66,7 +66,8 @@ inline auto OmsAssignLastPrisFromReport(OrderRawT* ordraw, const ReportT* rpt)
    if (!ordraw->LastPriTime_.IsNull() && rpt->RxKind() != f9fmkt_RxKind_RequestNew) {
       if (rpt->PriType_ == f9fmkt_PriType_Limit && rpt->Pri_.IsNull())
          return; // rpt 的價格不正確, 不更新 ordraw->LastPri*
-      if (ordraw->LastPriTime_ >= rpt->ExgTime_)
+      // 20250724: 配合 OmsCheckReportChgPriStale() 的修正, 底下 ">=" 改成 ">" 也就是若 Time 相同, 仍繼續後續處理;
+      if (ordraw->LastPriTime_ > rpt->ExgTime_)
          return;
       if (rpt->PriType_ == f9fmkt_PriType_Unknown || ordraw->LastPriType_ == rpt->PriType_) {
          if (ordraw->LastPri_ == rpt->Pri_)
@@ -212,7 +213,10 @@ inline bool OmsIsReportFieldsMatch(const RequestIniT& ini, const ReportT& rpt) {
 template <class OrdPrisT, class ReportT>
 inline auto OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OrdPrisT* ordPris, ReportT* rpt)
 ->decltype(ordPris->LastPriTime_, bool()) {
-   if (!ordPris->LastPriTime_.IsNull() && ordPris->LastPriTime_ >= rpt->ExgTime_)
+   // 20250724: ordPris->LastPriTime_ >= rpt->ExgTime_ 改成 ordPris->LastPriTime_ > rpt->ExgTime_;
+   //           - 瞬間同時改價, 且交易所時間相同, 本就無法判斷交易所最後是接受哪一筆;
+   //           - 改成 ">" 之後, 瞬間同時改價時, 每一筆 [交易所時間相同] 的改價回報, 都會更新 ordraw;
+   if (!ordPris->LastPriTime_.IsNull() && ordPris->LastPriTime_ > rpt->ExgTime_)
       inCoreRunner->OrderRaw().UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
    return true;
 }
@@ -271,7 +275,7 @@ bool OmsAssignQtysFromReportBfAf(OmsReportRunnerInCore& inCoreRunner, OrdQtysT& 
       if (rptBeforeQty == 0) {
          // [風控前: 等條件、尚未成立...] 的改單(Rerun、Force...);
          // 這類回報直接處理, 不可以 Pending;
-         assert(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone);
+         assert(f9fmkt_OrderSt_IsBefore(inCoreRunner.OrderRaw().Order().LastOrderSt(), f9fmkt_OrderSt_NewDone));
       }
       else {
 __REPORT_PENDING:
@@ -282,7 +286,7 @@ __REPORT_PENDING:
       }
    }
    // 尚未收到新單結果: 使用 Pending 機制, 先將改單結果存於 ordQtys, 等收到新單結果時再處理.
-   if (fon9_UNLIKELY(inCoreRunner.OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewDone)) {
+   if (fon9_UNLIKELY(f9fmkt_OrderSt_IsBefore(inCoreRunner.OrderRaw().Order().LastOrderSt(), f9fmkt_OrderSt_NewDone))) {
       fon9_WARN_DISABLE_SWITCH;
       switch (inCoreRunner.OrderRaw().Order().LastOrderSt()) {
       case f9fmkt_OrderSt_NewWaitingRun:
@@ -489,7 +493,7 @@ void OmsProcessPendingReport(const OmsRequestRunnerInCore& prevRunner, const Oms
    assert(dynamic_cast<const OrderRawT*>(rpt.LastUpdated()) != nullptr);
    const OrderRawT&  rptraw = *static_cast<const OrderRawT*>(rpt.LastUpdated());
    OmsOrder&         order = rpt.LastUpdated()->Order();
-   if (order.LastOrderSt() < f9fmkt_OrderSt_NewDone)
+   if (f9fmkt_OrderSt_IsBefore(order.LastOrderSt(), f9fmkt_OrderSt_NewDone))
       return;
    if (!OmsIsReadyForPendingReport(*static_cast<const OrderRawT*>(order.Tail()), rptraw, rptraw))
       return;

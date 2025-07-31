@@ -70,7 +70,7 @@ bool OmsTwfFilled::RunReportInCore_FilledIsFieldsMatch(const OmsRequestIni& ini)
    return true;
 }
 void OmsTwfFilled::RunReportInCore_FilledBeforeNewDone(OmsResource& resource, OmsOrder& order) {
-   assert(order.LastOrderSt() < f9fmkt_OrderSt_NewDone && order.Initiator() != nullptr);
+   assert(f9fmkt_OrderSt_IsBefore(order.LastOrderSt(), f9fmkt_OrderSt_NewDone) && order.Initiator() != nullptr);
    if (fon9_UNLIKELY(this->PosEff_ == OmsTwfPosEff::Quote && this->Side_ == f9fmkt_Side_Buy))
       return;
    const auto&             inireq = *order.Initiator();

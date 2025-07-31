@@ -23,7 +23,8 @@ static inline void OmsAssignLastPrisFromReport(OmsTwfOrderRaw9* ordraw, const Om
        || f9fmkt_TradingRequestSt_IsAnyRejected(rpt->ReportSt()))
       return;
    if (!ordraw->LastPriTime_.IsNull() && rpt->RxKind() != f9fmkt_RxKind_RequestNew) {
-      if (ordraw->LastPriTime_ >= rpt->ExgTime_)
+      // 20250724: 配合 OmsCheckReportChgPriStale() 的修正, 底下 ">=" 改成 ">" 也就是若 Time 相同, 仍繼續後續處理;
+      if (ordraw->LastPriTime_ > rpt->ExgTime_)
          return;
       if (rpt->BidPri_.IsNullOrZero() && rpt->OfferPri_.IsNullOrZero())
          return;
@@ -41,7 +42,10 @@ static inline void OmsAssignLastPrisFromReport(OmsTwfOrderRaw9* ordraw, const Om
 static inline bool OmsCheckReportChgPriStale(OmsReportRunnerInCore* inCoreRunner, OmsTwfOrderQtys* ordPris, OmsTwfReport9* rpt) {
    (void)ordPris;
    OmsTwfOrderRaw9&  ordraw = inCoreRunner->OrderRawT<OmsTwfOrderRaw9>();
-   if (!ordraw.LastPriTime_.IsNull() && ordraw.LastPriTime_ >= rpt->ExgTime_)
+   // 20250724: ordraw.LastPriTime_ >= rpt->ExgTime_ 改成 ordraw.LastPriTime_ > rpt->ExgTime_;
+   //           - 瞬間同時改價, 且交易所時間相同, 本就無法判斷交易所最後是接受哪一筆;
+   //           - 改成 ">" 之後, 瞬間同時改價時, 每一筆 [交易所時間相同] 的改價回報, 都會更新 ordraw;
+   if (!ordraw.LastPriTime_.IsNull() && ordraw.LastPriTime_ > rpt->ExgTime_)
       ordraw.UpdateOrderSt_ = f9fmkt_OrderSt_ReportStale;
    return true;
 }
@@ -215,7 +219,7 @@ static void OmsTwf9_ProcessPendingReport(const OmsRequestRunnerInCore& prevRunne
    assert(dynamic_cast<const OmsTwfOrderRaw9*>(rpt.LastUpdated()) != nullptr);
    const OmsTwfOrderRaw9&  rptraw = *static_cast<const OmsTwfOrderRaw9*>(rpt.LastUpdated());
    OmsOrder&               order = rpt.LastUpdated()->Order();
-   if (order.LastOrderSt() < f9fmkt_OrderSt_NewDone)
+   if (f9fmkt_OrderSt_IsBefore(order.LastOrderSt(), f9fmkt_OrderSt_NewDone))
       return;
    const OmsTwfOrderRaw9&  ordlast = *static_cast<const OmsTwfOrderRaw9*>(order.Tail());
    if (rptraw.QuoteReportSide_ != f9fmkt_Side_Sell) { // rpt.Side_ = Buy or Unknown(Bid+Offer).

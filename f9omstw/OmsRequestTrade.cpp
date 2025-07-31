@@ -264,7 +264,7 @@ bool OmsRequestUpd::PreOpQueuingRequest(fon9::fmkt::TradingLineManager& from) co
    if (auto* lmgr = dynamic_cast<OmsTradingLineMgrBase*>(&from)) {
       if (OmsRequestRunnerInCore* currRunner = lmgr->CurrRunner()) {
          assert(this == &currRunner->OrderRaw().Request());
-         if (currRunner->OrderRaw().Order().LastOrderSt() < f9fmkt_OrderSt_NewSending)
+         if (f9fmkt_OrderSt_IsBefore(currRunner->OrderRaw().Order().LastOrderSt(), f9fmkt_OrderSt_NewSending))
             return true;
       }
    }

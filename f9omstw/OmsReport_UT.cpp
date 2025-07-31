@@ -189,6 +189,28 @@ kChkOrder(UserCanceled,ExchangeNoLeaves,   0,    0,    0,kTIME9) kOrdPri(203,kTI
    };
    RunTestList(core, "Out-of-order", cstrTestList);
 }
+void TestOutofOrder2(TestCoreSP& core) {
+// 山單成功, 但有在途成交;
+   const char* cstrTestList[] = {
+kTwsNew,
+kChkOrderNewSending,
+"-2." kTwsRpt(ExchangeAccepted,N,            10000, 10000,        kTIME0) kPriLmt(200),
+kChkOrder(ExchangeAccepted,ExchangeAccepted, 10000, 10000, 10000, kTIME0) kOrdPri(200,kTIME0),
+// 刪單
+"*1.TwsChg" kOrdKey "|Qty=0",
+kChkOrder(ExchangeAccepted,Sending,          10000, 10000, 10000, kTIME0) kOrdPri(200,kTIME0),
+"-2." kTwsRpt(ExchangeAccepted,D,             7000,     0,        kTIME1) kErrCode_0,
+kChkOrder(ReportPending,ExchangeAccepted,     7000,     0, 10000, kTIME1) kOrdPri(200,kTIME0) kErrCode_0,
+// 成交.
+"+1." kTwsFil(1,                                                                                      1000,201,   kTIME2),
+kChkOrder(PartFilled,PartFilled,             10000,  9000,  9000, kTIME1) kOrdPri(200,kTIME0) kOrdCum(1000,201000,kTIME2),
+"+1." kTwsFil(2,                                                                                      2000,202,   kTIME3),
+kChkOrder(PartFilled,PartFilled,              9000,  7000,  7000, kTIME1) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME3),
+// 亂序刪單回報.
+kChkOrder(UserCanceled,ExchangeAccepted,      7000,     0,     0, kTIME1) kOrdPri(200,kTIME0) kOrdCum(3000,605000,kTIME3) kErrCode_0,
+   };
+   RunTestList(core, "Out-of-order2", cstrTestList);
+}
 //--------------------------------------------------------------------------//
 // 委託不存在(尚未收到新單回報), 先收到成交及其他回報.
 void TestNoNewFilled(TestCoreSP& core) {
@@ -559,6 +581,9 @@ int main(int argc, const char* argv[]) {
    utinfo.PrintSplitter();
 
    TestOutofOrder(core);
+   utinfo.PrintSplitter();
+
+   TestOutofOrder2(core);
    utinfo.PrintSplitter();
 
    TestNoNewFilled(core);

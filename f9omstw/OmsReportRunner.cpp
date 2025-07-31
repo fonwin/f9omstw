@@ -291,7 +291,7 @@ static bool IsNewSending(const OmsRequestTrade& rptReq, const OmsRequestBase* rp
          if (bf->UpdateOrderSt_ != f9fmkt_OrderSt_ReportPending || rpt != nullptr)
             return false;
          // 從 ProcessPendingReport 來的, 應視為 NewSending.
-         assert(bf->Order().LastOrderSt() >= f9fmkt_OrderSt_NewDone);
+         assert(f9fmkt_OrderSt_IsAfterOrEqual(bf->Order().LastOrderSt(), f9fmkt_OrderSt_NewDone));
       }
    }
    return true;
@@ -345,7 +345,7 @@ OmsErrCodeActSP OmsReportRunnerInCore::GetErrCodeAct(OmsReportRunnerInCore& runn
             continue;
       }
       if (act->IsAtNewDone_) {
-         if (ordraw.Order().LastOrderSt() >= f9fmkt_OrderSt_NewDone) {
+         if (f9fmkt_OrderSt_IsAfterOrEqual(ordraw.Order().LastOrderSt(), f9fmkt_OrderSt_NewDone)) {
             if (!IsNewSending(*rptReq, rpt))
                continue;
          }

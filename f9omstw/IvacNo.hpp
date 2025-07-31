@@ -3,6 +3,7 @@
 #ifndef __f9omstw_IvacNo_hpp__
 #define __f9omstw_IvacNo_hpp__
 #include "fon9/StrView.hpp"
+#include <stdint.h>
 
 namespace f9omstw {
 

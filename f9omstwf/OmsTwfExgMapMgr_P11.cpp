@@ -120,7 +120,7 @@ struct ImpSeedP11 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
             assert(dynamic_cast<OmsSymb*>(symb.get()) != nullptr);
             assert(dynamic_cast<f9twf::TwfSymbRef*>(symb->GetSymbData(tabRef->GetIndex())) != nullptr);
             auto* symbRef = static_cast<f9twf::TwfSymbRef*>(symb->GetSymbData(tabRef->GetIndex()));
-            memset(symbRef->Data_.PriLmts_, 0, sizeof(symbRef->Data_.PriLmts_));
+            symbRef->Data_.ClearPriLmts();
             int64_t mul = static_cast<OmsSymb*>(symb.get())->PriceOrigDiv_;
             AssignPriLmt(cntUpLmt, symbRef->Data_.PriLmts_, pUpLmt, 0, mul);
             AssignPriLmt(cntDnLmt, symbRef->Data_.PriLmts_, pDnLmt, 1, mul);

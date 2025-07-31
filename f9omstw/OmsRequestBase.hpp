@@ -57,7 +57,7 @@ struct OmsOrdKey {
    OmsOrdNo OrdNo_;
 
    OmsOrdKey() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
    }
    void AssignOrdKeyExcludeOrdNo(const OmsOrdKey& rhs) {
       this->BrkId_ = rhs.BrkId_;

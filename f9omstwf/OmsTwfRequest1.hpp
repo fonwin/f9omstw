@@ -21,7 +21,7 @@ struct OmsTwfRequestIniDat1 {
    char                 padding__[1];
 
    OmsTwfRequestIniDat1() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
       this->Pri_.AssignNull();
    }
 };

@@ -80,6 +80,10 @@ public:
    void assign(const fon9::StrView& v) {
       (*this) = Normalize(v);
    }
+   OmsIvKey& operator=(const OmsIvKey& rhs) {
+      base::operator=(rhs);
+      return *this;
+   }
 
    static OmsIvKey Normalize(fon9::StrView v);
 

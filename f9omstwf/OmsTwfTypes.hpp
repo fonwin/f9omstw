@@ -32,7 +32,7 @@ union OmsTwfQtyBS {
    OmsTwfQty      BS_[2];
 
    OmsTwfQtyBS() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
    }
 };
 
@@ -45,7 +45,7 @@ union OmsTwfAmtBS {
    OmsTwfAmt      BS_[2];
 
    OmsTwfAmtBS() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
    }
 };
 fon9_MSC_WARN_POP;

@@ -23,7 +23,7 @@ struct UtwsIvSymbSc {
    fon9::fmkt::Amt   DbAmt_;
 
    UtwsIvSymbSc() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
    }
 };
 

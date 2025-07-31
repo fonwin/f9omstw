@@ -20,7 +20,7 @@ struct OmsTwfRequestIniDat9 {
    char                 padding__[2];
 
    OmsTwfRequestIniDat9() {
-      memset(this, 0, sizeof(*this));
+      fon9::ForceZeroNonTrivial(this);
       this->BidPri_.AssignNull();
       this->OfferPri_.AssignNull();
    }

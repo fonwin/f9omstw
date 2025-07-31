@@ -100,7 +100,7 @@ fon9::RevBufferList CompareFieldValues(fon9::StrView fldvals, const fon9::seed::
       gErrLineNo.push_back(gLineNo);
    }
    fon9::RevPrint(rbuf, "@Ln=", gLineNo, '\n');
-   return std::move(rbuf);
+   return rbuf;// gcc 13 不喜歡 return std::move(rbuf); 會有警告;
 }
 
 //--------------------------------------------------------------------------//

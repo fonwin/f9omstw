@@ -143,11 +143,13 @@ struct ImpSeedF02 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
                   }
                   if (pLevel) {
                      // 放寬型態: 1=僅放寬漲幅, 2=僅放寬跌幅, 3=同時放寬漲幅及跌幅;
+                     fon9_GCC_WARN_DISABLE_STRINGOP_OVERFLOW;
                      switch (expandType) {
                      case 1:  pLevel[0] = level;               break;
                      case 2:  pLevel[1] = level;               break;
                      case 3:  pLevel[0] = pLevel[1] = level;   break;
                      }
+                     fon9_GCC_WARN_POP;
                   }
                   ++prodList;
                   --count;

@@ -132,7 +132,7 @@ struct ImpSeedP14 : public TwfExgMapMgr::ImpSeedForceLoadSesNormal {
             }
          }
          // P14沒提供[週商品], 必須自行設定.
-         for (const auto iContract : *contracts) {
+         for (const auto& iContract : *contracts) {
             if (auto* contract = iContract.second.get()) {
                if (contract->ExpiryType_ == f9twf::ExgExpiryType::Weekly) {
                   OmsTwfContractId cid = contract->ContractId_;

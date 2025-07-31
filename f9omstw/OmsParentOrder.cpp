@@ -30,7 +30,8 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
       reqSt = childOrdraw.RequestSt_;
    else {
       reqFrom = parentIni;
-      reqSt = reqFrom->LastUpdated()->RequestSt_;
+      if (!this->IsContinueTailUpdate())
+         reqSt = reqFrom->LastUpdated()->RequestSt_;
    }
    if (childLeavesQty == 0) {
       this->EraseChild(childOrdraw.Order().Initiator());
@@ -39,7 +40,8 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
    OmsRequestRunnerInCore parentRunner{res, *this->BeginUpdate(*reqFrom), childRunner};
    auto& parentOrdraw = parentRunner.OrderRawT<OmsParentOrderRaw>();
    parentOrdraw.DecChildParentLeavesQty(fon9::unsigned_cast(-childAdjQty), IsChildRunning(childSt));
-   parentOrdraw.RequestSt_ = reqSt;
+   if (reqSt != f9fmkt_TradingRequestSt{})
+      parentOrdraw.RequestSt_ = reqSt;
    if (childOrdraw.RequestSt_ == f9fmkt_TradingRequestSt_Filled) {
       this->OnChildFilled(parentOrdraw, *reqFrom);
       // ===== 成交後的 OrderSt =====

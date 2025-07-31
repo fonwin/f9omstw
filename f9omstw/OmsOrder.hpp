@@ -127,6 +127,9 @@ public:
    /// \ref OmsOrderRaw::HasFilled();
    OmsFilledFlag HasFilled() const;
 
+   /// 檢查是否有尚未完成的刪單要求.
+   bool HasWorkingDelete() const;
+
    const OmsScResource& ScResource() const   { return this->ScResource_; }
    OmsScResource&       ScResource()         { return this->ScResource_; }
 
@@ -496,6 +499,14 @@ inline OmsOrder* GetRequestOrder(const OmsRequestBase* pthis) {
       assert(dynamic_cast<const OmsRequestBase*>(curitem) != nullptr);
       pthis = static_cast<const OmsRequestBase*>(curitem);
    }
+}
+
+static inline bool IsWorkingDelete(const OmsOrderRaw& iord) {
+   const auto& req = iord.Request();
+   if (req.RxKind() != f9fmkt_RxKind_RequestDelete)
+      return false;
+   const OmsOrderRaw* ilast = req.LastUpdated();
+   return((ilast ? ilast : &iord)->RequestSt_ < f9fmkt_TradingRequestSt_Done);
 }
 
 } // namespaces

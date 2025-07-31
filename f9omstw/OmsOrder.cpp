@@ -125,6 +125,18 @@ OmsRequestTradeSP OmsOrder::MakeDeleteRequest() const {
    }
    return nullptr;
 }
+bool OmsOrder::HasWorkingDelete() const {
+   const auto* orawLast = this->Tail();
+   if (IsWorkingDelete(*orawLast))
+      return true;
+   const auto* iord = this->Head();
+   while (iord) {
+      if (IsWorkingDelete(*iord))
+         return true;
+      iord = iord->Next();
+   }
+   return false;
+}
 
 //--------------------------------------------------------------------------//
 

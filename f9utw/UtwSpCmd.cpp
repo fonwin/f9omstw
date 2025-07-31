@@ -178,13 +178,6 @@ OmsRxSNO SpCmdDord::OnReportRecover(OmsCore& core, const OmsRxItem* item) {
       goto __FINISHED;
    return this->LastCheckRxSNO_ + 1;
 }
-static inline bool IsWorkingDelete(const OmsOrderRaw& iord) {
-   const auto& req = iord.Request();
-   if (req.RxKind() != f9fmkt_RxKind_RequestDelete)
-      return false;
-   const OmsOrderRaw* ilast = req.LastUpdated();
-   return((ilast ? ilast : &iord)->RequestSt_ < f9fmkt_TradingRequestSt_Done);
-}
 bool SpCmdDord::CheckForDord(const OmsRequestIni& iniReq) {
    if (!this->CheckForDord_ArgsFilter(iniReq))
       return true;
@@ -198,20 +191,14 @@ bool SpCmdDord::CheckForDord(const OmsRequestIni& iniReq) {
    if (IsEnumContains(this->RequestPolicy_->GetIvRights(order.ScResource().Ivr_.get(), &ivConfig), OmsIvRight::DenyTradingChgQty))
       return true;
    // 檢查是否已存在刪單要求.
-   const auto* orawLast = order.Tail();
-   if (IsWorkingDelete(*orawLast))
+   if (order.HasWorkingDelete())
       return true;
-   const auto* iord = order.Head();
-   while (iord) {
-      if (IsWorkingDelete(*iord))
-         return true;
-      iord = iord->Next();
-   }
    // ----- 執行刪單要求.
    auto req = this->MakeDeleteRequest(iniReq);
    if (!req)
       return false;
    OmsRequestRunner runner;
+   const auto*      orawLast = order.Tail();
    runner.Request_ = req;
    req->SetIniFrom(iniReq);
    req->SetMarket(orawLast->Market());

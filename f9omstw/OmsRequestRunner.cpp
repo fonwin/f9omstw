@@ -48,6 +48,21 @@ void OmsRequestRunnerInCore::Update(f9fmkt_TradingRequestSt reqst) {
    }
 }
 //--------------------------------------------------------------------------//
+OmsRequestRunnerInCore_Unlocker::OmsRequestRunnerInCore_Unlocker(OmsRequestRunnerInCore& src)
+   : Src_(src)
+   , BackendLocker_(src.BackendLocker_) {
+   if (src.BackendLocker_) {
+      static_cast<OmsBackend::Locker*>(src.BackendLocker_)->unlock();
+      src.BackendLocker_ = nullptr;
+   }
+}
+OmsRequestRunnerInCore_Unlocker::~OmsRequestRunnerInCore_Unlocker() {
+   if (this->BackendLocker_) {
+      this->Src_.BackendLocker_ = this->BackendLocker_;
+      static_cast<OmsBackend::Locker*>(this->BackendLocker_)->lock();
+   }
+}
+//--------------------------------------------------------------------------//
 OmsRequestRunStep::~OmsRequestRunStep() {
 }
 void OmsRequestRunStep::OnCurrentCoreChangedImpl(OmsCore&) {

@@ -248,6 +248,17 @@ public:
       return 0;
    }
 };
+/// 若 OmsRequestRunnerInCore 有 BackendLocker_, 則暫時解鎖,
+/// 避免後續如果要 [立即執行其他委託] 時不會死結;
+class OmsRequestRunnerInCore_Unlocker {
+   fon9_NON_COPY_NON_MOVE(OmsRequestRunnerInCore_Unlocker);
+   OmsRequestRunnerInCore_Unlocker() = delete;
+   OmsRequestRunnerInCore& Src_;
+   void*                   BackendLocker_;
+public:
+   OmsRequestRunnerInCore_Unlocker(OmsRequestRunnerInCore& src);
+   ~OmsRequestRunnerInCore_Unlocker();
+};
 
 class OmsInternalRunnerInCore_Ctor {
    OmsInternalRunnerInCore_Ctor();

@@ -131,42 +131,47 @@ protected:
 
       //const auto  dealTime = mdfmt.Time_.ToDayTime();
       //const bool  isCalc = ((mdfmt.StatusMask_ & 0x80) != 0); // 試算階段?
-      const bool  hasDeal = ((mdfmt.ItemMask_ & 0x80) != 0);
-      const auto* mdPQs = mdfmt.PQs_;
+      const bool                       hasDeal = ((mdfmt.ItemMask_ & 0x80) != 0);
+      const auto*                      mdPQs = mdfmt.PQs_;
+      OmsMdLastPriceEv*                mdLastPriceEv = nullptr;
+      fon9::DontCtor<OmsMdLastPrice>   bfMdLastPrice;
+      omssymb->LockMd();
       if (hasDeal) {
-         if (auto* symbmd = (kTradingSessionId == f9fmkt_TradingSessionId_OddLot ? omssymb->GetMdLastPriceEv_OddLot() : omssymb->GetMdLastPriceEv())) {
-            omssymb->LockMd();
-            const OmsMdLastPrice bfmd = *symbmd;
-            symbmd->TotalQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(mdfmt.TotalQty_);
-            symbmd->LastQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(mdPQs->Qty_);
-            symbmd->LastPrice_.Assign<4>(fon9::PackBcdTo<uint64_t>(mdPQs->PriV4_));
-            const bool isNeedEv = symbmd->IsNeedsOnMdLastPriceEv();
-            omssymb->UnlockMd();
-            if (isNeedEv)
-               symbmd->OnMdLastPriceEv(bfmd, *omsCore);
+         mdLastPriceEv = (kTradingSessionId == f9fmkt_TradingSessionId_OddLot ? omssymb->GetMdLastPriceEv_OddLot() : omssymb->GetMdLastPriceEv());
+         if (mdLastPriceEv) {
+            *bfMdLastPrice = *mdLastPriceEv;
+            mdLastPriceEv->TotalQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(mdfmt.TotalQty_);
+            mdLastPriceEv->LastQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(mdPQs->Qty_);
+            mdLastPriceEv->LastPrice_.Assign<4>(fon9::PackBcdTo<uint64_t>(mdPQs->PriV4_));
+            if (!mdLastPriceEv->IsNeedsOnMdLastPriceEv())
+               mdLastPriceEv = nullptr;
          }
          ++mdPQs;
       }
-
+      OmsMdBSEv*              mdBSEv = nullptr;
+      fon9::DontCtor<OmsMdBS> bfMdBS;
       if (mdfmt.HasBS()) {
-         if (auto* symbmd = (kTradingSessionId == f9fmkt_TradingSessionId_OddLot ? omssymb->GetMdBSEv_OddLot() : omssymb->GetMdBSEv())) {
-            omssymb->LockMd();
-            const OmsMdBS bfmd = *symbmd;
+         mdBSEv = (kTradingSessionId == f9fmkt_TradingSessionId_OddLot ? omssymb->GetMdBSEv_OddLot() : omssymb->GetMdBSEv());
+         if (mdBSEv) {
+            *bfMdBS = *mdBSEv;
             // AssignBS() 在 ExgMdFmt6.hpp
-            mdPQs = f9tws::AssignBS(symbmd->Buys_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x70) >> 4));
-            if (symbmd->Buy_.Qty_ && symbmd->Buy_.Pri_.IsZero())
-               symbmd->Buy_.Pri_ = kMdPriBuyMarket;
+            mdPQs = f9tws::AssignBS(mdBSEv->Buys_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x70) >> 4));
+            if (mdBSEv->Buy_.Qty_ && mdBSEv->Buy_.Pri_.IsZero())
+               mdBSEv->Buy_.Pri_ = kMdPriBuyMarket;
             //-----
-            mdPQs = f9tws::AssignBS(symbmd->Sells_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x0e) >> 1));
-            if (symbmd->Sell_.Qty_ && symbmd->Sell_.Pri_.IsZero())
-               symbmd->Sell_.Pri_ = kMdPriSellMarket;
+            mdPQs = f9tws::AssignBS(mdBSEv->Sells_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x0e) >> 1));
+            if (mdBSEv->Sell_.Qty_ && mdBSEv->Sell_.Pri_.IsZero())
+               mdBSEv->Sell_.Pri_ = kMdPriSellMarket;
             //-----
-            const bool isNeedEv = symbmd->IsNeedsOnMdBSEv();
-            omssymb->UnlockMd();
-            if (isNeedEv)
-               symbmd->OnMdBSEv(bfmd, *omsCore);
+            if (!mdBSEv->IsNeedsOnMdBSEv())
+               mdBSEv = nullptr;
          }
       }
+      omssymb->UnlockMd();
+      if (mdLastPriceEv)
+         mdLastPriceEv->OnMdLastPriceEv(*bfMdLastPrice, *omsCore);
+      if (mdBSEv)
+         mdBSEv->OnMdBSEv(*bfMdBS, *omsCore);
    }
    void OnTradingSessionClosed(const f9fmkt_TradingSessionId kTradingSessionId) {
       (void)kTradingSessionId;

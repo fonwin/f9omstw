@@ -241,6 +241,8 @@ void SetRequest(UserDefine* ud, char* cmd) {
          }
          *cmd = '\0';
          for (char* pn = val; pn != cmd;) {
+            if (*pn == '\0')
+               break;
             if (*pn != '\\') {
                ++pn;
                continue;
@@ -250,7 +252,7 @@ void SetRequest(UserDefine* ud, char* cmd) {
             case '!':   *(pn - 1) = '\x01'; break;
             case '\\':  break;
             }
-            memcpy(pn, pn + 1, (size_t)(cmd - pn));
+            memmove(pn, pn + 1, (size_t)(cmd - pn));
          }
          cmd = fon9_StrTrimHead(cmd + 1);
          switch (*cmd) {

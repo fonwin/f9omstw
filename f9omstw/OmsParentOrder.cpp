@@ -59,10 +59,13 @@ void OmsParentOrder::RunChildOrderUpdated(const OmsOrderRaw& childOrdraw, OmsRes
       }
    }
    else {
+      // 最後一筆子單的失敗, 才更新母單的錯誤代碼;
+      // 避免: 如果還有其他子單存在, 可能會造成使用者誤判;
+      if (parentOrdraw.LeavesQty_ == 0)
+         parentOrdraw.ErrCode_ = childOrdraw.ErrCode_;
       // 手動刪改子單 or 未成交刪單(fa:ExchangeCanceled, OmsErrCode_SessionClosedCanceled, OmsErrCode_SessionClosedRejected, OmsErrCode_Twf_DynPriBandRej);
-      parentOrdraw.ErrCode_ = childOrdraw.ErrCode_;
       fon9_WARN_DISABLE_SWITCH;
-      switch(parentOrdraw.ErrCode_) {
+      switch(childOrdraw.ErrCode_) {
       case OmsErrCode_Twf_DynPriBandRej:
       case OmsErrCode_Twf_DynPriBandRpt:
          parentOrdraw.Message_ = childOrdraw.Message_;

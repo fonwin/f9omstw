@@ -222,10 +222,12 @@ void OmsRcSyn_SessionFactory::ReloadLogMapSNO(OmsCore& omsCore, OmsBackend::Lock
             auto srcMap = srcHost->MapSNO_.Lock();
             if (srcMap->size() <= srcSNO)
                srcMap->resize(srcSNO + 1024 * 1024);
-            assert((*srcMap)[srcSNO].get() == nullptr);
-            (*srcMap)[srcSNO] = origReq;
-            if (srcHost->LastSNO_ < srcSNO)
-               srcHost->LastSNO_ = srcSNO;
+            if ((*srcMap)[srcSNO] != origReq) {
+               assert((*srcMap)[srcSNO].get() == nullptr);
+               (*srcMap)[srcSNO] = origReq;
+               if (srcHost->LastSNO_ < srcSNO)
+                  srcHost->LastSNO_ = srcSNO;
+            }
          }
          lnPeeker.PopConsumed(rdbuf);
       }

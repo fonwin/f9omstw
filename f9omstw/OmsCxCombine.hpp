@@ -3,6 +3,7 @@
 #ifndef __f9omstw_OmsCxCombine_hpp__
 #define __f9omstw_OmsCxCombine_hpp__
 #include "f9omstw/OmsOrder.hpp"
+#include "f9omstw/OmsReportRunner.hpp"
 
 namespace f9omstw {
 
@@ -24,14 +25,26 @@ template <class TBase, class TCxData, class TOrdRaw>
 class OmsCxReportCombine : public OmsCxCombine<TBase, TCxData> {
    fon9_NON_COPY_NON_MOVE(OmsCxReportCombine);
    using base = OmsCxCombine<TBase, TCxData>;
+
+   void AssignCondChangableToOrdraw(OmsOrderRaw& ordraw) const {
+      assert(dynamic_cast<TOrdRaw*>(&ordraw) != nullptr);
+      static_cast<TOrdRaw*>(&ordraw)->CondQty_ = this->CondQty_;
+      static_cast<TOrdRaw*>(&ordraw)->CondPri_ = this->CondPri_;
+   }
+   void RunReportInCore_InitiatorNew(OmsReportRunnerInCore&& inCoreRunner) override {
+      this->AssignCondChangableToOrdraw(inCoreRunner.OrderRaw());
+      base::RunReportInCore_InitiatorNew(std::move(inCoreRunner));
+   }
+   void RunReportInCore_DCQ(OmsReportRunnerInCore&& inCoreRunner) override {
+      this->AssignCondChangableToOrdraw(inCoreRunner.OrderRaw());
+      base::RunReportInCore_DCQ(std::move(inCoreRunner));
+   }
 public:
    using base::base;
    OmsCxReportCombine() = default;
 
    bool AssignReportChgCondToOrdraw(OmsOrderRaw& ordraw) const override {
-      assert(dynamic_cast<TOrdRaw*>(&ordraw) != nullptr);
-      static_cast<TOrdRaw*>(&ordraw)->CondQty_ = this->CondQty_;
-      static_cast<TOrdRaw*>(&ordraw)->CondPri_ = this->CondPri_;
+      this->AssignCondChangableToOrdraw(ordraw);
       // 可能同時改量;
       OmsAssignOrdAfterQtyFromRpt(*static_cast<TOrdRaw*>(&ordraw), *this);
       // 可能同時改價: 返回後,後續會處理;

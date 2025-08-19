@@ -136,13 +136,13 @@ public:
       runner.Update(f9fmkt_TradingRequestSt_WaitingCond);
    }
    // --------------------------------------------------------------------- //
-   virtual bool RegCondToSymb(OmsRequestRunnerInCore& runner, uint64_t priorityAdj, OmsRequestRunStep& nextStep) const = 0;
+   virtual bool RegCondToSymb(OmsRequestRunnerInCore& runner, const OmsCxBaseRaw& cxRaw, uint64_t priorityAdj, OmsRequestRunStep& nextStep) const = 0;
    /// CxSymb 必須支援:
    /// - void RegCondReq(const MdLocker& mdLocker, CondReq& src);
    /// \retval true  註冊成功,等候條件成立.
    /// \retval false 沒有註冊,條件已成立.
    template <class CxSymb>
-   bool RegCondToSymb_T(OmsRequestRunnerInCore& runner, uint64_t priority, OmsRequestRunStep& nextStep, const CxSymb*) const {
+   bool RegCondToSymb_T(OmsRequestRunnerInCore& runner, const OmsCxBaseRaw& cxRaw, uint64_t priority, OmsRequestRunStep& nextStep, const CxSymb*) const {
       assert(this->FirstCxUnit_ && this->CxExpr_);
       if (this->CxExpr_->GetCxReqSt() == CxReqSt_Waiting) {
          runner.OrderRaw().ErrCode_ = OmsErrCode_ReWaitingCond;
@@ -159,7 +159,7 @@ public:
       bool              isCondTrue;
       if (fon9_LIKELY(this->CxUnitCount_ == 1)) {
          assert(first->CondSameSymbNext() == nullptr && first->CondOtherSymbNext() == nullptr);
-         isCondTrue = first->CheckNeedsFireNow(*symb, first->Cond_);
+         isCondTrue = first->CheckNeedsFireNow(*symb, cxRaw);
       __COND_SINGLE_SYMB:;
          if (isCondTrue) { // 條件成立.
             this->CxExpr_->SetCxReqSt(CxReqSt_Fired);
@@ -261,7 +261,7 @@ public:
    bool ToWaitCond_BfSc(OmsRequestRunnerInCore&& runner, OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) const;
    // --------------------------------------------------------------------- //
    virtual void OnWaitCondAfSc(OmsRequestRunnerInCore& runner) const = 0;
-   bool ToWaitCond_AfSc(OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep) const;
+   bool ToWaitCond_AfSc(OmsRequestRunnerInCore&& runner, const OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) const;
    // --------------------------------------------------------------------- //
    /// 條件改單.
    template <class TCxReq, class ReqIniForSymbT>
@@ -361,8 +361,8 @@ public:
    uint32_t GetCondPriority() const {
       return this->GetCondPriority_T(*this->Policy(), this->PriType_);
    }
-   bool RegCondToSymb(OmsRequestRunnerInCore& runner, uint64_t priorityAdj, OmsRequestRunStep& nextStep) const override {
-      return this->RegCondToSymb_T(runner, priorityAdj + this->GetCondPriority(), nextStep, static_cast<TSymb*>(nullptr));
+   bool RegCondToSymb(OmsRequestRunnerInCore& runner, const OmsCxBaseRaw& cxRaw, uint64_t priorityAdj, OmsRequestRunStep& nextStep) const override {
+      return this->RegCondToSymb_T(runner, cxRaw, priorityAdj + this->GetCondPriority(), nextStep, static_cast<TSymb*>(nullptr));
    }
    // --------------------------------------------------------------------- //
    void OnWaitCondBfSc(OmsRequestRunnerInCore& runner) const override {

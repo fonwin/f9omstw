@@ -266,6 +266,20 @@ protected:
    // ----- 以上為 [子母單機制] 的支援 };
 };
 
+class OmsOrderContinueUpdate {
+   fon9_NON_COPY_NON_MOVE(OmsOrderContinueUpdate);
+public:
+   OmsOrder&   FromOrder_;
+   const bool  KeepContinueTailUpdate_;
+   char        Padding____[7];
+   OmsOrderContinueUpdate(OmsOrder& from) : FromOrder_(from), KeepContinueTailUpdate_{from.IsContinueTailUpdate()} {
+      from.SetContinueTailUpdate(true);
+   }
+   ~OmsOrderContinueUpdate() {
+      this->FromOrder_.SetContinueTailUpdate(this->KeepContinueTailUpdate_);
+   }
+};
+
 //--------------------------------------------------------------------------//
 
 enum class OmsOrderRawFlag : uint8_t {

@@ -115,7 +115,7 @@ public:
    bool MoveToCore(OmsRequestRunner&& runner);
    /// 在 prevRunner.ForceFinish() 之後, 需要繼續執行.
    void ContinueRunInCore(const OmsRequestRunnerInCore& prevRunner, OmsRequestRunner&& nextRunner) {
-      assert(prevRunner.IsFinished()); (void)prevRunner;
+      assert(prevRunner.IsFinished() || prevRunner.OrderRaw().Order().IsContinueTailUpdate()); (void)prevRunner;
       this->RunInCore(std::move(nextRunner));
    }
    /// 到 core 處理 OmsEvent.

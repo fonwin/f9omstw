@@ -38,7 +38,7 @@ bool OmsCxReqBase::ToWaitCond_BfSc(OmsRequestRunnerInCore&& runner, OmsCxBaseRaw
          return false;
       // 先等候條件, 條件成立後才風控.
       // 風控前, 加入 CondSymb 開始等候條件.
-      if (this->RegCondToSymb(runner, kPriority_BfSc, condNextStep)) {
+      if (this->RegCondToSymb(runner, cxRaw, kPriority_BfSc, condNextStep)) {
          this->OnWaitCondBfSc(runner);
          this->OrderUpdateWaitCondSt(std::move(runner));
          return true;
@@ -47,12 +47,12 @@ bool OmsCxReqBase::ToWaitCond_BfSc(OmsRequestRunnerInCore&& runner, OmsCxBaseRaw
    // 條件已成立 or 此次執行(因reqst)不用等條件 => 則直接進行下一步驟.
    return false;
 }
-bool OmsCxReqBase::ToWaitCond_AfSc(OmsRequestRunnerInCore&& runner, OmsRequestRunStep& condNextStep) const {
+bool OmsCxReqBase::ToWaitCond_AfSc(OmsRequestRunnerInCore&& runner, const OmsCxBaseRaw& cxRaw, OmsRequestRunStep& condNextStep) const {
    if (this->CxExpr_ && this->CondAfterSc_ == fon9::EnabledYN::Yes) {
       if (runner.OrderRaw().RequestSt_ < f9fmkt_TradingRequestSt_WaitToGoOut) {
          // 風控後, 加入 CondSymb 開始等候條件.
          // 風控後, 尚開始未等候的條件單 => 此時開始等候條件.
-         if (this->RegCondToSymb(runner, kPriority_AfSc, condNextStep)) {
+         if (this->RegCondToSymb(runner, cxRaw, kPriority_AfSc, condNextStep)) {
             this->OnWaitCondAfSc(runner);
             this->OrderUpdateWaitCondSt(std::move(runner));
             return true;
@@ -96,7 +96,7 @@ bool OmsCxReqBase::ToWaitCond_ReqChg(OmsCxBaseChgDat* pthisCond, OmsRequestRunne
       const auto priorityAdj = (f9fmkt_OrderSt_IsAfterOrEqual(ordraw.UpdateOrderSt_, f9fmkt_OrderSt_NewAlreadyGoOut)
                                 ? kPriority_ReqChg
                                 : kPriority_ChgNWC);
-      if (this->RegCondToSymb(runner, priorityAdj, condNextStep)) {
+      if (this->RegCondToSymb(runner, this->FirstCxUnit_->Cond_, priorityAdj, condNextStep)) {
          ordraw.RequestSt_ = f9fmkt_TradingRequestSt_WaitingCond;
          return true;
       }

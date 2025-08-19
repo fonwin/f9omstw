@@ -22,11 +22,12 @@
 #define f9rc_ClientLogFlag_ut    ((f9rc_ClientLogFlag)0x80000000)
 //--------------------------------------------------------------------------//
 #define kMaxFieldCount  64
-#define kMaxValueSize   1024
+#define kMaxValueSize   4587450
+// 動態配置版本，避免巨大靜態配置炸掉
 typedef struct {
-   // 為了簡化測試, 每個下單要求最多支援 kMaxFieldCount 個欄位, 每個欄位最多 kMaxValueSize bytes(包含EOS).
-   char  Fields_[kMaxFieldCount][kMaxValueSize];
-   char  RequestStr_[kMaxFieldCount * kMaxValueSize];
+   size_t  FieldCount_;  // 對應 layout 的欄位數
+   char**  Fields_;      // [FieldCount_]，每個欄位各自 malloc(kMaxValueSize)
+   char*   RequestStr_;  // 送單字串, 在 MakeRequestStr() 時, 計算實際長度, 然後使用 realloc 分配空間;
 } RequestRec;
 
 fon9_WARN_DISABLE_PADDING;
@@ -35,8 +36,8 @@ typedef struct {
    const f9OmsRc_ClientConfig*   Config_;
    f9OmsRc_CoreTDay              CoreTDay_;
    f9OmsRc_SNO                   LastSNO_;
-   // 為了簡化測試, 最多支援 n 種下單表格(下單要求).
-   RequestRec  RequestRecs_[16];
+   size_t                        RequestRecsCount_;
+   RequestRec*                   RequestRecs_;
 
    /// SvConfig_->RightsTables_ 只能在 OnSvConfig() 事件裡面安全的使用,
    /// 其他地方使用 SvConfig_->RightsTables_ 都不安全.
@@ -48,6 +49,47 @@ typedef struct {
 } UserDefine;
 fon9_WARN_POP;
 
+static void FreeRequestRecs(UserDefine* ud) {
+   for (unsigned iReqLayout = 0; iReqLayout < ud->RequestRecsCount_; ++iReqLayout) {
+      RequestRec* reqRec = &ud->RequestRecs_[iReqLayout];
+      if (!reqRec->Fields_)
+         continue;
+      for (size_t iFieldNo = 0; iFieldNo < reqRec->FieldCount_; ++iFieldNo)
+         free(reqRec->Fields_[iFieldNo]);
+      free(reqRec->Fields_);
+      free(reqRec->RequestStr_);
+   }
+   free(ud->RequestRecs_);
+   ud->RequestRecsCount_ = 0;
+   ud->RequestRecs_      = NULL;
+}
+
+static void InitRequestRecs(UserDefine* ud, const f9OmsRc_ClientConfig* cfg) {
+   FreeRequestRecs(ud);
+   ud->RequestRecsCount_ = cfg->RequestLayoutCount_;
+   ud->RequestRecs_      = (RequestRec*)calloc(cfg->RequestLayoutCount_, sizeof(*ud->RequestRecs_));
+
+   for (unsigned iReqLayout = 0; iReqLayout < ud->RequestRecsCount_; ++iReqLayout) {
+      const f9OmsRc_Layout* cfgLayout = cfg->RequestLayoutArray_[iReqLayout];
+      RequestRec*           udReqRec  = &ud->RequestRecs_[iReqLayout];
+      udReqRec->FieldCount_ = cfgLayout->FieldCount_;
+      udReqRec->Fields_     = (char**)calloc(udReqRec->FieldCount_, sizeof(char*));
+      if (!udReqRec->Fields_) {
+         perror("calloc Fields_");
+         exit(EXIT_FAILURE);
+      }
+      for (size_t iFieldNo = 0; iFieldNo < udReqRec->FieldCount_; ++iFieldNo) {
+         udReqRec->Fields_[iFieldNo] = (char*)malloc(kMaxValueSize);
+         if (!udReqRec->Fields_[iFieldNo]) {
+            perror("malloc Field");
+            exit(EXIT_FAILURE);
+         }
+         udReqRec->Fields_[iFieldNo][0] = '\0';
+      }
+      udReqRec->RequestStr_ = NULL; // 組字串時再配置
+   }
+}
+//--------------------------------------------------------------------------//
 static f9OmsRc_RptFilter   gRptFilter = f9OmsRc_RptFilter_RptAll;
 //--------------------------------------------------------------------------//
 void PrintEvSplit(const char* evName) {
@@ -88,6 +130,7 @@ void fon9_CAPI_CALL OnClientConfig(f9rc_ClientSession* ses, const f9OmsRc_Client
       ud->LastSNO_ = 0;
       ud->CoreTDay_ = cfg->CoreTDay_;
    }
+   InitRequestRecs(ud, cfg);
    f9OmsRc_SubscribeReport(ses, cfg, ud->LastSNO_ + 1, gRptFilter);
 }
 void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_ClientReport* rpt) {
@@ -104,10 +147,10 @@ void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_Client
    }
    ud->LastSNO_ = rpt->ReportSNO_;
 
-   if (rpt->Layout_ != NULL &&
-      ((ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All
-      || (ses->LogFlags_ & f9rc_ClientLogFlag_ut))) {
-      char  msgbuf[1024*4];
+   if (rpt->Layout_ != NULL
+    && (   (ses->LogFlags_ & f9oms_ClientLogFlag_All) == f9oms_ClientLogFlag_All
+        || (ses->LogFlags_ & f9rc_ClientLogFlag_ut) ) ) {
+      char  msgbuf[1024 * 4];
       char* const pend = msgbuf + sizeof(msgbuf);
       char* pmsg = msgbuf;
       if (rpt->ReportSNO_)
@@ -119,8 +162,8 @@ void fon9_CAPI_CALL OnClientReport(f9rc_ClientSession* ses, const f9OmsRc_Client
                        rpt->Layout_->LayoutKind_, rpt->Layout_->ExParam_.Begin_);
       for (unsigned L = 0; L < rpt->Layout_->FieldCount_; ++L) {
          pmsg += snprintf(pmsg, (size_t)(pend - pmsg), "|%s=%s",
-                         rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
-                         rpt->FieldArray_[L].Begin_);
+                          rpt->Layout_->FieldArray_[L].Named_.Name_.Begin_,
+                          rpt->FieldArray_[L].Begin_);
       }
       PrintEvSplit("OnClientReport");
       puts(msgbuf);
@@ -178,10 +221,21 @@ const f9OmsRc_Layout* GetRequestLayout(UserDefine* ud, char** cmd) {
    return NULL;
 }
 void MakeRequestStr(const f9OmsRc_Layout* pReqLayout, RequestRec* req) {
-   char* reqstr = req->RequestStr_;
+   // Σ(|field| + 1(SOH)) + 1(NUL)
+   size_t total = 1; // NUL
+   for (unsigned iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld)
+      total += strlen(req->Fields_[iFld]) + 1;
+
+   char* reqstr = (char*)realloc(req->RequestStr_, total);
+   if (!reqstr) {
+      perror("realloc RequestStr_");
+      return;
+   }
+   req->RequestStr_ = reqstr;
+
    for (unsigned iFld = 0; iFld < pReqLayout->FieldCount_; ++iFld) {
-      const char* str = req->Fields_[iFld];
-      size_t      len = strlen(str);
+      const char*  str = req->Fields_[iFld];
+      const size_t len = strlen(str);
       memcpy(reqstr, str, len);
       *(reqstr += len) = '\x01';
       ++reqstr;
@@ -268,8 +322,8 @@ void SetRequest(UserDefine* ud, char* cmd) {
             cmd = NULL;
          break;
       }
-      strncpy_s(req->Fields_[iFld], kMaxValueSize - 1, val, sizeof(req->Fields_[iFld]) - 1);
-      req->Fields_[iFld][sizeof(req->Fields_[iFld]) - 1] = '\0';
+      strncpy_s(req->Fields_[iFld], kMaxValueSize - 1, val, kMaxValueSize - 1);
+      req->Fields_[iFld][kMaxValueSize - 1] = '\0';
       if (!cmd)
          break;
       cmd = fon9_StrTrimHead(cmd + 1);
@@ -301,7 +355,7 @@ uint64_t SendGroup(char* cmd, const SendArgs args, uint64_t* usEnd) {
    fon9_CStrView  reqFieldArray[kMaxFieldCount];
    for (unsigned L = 0; L < args.ReqLayout_->FieldCount_; ++L) {
       reqFieldArray[L].Begin_ = args.ReqRec_->Fields_[L];
-      reqFieldArray[L].End_ = memchr(args.ReqRec_->Fields_[L], '\0', sizeof(args.ReqRec_->Fields_[L]));
+      reqFieldArray[L].End_ = memchr(args.ReqRec_->Fields_[L], '\0', kMaxValueSize);
    }
    const char* groupName = fon9_StrCutSpace(cmd, &cmd);
    LoopField   loopFields[kMaxFieldCount];
@@ -438,7 +492,7 @@ void SendRequest(UserDefine* ud, char* cmd) {
    }
    fon9_CStrView  reqstr;
    reqstr.Begin_ = args.ReqRec_->RequestStr_;
-   reqstr.End_ = memchr(reqstr.Begin_, '\0', sizeof(args.ReqRec_->RequestStr_));
+   reqstr.End_ = reqstr.Begin_ ? (reqstr.Begin_ + strlen(reqstr.Begin_)) : reqstr.Begin_;
    if (reqstr.End_ - reqstr.Begin_ <= 0) {
       puts("Request message is empty?");
       PrintRequest(args.ReqLayout_, args.ReqRec_);
@@ -654,7 +708,7 @@ int WaitSvCommandDone(const void** pUdUserData, const void* waitUserData) {
 
 typedef f9sv_Result (fon9_CAPI_CALL *FnSvCmd3)(f9rc_ClientSession* ses, const f9sv_SeedName* seedName, f9sv_ReportHandler handler);
 int RunSvCommandFn3(FnSvCmd3 fnSvCmd3, char* cmdln, const char* svCmdName, UserDefine* ud, f9sv_ReportHandler* handler,
-                   const void** udWait) {
+                    const void** udWait) {
    f9sv_SeedName seedName;
    if (!ParseSvCommand(&seedName, cmdln, svCmdName))
       return 0;
@@ -724,8 +778,6 @@ void PromptSleep(const char* psec, const void** wait, double secsDefault) {
    printf("\r");
 }
 //--------------------------------------------------------------------------//
-UserDefine  ud;
-//---------------------------------
 int main(int argc, char* argv[]) {
 #if defined(_MSC_VER) && defined(_DEBUG)
    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -793,9 +845,9 @@ int main(int argc, char* argv[]) {
       default:    goto __UNKNOWN_ARGUMENT;
       }
    }
-   if(f9rcCliParams.UserId_ == NULL
-   || f9rcCliParams.DevName_ == NULL
-   || f9rcCliParams.DevParams_ == NULL) {
+   if (f9rcCliParams.UserId_ == NULL
+    || f9rcCliParams.DevName_ == NULL
+    || f9rcCliParams.DevParams_ == NULL) {
 __USAGE:
       printf("Usage:\n"
              "-l LogFileFmt\n"
@@ -846,6 +898,7 @@ __USAGE:
    f9sv_InitClientSessionParams(&f9rcCliParams, &svRcParams);
    svRcParams.FnOnConfig_ = &OnSvConfig;
 
+   UserDefine  ud;
    memset(&ud, 0, sizeof(ud));
    f9rcCliParams.UserData_ = &ud;
 
@@ -855,12 +908,17 @@ __USAGE:
    fon9_Finalize(); // 配對 f9sv_Initialize();
    f9rc_CreateClientSession(&ud.Session_, &f9rcCliParams);
    // ----------------------------
-   char cmdbuf[4096];
+   const size_t kCmdbufSize = kMaxValueSize + 1024;
+   char* cmdbuf = (char*)malloc(kCmdbufSize);
+   if (!cmdbuf) {
+      perror("malloc failed");
+      exit(EXIT_FAILURE);
+   }
    while (fon9_AppBreakMsg == NULL) {
       printf("> ");
-      if (!fgets(cmdbuf, sizeof(cmdbuf), stdin))
+      if (!fgets(cmdbuf, (int)kCmdbufSize, stdin))
          break;
-      char* pend = fon9_StrTrimTail(cmdbuf, memchr(cmdbuf, '\0', sizeof(cmdbuf)));
+      char* pend = fon9_StrTrimTail(cmdbuf, memchr(cmdbuf, '\0', kCmdbufSize));
       if (pend == cmdbuf)
          continue;
       *pend = '\0';
@@ -956,5 +1014,7 @@ __QUIT:
    f9rc_DestroyClientSession_Wait(ud.Session_);
    fon9_Finalize(); // 配對 f9OmsRc_Initialize();
    f9omstw_FreeOmsErrMsgTx(omsRcParams.ErrCodeTx_);
+   FreeRequestRecs(&ud);
+   free(cmdbuf);
    printf("OmsRcClient test quit.%s\n", fon9_AppBreakMsg ? fon9_AppBreakMsg : "");
 }

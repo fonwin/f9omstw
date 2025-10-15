@@ -117,7 +117,7 @@ protected:
       OmsSymbSP       omssymb = mdsys->FetchOmsSymb(mdfmt.StkNo_, omsCore);
       if (!omssymb)
          return;
-
+      fon9::TimeStamp mdHostTime = fon9::UtcNow();
       SetMatchingMethod(&omssymb->TwsFlags_,
                         ((mdfmt.StatusMask_ & 0x10)
                         ? fon9::fmkt::TwsBaseFlag::MatchingMethod_ContinuousMarket
@@ -143,6 +143,7 @@ protected:
             mdLastPriceEv->TotalQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(mdfmt.TotalQty_);
             mdLastPriceEv->LastQty_ = fon9::PackBcdTo<fon9::fmkt::Qty>(mdPQs->Qty_);
             mdLastPriceEv->LastPrice_.Assign<4>(fon9::PackBcdTo<uint64_t>(mdPQs->PriV4_));
+            mdLastPriceEv->MdHostTime_ = mdHostTime;
             if (!mdLastPriceEv->IsNeedsOnMdLastPriceEv())
                mdLastPriceEv = nullptr;
          }
@@ -154,6 +155,7 @@ protected:
          mdBSEv = (kTradingSessionId == f9fmkt_TradingSessionId_OddLot ? omssymb->GetMdBSEv_OddLot() : omssymb->GetMdBSEv());
          if (mdBSEv) {
             *bfMdBS = *mdBSEv;
+            mdBSEv->MdHostTime_ = mdHostTime;
             // AssignBS() 在 ExgMdFmt6.hpp
             mdPQs = f9tws::AssignBS(mdBSEv->Buys_, mdPQs, static_cast<unsigned>((mdfmt.ItemMask_ & 0x70) >> 4));
             if (mdBSEv->Buy_.Qty_ && mdBSEv->Buy_.Pri_.IsZero())

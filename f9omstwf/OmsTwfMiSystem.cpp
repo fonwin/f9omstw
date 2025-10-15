@@ -94,6 +94,7 @@ struct OmsTwfMiI020 : public f9twf::ExgMiHandlerPkCont {
       auto* twfsymb = symb->GetMdLastPriceEv();
       if (!twfsymb)
          return;
+      twfsymb->MdHostTime_ = fon9::UtcNow();
       const uint8_t                       count = static_cast<uint8_t>(pkI020.MatchDisplayItem_ & 0x7f);
       const f9twf::ExgMdMatchData* const  pend = pkI020.MatchData_ + count;
       symb->LockMd();
@@ -219,6 +220,7 @@ struct OmsTwfMiI080 : public f9twf::ExgMiHandlerPkCont {
       auto* twfsymb = symb->GetMdBSEv();
       if (!twfsymb)
          return;
+      twfsymb->MdHostTime_ = fon9::UtcNow();
       symb->LockMd();
       if (twfsymb->IsNeedsOnMdBSEv()) {
          const OmsMdBS bf = *twfsymb;

@@ -7,7 +7,7 @@
 namespace f9omstw {
 
 void RevPrint(fon9::RevBuffer& rbuf, const OmsMdLastPriceEv& dat) {
-   fon9::RevPrint(rbuf, "|LastPrice=", dat.LastPrice_, "|LastQty=", dat.LastQty_, "|TotalQty=", dat.TotalQty_);
+   fon9::RevPrint(rbuf, "|MdHostTime=", dat.MdHostTime_, "|LastPrice=", dat.LastPrice_, "|LastQty=", dat.LastQty_, "|TotalQty=", dat.TotalQty_);
 }
 void RevPrint(fon9::RevBuffer& rbuf, const OmsMdBSEv& dat) {
    for (;;) {
@@ -35,6 +35,7 @@ void RevPrint(fon9::RevBuffer& rbuf, const OmsMdBSEv& dat) {
       fon9::RevPrint(rbuf, "|Sell=");
       break;
    }
+   fon9::RevPrint(rbuf, "|MdHostTime=", dat.MdHostTime_);
 }
 //--------------------------------------------------------------------------//
 OmsMdLastPriceEv::~OmsMdLastPriceEv() {

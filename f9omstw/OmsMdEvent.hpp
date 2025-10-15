@@ -5,6 +5,7 @@
 #include "f9omstw/OmsBase.hpp"
 #include "fon9/Subr.hpp"
 #include "fon9/seed/RawWr.hpp"
+#include "fon9/TimeStamp.hpp"
 
 namespace f9omstw {
 
@@ -27,7 +28,9 @@ void RevPrint(fon9::RevBuffer& rbuf, const OmsMdLastPriceEv& dat);
 void RevPrint(fon9::RevBuffer& rbuf, const OmsMdBSEv& dat);
 //--------------------------------------------------------------------------//
 struct OmsMdLastPrice {
-   MdPri LastPrice_;
+   /// 主機收到行情的時間.
+   fon9::TimeStamp   MdHostTime_;
+   MdPri             LastPrice_;
    bool operator==(const OmsMdLastPrice& rhs) const {
       return this->LastPrice_ == rhs.LastPrice_;
    }
@@ -84,6 +87,8 @@ protected:
 #define f9omstw_kMdBSCount    5
 fon9_MSC_WARN_DISABLE(4582); // constructor is not implicitly called
 struct OmsMdBS {
+   /// 主機收到行情的時間.
+   fon9::TimeStamp   MdHostTime_;
    union {
       fon9::fmkt::PriQty   Buy_;
       fon9::fmkt::PriQty   Buys_[f9omstw_kMdBSCount];

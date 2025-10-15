@@ -27,7 +27,7 @@ public:
    const OmsCxSrcEvMask    EvMask_;
    char                    Padding7_[7];
    /// 若條件成立, 則可在此建立 Log 字串.
-   fon9::RevBufferFixedSize<256> mutable LogRBuf_;
+   fon9::RevBufferFixedSize<512> mutable LogRBuf_;
 
    OmsCxMdEvArgs(OmsCore& omsCore, OmsSymb& condSymb, const OmsMdLastPrice& bf, const OmsMdLastPriceEv& af, OmsCxSrcEvMask evMask)
       : OmsCore_(&omsCore)

@@ -113,6 +113,7 @@ public:
       if (fon9_UNLIKELY(retval == OmsCxCheckResult::FireNow)) {
          // ----- 將 req 移到 [等候執行] 列表, 等候 OmsCore 的執行.
          assert(dynamic_cast<CoreUsrDef*>(args.OmsCore_->GetUsrDef()) != nullptr);
+         fon9::RevPrint(args.LogRBuf_, "|FireTime=", fon9::UtcNow());
          static_cast<CoreUsrDef*>(args.OmsCore_->GetUsrDef())->AddCondFiredReq(*args.OmsCore_, rthis, *creq.NextStep_, ToStrView(args.LogRBuf_));
       }
       return retval;

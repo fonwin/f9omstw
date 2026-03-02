@@ -93,6 +93,11 @@ class OmsCxUnit {
    /// \retval false 需要等候條件, 成立才送出. 例: 最後成交單量,就不可在[收單階段]判斷,此時傳回false.
    virtual bool OmsCx_IsNeedsFireNow(OmsSymb& condSymb, const OmsCxBaseRaw& cxRaw);
 
+protected:
+   void ForceSetCurrentSt(OmsCxUnitSt st) {
+      this->Cond_.CurrentSt_ = st;
+   }
+
 public:
    const OmsCxCondRec   Cond_;
    const OmsSymbSP      CondSymb_;

@@ -27,6 +27,8 @@ class OmsCxReqBase {
    uint16_t          CxUnitCount_{0};
    uint16_t          CxSymbCount_{0};
    char              Padding_______[2];
+   // 僅允許在 RegCondToSymb_T() 裡面設定;
+   OmsRequestRunStep mutable* NextStep_{};
 
    enum CxReqSt : uint8_t {
       CxReqSt_Initialing = 0,
@@ -70,10 +72,10 @@ class OmsCxReqBase {
       }
    };
 
-protected:
    /// 由 Symb 資料異動時呼叫, 檢查條件是否成立.
    /// CxSymb 會根據返回值決定是否繼續等候, 或移除等候, 或觸發執行.
    OmsCxCheckResult OnOmsCx_CalcExpr(OmsCxUnit& cxUnit, OnOmsCxMdEvFnT onOmsCxEvFn, OmsCxMdEvArgs& args) const;
+   OmsCxCheckResult OnOmsCx_CheckExpr() const;
 
 public:
    /// 使用字串來提供條件, 例: "2330.LP>=1000"
@@ -119,6 +121,23 @@ public:
       return retval;
    }
    // --------------------------------------------------------------------- //
+   virtual void OmsCxForceFire(OmsCore& omsCore, const fon9::StrView& logmsg, bool isNeedsCheckCxExpr) const = 0;
+   template <class CoreUsrDef, class TCxReq>
+   static void OmsCxForceFire_T(const TCxReq& rthis, OmsCore& omsCore, const fon9::StrView& logmsg, bool isNeedsCheckCxExpr, const CoreUsrDef*) {
+      if (rthis.NextStep_ == nullptr)
+         return;
+      // 若 order 已無效(已送單), 則無法強迫;
+      if (rthis.GetWaitingCxRaw() == nullptr)
+         return;
+      if (isNeedsCheckCxExpr) {
+         if (rthis.OnOmsCx_CheckExpr() != OmsCxCheckResult::FireNow)
+            return;
+      }
+      // ----- 將 this移到 [等候執行] 列表, 等候 OmsCore 的執行.
+      assert(dynamic_cast<CoreUsrDef*>(omsCore.GetUsrDef()) != nullptr);
+      static_cast<CoreUsrDef*>(omsCore.GetUsrDef())->AddCondFiredReq(omsCore, rthis, *rthis.NextStep_, logmsg);
+   }
+   // --------------------------------------------------------------------- //
    /// 由 Policy 取得使用者的條件單優先權.
    /// 考慮下單價格是否為市價;
    template <class Policy>
@@ -153,6 +172,8 @@ public:
       creq.CxRequest_ = this;
       creq.Priority_ = priority;
       creq.NextStep_ = &nextStep;
+      assert(this->NextStep_ == nullptr);
+      this->NextStep_ = &nextStep;
 
       OmsCxUnit*        first = this->FirstCxUnit_;
       CxSymb*           symb = static_cast<CxSymb*>(first->CondSymb_.get());
@@ -352,6 +373,9 @@ public:
    }
    OmsCxCheckResult OnOmsCxMdEv(const OmsCxReqToSymb& creq, OnOmsCxMdEvFnT onOmsCxEvFn, OmsCxMdEvArgs& args) const override {
       return this->OnOmsCxMdEv_T(*this, creq, onOmsCxEvFn, args, static_cast<TCoreUsrDef*>(nullptr));
+   }
+   void OmsCxForceFire(OmsCore& omsCore, const fon9::StrView& logmsg, bool isNeedsCheckCxExpr) const override {
+      this->OmsCxForceFire_T(*this, omsCore, logmsg, isNeedsCheckCxExpr, static_cast<TCoreUsrDef*>(nullptr));
    }
    // --------------------------------------------------------------------- //
    OmsOrderRaw* BeforeReqInCore(OmsRequestRunner& runner, OmsResource& res) override {

@@ -23,16 +23,15 @@ OmsCxSrcEvMask OmsCxSymb::CondReqListImpl::CheckCondReq(OmsCxMdEvArgs& args, OnO
    OmsCxSrcEvMask afEvMask{};
    for (size_t idx = this->size(); idx > 0;) {
       const CondReq& creq = (*this)[--idx];
+      args.LogRBuf_.SetPrefixUsed(const_cast<char*>(pbufTail));
       switch (creq.CxRequest_->OnOmsCxMdEv(creq, onOmsCxEvFn, args)) {
       case OmsCxCheckResult::ContinueWaiting:
          // [idx]的條件單仍然有效,且此次異動判斷未成立,所以:
          // 保留[idx],下次有異動時繼續判斷;
          afEvMask |= creq.CxUnit_->RegEvMask();
          continue;
-      case OmsCxCheckResult::FireNow:
-         args.LogRBuf_.SetPrefixUsed(const_cast<char*>(pbufTail));
-         break;
       default:
+      case OmsCxCheckResult::FireNow:
       case OmsCxCheckResult::TrueLocked:
       case OmsCxCheckResult::AlreadyFired:
          break;

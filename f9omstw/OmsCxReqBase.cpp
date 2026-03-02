@@ -148,6 +148,20 @@ OmsCxCheckResult OmsCxReqBase::OnOmsCx_CalcExpr(OmsCxUnit& cxUnit, OnOmsCxMdEvFn
    }
    return hasNotTrueLocked ? OmsCxCheckResult::ContinueWaiting : OmsCxCheckResult::TrueLocked;
 }
+OmsCxCheckResult OmsCxReqBase::OnOmsCx_CheckExpr() const {
+   CxExprLocker expr(*this);
+   if (expr->GetCxReqSt() >= CxReqSt_Fired)
+      return OmsCxCheckResult::AlreadyFired;
+   if (expr->GetCxReqSt() != CxReqSt_Waiting) {
+      assert(expr->GetCxReqSt() == CxReqSt_Initialing);
+      return OmsCxCheckResult::ContinueWaiting;
+   }
+   if (expr->IsTrue()) {
+      this->CxExpr_->SetCxReqSt(CxReqSt_Fired);
+      return OmsCxCheckResult::FireNow;
+   }
+   return OmsCxCheckResult::ContinueWaiting;
+}
 // ======================================================================== //
 
 } // namespaces

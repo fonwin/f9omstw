@@ -172,6 +172,8 @@ OmsParentOrderRaw* OmsParentOrder::RecalcAllChildForRerun() {
       recalc.LeavesQty_ = 0;
    if (recalc.LeavesQty_ < recalc.ChildLeavesQty_)
       recalc.LeavesQty_ = recalc.ChildLeavesQty_;
+   if (recalc.LeavesQty_ < tail->LeavesQty_) // 20260330: 母單剩餘量可能包含尚未執行的數量,
+      recalc.LeavesQty_ = tail->LeavesQty_;  // 所以重算後(可能僅包含尚未成交的子單總量), 不應該變少;
 
    if (recalc.ChildLeavesQty_ == tail->ChildLeavesQty_
        && recalc.LeavesQty_   == tail->LeavesQty_

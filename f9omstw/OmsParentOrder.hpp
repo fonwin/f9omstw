@@ -139,6 +139,7 @@ public:
    /// 請參考 GetChildOrderQtysT<>();
    virtual ChildOrderSt GetChildOrderQtys(const OmsOrderRaw& childOrdraw, OmsParentQty& childLeavesQty, OmsParentQtyS& childAdjQty) const = 0;
    virtual OmsParentQty GetChildRequestIniQty(const OmsRequestIni& childReqIni) const = 0;
+   virtual void SetChildRequestIniQty(OmsRequestIni& childReqIni, OmsParentQty iniQty) const = 0;
 
    /// - 先判斷是否需要重新執行?
    ///   - 是否正在執行中?

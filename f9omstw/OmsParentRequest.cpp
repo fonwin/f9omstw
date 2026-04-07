@@ -150,7 +150,8 @@ void OmsParentRequestIni::OnAfterBackendReload(OmsResource& res, void* backendLo
    base::OnAfterBackendReload(res, backendLocker);
 }
 void OmsParentRequestIni::OnAfterBackendReloadChild(const OmsRequestBase& childReq) const {
-   if (childReq.IsAbandoned() || !childReq.LastUpdated()->Order().IsWorkingOrder()) {
+   if (childReq.IsAbandoned()) {
+   __ON_CHILD_DONE:;
       DecRunningChildCount(this->RunningChildCount_);
       if (childReq.RxKind() == f9fmkt_RxKind_RequestNew) {
          assert(dynamic_cast<const OmsRequestIni*>(&childReq) != nullptr);
@@ -158,7 +159,11 @@ void OmsParentRequestIni::OnAfterBackendReloadChild(const OmsRequestBase& childR
          // static_cast<OmsParentOrder*>(&this->LastUpdated()->Order())->EraseChild(static_cast<const OmsRequestIni*>(&childReq));
          // 不能在 BackendReload 時 EraseChild: 因為如果要 Rerun 需要重新計算相關數量, 所以必須在 OmsParentOrder::RecalcAllChildForRerun() 時處理;
       }
+      return;
    }
+   const auto* ordraw = childReq.LastUpdated();
+   if (ordraw == nullptr || ordraw->RequestSt_ >= f9fmkt_TradingRequestSt_Done || !ordraw->Order().IsWorkingOrder())
+      goto __ON_CHILD_DONE;
 }
 void OmsParentRequestIni::OnMoveChildRunnerToCoreError(OmsRequestRunnerInCore& parentRunner, OmsRequestRunner&& childRunner) const {
    DecRunningChildCount(this->RunningChildCount_);

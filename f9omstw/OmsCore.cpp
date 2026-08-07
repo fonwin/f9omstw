@@ -207,7 +207,8 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
       fon9::RevPrint(rbuf, fon9::LocalNow(), '|', logInfo, ".SearchSendingRequest\n");
       auto lkForAppend = res.Backend_.LockForAppend();
       res.Backend_.LogAppend(lkForAppend, std::move(rbuf));
-      for (auto sno = res.Backend_.LastSNO(); sno > 0; --sno) {
+      OmsRxSNO snoEnd = 0;
+      for (auto sno = res.Backend_.LastSNO(); sno > snoEnd; --sno) {
          const OmsRxItem* item = res.Backend_.GetItem(sno, lkForAppend);
          if (item == nullptr)
             continue;
@@ -215,12 +216,18 @@ void OmsCore::SetSendingRequestFail(fon9::StrView logInfo, IsOrigSender isOrigSe
          if (ordraw == nullptr)
             continue;
          assert(dynamic_cast<const OmsOrderRaw*>(item->CastToOrder()) != nullptr);
+         if (ordraw->Request().LastUpdated() != ordraw)
+            continue;
          if (!isOrigSender(*ordraw))
             continue;
          if (ordraw->RequestSt_ >= f9fmkt_TradingRequestSt_Done) {
             // 已找到 sender 的正常結束的要求.
-            // 不用再往前尋找, 因為已經不會再有未回報的 Sending 了!
-            break;
+            // => 若依序有 A,B,C 傳送中, 但在收到 A 回報之後斷線, 則會在此發現 A 已結束;
+            // => 此時可能仍在傳送中的, 必定在 (sno-1 .. A.Request.SNO) 之間;
+            // => 所以應再繼續檢查, 直到 A.Request.SNO;
+            if (snoEnd < ordraw->Request().RxSNO())
+               snoEnd = ordraw->Request().RxSNO();
+            continue;
          }
          if (ordraw->RequestSt_ != f9fmkt_TradingRequestSt_Sending)
             continue;
